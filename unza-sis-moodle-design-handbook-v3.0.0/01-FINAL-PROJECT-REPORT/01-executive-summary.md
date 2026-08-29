@@ -1,0 +1,11 @@
+# Executive Summary
+
+This project designs a modern university Student Information System integrated with Moodle. The proposed solution addresses fragmented processes, unclear ownership, inconsistent user experiences, weak recovery from external-service failures and the risk of treating learning-platform data as official institutional records.
+
+The design adopts a modular monolith with explicit domain ownership. The SIS is authoritative for institutional identity linkage, programmes, curricula, registration, finance records, official results, progression and awards. Moodle remains authoritative for teaching activity, submissions and provisional learning evidence. Information moves between them through versioned contracts, reliable outbox delivery, idempotent adapters and reconciliation rather than direct cross-system database edits.
+
+The system is user-centred. Applicants, students, lecturers, advisers, coordinators, deans, administrative officers, finance staff, support services, quality/governance users and operations staff receive role-specific workspaces. Each journey defines visible context, permitted information, actions, state changes, error recovery, notifications, audit and accessibility. The UI/UX Constitution rejects generic AI-generated dashboard patterns in favour of calm, task-focused and explainable pages.
+
+Implementation is planned as a learning-oriented sequence for Charles Hangoma and Chitindu Milimbo. Both developers rotate ownership of complete vertical slices, review each other’s work and document explanations from business purpose to code behaviour. AI agents may assist only through bounded task packets and repository-based context. Git isolation, protected pull requests, CI quality gates, security controls, versioning and test evidence keep the project coherent as it grows.
+
+The first target is a presentation MVP that connects identity, applicant submission, admissions review, student conversion/registration, simulated finance and Moodle integration, controlled result release, audit and recovery. Later releases expand the designed modules until operational completion. This handbook supplies the ordered design and governance baseline; it does not contain application code.
