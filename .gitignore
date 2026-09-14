@@ -1,0 +1,2 @@
+# Linked Git worktrees are local review workspaces, not project files.
+.worktree/
