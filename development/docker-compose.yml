@@ -1,1 +1,29 @@
-# Phase 0 placeholder: local services will be introduced by the dedicated Docker Compose task.
+# Phase 0 toolchain baseline — local Postgres matching host pg18.
+# App shells, Prisma, and seed/reset arrive in later slices.
+# Real credentials stay in local .env (never committed). See .env.example.
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: sis-postgres-18
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sis_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-sis}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sis} -d ${POSTGRES_DB:-sis}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pgdata:

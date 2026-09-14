@@ -1,0 +1,22 @@
+{
+  "name": "unza-sis-moodle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SIS integrated with Moodle — modular monolith (Phase 0 toolchain baseline, no app shells yet)",
+  "engines": {
+    "node": "24.21.0",
+    "npm": ">=11"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Phase 0: app shells arrive in next slice (apps/web, apps/api)\" && exit 0",
+    "lint": "echo \"Phase 0: lint toolchain arrives with CI slice\" && exit 0",
+    "test": "echo \"Phase 0: test suites arrive with first vertical slice\" && exit 0",
+    "build": "echo \"Phase 0: build arrives with app shells\" && exit 0",
+    "demo:reset": "echo \"Phase 0: demo reset arrives with seed slice\" && exit 0"
+  },
+  "license": "UNLICENSED"
+}

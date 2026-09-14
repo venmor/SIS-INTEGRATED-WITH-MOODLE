@@ -1,2 +1,15 @@
 # Linked Git worktrees are local review workspaces, not project files.
 .worktree/
+
+# Node / build outputs (Phase 0 toolchain guard)
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Local env and data — never commit
+.env
+.env.local
+pgdata/
+*.tsbuildinfo
