@@ -11,3 +11,7 @@
 | Phase 1 slice-1 corrections | Charles | Chitindu Milimbo | FIX 1–5: grant columns, Credential table, contacts, audit columns, seed v0.2 | [TASK-PH1-001](../task-packets/TASK-PH1-001.md#corrections-deep-audit-branch-choreph1-001-contract-corrections) | [NOTE-PH1-001](./NOTE-PH1-001.md#corrections-fix-15-branch-choreph1-001-contract-corrections) | Pending Chitindu review |
 
 Assign the lead and reviewer before implementation work begins. Swap their roles on the next vertical slice.
+
+Standing rulings (Lead Charles): Charles stays Lead on this machine/session;
+Chitindu reviews via her agents. C2 extension: PR flow deferred — local-only
+branch-then-fast-forward merges until the Lead says otherwise.
