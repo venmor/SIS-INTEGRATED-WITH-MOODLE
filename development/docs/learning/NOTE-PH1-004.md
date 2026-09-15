@@ -2,7 +2,7 @@
 
 - Lead developer: Charles
 - Reviewer: Chitindu Milimbo
-- Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 4 (policy + denial; e2e 21/21 green)
+- Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 4 (policy + denial; e2e 23/23 green)
 
 ## What we built and why
 
@@ -48,12 +48,13 @@ forbidNonWhitelisted DTOs; prior/new refs + purpose on grant audits.
 
 ## Tests and what they prove
 
-Unit 8 files/27 pass (policy matrix RED-watched, status map incl. legacy
-`ACTIVE` regression, contracts). Builds + lint clean. **E2E: 4 files, 21/21
+Unit 7 files/27 pass (policy matrix RED-watched, status map incl. legacy
+`ACTIVE` regression, contracts). Builds + lint clean. **E2E: 4 files, 23/23
 green on fresh `demo:reset`** (5 migrations incl. hand-written `ph1_policy`
-— confirmed correct by clean deploy; tables + all 16 indexes verified live
-in Postgres). 19.49: allow/deny, validation, idempotency, migration,
-critical E2E, secret scan green; vuln scan → mysql2 transitive only
+— confirmed correct by clean deploy; tables + 13 @@index + PK/unique keys
+verified live in Postgres). 19.49: allow/deny, validation, idempotency,
+migration-deploy, critical API E2E, secret scan green; file-upload N/A;
+vuln scan manual (`npm audit`, no CI job yet) → mysql2 transitive only
 (unused driver, no MySQL in stack, fix forces breaking Prisma downgrade —
 accepted risk, recorded); no new deps.
 
@@ -79,11 +80,15 @@ accepted risk, recorded); no new deps.
    (`e2e.auth/ws/pol.*`, matching person + grant-reason sweeps).
 4. Hand-wrote `ph1_policy` migration offline (shadow DB unavailable) —
    styled exactly to Prisma conventions; clean deploy confirms no drift.
-5. Orphaned duplicate body reappeared in `audit.ts` after a signature
+5. `idempotencyRef` passed to `auditAuth` but never persisted — the field
+   was missing from the helper itself, and `nest build` does not typecheck
+   (tsc does; spec files excluded by design). Added the field + a standing
+   rule: verify with `npx tsc --noEmit` on src (pre-existing spec noise aside).
+6. Orphaned duplicate body reappeared in `audit.ts` after a signature
    edit (caught by oxlint, not tsc) — lesson: re-read edited regions.
-6. Wrote a `'unset'` placeholder reference mid-flow — caught immediately,
+7. Wrote a `'unset'` placeholder reference mid-flow — caught immediately,
    replaced with the real correlationId. No placeholders ship.
-7. UI has no test runner (standing gap); tsc + API proofs cover it.
+8. UI has no test runner (standing gap); tsc + API proofs cover it.
 
 ## Seven-layer talk track (2 minutes)
 
@@ -92,7 +97,7 @@ Problem: scattered route-local checks can't prove uniform denial. Policy:
 explained with routes → audited with reference. Architecture:
 identity-access owns evaluator + tables. Data: purpose/idempotency/outbox
 columns. Code: PolicyService, hardened grant/resolve/receipts, denial
-panel. Evidence: unit 27 green; e2e 21/21 green.
+panel. Evidence: unit 27 green; e2e 23/23 green.
 
 ## Terms/concepts learned
 

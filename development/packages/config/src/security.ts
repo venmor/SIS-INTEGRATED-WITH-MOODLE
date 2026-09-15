@@ -27,7 +27,7 @@ export interface SecurityConfig {
   // Slice-4 policy data (packet-local demo values):
   // verbs: action → roles holding it (REQ-IAM-004 deny-unless-permits;
   // unknown actions/roles deny by default). sodPairs: mutually exclusive
-  // role holdings denied together (GAP-003 notes no handbook pair table;
+  // role holdings denied together (GAP-012 notes no handbook pair table;
   // demo default empty, mechanism + tests are real).
   policyVerbs: Record<string, string[]>;
   sodPairs: [string, string][];

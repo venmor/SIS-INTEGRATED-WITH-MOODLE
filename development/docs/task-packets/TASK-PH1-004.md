@@ -54,13 +54,16 @@ non-grantor probing the same endpoint gets an indistinguishable denial.
 
 - Owning module: identity-access (new `policy.service.ts` pure evaluator,
   `IdempotencyKey` + `OutboxEvent` tables, `AuditEvent.purpose` column,
-  `POST /auth/grants/resolve`, `GET /commands/:key`, denial `routes[]` on
-  error bodies, `DeniedPanel` + resolve-then-create UI; no cross-module writes)
+  `POST /auth/grants/resolve`, `GET /auth/commands/:key`, `DeniedPanel` +
+  resolve-then-create UI; denial routes live in the UI panel, not API
+  bodies; no cross-module writes)
 - Permitted dependencies: none new
 - API/command/event contracts: same-transaction `RoleAssignment +
-  OutboxEvent(RoleAssignmentActivated[/ExpiryScheduled])`; grant accepts
-  client `Idempotency-Key`; resolve is grantor-only exact-username POST;
-  commands CMD-IAM-GrantRole/SwitchWorkspace/ResolveGrantTarget (packet-local)
+  OutboxEvent(Requested/Approved/Activated[/ExpiryScheduled])`; grant accepts
+  client key in the validated body field `idempotencyKey` (UUID);
+  resolve is grantor-only exact-username POST;
+  commands CMD-IAM-GrantRole/SwitchWorkspace/ResolveGrantTarget/Guard
+  (packet-local)
 - Data entities/migration impact: ADDITIVE — `AuditEvent.purpose`,
   `IdempotencyKey(key UNIQUE, receipt)`, `OutboxEvent` (+poll index),
   `RoleAssignment @@index([accountId, role, scopeType, scopeRef])`,
@@ -69,24 +72,29 @@ non-grantor probing the same endpoint gets an indistinguishable denial.
 
 ## Required controls
 
-- Authorization: `PolicyService.evaluate()` implements §15.21 arms verbatim;
+- Authorization: `PolicyService.evaluate()` implements §15.21 arms verbatim
+  except scope-containment hierarchy and delegation windows (GAP-001/
+  GAP-004 — arms evaluate what handbook + demo concretely define);
   wired into grant/switch/resolve (`/me` stays authentication-level
-  self-read by design); SoD pairs deny with review message;
-  approver mandatory, real account, ≠ target; delegation fields honored
-  where present (full workflow → GAP-001)
+  self-read by design); SoD mechanism + tests real, pair data empty
+  (GAP-012); approver mandatory, real account, ≠ target; delegation
+  fields honored where present (full workflow → GAP-001)
 - Privacy/classification: resolve returns username + displayName only;
   non-grantors get uniform denies (no oracle); 404-to-grantors uses the
   UI-EMPTY permission variant, never failure wording
 - Validation/state transitions: forbidNonWhitelisted DTOs; 7-state account
-  gate (Active allows; Closed never; rest deny/step-up per map);
+  gate, case-insensitive (seed stores ACTIVE/LOCKED; handbook names Active…
+  — map is demo): Active allows, Closed never, rest generic-deny;
   effective-dating strict; pending never authorizes; no invented states
 - Audit: purpose filled (grant reason / action context); prior/new refs on
-  grants (columns exist); guard rejections audited; rate-limit + idempotency
+  grant ALLOW + replay (idempotencyRef recorded wherever a key is present);
+  guard + CSRF rejections audited with references; rate-limit + idempotency
   config in SECURITY-v1
 - Idempotency: keyed grants with stored receipts + replay endpoint;
   UI-SUBMIT-001 six behaviours on the grant form
-- Failure/recovery: §16.1 five-part; §12.12 verbatim on mid-act revocation;
-  four routes on every denial; reference always
+- Failure/recovery: §16.1 five-part; WORKSPACE-005 carries the §12.12
+  sentence on dead-workspace switch; four routes on every authority denial
+  (UI panel); reference always
 - Accessibility/UI states: denial panel distinct from error/empty/loading
   (05-actions:527); keyboard/SR patterns reused; focus to denial on appear
 
@@ -101,25 +109,41 @@ modules, TOTP, review-schedule UI, ops queue UI, expiry-warning countdown
 
 - [x] Entry gate all YES (this packet)
 - [x] PolicyService unit matrix green (each §15.21 arm allow + deny;
-      RED watched) + status-gate + contract proofs (unit 8/27 green)
+      RED watched) + status-gate + contract proofs (unit 7 files/27 green)
 - [x] SoD/purpose/status/resolve/idempotency/outbox e2e green (4 files,
-      21/21 on fresh `demo:reset`: 5 migrations, seed 4/4/6/4)
+      23/23 on fresh `demo:reset`: 5 migrations, seed 4/4/6/4; incl. expiry
+      invalidation + full 4-event chain proofs)
 - [x] Denial panel + empty variant + resolve-then-create live; no hardcoded copy
 - [x] Builds + lint clean; `diff --check` clean; index rule verified live
-      in Postgres (16 indexes incl. new composite + correlationId)
-- [x] 19.49 rows addressed: vuln scan → mysql2 transitive (unused; no MySQL
-      in stack; fix forces breaking Prisma downgrade — accepted, recorded);
-      allow/deny + validation + idempotency + migration + critical API E2E +
-      secret scan green; no new deps (license review trivially satisfied)
+      in Postgres (13 @@index + PK/unique keys incl. new composite +
+      correlationId)
+- [x] 19.49 rows addressed: vuln scan manual (`npm audit`, no CI job yet —
+      workflows dormant under local-only flow); allow/deny + validation +
+      idempotency + migration-deploy test + critical API E2E + secret scan
+      green; file-upload N/A (no uploads); no new deps
+- [x] Gate-5 rollback understood: migrations are forward-only additive;
+      dev recovery is `demo:reset`; production backup/restore belongs to
+      slice-5/ops (recorded Gate-11)
 - [ ] Reviewer replays denial matrix on WSL and explains the §15.21 decision path
 
 ## Source map (anti-hallucination)
 
-Packet-local: SoD pair values, resolve budget, endpoint paths, CMD names,
-kebab test IDs, IdempotencyKey/OutboxEvent table shapes, purpose column,
-denial `routes[]` shape, 7-state→behaviour map (states are handbook §11.1;
-the map is demo). Handbook: §15.21 arms, SoD rules, decision formulae,
-capability IDs (18, Sec-2), UI-ACCESS-001/§16.4 copy + routes, §12.12
-verbatim, UI-EMPTY variant text, audit fields (02:72), outbox/idempotency
-rules, TEST-AUTH-* intents. TEST-AUTH rows needing nonexistent modules are
-marked DEFERRED with target slices, never dropped (05-traceability:22-28).
+Packet-local: SoD pair values (default empty), resolve budget, endpoint
+paths, CMD names, kebab test IDs, IdempotencyKey/OutboxEvent table shapes,
+purpose column, denial routes (UI panel content, not API fields),
+7-state→behaviour map (states are handbook §11.1; the map is demo).
+Handbook: §15.21 arms, SoD rules, decision formulae, capability IDs
+(18, Sec-2), UI-ACCESS-001/§16.4 copy + routes, §12.12 verbatim
+(WORKSPACE-005), UI-EMPTY variant text, audit fields (02:72),
+outbox/idempotency rules, TEST-AUTH-* intents.
+
+TEST-AUTH coverage (rows may be DEFERRED, never disappear —
+05-traceability:22-28): 002 adviser-unrelated (resolve uniform-403
+analogue — COVERED), 006 dean/counselling + 007 unassigned-case (no
+counselling domain — DEFERRED to restricted-services slices), 008 QAO
+self-verify (GAP-012 SoD review absent — DEFERRED), 009 sysadmin-alters
+(SYSADMIN grant authority + no academic targets exist — COVERED as
+deny-by-default posture), 011 break-glass scope (no flow — DEFERRED to
+hardening), 001/003/004/005/010 (need advisee/roster/quiz/finance/
+regulatory domains — DEFERRED to their slices), TEST-REC-006 expired
+role (revoke-then-null + expiry e2e — COVERED).

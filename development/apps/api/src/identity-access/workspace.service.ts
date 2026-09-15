@@ -120,7 +120,9 @@ export class WorkspaceService {
         reason: 'invalid-or-inactive-workspace',
         errorCategory: 'ERR-SEC',
       });
-      return { ok: false as const, message: AUTH_MESSAGES.grantDenied.text, reference: correlationId };
+      // §12.12 verbatim: the assignment changed under a live session, so the
+      // action cannot complete. Drafts stay in the owning (uncontrolled) form.
+      return { ok: false as const, message: AUTH_MESSAGES.assignmentChanged.text, reference: correlationId };
     }
     await this.prisma.session.update({
       where: { id: session.id },

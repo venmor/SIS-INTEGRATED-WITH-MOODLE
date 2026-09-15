@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const { hash } = require('argon2') as typeof import('argon2');
 
 const GRANT_DENIED = 'This change was not completed. Check the details and try again, or ask an administrator.';
-const EMPTY_SCOPED = 'No records available in your current role and scope.';
+const EMPTY_SCOPED = 'There are no records available in your current role and scope.';
 const CSRF = { 'x-requested-with': 'XMLHttpRequest' };
 
 describe('policy (e2e)', () => {
@@ -126,9 +126,20 @@ describe('policy (e2e)', () => {
       where: { accountId: target.id, reason: `E2E pol grant ${stamp}` },
     });
     expect(rows).toBe(1);
+    const replay = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        action: 'CMD-IAM-GrantRole',
+        outcome: 'ALLOW',
+        targetRef: first.body.assignmentId,
+        reason: 'idempotent-replay',
+      },
+    });
+    expect(replay.newState).toMatchObject({ assignmentId: first.body.assignmentId });
     const receipt = await admin.get(`/auth/commands/${key}`);
     expect(receipt.status).toBe(200);
     expect(receipt.body.response.assignmentId).toBe(first.body.assignmentId);
+    expect(receipt.body.response.type).toBe('CMD-IAM-GrantRole');
+    expect(receipt.body.response.occurredAt).toBeDefined();
     const user = request.agent(server as never);
     await (signIn(user, 'chanda.k', 'Seed-2026-Chanda') as unknown as Promise<{ status: number }>);
     const foreign = await user.get(`/auth/commands/${key}`);
@@ -177,6 +188,40 @@ describe('policy (e2e)', () => {
     expect(row.activeRole).toBe('SYSADMIN');
     expect(row.priorState).toBeNull();
     expect(row.newState).toMatchObject({ assignmentId: created.body.assignmentId, role: 'TUT' });
+  });
+
+  it('emits the full §12.9 event chain and records the idempotency key', async () => {
+    const admin = request.agent(server as never);
+    await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
+    const target = await makeUser('chain', 'Long-Enough-Password-1');
+    const mweene = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
+    const key = randomUUID();
+    const reason = `E2E pol grant ${stamp}`;
+    const created = await admin
+      .post('/auth/grants')
+      .set(CSRF)
+      .send({
+        ...grantBody(target.username, mweene.id, reason, { idempotencyKey: key }),
+        endsAt: '2026-12-31',
+      });
+    expect(created.status).toBe(201);
+    const events = await prisma.outboxEvent.findMany({
+      where: { aggregateId: created.body.assignmentId },
+    });
+    // Same-transaction chain (creation order shares a timestamp, so compare
+    // as a set — atomicity is the assertion, not row order).
+    expect(events.map((e) => e.type).sort()).toEqual(
+      [
+        'RoleAssignmentRequested',
+        'RoleAssignmentApproved',
+        'RoleAssignmentActivated',
+        'RoleAssignmentExpiryScheduled',
+      ].sort(),
+    );
+    const row = await prisma.auditEvent.findFirstOrThrow({
+      where: { action: 'CMD-IAM-GrantRole', outcome: 'ALLOW', targetRef: created.body.assignmentId },
+    });
+    expect(row.idempotencyRef).toBe(key);
   });
 
   it('gates non-Active account statuses without disclosure', async () => {

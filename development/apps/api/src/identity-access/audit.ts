@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 
@@ -22,8 +23,9 @@ export async function auditAuth(
     reason?: string;
     errorCategory?: string;
     purpose?: string | null;
-    priorState?: Record<string, unknown> | null;
-    newState?: Record<string, unknown> | null;
+    idempotencyRef?: string | null;
+    priorState?: Prisma.InputJsonObject | null;
+    newState?: Prisma.InputJsonObject | null;
   },
 ): Promise<{ correlationId: string }> {
   const row = await prisma.auditEvent.create({
@@ -37,6 +39,7 @@ export async function auditAuth(
       reason: entry.reason,
       errorCategory: entry.errorCategory,
       purpose: entry.purpose ?? null,
+      idempotencyRef: entry.idempotencyRef ?? null,
       priorState: entry.priorState ?? undefined,
       newState: entry.newState ?? undefined,
       policyVersion: SECURITY_V1.version,

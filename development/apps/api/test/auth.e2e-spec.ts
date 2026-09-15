@@ -127,13 +127,43 @@ describe('auth (e2e)', () => {
   }, 60000);
 
   it('requires the CSRF marker on mutations', async () => {
+    const before = await prisma.auditEvent.count({
+      where: { action: 'CMD-IAM-Guard', reason: 'csrf-missing' },
+    });
     const res = await request(server as never).post('/auth/sign-in').send({ username: 'x', password: 'y' });
     expect(res.status).toBe(403);
+    expect(res.body.message).toBe(
+      'This change was not completed. Check the details and try again, or ask an administrator.',
+    );
+    expect(res.body.reference).toBeDefined();
+    const after = await prisma.auditEvent.count({
+      where: { action: 'CMD-IAM-Guard', reason: 'csrf-missing' },
+    });
+    expect(after).toBeGreaterThan(before);
   });
 
   it('rejects unauthenticated /me', async () => {
     const res = await request(server as never).get('/auth/me');
     expect(res.status).toBe(401);
+  });
+
+  it('invalidates expired and idle-timed-out sessions server-side', async () => {
+    const username = await makeUser('expiry', 'Long-Enough-Password-1');
+    const agent = request.agent(server as never);
+    await agent.post('/auth/sign-in').set(CSRF).send({ username, password: 'Long-Enough-Password-1' });
+    const account = await prisma.account.findUniqueOrThrow({ where: { username } });
+    const session = await prisma.session.findFirstOrThrow({ where: { accountId: account.id } });
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    expect(await agent.get('/auth/me')).toHaveProperty('status', 401);
+    await agent.post('/auth/sign-in').set(CSRF).send({ username, password: 'Long-Enough-Password-1' });
+    await prisma.session.updateMany({
+      where: { accountId: account.id, revokedAt: null },
+      data: { lastSeenAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+    });
+    expect(await agent.get('/auth/me')).toHaveProperty('status', 401);
   });
 
   it('recovers with generic messages, single-use tokens and session kill', async () => {

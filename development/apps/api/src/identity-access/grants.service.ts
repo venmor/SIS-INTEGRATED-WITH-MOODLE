@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { auditAuth } from './audit.js';
-import { evaluatePolicy } from './policy.service.js';
+import { accountStatusPolicy, evaluatePolicy } from './policy.service.js';
 import { WorkspaceService } from './workspace.service.js';
 import type { GrantRoleDto } from './dto.js';
 
@@ -26,6 +26,7 @@ export class GrantsService {
     targetRef?: string,
     forbidden = false,
     purpose?: string,
+    idempotencyKey?: string,
   ) {
     const { correlationId } = await auditAuth(this.prisma, {
       action: 'CMD-IAM-GrantRole',
@@ -37,6 +38,7 @@ export class GrantsService {
       reason,
       errorCategory: 'ERR-SEC',
       purpose: purpose ?? null,
+      idempotencyRef: idempotencyKey ?? null,
     });
     return {
       ok: false as const,
@@ -55,7 +57,7 @@ export class GrantsService {
       const prior = await this.prisma.idempotencyKey.findUnique({ where: { key: dto.idempotencyKey } });
       if (prior) {
         if (prior.accountId !== grantor.accountId || prior.action !== 'CMD-IAM-GrantRole') {
-          return this.deny(grantor, 'idempotency-key-mismatch', undefined, false, dto.reason);
+          return this.deny(grantor, 'idempotency-key-mismatch', undefined, false, dto.reason, dto.idempotencyKey);
         }
         const receipt = prior.response as { assignmentId: string; message: string };
         const { correlationId } = await auditAuth(this.prisma, {
@@ -67,6 +69,9 @@ export class GrantsService {
           targetRef: receipt.assignmentId,
           reason: 'idempotent-replay',
           purpose: dto.reason,
+          idempotencyRef: dto.idempotencyKey ?? null,
+          priorState: null,
+          newState: { assignmentId: receipt.assignmentId },
         });
         return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
       }
@@ -84,28 +89,28 @@ export class GrantsService {
       approverRequired: true,
     });
     if (!decision.allow) {
-      return this.deny(grantor, decision.reason ?? 'policy-denied', undefined, decision.reason === 'verb-denied', dto.reason);
+      return this.deny(grantor, decision.reason ?? 'policy-denied', undefined, decision.reason === 'verb-denied', dto.reason, dto.idempotencyKey);
     }
     const target = await this.prisma.account.findUnique({ where: { username: dto.username } });
-    if (!target || target.status !== 'ACTIVE') {
-      return this.deny(grantor, 'unknown-or-inactive-account', dto.username, false, dto.reason);
+    if (!target || !accountStatusPolicy(target.status).allow) {
+      return this.deny(grantor, 'unknown-or-inactive-account', dto.username, false, dto.reason, dto.idempotencyKey);
     }
     if (target.id === grantor.accountId) {
-      return this.deny(grantor, 'self-assignment-denied', target.username, true, dto.reason);
+      return this.deny(grantor, 'self-assignment-denied', target.username, true, dto.reason, dto.idempotencyKey);
     }
     // Approver must be a real account and never the target (self-approval
     // ban); approver scope-authority has no registry (GAP-006).
     const approver = await this.prisma.account.findUnique({ where: { id: dto.approverId } });
     if (!approver) {
-      return this.deny(grantor, 'approver-unknown', target.username, false, dto.reason);
+      return this.deny(grantor, 'approver-unknown', target.username, false, dto.reason, dto.idempotencyKey);
     }
     if (approver.id === target.id) {
-      return this.deny(grantor, 'self-approval', target.username, true, dto.reason);
+      return this.deny(grantor, 'self-approval', target.username, true, dto.reason, dto.idempotencyKey);
     }
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
     if (Number.isNaN(startsAt.getTime()) || (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))) {
-      return this.deny(grantor, 'invalid-effective-period', target.username, false, dto.reason);
+      return this.deny(grantor, 'invalid-effective-period', target.username, false, dto.reason, dto.idempotencyKey);
     }
     const overlap = await this.prisma.roleAssignment.findFirst({
       where: {
@@ -119,7 +124,7 @@ export class GrantsService {
       },
     });
     if (overlap) {
-      return this.deny(grantor, 'duplicate-or-overlap', target.username, false, dto.reason);
+      return this.deny(grantor, 'duplicate-or-overlap', target.username, false, dto.reason, dto.idempotencyKey);
     }
     // Same transaction: assignment row + outbox events (architecture §18.7).
     // Single-step demo mapping: an authorized admin's grant is request and
@@ -145,6 +150,26 @@ export class GrantsService {
         },
       });
       const occurredAt = new Date();
+      // §12.9 lifecycle: single-step demo grants request and approve in one
+      // authorized act, so Requested/Approved share the grant timestamp.
+      await tx.outboxEvent.create({
+        data: {
+          aggregate: 'RoleAssignment',
+          aggregateId: row.id,
+          type: 'RoleAssignmentRequested',
+          payload: { assignmentId: row.id, accountId: target.id, actorAccountId: grantor.accountId },
+          occurredAt,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregate: 'RoleAssignment',
+          aggregateId: row.id,
+          type: 'RoleAssignmentApproved',
+          payload: { assignmentId: row.id, approverId: dto.approverId, actorAccountId: grantor.accountId },
+          occurredAt,
+        },
+      });
       await tx.outboxEvent.create({
         data: {
           aggregate: 'RoleAssignment',
@@ -189,10 +214,18 @@ export class GrantsService {
       targetRef: created.id,
       reason: 'role-assigned',
       purpose: dto.reason,
+      idempotencyRef: dto.idempotencyKey ?? null,
       priorState: null,
       newState,
     });
-    const receipt = { assignmentId: created.id, message: AUTH_MESSAGES.grantCreated.text };
+    // Receipt carries ref/date/type/status/next per §14.17:351-359 —
+    // assignmentId + message + type + occurredAt (+ reference per replay).
+    const receipt = {
+      assignmentId: created.id,
+      message: AUTH_MESSAGES.grantCreated.text,
+      type: 'CMD-IAM-GrantRole',
+      occurredAt: new Date().toISOString(),
+    };
     if (dto.idempotencyKey) {
       await this.prisma.idempotencyKey.create({
         data: {
@@ -243,11 +276,12 @@ export class GrantsService {
         reference: correlationId,
       };
     }
+    // REQ-NFR-005: select only the required fields — never the full row.
     const target = await this.prisma.account.findUnique({
       where: { username },
-      include: { person: true },
+      select: { username: true, status: true, person: { select: { displayName: true } } },
     });
-    if (!target || target.status !== 'ACTIVE') {
+    if (!target || !accountStatusPolicy(target.status).allow) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ResolveGrantTarget',
         outcome: 'DENY',

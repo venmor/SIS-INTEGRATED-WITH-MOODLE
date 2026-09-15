@@ -53,7 +53,11 @@ export const AUTH_MESSAGES = {
   ),
   scopedEmpty: template(
     "WORKSPACE-004",
-    "No records available in your current role and scope.",
+    "There are no records available in your current role and scope.",
+  ),
+  assignmentChanged: template(
+    "WORKSPACE-005",
+    "Your role assignment has changed. This action was not completed.",
   ),
 } as const;
 

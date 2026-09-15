@@ -39,7 +39,7 @@ describe('workspace contract compatibility', () => {
     expect(AUTH_MESSAGES.grantDenied.id).toBe('WORKSPACE-003');
     expect(AUTH_MESSAGES.workspaceSwitched.text).toContain('Workspace switched');
     expect(templates.scopedEmpty?.id).toBe('WORKSPACE-004');
-    expect(templates.scopedEmpty?.text).toBe('No records available in your current role and scope.');
+    expect(templates.scopedEmpty?.text).toBe('There are no records available in your current role and scope.');
   });
 
   it('DTO shapes satisfy canonical contracts', () => {

@@ -15,6 +15,7 @@ const require = createRequire(import.meta.url);
 const { hash } = require('argon2') as typeof import('argon2');
 
 const GRANT_DENIED = 'This change was not completed. Check the details and try again, or ask an administrator.';
+const ASSIGNMENT_CHANGED = 'Your role assignment has changed. This action was not completed.';
 const CSRF = { 'x-requested-with': 'XMLHttpRequest' };
 
 describe('workspace (e2e)', () => {
@@ -106,7 +107,7 @@ describe('workspace (e2e)', () => {
     const foreign = await prisma.roleAssignment.findFirstOrThrow({ where: { accountId: chanda.id } });
     const bad = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: foreign.id });
     expect(bad.status).toBe(400);
-    expect(bad.body.message).toBe(GRANT_DENIED);
+    expect(bad.body.message).toBe(ASSIGNMENT_CHANGED);
     expect(bad.body.reference).toBeDefined();
     const mutinta = await prisma.account.findUniqueOrThrow({ where: { username: 'mutinta.l' } });
     const expired = await prisma.roleAssignment.findFirstOrThrow({
@@ -114,7 +115,7 @@ describe('workspace (e2e)', () => {
     });
     const gone = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: expired.id });
     expect(gone.status).toBe(400);
-    expect(gone.body.message).toBe(GRANT_DENIED);
+    expect(gone.body.message).toBe(ASSIGNMENT_CHANGED);
   });
 
   it('rejects unknown switch fields', async () => {
