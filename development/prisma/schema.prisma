@@ -8,3 +8,83 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Identity-access core (TASK-PH1-001). Person is authoritative — the username
+// on Account is a login handle only (REQ-IAM-001). Role assignments carry
+// scope, effective dates, issuer, reason and revocation (REQ-IAM-003).
+
+model Person {
+  id          String    @id @default(uuid())
+  displayName String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  accounts    Account[]
+}
+
+model Account {
+  id           String           @id @default(uuid())
+  personId     String
+  person       Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  username     String           @unique
+  passwordHash String
+  status       String           @default("ACTIVE")
+  createdAt    DateTime         @default(now())
+  roles        RoleAssignment[] @relation("Grantee")
+  grantsIssued RoleAssignment[] @relation("Grantor")
+  sessions     Session[]
+
+  @@index([personId])
+}
+
+model RoleAssignment {
+  id                String    @id @default(uuid())
+  accountId         String
+  account           Account   @relation("Grantee", fields: [accountId], references: [id], onDelete: Restrict)
+  role              String
+  scopeType         String
+  scopeRef          String
+  startsAt          DateTime  @default(now())
+  endsAt            DateTime?
+  grantedById       String?
+  grantedBy         Account?  @relation("Grantor", fields: [grantedById], references: [id], onDelete: SetNull)
+  reason            String
+  revokedAt         DateTime?
+  revokeReason      String?
+  createdAt         DateTime  @default(now())
+
+  @@index([accountId])
+  @@index([role, scopeType, scopeRef])
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  accountId   String
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdIp   String?
+  userAgent   String?
+  lastSeenAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+model AuditEvent {
+  id             String   @id @default(uuid())
+  occurredAt     DateTime @default(now())
+  actorAccountId String?
+  activeRole     String?
+  scope          String?
+  action         String
+  targetRef      String?
+  outcome        String
+  reason         String?
+  policyVersion  String?
+  correlationId  String?
+  metadata       Json?
+
+  @@index([actorAccountId])
+  @@index([action, occurredAt])
+}

@@ -2,6 +2,7 @@
   "name": "unza-sis-moodle",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "SIS integrated with Moodle — modular monolith (Phase 0 shells, no business logic yet)",
   "engines": {
     "node": "24.21.0",
@@ -18,10 +19,20 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspace=apps/web --workspace=apps/api",
-    "demo:reset": "echo \"Phase 0: demo reset arrives with seed slice\" && exit 0"
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "node prisma/seed/seed.ts"
   },
   "devDependencies": {
     "prisma": "7.10.0"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "argon2": "0.45.1",
+    "pg": "8.23.0"
+  }
 }
