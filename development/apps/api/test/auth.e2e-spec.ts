@@ -51,7 +51,7 @@ describe('auth (e2e)', () => {
         setLogLevels: () => undefined,
       },
     });
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     server = app.getHttpServer();
     prisma = app.get(PrismaService);
@@ -100,6 +100,9 @@ describe('auth (e2e)', () => {
     expect(unknown.status).toBe(401);
     expect(bad.body.message).toBe(EXPECTED_FAILURE);
     expect(unknown.body.message).toBe(EXPECTED_FAILURE);
+    // §16.1 support reference rides with every failure (§16.14 correlationId).
+    expect(bad.body.reference).toBeDefined();
+    expect(unknown.body.reference).toBeDefined();
   });
 
   it('rate-limits sign-in and locks out with neutral responses', async () => {
@@ -111,6 +114,8 @@ describe('auth (e2e)', () => {
     const limited = await client.post('/auth/sign-in').set(CSRF).send({ username, password: 'Wrong-Password-000' });
     expect(limited.status).toBe(429);
     expect(limited.body.message).toContain('For your security');
+    expect(limited.body.reference).toBeDefined();
+    expect(limited.headers['retry-after']).toBeDefined();
     const account = await prisma.account.findUniqueOrThrow({ where: { username } });
     expect(account.lockedUntil).not.toBeNull();
     // Sixth attempt trips the route limiter first (5/15min): even the correct
@@ -155,6 +160,7 @@ describe('auth (e2e)', () => {
       .set(CSRF)
       .send({ token: demo.body.token, newPassword: 'Another-Password-3' });
     expect(reuse.status).toBe(400);
+    expect(reuse.body.reference).toBeDefined();
     const oldSession = await agent.get('/auth/me');
     expect(oldSession.status).toBe(401);
     const fresh = await request(server as never)
@@ -162,6 +168,21 @@ describe('auth (e2e)', () => {
       .set(CSRF)
       .send({ username, password: 'Brand-New-Password-2' });
     expect(fresh.status).toBe(200);
+  });
+
+  it('rate-limits recovery requests with neutral responses', async () => {
+    const username = await makeUser('rllimit', 'Long-Enough-Password-1');
+    const client = request(server as never);
+    for (let i = 0; i < 3; i++) {
+      const ok = await client.post('/auth/recovery/request').set(CSRF).send({ username });
+      expect(ok.status).toBe(200);
+      expect(ok.body.message).toBe(EXPECTED_RECOVERY);
+    }
+    const limited = await client.post('/auth/recovery/request').set(CSRF).send({ username });
+    expect(limited.status).toBe(429);
+    expect(limited.body.message).toContain('For your security');
+    expect(limited.body.reference).toBeDefined();
+    expect(limited.headers['retry-after']).toBeDefined();
   });
 
   it('signs out and revokes the session', async () => {

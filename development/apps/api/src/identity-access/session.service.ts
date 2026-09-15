@@ -35,7 +35,7 @@ export class SessionService {
     const account = await this.prisma.account.findUnique({ where: { username } });
     if (!account || account.status !== 'ACTIVE') {
       await dummyVerify(password);
-      await auditAuth(this.prisma, {
+      const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',
         outcome: 'DENY',
         targetRef: username,
@@ -43,10 +43,10 @@ export class SessionService {
         errorCategory: 'ERR-SEC',
       });
       await sleep(RateLimiter.failureDelayMs(1));
-      return { ok: false as const, failures: 1 };
+      return { ok: false as const, failures: 1, reference: correlationId };
     }
     if (account.lockedUntil && account.lockedUntil.getTime() > Date.now()) {
-      await auditAuth(this.prisma, {
+      const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',
         outcome: 'DENY',
         actorAccountId: account.id,
@@ -55,7 +55,7 @@ export class SessionService {
         errorCategory: 'ERR-SEC',
       });
       await sleep(RateLimiter.failureDelayMs(account.failedSignInCount));
-      return { ok: false as const, failures: account.failedSignInCount };
+      return { ok: false as const, failures: account.failedSignInCount, reference: correlationId };
     }
     const credential = await this.prisma.credential.findFirst({
       where: { accountId: account.id, kind: 'PASSWORD', status: 'ACTIVE' },
@@ -71,7 +71,7 @@ export class SessionService {
         where: { id: account.id },
         data: { failedSignInCount: failures, lockedUntil: locked },
       });
-      await auditAuth(this.prisma, {
+      const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',
         outcome: 'DENY',
         actorAccountId: account.id,
@@ -80,7 +80,7 @@ export class SessionService {
         errorCategory: 'ERR-SEC',
       });
       await sleep(RateLimiter.failureDelayMs(failures));
-      return { ok: false as const, failures };
+      return { ok: false as const, failures, reference: correlationId };
     }
     await this.prisma.account.update({
       where: { id: account.id },
@@ -99,7 +99,7 @@ export class SessionService {
       },
     });
     const person = await this.prisma.person.findUniqueOrThrow({ where: { id: account.personId } });
-    await auditAuth(this.prisma, {
+    const { correlationId } = await auditAuth(this.prisma, {
       action: 'CMD-IAM-SignIn',
       outcome: 'ALLOW',
       actorAccountId: account.id,
@@ -108,6 +108,7 @@ export class SessionService {
     return {
       ok: true as const,
       token,
+      reference: correlationId,
       account: {
         accountId: account.id,
         personId: account.personId,
@@ -117,7 +118,13 @@ export class SessionService {
     };
   }
 
-  /** Returns the account id for a live session, else null. Sliding idle window. */
+  /**
+   * REQ-IAM-005 re-auth enforcement point (named here; slices 4+ call it).
+   * Privileged/high-impact actions must pass validateSession AND step-up proof
+   * (a fresh sign-in or a recovery token — recovery confirm already gates
+   * credential change on the single-use token plus session kill). Returns the
+   * account id for a live session, else null. Sliding idle window.
+   */
   async validateSession(token: string): Promise<string | null> {
     const session = await this.prisma.session.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!session || session.revokedAt) return null;

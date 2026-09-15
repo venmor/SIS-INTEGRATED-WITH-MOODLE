@@ -5,7 +5,7 @@
 - Phase/release: v0.2.0 Phase 1 (slice 2a of 2b; MFA is 2b)
 - Requirement IDs: REQ-IAM-006, REQ-NFR-001, REQ-NFR-003, REQ-OPS-004 (auth rows), REQ-IAM-005 (re-auth hooks only)
 - Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope identity-access session/recovery + sign-in UI only
-- Action/screen/component IDs: IAM-REC-02 (§12.10 states), UI-FIELD-003 (password/sign-in field, exact copy), UI-FIELD-001 (username field), Button, UI-ERROR-001 (error summary)
+- Action/screen/component IDs: IAM-REC-02 (§12.10 states), UI-FIELD-003 (password/sign-in field, exact copy), UI-FIELD-001 (username field), UI-ACTION-001 (buttons), UI-ERROR-001 (error summary)
 - Policy/configuration version: demo-seed v0.2 (accounts) + SECURITY-v1 (new: TTLs, limits, lockout, password policy text, message templates AUTH-*)
 - Acceptance-test IDs: auth-success, auth-generic-fail, auth-enumeration, auth-rate-limit, auth-lockout-neutral, recovery-generic, recovery-single-use, recovery-session-kill, cookie-flags, log-inspection, keyboard-SR-signin, slow-connection-double-submit
 - Exact detailed blueprint file(s):
@@ -42,7 +42,7 @@ screen-reader support, and plain-language errors quoting approved copy.
 - Authorization/relationship: /me returns own record only (15.3); recovery admin sees workflow metadata only (05/04 IAM-admin row)
 - Privacy/classification: fictional only; tokens/passwords never logged (log-inspection test); recovery responses identical for unknown users
 - Validation/state transitions: DTO allow-list (global pipe); recovery follows §12.10 states with guarded transitions; sign-in mints fresh session; confirm kills all sessions (REQ-IAM-006)
-- Audit: auth/recovery outcomes as AuditEvent rows (§16.14 shape: category/action/actor/idempotency/outcome, minimized content)
+- Audit: auth/recovery outcomes as AuditEvent rows (full §16.14 11-field shape + 07/02 actor/role/scope/command/target/prior-new/policy/reason/time/correlation/outcome, minimized content; correlationId doubles as the §16.1 user support reference)
 - Idempotency/rate limiting: login 5/15min + progressive delay, reset 3/hr (07/04 baselines in SECURITY-v1); double-submit guard on forms (04/07 slow-connection)
 - Failure/recovery: §16.1 five-part errors; §16.3 summary linking fields; §16.9 neutral security message; reset-link-expired → fresh request; username preserved after failure (UI-FIELD-003)
 - Accessibility/UI states: 04/07 auth checklist (keyboard-only, SR labelling, focus order/visible, zoom/reflow, error identification, mobile, slow-connection, accessible sign-in AND recovery); UI copy from AUTH-* templates, failure sentence verbatim per §14.7
@@ -61,3 +61,39 @@ Workspace switch UI + grant API (slice 3), permission guard matrix (slice 4), MF
 - [x] Log-inspection test proves no password/token in logs
 - [x] No secret/real data; `diff --check` clean
 - [ ] Reviewer replays sign-in + recovery on WSL and explains the session lifecycle
+
+## Source map (anti-hallucination — packet-local vs handbook)
+
+Packet-local demo labels (valid choices, never cite as handbook IDs): `SECURITY-v1`
+(versioned demo config; handbook demo config is `DEMO-ACADEMIC-2026-v1`), `AUTH-*`
+(handbook requires template IDs/versions/owners but lists none), `demo-seed v0.2`,
+`DEMO_MODE`, `CMD-IAM-SignIn/RequestRecovery/ConfirmRecovery` (pattern-compliant
+with the command standard; handbook lists no `CMD-IAM-*`), `/auth/*` paths
+(handbook defines flows, not REST), `RecoveryToken/tokenHash/failedSignInCount/
+lockedUntil/60m` (behaviour from REQ-IAM-006 + §12.13; schema is app-local),
+kebab test IDs below (intent maps to handbook proofs).
+
+Test-ID map: auth-success/auth-generic-fail → Required proof "successful and
+failed authentication" + §14.7/§16.9 sentences; auth-enumeration →
+"account enumeration tests" + TEST-AUTH-002 pattern; auth-rate-limit →
+5/15min + 3/hr baselines; auth-lockout-neutral → §12.13 locked row;
+recovery-generic/single-use/session-kill → REQ-IAM-006 + rotate/invalidate
+(07/02); cookie-flags → 07/02 secure cookie rules; log-inspection → 07/02
+logging ban + §14.7 non-goals; keyboard-SR-signin → §17.6 + proof
+"keyboard/screen-reader authentication flow"; slow-connection-double-submit →
+§17.5 double-click/connection-loss + UI-SUBMIT-001.
+
+## Handbook-gap fixes (branch `feat/ph1-002a-handbook-gaps`)
+
+1. Unknown fields rejected (`forbidNonWhitelisted`, 07/02) — `main.ts` + e2e pipe.
+2. Presented session rotated on sign-in (07/02) — controller revokes the
+   presented cookie when minting fresh; other devices unaffected.
+3. `correlationId` surfaced as `reference` on every failure/success body and
+   appended in web error summaries (§16.1 support ref); rate-limit denials now
+   audited (they weren't).
+4. Recovery rate-limit e2e proof added (3×200 then 429 + Retry-After).
+5. `Retry-After` on recovery 429 (was sign-in only).
+6. `X-Frame-Options: DENY` + HSTS headers added (CSP/`nosniff` existed).
+7. REQ-IAM-005 enforcement point named: `SessionService.validateSession`
+   docblock; recovery confirm is the credential-change step-up (token-gated +
+   session kill). Full MFA enforcement stays a later slice.

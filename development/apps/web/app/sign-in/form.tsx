@@ -13,6 +13,8 @@ interface FieldError {
 // Sign-in form: uncontrolled inputs (values live in the DOM, preserved across
 // failures), submit via fetch to the same-origin proxy. Double-submit blocked
 // with announced progress (04/05); focus moves to the summary on failure.
+// §16.1 support reference (§16.14 correlationId) is appended when the API
+// supplies one; the AUTH-* sentence itself stays verbatim.
 export function SignInForm() {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
@@ -30,15 +32,16 @@ export function SignInForm() {
         credentials: "same-origin",
         body: JSON.stringify({ username: data.get("username"), password: data.get("password") }),
       });
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
+      const ref = body.reference ? ` (Reference: ${body.reference})` : '';
       if (res.ok) {
         window.location.href = "/";
         return;
       }
       if (res.status === 429) {
-        setErrors([{ fieldId: "username", message: body.message ?? AUTH_MESSAGES.rateLimited.text }]);
+        setErrors([{ fieldId: "username", message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}` }]);
       } else {
-        setErrors([{ fieldId: "password", message: body.message ?? AUTH_MESSAGES.signInFailure.text }]);
+        setErrors([{ fieldId: "password", message: `${body.message ?? AUTH_MESSAGES.signInFailure.text}${ref}` }]);
       }
     } catch {
       setErrors([

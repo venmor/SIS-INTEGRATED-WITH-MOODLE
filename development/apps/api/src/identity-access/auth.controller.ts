@@ -17,7 +17,8 @@ import {
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { CsrfGuard } from './csrf.guard.js';
 import { RecoveryConfirmDto, RecoveryRequestDto, SignInDto } from './dto.js';
-import { clearSessionCookie, serializeSessionCookie } from './cookies.js';
+import { auditAuth } from './audit.js';
+import { clearSessionCookie, parseCookies, serializeSessionCookie } from './cookies.js';
 import { RateLimiter } from './rate-limit.js';
 import { RecoveryService } from './recovery.service.js';
 import { SessionGuard } from './session.guard.js';
@@ -61,15 +62,35 @@ export class AuthController {
       RateLimiter.signInLimit().windowMinutes,
     );
     if (!limit.allowed) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-SignIn',
+        outcome: 'DENY',
+        targetRef: body.username,
+        reason: 'rate-limited',
+        errorCategory: 'ERR-SEC',
+      });
       res.setHeader('Retry-After', String(limit.retryAfterSeconds));
-      throw new HttpException(AUTH_MESSAGES.rateLimited.text, HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        { message: AUTH_MESSAGES.rateLimited.text, reference: correlationId },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     const headerAgent = req.headers?.['user-agent'];
     const userAgent = Array.isArray(headerAgent) ? headerAgent[0] : headerAgent;
     const result = await this.sessions.signIn(body.username, body.password, ip, userAgent);
-    if (!result.ok) throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
+    if (!result.ok) {
+      throw new UnauthorizedException({ message: AUTH_MESSAGES.signInFailure.text, reference: result.reference });
+    }
+    // 07/02 rotation: a presented session is retired when a fresh one is
+    // minted, so a re-sign-in never leaves two live tokens on one device.
+    // (No cookie is sent on a new device, so other devices stay signed in.)
+    const rawCookie = req.headers?.['cookie'];
+    const presented = parseCookies(Array.isArray(rawCookie) ? rawCookie.join('; ') : (rawCookie ?? ''))[
+      SECURITY_V1.session.cookieName
+    ];
+    if (presented) await this.sessions.revokeSession(presented);
     res.setHeader('Set-Cookie', serializeSessionCookie(result.token));
-    return { account: result.account, message: 'Signed in.' };
+    return { account: result.account, message: 'Signed in.', reference: result.reference };
   }
 
   @Post('sign-out')
@@ -101,7 +122,11 @@ export class AuthController {
   @Post('recovery/request')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
-  async recoveryRequest(@Body() body: RecoveryRequestDto, @Req() req: ProxyRequest) {
+  async recoveryRequest(
+    @Body() body: RecoveryRequestDto,
+    @Req() req: ProxyRequest,
+    @Res({ passthrough: true }) res: PassthroughResponse,
+  ) {
     const ip = this.clientIp(req);
     const limit = this.sessions.limiter.check(
       `recovery:${body.username}:${ip}`,
@@ -109,7 +134,18 @@ export class AuthController {
       RateLimiter.recoveryLimit().windowMinutes,
     );
     if (!limit.allowed) {
-      throw new HttpException(AUTH_MESSAGES.rateLimited.text, HttpStatus.TOO_MANY_REQUESTS);
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-RequestRecovery',
+        outcome: 'DENY',
+        targetRef: body.username,
+        reason: 'rate-limited',
+        errorCategory: 'ERR-SEC',
+      });
+      res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+      throw new HttpException(
+        { message: AUTH_MESSAGES.rateLimited.text, reference: correlationId },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     return this.recovery.requestRecovery(body.username);
   }
@@ -119,8 +155,8 @@ export class AuthController {
   @UseGuards(CsrfGuard)
   async recoveryConfirm(@Body() body: RecoveryConfirmDto) {
     const result = await this.recovery.confirmRecovery(body.token, body.newPassword, this.sessions);
-    if (!result.ok) throw new BadRequestException(result.message);
-    return { message: result.message };
+    if (!result.ok) throw new BadRequestException({ message: result.message, reference: result.reference });
+    return { message: result.message, reference: result.reference };
   }
 
   @Get('demo/recovery-token')

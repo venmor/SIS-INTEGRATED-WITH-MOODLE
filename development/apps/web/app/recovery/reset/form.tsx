@@ -34,18 +34,19 @@ export function ResetForm() {
         credentials: "same-origin",
         body: JSON.stringify({ token, newPassword: first }),
       });
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
+      const ref = body.reference ? ` (Reference: ${body.reference})` : '';
       if (res.ok) {
         setDone(body.message ?? AUTH_MESSAGES.passwordChanged.text);
       } else if (res.status === 400) {
         setErrors([
           {
             fieldId: "new-password",
-            message: body.message ?? AUTH_MESSAGES.recoveryLinkExpired.text,
+            message: `${body.message ?? AUTH_MESSAGES.recoveryLinkExpired.text}${ref}`,
           },
         ]);
       } else {
-        setErrors([{ fieldId: "new-password", message: body.message ?? AUTH_MESSAGES.rateLimited.text }]);
+        setErrors([{ fieldId: "new-password", message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}` }]);
       }
     } catch {
       setErrors([

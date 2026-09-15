@@ -30,7 +30,7 @@ Server sessions (12h absolute / 30m idle demo TTLs), httpOnly `sid` + SameSite=L
 
 ## Tests and what they prove
 
-`demo:reset` → 4/4/6/4 seed · API unit 5 files/11 pass · e2e 2 files/9 pass (happy cookie+me, identical 401s, 5×→429 neutral, CSRF 403, recovery generic→confirm→reuse 400→session-kill, sign-out revoke, log-inspection). Web + API builds green. Run e2e via `node scripts/with-env.mjs npm run test:e2e --workspace=apps/api` (loads `.env`; bare run fails with SASL password error).
+`demo:reset` → 4/4/6/4 seed · API unit 5 files/11 pass · e2e 2 files/10 pass (happy cookie+me, identical 401s, 5×→429 neutral, CSRF 403, recovery generic→confirm→reuse 400→session-kill, recovery 3×→429, sign-out revoke, log-inspection). Web + API builds green. Run e2e via `node scripts/with-env.mjs npm run test:e2e --workspace=apps/api` (loads `.env`; bare run fails with SASL password error).
 
 ## Demo replay (reviewer copy-paste)
 
@@ -46,6 +46,18 @@ Server sessions (12h absolute / 30m idle demo TTLs), httpOnly `sid` + SameSite=L
 2. Web fallbacks hardcoded divergent copy → now import `AUTH_MESSAGES`/`SECURITY_V1`; network-error text stays a connection message (§16.1), not policy wording.
 3. Proxy forwarded single `set-cookie` + proxied any path → allowlist to slice-2 paths only + multi-cookie forward.
 4. `PasswordField` describedby dangled with no help text; `ErrorSummary` focused only on mount; `ActionButton` rest-spread could clobber `disabled` → all fixed.
+
+## Handbook-gap fixes (nothing from the handbook left behind)
+
+Same 7 as the packet appendix: unknown-field reject; presented-session
+rotation on sign-in; `reference` (correlationId) on all auth bodies + web
+summaries, rate-limit denials audited; recovery rate-limit e2e; `Retry-After`
+on recovery 429; `X-Frame-Options` + HSTS; REQ-IAM-005 hook named on
+`validateSession`. Proof after fixes: unit 5/11, e2e 2/10, both builds green,
+`diff --check` clean. Packet-local labels (`SECURITY-v1`, `AUTH-*`, kebab test
+IDs, `CMD-IAM-*`, `/auth/*`, `demo-seed v0.2`, `DEMO_MODE`) are mapped to
+their handbook sources in the packet appendix — cite those sources, not the
+labels, in presentation.
 
 ## Seven-layer talk track (2 minutes)
 

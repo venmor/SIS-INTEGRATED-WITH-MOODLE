@@ -18,7 +18,7 @@ export class RecoveryService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Always resolves to the generic message — existence stays hidden. */
-  async requestRecovery(username: string): Promise<{ message: string }> {
+  async requestRecovery(username: string): Promise<{ message: string; reference: string }> {
     const account = await this.prisma.account.findUnique({ where: { username } });
     if (account && account.status === 'ACTIVE') {
       await this.prisma.recoveryToken.updateMany({
@@ -34,14 +34,14 @@ export class RecoveryService {
         },
       });
     }
-    await auditAuth(this.prisma, {
+    const { correlationId } = await auditAuth(this.prisma, {
       action: 'CMD-IAM-RequestRecovery',
       outcome: 'ALLOW',
       actorAccountId: account?.id ?? null,
       targetRef: username,
       reason: 'request-accepted',
     });
-    return { message: AUTH_MESSAGES.recoveryRequested.text };
+    return { message: AUTH_MESSAGES.recoveryRequested.text, reference: correlationId };
   }
 
   async confirmRecovery(token: string, newPassword: string, sessionService: { revokeAllSessions(id: string): Promise<void> }) {
@@ -52,25 +52,25 @@ export class RecoveryService {
       if (row && !row.usedAt) {
         await this.prisma.recoveryToken.update({ where: { id: row.id }, data: { usedAt: new Date() } });
       }
-      await auditAuth(this.prisma, {
+      const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ConfirmRecovery',
         outcome: 'DENY',
         targetRef: row?.accountId,
         reason: 'invalid-or-expired-token',
         errorCategory: 'ERR-SEC',
       });
-      return { ok: false as const, message: AUTH_MESSAGES.recoveryLinkExpired.text };
+      return { ok: false as const, message: AUTH_MESSAGES.recoveryLinkExpired.text, reference: correlationId };
     }
     const account = await this.prisma.account.findUnique({ where: { id: row.accountId } });
     if (!account || account.status !== 'ACTIVE') {
-      await auditAuth(this.prisma, {
+      const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ConfirmRecovery',
         outcome: 'DENY',
         targetRef: row.accountId,
         reason: 'account-inactive',
         errorCategory: 'ERR-SEC',
       });
-      return { ok: false as const, message: AUTH_MESSAGES.recoveryLinkExpired.text };
+      return { ok: false as const, message: AUTH_MESSAGES.recoveryLinkExpired.text, reference: correlationId };
     }
     await this.prisma.recoveryToken.update({ where: { id: row.id }, data: { usedAt: new Date() } });
     await this.prisma.credential.updateMany({
@@ -85,14 +85,14 @@ export class RecoveryService {
       where: { id: account.id },
       data: { failedSignInCount: 0, lockedUntil: null },
     });
-    await auditAuth(this.prisma, {
+    const { correlationId } = await auditAuth(this.prisma, {
       action: 'CMD-IAM-ConfirmRecovery',
       outcome: 'ALLOW',
       actorAccountId: account.id,
       targetRef: account.username,
       reason: 'password-changed-sessions-revoked',
     });
-    return { ok: true as const, message: AUTH_MESSAGES.passwordChanged.text };
+    return { ok: true as const, message: AUTH_MESSAGES.passwordChanged.text, reference: correlationId };
   }
 
   /** Demo-only token completion (no delivery provider yet). 404 unless DEMO_MODE. */

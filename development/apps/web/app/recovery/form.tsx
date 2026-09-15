@@ -23,11 +23,12 @@ export function RecoveryForm() {
         credentials: "same-origin",
         body: JSON.stringify({ username: data.get("username") }),
       });
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
+      const ref = body.reference ? ` (Reference: ${body.reference})` : '';
       if (res.ok) {
         setDone(body.message ?? AUTH_MESSAGES.recoveryRequested.text);
       } else {
-        setErrors([{ fieldId: "username", message: body.message ?? AUTH_MESSAGES.rateLimited.text }]);
+        setErrors([{ fieldId: "username", message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}` }]);
       }
     } catch {
       setErrors([

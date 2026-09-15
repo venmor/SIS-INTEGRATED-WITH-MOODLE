@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@sis/ui", "@sis/config"],
   // Baseline browser hardening (07/02). Script/style inline allowances keep
   // Next.js hydration working; per-request nonces are recorded debt for the
-  // hardening slice (see NOTE-PH1-002a).
+  // hardening slice (see NOTE-PH1-002a). HSTS is ignored over plain http, so
+  // it is safe to send in every environment; production terminates TLS.
   async headers() {
     return [
       {
@@ -25,6 +26,8 @@ const nextConfig: NextConfig = {
             ].join("; "),
           },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
