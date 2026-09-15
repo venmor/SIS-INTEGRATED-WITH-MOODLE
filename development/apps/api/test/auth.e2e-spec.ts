@@ -27,8 +27,8 @@ describe('auth (e2e)', () => {
   const stamp = Date.now().toString(36);
 
   const makeUser = async (tag: string, password: string): Promise<string> => {
-    const username = `e2e.${tag}.${stamp}`;
-    const person = await prisma.person.create({ data: { displayName: `E2E ${tag}` } });
+    const username = `e2e.auth.${tag}.${stamp}`;
+    const person = await prisma.person.create({ data: { displayName: `E2E auth ${tag}` } });
     const account = await prisma.account.create({
       data: { personId: person.id, username, status: 'ACTIVE' },
     });
@@ -61,7 +61,7 @@ describe('auth (e2e)', () => {
     // Sweep every throwaway e2e account (including leftovers from aborted
     // runs) before deleting orphaned persons — FK-safe order.
     const stale = await prisma.account.findMany({
-      where: { username: { startsWith: 'e2e.' } },
+      where: { username: { startsWith: 'e2e.auth.' } },
       select: { id: true },
     });
     for (const account of stale) {
@@ -72,7 +72,7 @@ describe('auth (e2e)', () => {
       await prisma.account.delete({ where: { id: account.id } });
     }
     await prisma.person.deleteMany({
-      where: { displayName: { startsWith: 'E2E ' }, accounts: { none: {} } },
+      where: { displayName: { startsWith: 'E2E auth ' }, accounts: { none: {} } },
     });
     await app.close();
   }, 60000);

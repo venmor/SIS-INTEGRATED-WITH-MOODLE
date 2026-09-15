@@ -58,14 +58,17 @@ export class PolicyService {
 }
 
 /**
- * Account-status gate (§11.1 seven states). Only Active authorizes normally;
- * Closed never signs in; every other state denies generically because the
- * step-up/verification flows those states imply do not exist yet (documented
- * demo limit, not a handbook bypass). LOCKED is the legacy brute-force
- * marker; the timed lockedUntil mechanism is preserved alongside it.
+ * Account-status gate (§11.1 seven states + legacy markers). Comparison is
+ * case-insensitive: the seed stores `ACTIVE`/`LOCKED` (slices 1-3) while the
+ * handbook names states `Active`/`Closed`/…. Only Active authorizes; Closed
+ * never signs in; every other state denies generically because the
+ * step-up/verification flows those states imply do not exist yet
+ * (documented demo limit, not a handbook bypass). The timed lockedUntil
+ * mechanism is preserved alongside the LOCKED marker.
  */
 export function accountStatusPolicy(status: string): { allow: boolean; reason: string | null } {
-  if (status === 'Active') return { allow: true, reason: null };
-  if (status === 'Closed') return { allow: false, reason: 'account-closed' };
+  const normalized = status.toUpperCase();
+  if (normalized === 'ACTIVE') return { allow: true, reason: null };
+  if (normalized === 'CLOSED') return { allow: false, reason: 'account-closed' };
   return { allow: false, reason: 'account-inactive' };
 }

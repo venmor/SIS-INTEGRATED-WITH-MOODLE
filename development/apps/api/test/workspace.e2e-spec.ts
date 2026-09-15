@@ -27,8 +27,8 @@ describe('workspace (e2e)', () => {
     (agent.post('/auth/sign-in') as ReturnType<typeof request>).set(CSRF).send({ username, password });
 
   const makeUser = async (tag: string, password: string): Promise<string> => {
-    const username = `e2e.${tag}.${stamp}`;
-    const person = await prisma.person.create({ data: { displayName: `E2E ${tag}` } });
+    const username = `e2e.ws.${tag}.${stamp}`;
+    const person = await prisma.person.create({ data: { displayName: `E2E ws ${tag}` } });
     const account = await prisma.account.create({
       data: { personId: person.id, username, status: 'ACTIVE' },
     });
@@ -49,7 +49,7 @@ describe('workspace (e2e)', () => {
 
   afterAll(async () => {
     const stale = await prisma.account.findMany({
-      where: { username: { startsWith: 'e2e.' } },
+      where: { username: { startsWith: 'e2e.ws.' } },
       select: { id: true },
     });
     for (const account of stale) {
@@ -60,10 +60,10 @@ describe('workspace (e2e)', () => {
       await prisma.account.delete({ where: { id: account.id } });
     }
     await prisma.person.deleteMany({
-      where: { displayName: { startsWith: 'E2E ' }, accounts: { none: {} } },
+      where: { displayName: { startsWith: 'E2E ws ' }, accounts: { none: {} } },
     });
     // Test-made grants on seed accounts never outlive the run.
-    await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E grant ' } } });
+    await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E ws grant ' } } });
     await app.close();
   }, 60000);
 
@@ -132,21 +132,21 @@ describe('workspace (e2e)', () => {
     await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
     const target = await makeUser('grantee', 'Long-Enough-Password-1');
     const mweene = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
-    const grant = { username: target, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene.id, reason: `E2E grant ${stamp}` };
+    const grant = { username: target, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene.id, reason: `E2E ws grant ${stamp}` };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     expect(created.body.assignmentId).toBeDefined();
     expect(created.body.message).toContain('Role assignment created');
-    const self = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: 'mweene.t', reason: `E2E grant self ${stamp}` });
+    const self = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: 'mweene.t', reason: `E2E ws grant self ${stamp}` });
     expect(self.status).toBe(403);
     expect(self.body.message).toBe(GRANT_DENIED);
-    const ghost = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: `ghost.${stamp}`, reason: `E2E grant ghost ${stamp}` });
+    const ghost = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: `ghost.${stamp}`, reason: `E2E ws grant ghost ${stamp}` });
     expect(ghost.status).toBe(400);
     expect(ghost.body.message).toBe(GRANT_DENIED);
     expect(ghost.body.reference).toBeDefined();
     const user = request.agent(server as never);
     await (signIn(user, 'chanda.k', 'Seed-2026-Chanda') as unknown as Promise<{ status: number }>);
-    const rogue = await user.post('/auth/grants').set(CSRF).send({ ...grant, username: target, reason: `E2E grant rogue ${stamp}` });
+    const rogue = await user.post('/auth/grants').set(CSRF).send({ ...grant, username: target, reason: `E2E ws grant rogue ${stamp}` });
     expect(rogue.status).toBe(403);
     expect(rogue.body.message).toBe(GRANT_DENIED);
   });
@@ -156,7 +156,7 @@ describe('workspace (e2e)', () => {
     const admin = request.agent(server as never);
     await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
     const mweene2 = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
-    const grant = { username, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene2.id, reason: `E2E grant ${stamp}` };
+    const grant = { username, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene2.id, reason: `E2E ws grant ${stamp}` };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     const agent = request.agent(server as never);

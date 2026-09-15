@@ -90,6 +90,10 @@ describe('account status gate (§11.1)', () => {
     expect(accountStatusPolicy('Active')).toEqual({ allow: true, reason: null });
   });
 
+  it('authorizes the legacy seed ACTIVE marker (regression: case handling)', () => {
+    expect(accountStatusPolicy('ACTIVE')).toEqual({ allow: true, reason: null });
+  });
+
   it('never signs in Closed accounts', () => {
     expect(accountStatusPolicy('Closed')).toEqual({ allow: false, reason: 'account-closed' });
   });

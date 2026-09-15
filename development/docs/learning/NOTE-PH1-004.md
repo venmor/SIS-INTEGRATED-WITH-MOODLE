@@ -2,7 +2,7 @@
 
 - Lead developer: Charles
 - Reviewer: Chitindu Milimbo
-- Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 4 (policy + denial; e2e pending DB)
+- Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 4 (policy + denial; e2e 21/21 green)
 
 ## What we built and why
 
@@ -46,16 +46,18 @@ real, ≠ target; unknown users undisclosed (resolve 404 scoped-empty to
 grantors, uniform 403 to others); grant/switch/resolve rate-limited;
 forbidNonWhitelisted DTOs; prior/new refs + purpose on grant audits.
 
-## Tests and what they prove (DB-independent runs green)
+## Tests and what they prove
 
-Unit 8 files/26 pass (policy matrix RED-watched, status map, contracts).
-Builds + lint clean. **E2E NOT yet run — Docker daemon is down on this
-machine** (`/var/run/docker.sock` absent, no passwordless sudo): new
-`policy.e2e-spec` (approver, idempotency replay, receipts, resolve
-200/404/403, guard audits, prior/new, status gating) plus existing suites
-await `sudo systemctl start docker` → `demo:reset` → full e2e.
+Unit 8 files/27 pass (policy matrix RED-watched, status map incl. legacy
+`ACTIVE` regression, contracts). Builds + lint clean. **E2E: 4 files, 21/21
+green on fresh `demo:reset`** (5 migrations incl. hand-written `ph1_policy`
+— confirmed correct by clean deploy; tables + all 16 indexes verified live
+in Postgres). 19.49: allow/deny, validation, idempotency, migration,
+critical E2E, secret scan green; vuln scan → mysql2 transitive only
+(unused driver, no MySQL in stack, fix forces breaking Prisma downgrade —
+accepted risk, recorded); no new deps.
 
-## Demo replay (reviewer copy-paste, once DB is up)
+## Demo replay (reviewer copy-paste)
 
 1. Start Docker, `npm run demo:reset` → 5 migrations + 4/4/6/4.
 2. Full e2e: `node scripts/with-env.mjs npm run test:e2e --workspace=apps/api`.
@@ -64,16 +66,24 @@ await `sudo systemctl start docker` → `demo:reset` → full e2e.
 
 ## What failed or confused us
 
-1. DB down blocks migration apply + e2e (see above) — everything else
-   (offline `prisma validate`, generate, unit, builds, lint) proven.
-2. Hand-wrote `ph1_policy` migration offline (shadow DB unavailable) —
-   styled exactly to Prisma conventions; deploy fails loudly if drifted,
-   and `migrate diff` must confirm once DB returns.
-3. Orphaned duplicate body reappeared in `audit.ts` after a signature
+1. Docker daemon was down (no socket, no passwordless sudo) — Charles
+   restarted it; `demo:reset` then replayed all 5 migrations cleanly and
+   tables/indexes were verified live in Postgres.
+2. Blanket e2e 401s after the status gate landed → `accountStatusPolicy`
+   compared `=== 'Active'` but seed stores `ACTIVE`: every sign-in denied.
+   Fixed with case normalization + a legacy-`ACTIVE` regression test
+   (RED reproduced first). Lesson: test the stored values, not the
+   handbook's capitalisation.
+3. Full-suite-only failures (solo green) → parallel files' `afterAll`
+   sweeps deleted each other's `e2e.*` rows. Fix: per-file prefixes
+   (`e2e.auth/ws/pol.*`, matching person + grant-reason sweeps).
+4. Hand-wrote `ph1_policy` migration offline (shadow DB unavailable) —
+   styled exactly to Prisma conventions; clean deploy confirms no drift.
+5. Orphaned duplicate body reappeared in `audit.ts` after a signature
    edit (caught by oxlint, not tsc) — lesson: re-read edited regions.
-4. Wrote a `'unset'` placeholder reference mid-flow — caught immediately,
+6. Wrote a `'unset'` placeholder reference mid-flow — caught immediately,
    replaced with the real correlationId. No placeholders ship.
-5. UI has no test runner (standing gap); tsc + API proofs cover it.
+7. UI has no test runner (standing gap); tsc + API proofs cover it.
 
 ## Seven-layer talk track (2 minutes)
 
@@ -82,7 +92,7 @@ Problem: scattered route-local checks can't prove uniform denial. Policy:
 explained with routes → audited with reference. Architecture:
 identity-access owns evaluator + tables. Data: purpose/idempotency/outbox
 columns. Code: PolicyService, hardened grant/resolve/receipts, denial
-panel. Evidence: unit 26 green; e2e pending DB (honest).
+panel. Evidence: unit 27 green; e2e 21/21 green.
 
 ## Terms/concepts learned
 

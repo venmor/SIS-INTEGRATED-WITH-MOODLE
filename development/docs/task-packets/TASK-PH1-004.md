@@ -101,12 +101,16 @@ modules, TOTP, review-schedule UI, ops queue UI, expiry-warning countdown
 
 - [x] Entry gate all YES (this packet)
 - [x] PolicyService unit matrix green (each §15.21 arm allow + deny;
-      RED watched) + status-gate + contract proofs (unit 8/26 green)
-- [ ] SoD/purpose/status/resolve/idempotency/outbox e2e green — BLOCKED:
-      Docker daemon down, `policy.e2e-spec` written but unrun
+      RED watched) + status-gate + contract proofs (unit 8/27 green)
+- [x] SoD/purpose/status/resolve/idempotency/outbox e2e green (4 files,
+      21/21 on fresh `demo:reset`: 5 migrations, seed 4/4/6/4)
 - [x] Denial panel + empty variant + resolve-then-create live; no hardcoded copy
-- [x] Builds + lint clean; `diff --check` clean; index rule in migration.sql
-- [ ] 19.49 rows fully evidenced (vuln scan + e2e pending DB; no new deps)
+- [x] Builds + lint clean; `diff --check` clean; index rule verified live
+      in Postgres (16 indexes incl. new composite + correlationId)
+- [x] 19.49 rows addressed: vuln scan → mysql2 transitive (unused; no MySQL
+      in stack; fix forces breaking Prisma downgrade — accepted, recorded);
+      allow/deny + validation + idempotency + migration + critical API E2E +
+      secret scan green; no new deps (license review trivially satisfied)
 - [ ] Reviewer replays denial matrix on WSL and explains the §15.21 decision path
 
 ## Source map (anti-hallucination)

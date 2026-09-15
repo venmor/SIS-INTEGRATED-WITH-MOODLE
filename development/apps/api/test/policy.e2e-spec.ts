@@ -28,8 +28,8 @@ describe('policy (e2e)', () => {
     (agent.post('/auth/sign-in') as ReturnType<typeof request>).set(CSRF).send({ username, password });
 
   const makeUser = async (tag: string, password: string): Promise<{ id: string; username: string }> => {
-    const username = `e2e.${tag}.${stamp}`;
-    const person = await prisma.person.create({ data: { displayName: `E2E ${tag}` } });
+    const username = `e2e.pol.${tag}.${stamp}`;
+    const person = await prisma.person.create({ data: { displayName: `E2E pol ${tag}` } });
     const account = await prisma.account.create({
       data: { personId: person.id, username, status: 'ACTIVE' },
     });
@@ -63,7 +63,7 @@ describe('policy (e2e)', () => {
 
   afterAll(async () => {
     const stale = await prisma.account.findMany({
-      where: { username: { startsWith: 'e2e.' } },
+      where: { username: { startsWith: 'e2e.pol.' } },
       select: { id: true },
     });
     for (const account of stale) {
@@ -75,9 +75,9 @@ describe('policy (e2e)', () => {
       await prisma.account.delete({ where: { id: account.id } });
     }
     await prisma.person.deleteMany({
-      where: { displayName: { startsWith: 'E2E ' }, accounts: { none: {} } },
+      where: { displayName: { startsWith: 'E2E pol ' }, accounts: { none: {} } },
     });
-    await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E grant ' } } });
+    await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E pol grant ' } } });
     await app.close();
   }, 60000);
 
@@ -89,18 +89,18 @@ describe('policy (e2e)', () => {
     const missing = await admin
       .post('/auth/grants')
       .set(CSRF)
-      .send({ ...grantBody(target.username, mweene.id, `E2E grant ${stamp}`), approverId: undefined });
+      .send({ ...grantBody(target.username, mweene.id, `E2E pol grant ${stamp}`), approverId: undefined });
     expect(missing.status).toBe(400);
     const ghostApprover = await admin
       .post('/auth/grants')
       .set(CSRF)
-      .send(grantBody(target.username, '123e4567-e89b-12d3-a456-426614174000', `E2E grant ${stamp}`));
+      .send(grantBody(target.username, '123e4567-e89b-12d3-a456-426614174000', `E2E pol grant ${stamp}`));
     expect(ghostApprover.status).toBe(400);
     expect(ghostApprover.body.message).toBe(GRANT_DENIED);
     const selfApproved = await admin
       .post('/auth/grants')
       .set(CSRF)
-      .send(grantBody(target.username, target.id, `E2E grant ${stamp}`));
+      .send(grantBody(target.username, target.id, `E2E pol grant ${stamp}`));
     expect(selfApproved.status).toBe(403);
     expect(selfApproved.body.message).toBe(GRANT_DENIED);
   });
@@ -114,16 +114,16 @@ describe('policy (e2e)', () => {
     const first = await admin
       .post('/auth/grants')
       .set(CSRF)
-      .send(grantBody(target.username, mweene.id, `E2E grant ${stamp}`, { idempotencyKey: key }));
+      .send(grantBody(target.username, mweene.id, `E2E pol grant ${stamp}`, { idempotencyKey: key }));
     expect(first.status).toBe(201);
     const second = await admin
       .post('/auth/grants')
       .set(CSRF)
-      .send(grantBody(target.username, mweene.id, `E2E grant ${stamp}`, { idempotencyKey: key }));
+      .send(grantBody(target.username, mweene.id, `E2E pol grant ${stamp}`, { idempotencyKey: key }));
     expect(second.status).toBe(201);
     expect(second.body.assignmentId).toBe(first.body.assignmentId);
     const rows = await prisma.roleAssignment.count({
-      where: { accountId: target.id, reason: `E2E grant ${stamp}` },
+      where: { accountId: target.id, reason: `E2E pol grant ${stamp}` },
     });
     expect(rows).toBe(1);
     const receipt = await admin.get(`/auth/commands/${key}`);
@@ -167,7 +167,7 @@ describe('policy (e2e)', () => {
     await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
     const target = await makeUser('audit', 'Long-Enough-Password-1');
     const mweene = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
-    const reason = `E2E grant ${stamp}`;
+    const reason = `E2E pol grant ${stamp}`;
     const created = await admin.post('/auth/grants').set(CSRF).send(grantBody(target.username, mweene.id, reason));
     expect(created.status).toBe(201);
     const row = await prisma.auditEvent.findFirstOrThrow({
