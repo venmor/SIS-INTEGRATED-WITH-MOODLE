@@ -3,7 +3,7 @@
 // back to parse-only dummies so `prisma generate` works on fresh clones and
 // CI without a database. No shell-specific syntax (Windows-safe).
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./env.mjs";
 
@@ -18,5 +18,12 @@ if (!cmd) {
   console.error("usage: node scripts/with-env.mjs <cmd> [args…]");
   process.exit(2);
 }
-const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit", shell: false });
+// Local binaries (prisma, nest, vitest…) live in node_modules/.bin, which is
+// NOT on PATH for spawned processes — without this, `with-env prisma …`
+// silently runs nothing and the Prisma client goes stale (slice-3 lesson).
+const env = {
+  ...process.env,
+  PATH: `${join(root, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}`,
+};
+const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit", shell: false, env });
 process.exit(result.status ?? 1);

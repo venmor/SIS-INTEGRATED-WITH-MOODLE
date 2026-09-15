@@ -127,3 +127,21 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Responsive | Same block pattern |
 | Data/audit | Persists/logs nothing |
 | Acceptance tests | Focus lands here on failure; every link targets a field |
+
+## UI-CONTEXT-001 — Workspace context bar (`src/ContextBar.tsx`, server)
+
+| Field | Contract |
+|---|---|
+| Purpose | Shows the active role, scope and academic period (catalogue) |
+| Allowed contexts | Authenticated staff surfaces, above the working area |
+| Explicit non-uses | Navigation; permission decisions (display mirrors server state) |
+| Anatomy | Single line: role workspace · scope · period (period only when known) |
+| Content rules | Words carry state; colour never carries meaning alone (19.7) |
+| States | Rendered only when a workspace is active |
+| Interaction | None (read-only; switching lives in the owning form) |
+| Validation | Display-only |
+| Error/recovery | n/a |
+| Accessibility | `role="status"`; labelled with the full active context |
+| Responsive | Same block pattern |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Header facts match `/me` activeWorkspace after every switch |

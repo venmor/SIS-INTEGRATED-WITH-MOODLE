@@ -35,6 +35,14 @@ export class RateLimiter {
     return SECURITY_V1.rateLimits.recovery;
   }
 
+  static grantLimit() {
+    return SECURITY_V1.rateLimits.grant;
+  }
+
+  static workspaceSwitchLimit() {
+    return SECURITY_V1.rateLimits.workspaceSwitch;
+  }
+
   /** Progressive delay before auth failure responses (caps at 5s). */
   static failureDelayMs(failures: number): number {
     return Math.min(Math.max(failures, 1), 5) * 1000;

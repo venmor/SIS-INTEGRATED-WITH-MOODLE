@@ -34,3 +34,59 @@ export interface RecoveryConfirmBody {
 export interface RecoveryResponse {
   message: string;
 }
+
+/** One assignable workspace: a live role assignment in its scope/period. */
+export interface WorkspaceAssignment {
+  assignmentId: string;
+  role: string;
+  scopeType: string;
+  scopeRef: string;
+  startsAt: string;
+  endsAt: string | null;
+  employmentType: string | null;
+}
+
+/** Active workspace: the assignment this session currently acts under. */
+export interface ActiveWorkspace {
+  assignmentId: string;
+  role: string;
+  scopeType: string;
+  scopeRef: string;
+}
+
+export interface MeResponse {
+  account: AuthAccount;
+  workspaces: WorkspaceAssignment[];
+  activeWorkspace: ActiveWorkspace | null;
+}
+
+export interface SwitchWorkspaceBody {
+  assignmentId: string;
+}
+
+export interface SwitchWorkspaceResponse {
+  activeWorkspace: ActiveWorkspace;
+  message: string;
+}
+
+/** ACT-IAM-001 grant fields (§12.9 form). Username resolved server-side. */
+export interface GrantRoleBody {
+  username: string;
+  role: string;
+  scopeType: string;
+  scopeRef: string;
+  startsAt: string;
+  endsAt?: string;
+  appointmentRef: string;
+  authoritySource: string;
+  capabilities?: string[];
+  employmentType?: string;
+  delegationLimit?: string;
+  approverId?: string;
+  reason: string;
+}
+
+export interface GrantRoleResponse {
+  assignmentId: string;
+  message: string;
+}

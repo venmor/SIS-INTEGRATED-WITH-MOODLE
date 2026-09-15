@@ -39,6 +39,18 @@ export const AUTH_MESSAGES = {
     "AUTH-SIGNOUT-001",
     "You are signed out.",
   ),
+  workspaceSwitched: template(
+    "WORKSPACE-001",
+    "Workspace switched. Your active role and scope changed.",
+  ),
+  grantCreated: template(
+    "WORKSPACE-002",
+    "Role assignment created. The person can use it within its effective period.",
+  ),
+  grantDenied: template(
+    "WORKSPACE-003",
+    "This change was not completed. Check the details and try again, or ask an administrator.",
+  ),
 } as const;
 
 export type AuthMessageKey = keyof typeof AUTH_MESSAGES;

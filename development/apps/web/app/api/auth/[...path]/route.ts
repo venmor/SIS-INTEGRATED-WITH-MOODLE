@@ -7,12 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
 // Non-GET/POST methods are refused.
 const API = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
 
-// Handbook slice-2 scope only: sign-in/out, own record, recovery, demo token,
-// demo-visible policy. Workspace-switch/grant APIs belong to later slices and
-// must not pass through here until their task packets land.
+// Handbook slice-2 + slice-3 scope only: sign-in/out, own record, recovery,
+// demo token, demo-visible policy, workspace switch, grants. Later-slice APIs
+// belong here only when their task packets land.
 const ALLOWED: Record<string, readonly string[]> = {
   GET: ["me", "policy", "demo/recovery-token"],
-  POST: ["sign-in", "sign-out", "recovery/request", "recovery/confirm"],
+  POST: ["sign-in", "sign-out", "recovery/request", "recovery/confirm", "workspace/switch", "grants"],
 };
 
 async function proxy(

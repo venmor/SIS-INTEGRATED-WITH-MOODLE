@@ -1,0 +1,16 @@
+.bar {
+  display: block;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green-500);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-status);
+  line-height: var(--line-body);
+  color: var(--text-primary);
+  max-width: 40rem;
+}
+
+.bar strong {
+  font-weight: 600;
+}

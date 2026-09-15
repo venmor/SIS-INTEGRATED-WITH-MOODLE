@@ -5,6 +5,7 @@ import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { RateLimiter } from './rate-limit.js';
 import { auditAuth } from './audit.js';
+import { WorkspaceService } from './workspace.service.js';
 
 const require = createRequire(import.meta.url);
 const { hash, verify } = require('argon2') as typeof import('argon2');
@@ -29,7 +30,10 @@ function sleep(ms: number): Promise<void> {
 export class SessionService {
   readonly limiter = new RateLimiter();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaces: WorkspaceService,
+  ) {}
 
   async signIn(username: string, password: string, ip: string | undefined, userAgent: string | undefined) {
     const account = await this.prisma.account.findUnique({ where: { username } });
@@ -88,10 +92,14 @@ export class SessionService {
     });
     const token = randomBytes(32).toString('base64url');
     const now = new Date();
+    // Slice 3: sessions open on the deterministic default workspace
+    // (earliest-started live assignment, possibly none).
+    const initial = await this.workspaces.defaultWorkspace(account.id);
     await this.prisma.session.create({
       data: {
         tokenHash: hashToken(token),
         accountId: account.id,
+        activeAssignmentId: initial?.assignmentId ?? null,
         expiresAt: new Date(now.getTime() + SECURITY_V1.session.absoluteSeconds * 1000),
         createdIp: ip,
         userAgent,
@@ -123,10 +131,22 @@ export class SessionService {
    * Privileged/high-impact actions must pass validateSession AND step-up proof
    * (a fresh sign-in or a recovery token — recovery confirm already gates
    * credential change on the single-use token plus session kill). Returns the
-   * account id for a live session, else null. Sliding idle window.
+   * account id plus the live active assignment (null when the assignment was
+   * revoked, expired, or never chosen — the session itself stays valid so
+   * safe reads like /me keep working), else null. Sliding idle window.
    */
-  async validateSession(token: string): Promise<string | null> {
-    const session = await this.prisma.session.findUnique({ where: { tokenHash: hashToken(token) } });
+  async validateSession(
+    token: string,
+  ): Promise<{ accountId: string; assignmentId: string | null; assignment: {
+    id: string;
+    role: string;
+    scopeType: string;
+    scopeRef: string;
+  } | null } | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { tokenHash: hashToken(token) },
+      include: { activeAssignment: true },
+    });
     if (!session || session.revokedAt) return null;
     const now = Date.now();
     if (session.expiresAt.getTime() <= now) return null;
@@ -134,7 +154,18 @@ export class SessionService {
     if (now - session.lastSeenAt.getTime() > 60 * 1000) {
       await this.prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date(now) } });
     }
-    return session.accountId;
+    // Expiry/revocation bites immediately: a dead assignment resolves to no
+    // workspace instead of stale authority (03-permissions:135, §12.13).
+    const row = session.activeAssignment;
+    const live =
+      row &&
+      !row.revokedAt &&
+      row.accountId === session.accountId &&
+      row.startsAt.getTime() <= now &&
+      (!row.endsAt || row.endsAt.getTime() > now)
+        ? { id: row.id, role: row.role, scopeType: row.scopeType, scopeRef: row.scopeRef }
+        : null;
+    return { accountId: session.accountId, assignmentId: live?.id ?? null, assignment: live };
   }
 
   async revokeSession(token: string): Promise<void> {

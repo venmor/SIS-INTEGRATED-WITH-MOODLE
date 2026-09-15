@@ -87,6 +87,7 @@ model RoleAssignment {
   revokedAt         DateTime?
   revokeReason      String?
   createdAt         DateTime  @default(now())
+  sessions          Session[] @relation("ActiveAssignment")
 
   @@index([accountId])
   @@index([role, scopeType, scopeRef])
@@ -97,6 +98,11 @@ model Session {
   tokenHash   String    @unique
   accountId   String
   account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // Active workspace pointer (slice 3, REQ-IAM-002). FK keeps authority live:
+  // revocation/expiry of the assignment bites on next validation. Null means
+  // no workspace selected (e.g. no live assignments). History stays in audit.
+  activeAssignmentId String?
+  activeAssignment   RoleAssignment? @relation("ActiveAssignment", fields: [activeAssignmentId], references: [id], onDelete: SetNull)
   expiresAt   DateTime
   revokedAt   DateTime?
   createdIp   String?
@@ -105,6 +111,7 @@ model Session {
   createdAt   DateTime  @default(now())
 
   @@index([accountId])
+  @@index([activeAssignmentId])
 }
 
 // Single-use account-recovery tokens (slice 2a). Only the hash is stored;

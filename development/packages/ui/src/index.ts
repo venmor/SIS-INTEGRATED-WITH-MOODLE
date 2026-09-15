@@ -9,3 +9,4 @@ export { PasswordField } from "./PasswordField";
 export { ActionButton } from "./ActionButton";
 export type { ButtonType } from "./ActionButton";
 export { ErrorSummary } from "./ErrorSummary";
+export { ContextBar } from "./ContextBar";

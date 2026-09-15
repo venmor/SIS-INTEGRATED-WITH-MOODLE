@@ -16,6 +16,8 @@ export async function auditAuth(
     action: string;
     outcome: 'ALLOW' | 'DENY';
     actorAccountId?: string | null;
+    activeRole?: string | null;
+    scope?: string | null;
     targetRef?: string;
     reason?: string;
     errorCategory?: string;
@@ -26,6 +28,8 @@ export async function auditAuth(
       action: entry.action,
       outcome: entry.outcome,
       actorAccountId: entry.actorAccountId ?? null,
+      activeRole: entry.activeRole ?? null,
+      scope: entry.scope ?? null,
       targetRef: entry.targetRef,
       reason: entry.reason,
       errorCategory: entry.errorCategory,

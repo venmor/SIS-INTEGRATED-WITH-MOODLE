@@ -16,8 +16,13 @@ export interface SecurityConfig {
   rateLimits: {
     signIn: { maxAttempts: number; windowMinutes: number };
     recovery: { maxAttempts: number; windowMinutes: number };
+    grant: { maxAttempts: number; windowMinutes: number };
+    workspaceSwitch: { maxAttempts: number; windowMinutes: number };
   };
   lockout: { failuresBeforeLock: number; lockMinutes: number };
+  // Demo mapping of the handbook's IAM Administrator grantor (the handbook
+  // names the role, never a person). Packet-local, NOT handbook values.
+  grantorRoles: string[];
   passwordPolicy: { minLength: number; guidance: string };
   recoveryTokenMinutes: number;
 }
@@ -34,8 +39,13 @@ export const SECURITY_V1: SecurityConfig = {
   rateLimits: {
     signIn: { maxAttempts: 5, windowMinutes: 15 },
     recovery: { maxAttempts: 3, windowMinutes: 60 },
+    // Demo values for slice 3 (packet-local, NOT handbook baselines):
+    // grants are rare admin acts, switches are frequent user acts.
+    grant: { maxAttempts: 20, windowMinutes: 60 },
+    workspaceSwitch: { maxAttempts: 30, windowMinutes: 15 },
   },
   lockout: { failuresBeforeLock: 5, lockMinutes: 15 },
+  grantorRoles: ['SYSADMIN'],
   passwordPolicy: {
     minLength: 12,
     guidance:

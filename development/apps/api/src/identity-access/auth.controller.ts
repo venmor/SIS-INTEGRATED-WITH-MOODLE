@@ -24,11 +24,18 @@ import { RecoveryService } from './recovery.service.js';
 import { SessionGuard } from './session.guard.js';
 import { SessionService } from './session.service.js';
 import { PrismaService } from './prisma.service.js';
+import { WorkspaceService } from './workspace.service.js';
 
 interface ProxyRequest {
   ip?: string;
   headers?: Record<string, string | string[] | undefined>;
-  auth?: { accountId: string; sessionToken: string };
+  auth?: {
+    accountId: string;
+    sessionToken: string;
+    assignmentId: string | null;
+    activeRole: string | null;
+    scope: string | null;
+  };
 }
 
 interface PassthroughResponse {
@@ -42,6 +49,7 @@ export class AuthController {
   constructor(
     private readonly sessions: SessionService,
     private readonly recovery: RecoveryService,
+    private readonly workspaces: WorkspaceService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -109,6 +117,8 @@ export class AuthController {
       where: { id: req.auth?.accountId ?? '' },
       include: { person: true },
     });
+    const workspaces = await this.workspaces.liveWorkspaces(account.id);
+    const active = await this.workspaces.resolveActive(account.id, req.auth?.assignmentId ?? null);
     return {
       account: {
         accountId: account.id,
@@ -116,6 +126,15 @@ export class AuthController {
         username: account.username,
         displayName: account.person.displayName,
       },
+      workspaces,
+      activeWorkspace: active
+        ? {
+            assignmentId: active.assignmentId,
+            role: active.role,
+            scopeType: active.scopeType,
+            scopeRef: active.scopeRef,
+          }
+        : null,
     };
   }
 

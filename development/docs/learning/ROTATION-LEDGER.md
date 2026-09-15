@@ -10,6 +10,7 @@
 | Phase 1 identity models + seed | Charles | Chitindu Milimbo | Person/Account/Role/Session/Audit tables, fictional seed, demo:reset | [TASK-PH1-001](../task-packets/TASK-PH1-001.md) | [NOTE-PH1-001](./NOTE-PH1-001.md) | Pending Chitindu review |
 | Phase 1 slice-1 corrections | Charles | Chitindu Milimbo | FIX 1–5: grant columns, Credential table, contacts, audit columns, seed v0.2 | [TASK-PH1-001](../task-packets/TASK-PH1-001.md#corrections-deep-audit-branch-choreph1-001-contract-corrections) | [NOTE-PH1-001](./NOTE-PH1-001.md#corrections-fix-15-branch-choreph1-001-contract-corrections) | Pending Chitindu review |
 | Phase 1 sessions + recovery + sign-in UI | Charles | Chitindu Milimbo | Sign-in/out, recovery, session cookies, sign-in UI (MFA later) | [TASK-PH1-002a](../task-packets/TASK-PH1-002a.md) | [NOTE-PH1-002a](./NOTE-PH1-002a.md) | Pending Chitindu replay (steps in note) |
+| Phase 1 grants + workspace switch | Charles | Chitindu Milimbo | Grant API, active workspace, context bar + switcher + grant form | [TASK-PH1-003](../task-packets/TASK-PH1-003.md) | [NOTE-PH1-003](./NOTE-PH1-003.md) | Pending Chitindu replay (steps in note) |
 
 Assign the lead and reviewer before implementation work begins. Swap their roles on the next vertical slice.
 
