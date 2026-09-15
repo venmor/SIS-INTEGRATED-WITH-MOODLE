@@ -1,0 +1,36 @@
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: var(--space-6) var(--space-4);
+  max-width: 40rem;
+  text-align: left;
+}
+
+.title {
+  display: block;
+  font-size: var(--font-section);
+  line-height: var(--line-tight);
+  color: var(--text-primary);
+}
+
+.message {
+  margin-top: var(--space-2);
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  color: var(--text-secondary);
+}
+
+.action {
+  margin-top: var(--space-4);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.action a {
+  color: var(--link);
+}
+
+.action a:hover {
+  color: var(--link-hover);
+}

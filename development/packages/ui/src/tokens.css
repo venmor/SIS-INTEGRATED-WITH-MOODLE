@@ -1,0 +1,154 @@
+/**
+ * UNZA SIS design tokens — PROPOSED palette, requires institutional approval.
+ * Source proposal: supervisor colour guide (Green growth / Gold energy / Blue trust).
+ * Handbook binding: 19.7 fixes semantic MEANINGS, not hex values; branding stays
+ * configurable and no value here is approved UNZA policy until signed off.
+ * Amendments applied at adoption: A1 link default blue-700 (AA body text),
+ * A2 tokenized danger hover/active, A3 explicit Attention mapping, A4 this header.
+ */
+
+:root {
+  /* Core brand (proposed) */
+  --unza-green: #007a20;
+  --unza-gold: #f3950c;
+  --unza-blue: #46b8da;
+  --unza-black: #1a1a1a;
+  --unza-red: #c0392b;
+
+  /* Green scale */
+  --green-50: #e6f5ea;
+  --green-100: #c2e6cc;
+  --green-200: #99d6a8;
+  --green-300: #66c285;
+  --green-400: #33ad61;
+  --green-500: #007a20;
+  --green-600: #006b1c;
+  --green-700: #005717;
+  --green-800: #004412;
+  --green-900: #00300d;
+
+  /* Gold scale */
+  --gold-50: #fef3e0;
+  --gold-100: #fde3b3;
+  --gold-200: #fbd180;
+  --gold-300: #f9be4d;
+  --gold-400: #f6aa26;
+  --gold-500: #f3950c;
+  --gold-600: #d97f00;
+  --gold-700: #b36700;
+  --gold-800: #8c5000;
+  --gold-900: #663a00;
+
+  /* Blue scale */
+  --blue-50: #e3f4f9;
+  --blue-100: #bee7f2;
+  --blue-200: #99d9ea;
+  --blue-300: #73cbe2;
+  --blue-400: #4dbdda;
+  --blue-500: #46b8da;
+  --blue-600: #2e9dbe;
+  --blue-700: #1a7a9a;
+  --blue-800: #0f5c75;
+  --blue-900: #083d4f;
+
+  /* Neutrals */
+  --white: #ffffff;
+  --gray-50: #f7f7f7;
+  --gray-100: #ededed;
+  --gray-200: #d9d9d9;
+  --gray-300: #bdbdbd;
+  --gray-400: #9e9e9e;
+  --gray-500: #757575;
+  --gray-600: #5c5c5c;
+  --gray-700: #424242;
+  --gray-800: #2b2b2b;
+  --gray-900: #1a1a1a;
+  --black: #000000;
+
+  /* Semantic aliases — 19.7 meanings. Text usages MUST meet AA (see pairs below). */
+  --success: var(--green-500);
+  --success-bg: var(--green-50);
+  --success-text: var(--green-700);
+  --warning: var(--gold-500);
+  --warning-bg: var(--gold-50);
+  --warning-text: var(--gold-700);
+  /* A3: Attention is distinct from Warning in 19.7 — same hue family, text-safe grade. */
+  --attention: var(--gold-500);
+  --attention-bg: var(--gold-50);
+  --attention-text: var(--gold-700);
+  --error: var(--unza-red);
+  --error-bg: #fbecea;
+  --error-text: var(--unza-red);
+  /* A2: danger hover/active as tokens, never raw hex in components. */
+  --error-dark: #a93226;
+  --error-darker: #922b21;
+  --info: var(--blue-500);
+  --info-bg: var(--blue-50);
+  --info-text: var(--blue-700);
+  --neutral-bg: var(--gray-100);
+  --neutral-text: var(--gray-700);
+
+  /* Links — A1: resting state is blue-700 (AA on white); blue-600 for large/bold only. */
+  --link: var(--blue-700);
+  --link-hover: var(--blue-800);
+
+  /* Roles (light) */
+  --bg-page: var(--gray-50);
+  --bg-surface: var(--white);
+  --bg-sunken: var(--gray-100);
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --border: var(--gray-200);
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Type scale — 19.6: title / section / body / supporting / status */
+  --font-title: 2rem;
+  --font-section: 1.25rem;
+  --font-body: 1rem;
+  --font-supporting: 0.875rem;
+  --font-status: 0.875rem;
+  --line-tight: 1.25;
+  --line-body: 1.6;
+
+  /* Radius — restrained, never pill-excess (19.2) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Focus — 2px, always visible, never removed */
+  --focus-ring: 0 0 0 2px var(--white), 0 0 0 4px var(--blue-500);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-page: #101010;
+    --bg-surface: #1a1a1a;
+    --bg-sunken: #2b2b2b;
+    --text-primary: #ededed;
+    --text-secondary: #bdbdbd;
+    --border: #2b2b2b;
+    --link: var(--blue-300);
+    --link-hover: var(--blue-200);
+    --success-bg: var(--green-900);
+    --success-text: var(--green-200);
+    --warning-bg: var(--gold-900);
+    --warning-text: var(--gold-200);
+    --attention-bg: var(--gold-900);
+    --attention-text: var(--gold-200);
+    --error-bg: #4a1510;
+    --error-text: #f0a49a;
+    --info-bg: var(--blue-900);
+    --info-text: var(--blue-200);
+    --neutral-bg: #2b2b2b;
+    --neutral-text: #ededed;
+  }
+}

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Compile workspace UI components (they ship as TS source in Phase 0).
+  transpilePackages: ["@sis/ui"],
 };
 
 export default nextConfig;
