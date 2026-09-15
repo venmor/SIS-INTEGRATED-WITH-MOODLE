@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ActionButton, ErrorSummary } from "@sis/ui";
+import { ActionButton, DeniedPanel, ErrorSummary } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
 import styles from "./page.module.css";
 
@@ -25,12 +25,14 @@ export function WorkspaceSwitcher({
 }) {
   const router = useRouter();
   const [errors, setErrors] = useState<{ fieldId: string; message: string }[]>([]);
+  const [denied, setDenied] = useState<{ message: string; reference?: string } | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   async function switchTo(assignmentId: string) {
     if (pendingId) return;
     setPendingId(assignmentId);
     setErrors([]);
+    setDenied(null);
     try {
       const res = await fetch("/api/auth/workspace/switch", {
         method: "POST",
@@ -39,12 +41,12 @@ export function WorkspaceSwitcher({
         body: JSON.stringify({ assignmentId }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
-      const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
         router.refresh();
         return;
       }
-      setErrors([{ fieldId: "workspace", message: `${body.message ?? AUTH_MESSAGES.grantDenied.text}${ref}` }]);
+      // Switch failures are authority-flavoured: denial panel, not summary.
+      setDenied({ message: body.message ?? AUTH_MESSAGES.grantDenied.text, reference: body.reference });
     } catch {
       setErrors([
         {
@@ -60,6 +62,7 @@ export function WorkspaceSwitcher({
   if (workspaces.length === 0) return null;
   return (
     <div>
+      {denied ? <DeniedPanel message={denied.message} reference={denied.reference} /> : null}
       {errors.length > 0 ? <ErrorSummary title="We could not switch workspace." errors={errors} /> : null}
       <ul className={styles.actions} style={{ listStyle: "none", padding: 0 }} id="workspace">
         {workspaces.map((workspace) => {

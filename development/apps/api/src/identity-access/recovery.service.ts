@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { auditAuth } from './audit.js';
+import { accountStatusPolicy } from './policy.service.js';
 
 const require = createRequire(import.meta.url);
 const { hash } = require('argon2') as typeof import('argon2');
@@ -20,7 +21,7 @@ export class RecoveryService {
   /** Always resolves to the generic message — existence stays hidden. */
   async requestRecovery(username: string): Promise<{ message: string; reference: string }> {
     const account = await this.prisma.account.findUnique({ where: { username } });
-    if (account && account.status === 'ACTIVE') {
+    if (account && accountStatusPolicy(account.status).allow) {
       await this.prisma.recoveryToken.updateMany({
         where: { accountId: account.id, usedAt: null },
         data: { usedAt: new Date() },
@@ -62,7 +63,7 @@ export class RecoveryService {
       return { ok: false as const, message: AUTH_MESSAGES.recoveryLinkExpired.text, reference: correlationId };
     }
     const account = await this.prisma.account.findUnique({ where: { id: row.accountId } });
-    if (!account || account.status !== 'ACTIVE') {
+    if (!account || !accountStatusPolicy(account.status).allow) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ConfirmRecovery',
         outcome: 'DENY',
@@ -99,7 +100,7 @@ export class RecoveryService {
   async demoToken(username: string): Promise<{ token: string; expiresAt: Date } | null> {
     if (process.env.DEMO_MODE !== 'true') return null;
     const account = await this.prisma.account.findUnique({ where: { username } });
-    if (!account || account.status !== 'ACTIVE') return null;
+    if (!account || !accountStatusPolicy(account.status).allow) return null;
     await this.prisma.recoveryToken.updateMany({
       where: { accountId: account.id, usedAt: null },
       data: { usedAt: new Date() },

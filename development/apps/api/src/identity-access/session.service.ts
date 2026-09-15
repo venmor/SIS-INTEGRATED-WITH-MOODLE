@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { RateLimiter } from './rate-limit.js';
+import { accountStatusPolicy } from './policy.service.js';
 import { auditAuth } from './audit.js';
 import { WorkspaceService } from './workspace.service.js';
 
@@ -37,7 +38,9 @@ export class SessionService {
 
   async signIn(username: string, password: string, ip: string | undefined, userAgent: string | undefined) {
     const account = await this.prisma.account.findUnique({ where: { username } });
-    if (!account || account.status !== 'ACTIVE') {
+    // §11.1 status gate: only Active authorizes; Closed and every other
+    // state deny generically (no existence oracle either way).
+    if (!account || !accountStatusPolicy(account.status).allow) {
       await dummyVerify(password);
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',

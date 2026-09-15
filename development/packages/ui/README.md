@@ -145,3 +145,21 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Responsive | Same block pattern |
 | Data/audit | Persists/logs nothing |
 | Acceptance tests | Header facts match `/me` activeWorkspace after every switch |
+
+## UI-DENIED-001 — Access denial (`src/DeniedPanel.tsx`, client; detail UI-ACCESS-001 §14.34)
+
+| Field | Contract |
+|---|---|
+| Purpose | Blocked action with minimum safe reason + safe routes (§16.4, ERR-PERM) |
+| Allowed contexts | Any authorization denial (never validation errors — those stay UI-ERROR-001) |
+| Explicit non-uses | Bare `403 Forbidden`; existence oracles; user blame |
+| Anatomy | Not-completed statement + reason + 4 routes (switch workspace, ask administrator, return to permitted work, service-desk reference) + focus on appear |
+| Content rules | Reason text comes from API templates; reference appended when supplied |
+| States | Rendered only on denial; attention tint distinguishes denied from error/empty/loading |
+| Interaction | Route links; focus moves here on each new denial |
+| Validation | Display-only |
+| Error/recovery | Owning form keeps valid entries |
+| Accessibility | `role="alert"`; labelled "Access denied" |
+| Responsive | Same block pattern |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Denied matrix shows panel (not summary); no hidden-record disclosure |

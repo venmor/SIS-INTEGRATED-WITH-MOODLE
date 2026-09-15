@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { auditAuth } from './audit.js';
+import { evaluatePolicy } from './policy.service.js';
 import { hashToken } from './session.service.js';
 
 // Live assignment views (REQ-IAM-002/003). Expired or revoked rows are never
@@ -87,6 +88,28 @@ export class WorkspaceService {
       });
       return { ok: false as const, message: AUTH_MESSAGES.grantDenied.text, reference: correlationId };
     }
+    // §15.21 central decision before touching the target (verb, SoD).
+    // Ownership + liveness of the target stay service-side below.
+    const actorRoles = (await this.liveWorkspaces(session.accountId)).map((w) => w.role);
+    const current = await this.resolveActive(session.accountId, session.activeAssignmentId);
+    const decision = evaluatePolicy({
+      action: 'iam.workspace.switch',
+      activeRole: current?.role ?? actorRoles[0] ?? null,
+      scope: current ? `${current.scopeType}:${current.scopeRef}` : null,
+      assignmentLive: true,
+      actorRoles,
+    });
+    if (!decision.allow) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-SwitchWorkspace',
+        outcome: 'DENY',
+        actorAccountId: session.accountId,
+        targetRef: assignmentId,
+        reason: decision.reason ?? 'policy-denied',
+        errorCategory: 'ERR-SEC',
+      });
+      return { ok: false as const, message: AUTH_MESSAGES.grantDenied.text, reference: correlationId };
+    }
     const row = await this.prisma.roleAssignment.findUnique({ where: { id: assignmentId } });
     if (!row || row.accountId !== session.accountId || !isLive(row, Date.now())) {
       const { correlationId } = await auditAuth(this.prisma, {
@@ -111,6 +134,7 @@ export class WorkspaceService {
       scope: scopeOf(row),
       targetRef: row.id,
       reason: 'workspace-switched',
+      purpose: 'workspace-switch',
     });
     const workspace = toView(row);
     return {

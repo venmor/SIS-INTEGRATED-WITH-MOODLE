@@ -82,11 +82,22 @@ export interface GrantRoleBody {
   capabilities?: string[];
   employmentType?: string;
   delegationLimit?: string;
-  approverId?: string;
+  approverId: string;
   reason: string;
+  idempotencyKey?: string;
 }
 
 export interface GrantRoleResponse {
   assignmentId: string;
   message: string;
+}
+
+/** Exact-username grant-target resolve (minimized admin result). */
+export interface ResolveGrantTargetBody {
+  username: string;
+}
+
+export interface ResolveGrantTargetResponse {
+  username: string;
+  displayName: string;
 }

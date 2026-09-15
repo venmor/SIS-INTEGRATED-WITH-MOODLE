@@ -39,6 +39,10 @@ export class RateLimiter {
     return SECURITY_V1.rateLimits.grant;
   }
 
+  static grantResolveLimit() {
+    return SECURITY_V1.rateLimits.grantResolve;
+  }
+
   static workspaceSwitchLimit() {
     return SECURITY_V1.rateLimits.workspaceSwitch;
   }

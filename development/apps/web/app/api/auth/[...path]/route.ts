@@ -7,13 +7,29 @@ import { NextRequest, NextResponse } from "next/server";
 // Non-GET/POST methods are refused.
 const API = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
 
-// Handbook slice-2 + slice-3 scope only: sign-in/out, own record, recovery,
-// demo token, demo-visible policy, workspace switch, grants. Later-slice APIs
-// belong here only when their task packets land.
+// Handbook slice-2 + slice-3 + slice-4 scope only: sign-in/out, own record,
+// recovery, demo token, demo-visible policy, workspace switch, grants,
+// grant-target resolve, command receipts. Later-slice APIs belong here only
+// when their task packets land.
 const ALLOWED: Record<string, readonly string[]> = {
   GET: ["me", "policy", "demo/recovery-token"],
-  POST: ["sign-in", "sign-out", "recovery/request", "recovery/confirm", "workspace/switch", "grants"],
+  POST: [
+    "sign-in",
+    "sign-out",
+    "recovery/request",
+    "recovery/confirm",
+    "workspace/switch",
+    "grants",
+    "grants/resolve",
+  ],
 };
+
+// Single dynamic exception: receipt lookup carries the idempotency key in
+// the path (GET commands/:key). scoped server-side to the requester.
+function allowedPath(method: string, path: string[]): boolean {
+  if (ALLOWED[method]?.includes(path.join("/"))) return true;
+  return method === "GET" && path.length === 2 && path[0] === "commands" && path[1].length > 0;
+}
 
 async function proxy(
   req: NextRequest,
@@ -24,7 +40,7 @@ async function proxy(
   }
   const { path } = await params;
   const joined = path.join("/");
-  if (!ALLOWED[req.method]?.includes(joined)) {
+  if (!allowedPath(req.method, path)) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
   const url = `${API}/auth/${joined}${req.nextUrl.search}`;

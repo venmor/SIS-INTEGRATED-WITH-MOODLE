@@ -10,3 +10,4 @@ export { ActionButton } from "./ActionButton";
 export type { ButtonType } from "./ActionButton";
 export { ErrorSummary } from "./ErrorSummary";
 export { ContextBar } from "./ContextBar";
+export { DeniedPanel } from "./DeniedPanel";

@@ -131,7 +131,8 @@ describe('workspace (e2e)', () => {
     const admin = request.agent(server as never);
     await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
     const target = await makeUser('grantee', 'Long-Enough-Password-1');
-    const grant = { username: target, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', reason: `E2E grant ${stamp}` };
+    const mweene = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
+    const grant = { username: target, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene.id, reason: `E2E grant ${stamp}` };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     expect(created.body.assignmentId).toBeDefined();
@@ -154,7 +155,8 @@ describe('workspace (e2e)', () => {
     const username = await makeUser('revokee', 'Long-Enough-Password-1');
     const admin = request.agent(server as never);
     await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
-    const grant = { username, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', reason: `E2E grant ${stamp}` };
+    const mweene2 = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
+    const grant = { username, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene2.id, reason: `E2E grant ${stamp}` };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     const agent = request.agent(server as never);

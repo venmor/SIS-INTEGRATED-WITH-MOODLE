@@ -21,6 +21,9 @@ export async function auditAuth(
     targetRef?: string;
     reason?: string;
     errorCategory?: string;
+    purpose?: string | null;
+    priorState?: Record<string, unknown> | null;
+    newState?: Record<string, unknown> | null;
   },
 ): Promise<{ correlationId: string }> {
   const row = await prisma.auditEvent.create({
@@ -33,6 +36,9 @@ export async function auditAuth(
       targetRef: entry.targetRef,
       reason: entry.reason,
       errorCategory: entry.errorCategory,
+      purpose: entry.purpose ?? null,
+      priorState: entry.priorState ?? undefined,
+      newState: entry.newState ?? undefined,
       policyVersion: SECURITY_V1.version,
       correlationId: randomUUID(),
     },

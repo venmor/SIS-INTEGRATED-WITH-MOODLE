@@ -51,6 +51,10 @@ export const AUTH_MESSAGES = {
     "WORKSPACE-003",
     "This change was not completed. Check the details and try again, or ask an administrator.",
   ),
+  scopedEmpty: template(
+    "WORKSPACE-004",
+    "No records available in your current role and scope.",
+  ),
 } as const;
 
 export type AuthMessageKey = keyof typeof AUTH_MESSAGES;

@@ -25,8 +25,10 @@ describe('workspace contract compatibility', () => {
   it('exposes demo grant/switch rate limits from SECURITY-v1', () => {
     expect(SECURITY_V1.rateLimits.grant).toEqual({ maxAttempts: 20, windowMinutes: 60 });
     expect(SECURITY_V1.rateLimits.workspaceSwitch).toEqual({ maxAttempts: 30, windowMinutes: 15 });
+    expect(SECURITY_V1.rateLimits.grantResolve).toEqual({ maxAttempts: 30, windowMinutes: 15 });
     expect(RateLimiter.grantLimit().maxAttempts).toBe(20);
     expect(RateLimiter.workspaceSwitchLimit().maxAttempts).toBe(30);
+    expect(RateLimiter.grantResolveLimit().maxAttempts).toBe(30);
   });
 
   it('exposes workspace message templates with stable IDs', () => {

@@ -37,6 +37,12 @@ export class SwitchWorkspaceDto {
   assignmentId!: string;
 }
 
+export class ResolveGrantTargetDto {
+  @IsString()
+  @MaxLength(64)
+  username!: string;
+}
+
 export class GrantRoleDto {
   @IsString()
   @MaxLength(64)
@@ -86,11 +92,18 @@ export class GrantRoleDto {
   @MaxLength(128)
   delegationLimit?: string;
 
-  @IsOptional()
+  // §12.9 requires an approver; single-step demo grants record the
+  // authorizing approver here (must be a real account, never the target).
   @IsUUID()
-  approverId?: string;
+  approverId!: string;
 
   @IsString()
   @MaxLength(512)
   reason!: string;
+
+  // UI-SUBMIT-001: client-generated key per form open; repeats return the
+  // stored receipt instead of re-applying the effect.
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
 }

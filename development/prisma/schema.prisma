@@ -91,6 +91,7 @@ model RoleAssignment {
 
   @@index([accountId])
   @@index([role, scopeType, scopeRef])
+  @@index([accountId, role, scopeType, scopeRef])
 }
 
 model Session {
@@ -141,6 +142,9 @@ model AuditEvent {
   reason         String?
   policyVersion  String?
   correlationId  String?
+  // Slice-4 purpose logging (§15.9): workflow-bound free text recorded at
+  // decision time (grant reason, resolve context). No closed enum exists.
+  purpose        String?
   // §16.14 + 07/02: error category, idempotency reference, prior/new state.
   errorCategory  String?
   idempotencyRef String?
@@ -150,4 +154,33 @@ model AuditEvent {
 
   @@index([actorAccountId])
   @@index([action, occurredAt])
+  @@index([correlationId])
+}
+
+// Client-generated idempotency keys (UI-SUBMIT-001 + high-impact rule):
+// the same key returns the stored receipt instead of re-applying the effect.
+model IdempotencyKey {
+  key       String   @id
+  accountId String
+  action    String
+  status    Int
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+// Transactional outbox (architecture §18.6/18.7): domain row + event commit
+// atomically; worker delivery (retry/dead-letter/replay UI) is v0.9
+// (GAP-008/GAP-009). Consumers must tolerate duplicate delivery.
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  aggregate   String
+  aggregateId String
+  type        String
+  payload     Json
+  occurredAt  DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([deliveredAt, occurredAt])
 }

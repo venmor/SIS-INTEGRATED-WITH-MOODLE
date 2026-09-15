@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
+  NotFoundException,
   Post,
   Req,
   Res,
@@ -13,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { AUTH_MESSAGES } from '@sis/config';
 import { CsrfGuard } from './csrf.guard.js';
-import { GrantRoleDto } from './dto.js';
+import { GrantRoleDto, ResolveGrantTargetDto } from './dto.js';
 import { auditAuth } from './audit.js';
 import { RateLimiter } from './rate-limit.js';
 import { SessionGuard } from './session.guard.js';
@@ -98,6 +99,7 @@ export class GrantsController {
         delegationLimit: body.delegationLimit,
         approverId: body.approverId,
         reason: body.reason,
+        idempotencyKey: body.idempotencyKey,
       },
       {
         accountId: req.auth?.accountId ?? '',
@@ -114,5 +116,49 @@ export class GrantsController {
       throw new BadRequestException({ message: result.message, reference: result.reference });
     }
     return { assignmentId: result.assignmentId, message: result.message, reference: result.reference };
+  }
+
+  @Post('resolve')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard, SessionGuard)
+  async resolve(
+    @Body() body: ResolveGrantTargetDto,
+    @Req() req: GrantRequest,
+    @Res({ passthrough: true }) res: PassthroughResponse,
+  ) {
+    const ip = this.clientIp(req);
+    const limit = this.sessions.limiter.check(
+      `grant-resolve:${req.auth?.accountId}:${ip}`,
+      RateLimiter.grantResolveLimit().maxAttempts,
+      RateLimiter.grantResolveLimit().windowMinutes,
+    );
+    if (!limit.allowed) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-ResolveGrantTarget',
+        outcome: 'DENY',
+        actorAccountId: req.auth?.accountId,
+        activeRole: req.auth?.activeRole,
+        scope: req.auth?.scope,
+        reason: 'rate-limited',
+        errorCategory: 'ERR-SEC',
+      });
+      res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+      throw new HttpException(
+        { message: AUTH_MESSAGES.rateLimited.text, reference: correlationId },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const result = await this.grants.resolveTarget(body.username, {
+      accountId: req.auth?.accountId ?? '',
+      activeRole: req.auth?.activeRole ?? null,
+      activeScope: req.auth?.scope ?? null,
+    });
+    if (!result.ok) {
+      if (result.status === 403) {
+        throw new ForbiddenException({ message: result.message, reference: result.reference });
+      }
+      throw new NotFoundException({ message: result.message, reference: result.reference });
+    }
+    return { username: result.username, displayName: result.displayName, reference: result.reference };
   }
 }
