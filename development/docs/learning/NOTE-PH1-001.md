@@ -33,10 +33,20 @@ Usernames unique at DB level (P2002 proven); passwords only as argon2id hashes
 (verify proven true); sessions keyed by sha256 token hashes; seed passwords are
 fictional demo pattern, never printed. Enforcement logic arrives slices 4–5.
 
+## Corrections (FIX 1–5, branch `chore/ph1-001-contract-corrections`)
+
+Deep re-audit added: §12.9 grant columns, Credential table (passwords now
+Credential PASSWORD rows — `Account.passwordHash` dropped with justification
+in TASK), Person contact channels, four audit columns, seed v0.2 demo-config
+scopes (Computing/SWE101, `.invalid` contacts). Migration
+`20260915021730_ph1_identity_contract_corrections`, empty-DB proven.
+Counts now 4/4/6/4. Error map additions: `adapter required` → construct with
+adapter; `client/default missing` → run generate (postinstall covers).
+
 ## Tests and what they prove
 
-Empty-DB `demo:reset` (migrate deploy + seed: 4/4/6) · re-seed idempotent
-(4/4/6 stable) · duplicate username → P2002 · expired TUT row present ·
+Empty-DB `demo:reset` (migrate deploy + seed: 4/4/6/4) · re-seed idempotent
+(stable) · duplicate username → P2002 · expired TUT row present ·
 argon2 verify true · secret scan clean.
 
 ## What failed or confused us

@@ -66,3 +66,28 @@ Session issue/validation, sign-in/out/recovery endpoints + UI (slice 2), workspa
 - [x] Duplicate username rejected by DB constraint (P2002 proof); argon2 verify true; expired TUT visible
 - [x] No secret/real data in source, fixtures, logs
 - [ ] Reviewer can explain Person-vs-Account-vs-Role and the seed table
+
+## Corrections (deep audit, branch `chore/ph1-001-contract-corrections`)
+
+Word-for-word re-audit against §12.9, `05/05` entities, `07/02` audit fields,
+§16.14 and `DEMO-ACADEMIC-2026-v1` found five omissions (no hallucinations —
+every original choice traced to a source; these were gaps):
+
+- FIX 1 (§12.9 grant form): RoleAssignment += appointmentRef, authoritySource,
+  capabilities[], employmentType, delegationLimit, approverId.
+- FIX 2 (`05/05` Credential entity + preserve-history): new Credential table
+  (kind/status/supersededAt); PASSWORD rows replace `Account.passwordHash`,
+  dropped in the same migration — justified: local demo DB only, rebuildable
+  via `demo:reset`, no shared/staging DB exists (19.33 scope).
+- FIX 3 (§12.8 contact channels, §12.10 methods): Person += email,
+  emailVerifiedAt, phone, phoneVerifiedAt (nullable; fictional demo values).
+- FIX 4 (§16.14, 07/02): AuditEvent += errorCategory, idempotencyRef,
+  priorState, newState (nullable).
+- FIX 5 (`05/05` demo config): seed v0.2 realigns scopes to Computing /
+  SWE101-2026S1 (offering codes seed-local until curriculum tables land).
+
+Migration `20260915021730_ph1_identity_contract_corrections` (empty-DB proven).
+Seed v0.2: 4/4/6/4, idempotent re-run stable, P2002 + argon2 + contacts +
+approver + audit columns all verified. Planned but later: Scope/Delegation
+tables (with curriculum/grant-API slices), Credential TOTP/RECOVERY_CODE kinds
+(slice 2/2b).
