@@ -1,27 +1,14 @@
 // demo:reset — rebuild the database from scratch (Phase 1+). Cross-platform
-// Node (no shell-specific syntax): compose up → wait healthy → migrate deploy
-// → seed. Destroys the local pgdata volume; never touches real data (there is
-// none — fictional fixtures only).
+// Node (no shell-specific syntax): destroy volume → compose up → wait healthy
+// → generate → migrate deploy → seed. Destroys the local pgdata volume;
+// never touches real data (there is none — fictional fixtures only).
+// Fail-fast: any step throwing aborts the reset (never seed a dirty DB).
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "./env.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-
-function loadEnv() {
-  const file = join(root, ".env");
-  if (!existsSync(file)) {
-    throw new Error("development/.env is missing — copy .env.example first");
-  }
-  for (const line of readFileSync(file, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-    const key = trimmed.slice(0, trimmed.indexOf("=")).trim();
-    const value = trimmed.slice(trimmed.indexOf("=") + 1).trim();
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
 
 function sh(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit", ...options });
@@ -42,7 +29,8 @@ function ready() {
   throw new Error("postgres did not become ready in time");
 }
 
-loadEnv();
+loadEnv({ root, requireFile: true });
+sh("docker", ["compose", "down", "-v"]);
 sh("docker", ["compose", "up", "-d", "db"]);
 ready();
 sh("npx", ["prisma", "generate"]);

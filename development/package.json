@@ -20,7 +20,7 @@
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspace=apps/web --workspace=apps/api",
     "demo:reset": "node scripts/demo-reset.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "node scripts/with-env.mjs prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed/seed.ts"

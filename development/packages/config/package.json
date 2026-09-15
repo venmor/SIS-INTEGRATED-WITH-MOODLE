@@ -2,7 +2,24 @@
   "name": "@sis/config",
   "version": "0.1.0",
   "private": true,
-  "description": "Validated institutional configuration types (versioned policy, not hard-coded values)",
+  "description": "Versioned institutional configuration values + types (SECURITY-v1, message templates)",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "6.0.2"
+  },
   "license": "UNLICENSED"
 }

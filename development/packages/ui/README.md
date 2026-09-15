@@ -55,3 +55,75 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Responsive | Same block pattern, max 40rem |
 | Data/audit | Persists/logs nothing |
 | Acceptance tests | All three cases render distinct copy; scoped copy discloses nothing |
+
+## UI-FIELD-001 — Form field (`src/Field.tsx`, server)
+
+| Field | Contract |
+|---|---|
+| Purpose | One labelled input with help and per-field error for any form |
+| Allowed contexts | Sign-in, recovery, application, registration and request forms |
+| Explicit non-uses | Placeholder-only labelling (never); password entry (use UI-FIELD-003) |
+| Anatomy | Persistent label + optional help + input + optional error |
+| Content rules | Sentence-case labels; help states format, not secrets |
+| States | Default, focus (blue ring), filled, error (red border + message), disabled native |
+| Interaction | Native input (managers + paste never blocked); error `role="alert"`, `aria-describedby` links help + error |
+| Validation | Display-only; validation lives in the form/API |
+| Error/recovery | Keeps entered value; valid entries preserved on resubmit |
+| Accessibility | Label `for`/`id`; AA text; keyboard native |
+| Responsive | Max 28rem; single column |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Label association, error announcement, value retention |
+
+## UI-FIELD-003 — Password creation and sign-in field (`src/PasswordField.tsx`, client)
+
+| Field | Contract |
+|---|---|
+| Purpose | Secure authentication without painful recovery (§14.7) |
+| Allowed contexts | Sign-in password; new-password on recovery/reset |
+| Explicit non-uses | Non-secret text; PIN/code entry |
+| Anatomy | Label + password input + show/hide (accessible label) + caps-lock warning + policy guidance + error; forgot-password route lives on the sign-in page, not in this component |
+| Content rules | Policy guidance from config (never hardcoded minimums); approved failure copy owned by AUTH-SIGNIN-001 |
+| States | Hidden/shown, caps warning (non-blocking), error, focus ring |
+| Interaction | Paste/managers allowed; toggle `aria-pressed`; caps via CapsLock detection |
+| Validation | Display-only; policy enforced server-side |
+| Error/recovery | Value preserved after unrelated errors; reset-link-expired explains + offers fresh request |
+| Accessibility | Toggle labelled `Show/Hide <label>`; warnings `role="status"`; errors `role="alert"` |
+| Responsive | Same block pattern |
+| Data/audit | Persists/logs nothing; value never logged |
+| Acceptance tests | Toggle works by keyboard; caps warning appears; username preserved after failure |
+
+## UI-ACTION-001 — Buttons (`src/ActionButton.tsx`, client)
+
+| Field | Contract |
+|---|---|
+| Purpose | One clear primary step per task region (§14.21) |
+| Allowed contexts | Form submits, callouts, empty-state actions |
+| Explicit non-uses | Icon-only important actions; destructive beside primary without separation |
+| Anatomy | Label (action + object) + optional progress text |
+| Content rules | `Sign in`, never `Continue`/`OK`; tertiary for low-emphasis navigation |
+| States | Primary/secondary/tertiary/destructive; loading shows progress text, blocks repeats, announces via `role="status"`; never disabled-without-reason |
+| Interaction | Native button, keyboard native, visible focus ring, touch target ≥2rem |
+| Validation | n/a |
+| Error/recovery | Failed submit returns focus path via form error summary |
+| Accessibility | `aria-disabled` while pending; progress announced |
+| Responsive | Full-width permitted on narrow screens |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Single primary per region; loading announces; no icon-only primaries |
+
+## UI-ERROR-001 — Error summary (`src/ErrorSummary.tsx`, client)
+
+| Field | Contract |
+|---|---|
+| Purpose | Page-level failure list linking to fields (§16.3) |
+| Allowed contexts | Any validated form |
+| Explicit non-uses | Success content; field-level-only errors |
+| Anatomy | Title + linked list; auto-focus on appearance (`tabIndex=-1`) |
+| Content rules | Counts corrections ("We need N corrections…"); five-part errors (§16.1) |
+| States | Rendered only when errors exist |
+| Interaction | Links jump to fields; focus moves here on submit failure |
+| Validation | Display-only |
+| Error/recovery | Valid entries kept by the owning form |
+| Accessibility | `role="alert"`; labelled by title |
+| Responsive | Same block pattern |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Focus lands here on failure; every link targets a field |

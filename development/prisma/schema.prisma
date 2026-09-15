@@ -33,12 +33,16 @@ model Account {
   person       Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
   username     String           @unique
   status       String           @default("ACTIVE")
+  // Sign-in abuse tracking (07/04 baselines, SECURITY-v1 values in code).
+  failedSignInCount Int      @default(0)
+  lockedUntil       DateTime?
   createdAt    DateTime         @default(now())
   roles        RoleAssignment[] @relation("Grantee")
   grantsIssued RoleAssignment[] @relation("Grantor")
   approvals    RoleAssignment[] @relation("Approver")
   credentials  Credential[]
   sessions     Session[]
+  recoveryTokens RecoveryToken[]
 
   @@index([personId])
 }
@@ -99,6 +103,21 @@ model Session {
   userAgent   String?
   lastSeenAt  DateTime  @default(now())
   createdAt   DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+// Single-use account-recovery tokens (slice 2a). Only the hash is stored;
+// the raw token is shown once to the requester (demo path) or sent via the
+// future delivery provider. Expired or used tokens are rejected.
+model RecoveryToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([accountId])
 }

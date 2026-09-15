@@ -1,7 +1,29 @@
+import { cookies } from "next/headers";
 import { Status } from "@sis/ui";
+import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+async function signedInAccount(): Promise<string | null> {
+  const sid = (await cookies()).get("sid")?.value;
+  if (!sid) return null;
+  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
+  try {
+    const res = await fetch(`${api}/auth/me`, {
+      headers: { cookie: `sid=${sid}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { account?: { displayName?: string } };
+    return body.account?.displayName ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Home() {
+  const displayName = await signedInAccount();
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -12,22 +34,33 @@ export default function Home() {
           shell proves the interface baseline renders — no business feature
           lives here yet.
         </p>
-        <Status
-          severity="info"
-          state="Shell running — no business data"
-          reason="Interface, API liveness and design tokens are in place. Applicant, registration and result workflows arrive in later slices."
-          updated="Phase 0, slice 4"
-          action="Next: confirm the API answers, then continue to the first journey slice."
-        />
+        {displayName ? (
+          <Status
+            severity="success"
+            state={`Signed in as ${displayName}`}
+            reason="Your session is active on this device."
+            updated={formatLusaka(new Date())}
+            action="Workspace switching arrives with the roles slice."
+          />
+        ) : (
+          <Status
+            severity="info"
+            state="Shell running — no business data"
+            reason="Interface, API liveness and design tokens are in place. Applicant, registration and result workflows arrive in later slices."
+            updated="Phase 0, slice 4"
+            action="Next: sign in, then continue to the roles slice."
+          />
+        )}
         <div className={styles.actions}>
-          <a
-            className={styles.primary}
-            href="http://localhost:3001/health"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Check API health
-          </a>
+          {displayName ? (
+            <a className={styles.primary} href="/sign-in">
+              Switch account
+            </a>
+          ) : (
+            <a className={styles.primary} href="/sign-in">
+              Sign in
+            </a>
+          )}
         </div>
         <p className={styles.supporting}>
           Expected API shape:{" "}

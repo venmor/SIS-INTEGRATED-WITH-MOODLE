@@ -1,0 +1,143 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
+import { CsrfGuard } from './csrf.guard.js';
+import { RecoveryConfirmDto, RecoveryRequestDto, SignInDto } from './dto.js';
+import { clearSessionCookie, serializeSessionCookie } from './cookies.js';
+import { RateLimiter } from './rate-limit.js';
+import { RecoveryService } from './recovery.service.js';
+import { SessionGuard } from './session.guard.js';
+import { SessionService } from './session.service.js';
+import { PrismaService } from './prisma.service.js';
+
+interface ProxyRequest {
+  ip?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  auth?: { accountId: string; sessionToken: string };
+}
+
+interface PassthroughResponse {
+  setHeader(name: string, value: string): void;
+}
+
+// Identity-access session/recovery routes (slice 2a). Controllers delegate to
+// services (18.1); every failure uses AUTH-* templates, never invented copy.
+@Controller('auth')
+export class AuthController {
+  constructor(
+    private readonly sessions: SessionService,
+    private readonly recovery: RecoveryService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  private clientIp(request: ProxyRequest): string {
+    const forwarded = request.headers?.['x-forwarded-for'];
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
+    return (request.ip ?? first ?? 'unknown').trim();
+  }
+
+  @Post('sign-in')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  async signIn(@Body() body: SignInDto, @Req() req: ProxyRequest, @Res({ passthrough: true }) res: PassthroughResponse) {
+    const ip = this.clientIp(req);
+    const limit = this.sessions.limiter.check(
+      `signin:${body.username}:${ip}`,
+      RateLimiter.signInLimit().maxAttempts,
+      RateLimiter.signInLimit().windowMinutes,
+    );
+    if (!limit.allowed) {
+      res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+      throw new HttpException(AUTH_MESSAGES.rateLimited.text, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const headerAgent = req.headers?.['user-agent'];
+    const userAgent = Array.isArray(headerAgent) ? headerAgent[0] : headerAgent;
+    const result = await this.sessions.signIn(body.username, body.password, ip, userAgent);
+    if (!result.ok) throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
+    res.setHeader('Set-Cookie', serializeSessionCookie(result.token));
+    return { account: result.account, message: 'Signed in.' };
+  }
+
+  @Post('sign-out')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard, SessionGuard)
+  async signOut(@Req() req: ProxyRequest, @Res({ passthrough: true }) res: PassthroughResponse) {
+    await this.sessions.revokeSession(req.auth?.sessionToken ?? '');
+    res.setHeader('Set-Cookie', clearSessionCookie());
+    return { message: AUTH_MESSAGES.signedOut.text };
+  }
+
+  @Get('me')
+  @UseGuards(SessionGuard)
+  async me(@Req() req: ProxyRequest) {
+    const account = await this.prisma.account.findUniqueOrThrow({
+      where: { id: req.auth?.accountId ?? '' },
+      include: { person: true },
+    });
+    return {
+      account: {
+        accountId: account.id,
+        personId: account.personId,
+        username: account.username,
+        displayName: account.person.displayName,
+      },
+    };
+  }
+
+  @Post('recovery/request')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  async recoveryRequest(@Body() body: RecoveryRequestDto, @Req() req: ProxyRequest) {
+    const ip = this.clientIp(req);
+    const limit = this.sessions.limiter.check(
+      `recovery:${body.username}:${ip}`,
+      RateLimiter.recoveryLimit().maxAttempts,
+      RateLimiter.recoveryLimit().windowMinutes,
+    );
+    if (!limit.allowed) {
+      throw new HttpException(AUTH_MESSAGES.rateLimited.text, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    return this.recovery.requestRecovery(body.username);
+  }
+
+  @Post('recovery/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  async recoveryConfirm(@Body() body: RecoveryConfirmDto) {
+    const result = await this.recovery.confirmRecovery(body.token, body.newPassword, this.sessions);
+    if (!result.ok) throw new BadRequestException(result.message);
+    return { message: result.message };
+  }
+
+  @Get('demo/recovery-token')
+  async demoToken(@Query('username') username: string) {
+    const result = await this.recovery.demoToken(username);
+    if (!result) throw new NotFoundException();
+    return result;
+  }
+
+  @Get('policy')
+  policy() {
+    // Demo-visible policy facts only — proves UI renders policy from config,
+    // never hardcoded minimums (UI-FIELD-003).
+    return {
+      passwordMinLength: SECURITY_V1.passwordPolicy.minLength,
+      passwordGuidance: SECURITY_V1.passwordPolicy.guidance,
+      recoveryTokenMinutes: SECURITY_V1.recoveryTokenMinutes,
+    };
+  }
+}

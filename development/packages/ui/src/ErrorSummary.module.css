@@ -1,0 +1,31 @@
+.summary {
+  border: 1px solid var(--error);
+  border-left: 4px solid var(--error);
+  border-radius: var(--radius-md);
+  background: var(--error-bg);
+  padding: var(--space-4);
+  max-width: 40rem;
+}
+
+.summary:focus {
+  outline: none;
+}
+
+.summary:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.title {
+  display: block;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+
+.summary ul {
+  margin: var(--space-2) 0 0 var(--space-4);
+  font-size: var(--font-body);
+}
+
+.summary a {
+  color: var(--error-text);
+}
