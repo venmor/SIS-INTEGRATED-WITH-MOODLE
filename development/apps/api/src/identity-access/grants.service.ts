@@ -263,7 +263,7 @@ export class GrantsService {
       return {
         ok: false as const,
         status: 404,
-        message: 'No records available in your current role and scope.',
+        message: AUTH_MESSAGES.scopedEmpty.text,
         reference: correlationId,
       };
     }
