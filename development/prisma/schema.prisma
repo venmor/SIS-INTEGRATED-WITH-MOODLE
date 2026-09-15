@@ -1,0 +1,10 @@
+// Phase 0 shell: connection contract only — no models, no migrations yet.
+// First model/migration arrives with the first database-backed slice.
+// Prisma 7+: connection URL lives in prisma.config.ts (schema holds provider only).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

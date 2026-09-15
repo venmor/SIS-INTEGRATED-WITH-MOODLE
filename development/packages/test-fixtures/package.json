@@ -1,0 +1,8 @@
+{
+  "name": "@sis/test-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fictional demo/test records only — never real student data",
+  "type": "module",
+  "license": "UNLICENSED"
+}

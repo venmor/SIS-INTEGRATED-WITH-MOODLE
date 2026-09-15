@@ -1,0 +1,8 @@
+{
+  "name": "@sis/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validated institutional configuration types (versioned policy, not hard-coded values)",
+  "type": "module",
+  "license": "UNLICENSED"
+}
