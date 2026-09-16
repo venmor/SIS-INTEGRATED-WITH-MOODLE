@@ -187,3 +187,36 @@ model OutboxEvent {
 
   @@index([deliveredAt, occurredAt])
 }
+
+// Configuration Item - single source of truth for ALL configurable values
+model ConfigurationItem {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  category    String
+  subCategory String?
+  value       Json
+  valueType   String
+  label       String
+  description String?
+  minValue    Float?
+  maxValue    Float?
+  allowedValues Json?
+  isSecret    Boolean  @default(false)
+  isReadOnly  Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@index([category, subCategory])
+  @@index([key])
+}
+
+// Configuration Version (for audit trail + rollback)
+model ConfigurationVersion {
+  id          String   @id @default(cuid())
+  snapshot    Json
+  changedBy   String
+  changeReason String
+  createdAt   DateTime @default(now())
+}
