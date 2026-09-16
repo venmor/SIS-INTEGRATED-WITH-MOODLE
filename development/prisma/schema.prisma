@@ -50,6 +50,9 @@ model Account {
 // Secrets live here — never overwritten in place. A password/TOTP change
 // creates a new row and supersedes the old one (preserve-history rule).
 // Kinds: PASSWORD today; TOTP and RECOVERY_CODE arrive with slice 2/2b.
+// Extra-SQL hardening (see ph1_hardening migration, kept in sync by hand):
+// partial UNIQUE(accountId, kind) WHERE ACTIVE + AuditEvent correlationId
+// NOT NULL UNIQUE. `migrate diff` will flag these; never auto-drop.
 model Credential {
   id           String    @id @default(uuid())
   accountId    String

@@ -43,7 +43,14 @@ async function proxy(
   if (!allowedPath(req.method, path)) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
-  const url = `${API}/auth/${joined}${req.nextUrl.search}`;
+  // Forward only the query keys the API reads (username on the demo-token
+  // lookup); everything else is stripped, never proxied verbatim.
+  const search = new URLSearchParams();
+  if (joined === "demo/recovery-token") {
+    const username = req.nextUrl.searchParams.get("username");
+    if (username) search.set("username", username);
+  }
+  const url = `${API}/auth/${joined}${search.size > 0 ? `?${search}` : ""}`;
   const headers: Record<string, string> = { "x-requested-with": "XMLHttpRequest" };
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
@@ -55,6 +62,8 @@ async function proxy(
       method: req.method,
       headers,
       body: req.method === "POST" ? await req.text() : undefined,
+      // A hanging API must not hang the page: fail to the 503 below.
+      signal: AbortSignal.timeout(10000),
     });
   } catch {
     return NextResponse.json(

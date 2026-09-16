@@ -17,27 +17,31 @@ export class SessionGuard implements CanActivate {
     private readonly prisma: PrismaService,
   ) {}
 
+  // Audit failures must never turn a denial into a 500: fire, fall through.
+  private async auditDeny(reason: string): Promise<void> {
+    try {
+      await auditAuth(this.prisma, {
+        action: 'CMD-IAM-Guard',
+        outcome: 'DENY',
+        reason,
+        errorCategory: 'ERR-SEC',
+      });
+    } catch {
+      // Denial stands regardless of audit availability.
+    }
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const raw = request.headers?.cookie;
     const token = parseCookies(Array.isArray(raw) ? raw.join('; ') : raw)[SECURITY_V1.session.cookieName];
     if (!token) {
-      await auditAuth(this.prisma, {
-        action: 'CMD-IAM-Guard',
-        outcome: 'DENY',
-        reason: 'missing-session',
-        errorCategory: 'ERR-SEC',
-      });
+      await this.auditDeny('missing-session');
       throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
     }
     const session = await this.sessions.validateSession(token);
     if (!session) {
-      await auditAuth(this.prisma, {
-        action: 'CMD-IAM-Guard',
-        outcome: 'DENY',
-        reason: 'invalid-session',
-        errorCategory: 'ERR-SEC',
-      });
+      await this.auditDeny('invalid-session');
       throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
     }
     request.auth = {

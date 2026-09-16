@@ -52,28 +52,65 @@ export class GrantsService {
     dto: GrantRoleDto,
     grantor: { accountId: string; activeRole: string | null; activeScope: string | null },
   ) {
-    // Idempotency first: repeats return the stored receipt (UI-SUBMIT-001).
+    // Idempotency first: claim the key row (status 0 = in-flight) so
+    // concurrent double-submits converge; the loser replays the winner's
+    // receipt instead of double-creating (UI-SUBMIT-001 + 19.41).
     if (dto.idempotencyKey) {
       const prior = await this.prisma.idempotencyKey.findUnique({ where: { key: dto.idempotencyKey } });
       if (prior) {
         if (prior.accountId !== grantor.accountId || prior.action !== 'CMD-IAM-GrantRole') {
           return this.deny(grantor, 'idempotency-key-mismatch', undefined, false, dto.reason, dto.idempotencyKey);
         }
-        const receipt = prior.response as { assignmentId: string; message: string };
-        const { correlationId } = await auditAuth(this.prisma, {
-          action: 'CMD-IAM-GrantRole',
-          outcome: 'ALLOW',
-          actorAccountId: grantor.accountId,
-          activeRole: grantor.activeRole,
-          scope: grantor.activeScope,
-          targetRef: receipt.assignmentId,
-          reason: 'idempotent-replay',
-          purpose: dto.reason,
-          idempotencyRef: dto.idempotencyKey ?? null,
-          priorState: null,
-          newState: { assignmentId: receipt.assignmentId },
+        if (prior.status === 201) {
+          const receipt = prior.response as { assignmentId: string; message: string };
+          const { correlationId } = await auditAuth(this.prisma, {
+            action: 'CMD-IAM-GrantRole',
+            outcome: 'ALLOW',
+            actorAccountId: grantor.accountId,
+            activeRole: grantor.activeRole,
+            scope: grantor.activeScope,
+            targetRef: receipt.assignmentId,
+            reason: 'idempotent-replay',
+            purpose: dto.reason,
+            idempotencyRef: dto.idempotencyKey ?? null,
+            priorState: null,
+            newState: { assignmentId: receipt.assignmentId },
+          });
+          return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
+        }
+        // Pending claim: a crashed first attempt leaves status 0 behind.
+        // Claims older than 15 minutes are taken over; fresh ones wait.
+        const ageMs = Date.now() - prior.createdAt.getTime();
+        if (ageMs <= 15 * 60 * 1000) {
+          return this.deny(grantor, 'idempotent-in-flight', undefined, false, dto.reason, dto.idempotencyKey);
+        }
+        await this.prisma.idempotencyKey.delete({ where: { key: dto.idempotencyKey } });
+      }
+      try {
+        await this.prisma.idempotencyKey.create({
+          data: { key: dto.idempotencyKey, accountId: grantor.accountId, action: 'CMD-IAM-GrantRole', status: 0, response: {} },
         });
-        return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
+      } catch {
+        // Lost the claim race: re-read the winner's row and replay it.
+        const winner = await this.prisma.idempotencyKey.findUnique({ where: { key: dto.idempotencyKey as string } });
+        if (winner && winner.status === 201 && winner.accountId === grantor.accountId) {
+          const receipt = winner.response as { assignmentId: string; message: string };
+          const { correlationId } = await auditAuth(this.prisma, {
+            action: 'CMD-IAM-GrantRole',
+            outcome: 'ALLOW',
+            actorAccountId: grantor.accountId,
+            activeRole: grantor.activeRole,
+            scope: grantor.activeScope,
+            targetRef: receipt.assignmentId,
+            reason: 'idempotent-replay',
+            purpose: dto.reason,
+            idempotencyRef: dto.idempotencyKey ?? null,
+            priorState: null,
+            newState: { assignmentId: receipt.assignmentId },
+          });
+          return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
+        }
+        return this.deny(grantor, 'idempotent-in-flight', undefined, false, dto.reason, dto.idempotencyKey);
       }
     }
     // §15.21 central decision (verb, SoD, self-approval, approver presence).
@@ -227,14 +264,9 @@ export class GrantsService {
       occurredAt: new Date().toISOString(),
     };
     if (dto.idempotencyKey) {
-      await this.prisma.idempotencyKey.create({
-        data: {
-          key: dto.idempotencyKey,
-          accountId: grantor.accountId,
-          action: 'CMD-IAM-GrantRole',
-          status: 201,
-          response: receipt,
-        },
+      await this.prisma.idempotencyKey.update({
+        where: { key: dto.idempotencyKey },
+        data: { status: 201, response: receipt },
       });
     }
     return { ok: true as const, ...receipt, reference: correlationId };

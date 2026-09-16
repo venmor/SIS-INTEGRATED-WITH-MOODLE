@@ -113,10 +113,12 @@ export class AuthController {
   @Get('me')
   @UseGuards(SessionGuard)
   async me(@Req() req: ProxyRequest) {
-    const account = await this.prisma.account.findUniqueOrThrow({
+    // Account deleted mid-session: generic 401, never a 500 leak.
+    const account = await this.prisma.account.findUnique({
       where: { id: req.auth?.accountId ?? '' },
       include: { person: true },
     });
+    if (!account) throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
     const workspaces = await this.workspaces.liveWorkspaces(account.id);
     const active = await this.workspaces.resolveActive(account.id, req.auth?.assignmentId ?? null);
     return {
@@ -173,15 +175,48 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   async recoveryConfirm(@Body() body: RecoveryConfirmDto) {
-    const result = await this.recovery.confirmRecovery(body.token, body.newPassword, this.sessions);
+    const result = await this.recovery.confirmRecovery(body.token, body.newPassword);
     if (!result.ok) throw new BadRequestException({ message: result.message, reference: result.reference });
     return { message: result.message, reference: result.reference };
   }
 
   @Get('demo/recovery-token')
-  async demoToken(@Query('username') username: string) {
+  async demoToken(
+    @Query('username') username: string,
+    @Req() req: ProxyRequest,
+    @Res({ passthrough: true }) res: PassthroughResponse,
+  ) {
+    const ip = this.clientIp(req);
+    const limit = this.sessions.limiter.check(
+      `demo:${username}:${ip}`,
+      RateLimiter.recoveryLimit().maxAttempts,
+      RateLimiter.recoveryLimit().windowMinutes,
+    );
+    if (!limit.allowed) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-RequestRecovery',
+        outcome: 'DENY',
+        targetRef: username,
+        reason: 'rate-limited',
+        errorCategory: 'ERR-SEC',
+      });
+      res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+      throw new HttpException(
+        { message: AUTH_MESSAGES.rateLimited.text, reference: correlationId },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     const result = await this.recovery.demoToken(username);
-    if (!result) throw new NotFoundException();
+    if (!result) {
+      await auditAuth(this.prisma, {
+        action: 'CMD-IAM-RequestRecovery',
+        outcome: 'DENY',
+        targetRef: username,
+        reason: 'demo-token-unavailable',
+        errorCategory: 'ERR-SEC',
+      });
+      throw new NotFoundException();
+    }
     return result;
   }
 

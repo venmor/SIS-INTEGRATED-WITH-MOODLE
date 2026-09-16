@@ -1,4 +1,4 @@
-import { IsArray, IsDateString, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { SECURITY_V1 } from '@sis/config';
 
 // Local DTOs (validation lives here, once). Canonical shapes live in
@@ -7,6 +7,7 @@ import { SECURITY_V1 } from '@sis/config';
 // excluded from the build so cross-package .ts imports stay out of emit).
 export class SignInDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(64)
   username!: string;
 
@@ -17,12 +18,14 @@ export class SignInDto {
 
 export class RecoveryRequestDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(64)
   username!: string;
 }
 
 export class RecoveryConfirmDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(256)
   token!: string;
 
@@ -39,24 +42,29 @@ export class SwitchWorkspaceDto {
 
 export class ResolveGrantTargetDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(64)
   username!: string;
 }
 
 export class GrantRoleDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(64)
   username!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(32)
   role!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(32)
   scopeType!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(128)
   scopeRef!: string;
 
@@ -70,15 +78,18 @@ export class GrantRoleDto {
   // §12.9 requires appointment evidence + authority source on the form;
   // missing evidence never yields a privileged workspace (§12.13).
   @IsString()
+  @IsNotEmpty()
   @MaxLength(128)
   appointmentRef!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(128)
   authoritySource!: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(32)
   @IsString({ each: true })
   capabilities?: string[];
 
@@ -98,6 +109,7 @@ export class GrantRoleDto {
   approverId!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(512)
   reason!: string;
 

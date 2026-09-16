@@ -19,6 +19,7 @@ export interface SecurityConfig {
     grant: { maxAttempts: number; windowMinutes: number };
     workspaceSwitch: { maxAttempts: number; windowMinutes: number };
     grantResolve: { maxAttempts: number; windowMinutes: number };
+    read: { maxAttempts: number; windowMinutes: number };
   };
   lockout: { failuresBeforeLock: number; lockMinutes: number };
   // Demo mapping of the handbook's IAM Administrator grantor (the handbook
@@ -54,6 +55,8 @@ export const SECURITY_V1: SecurityConfig = {
     // Slice-4 resolve budget: isolated so lookup probing never burns the
     // grant budget and vice versa (demo value, packet-local).
     grantResolve: { maxAttempts: 30, windowMinutes: 15 },
+    // Authenticated read budget for receipt lookups (demo value).
+    read: { maxAttempts: 120, windowMinutes: 1 },
   },
   lockout: { failuresBeforeLock: 5, lockMinutes: 15 },
   grantorRoles: ['SYSADMIN'],

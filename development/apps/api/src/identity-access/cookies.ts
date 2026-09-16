@@ -9,7 +9,13 @@ export function parseCookies(header: string | undefined): Record<string, string>
   for (const part of header.split(';')) {
     const index = part.indexOf('=');
     if (index < 0) continue;
-    out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+    // Malformed segments (bad escaping) are skipped, never thrown: a broken
+    // cookie must read as unauthenticated (401), never a 500.
+    try {
+      out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+    } catch {
+      continue;
+    }
   }
   return out;
 }

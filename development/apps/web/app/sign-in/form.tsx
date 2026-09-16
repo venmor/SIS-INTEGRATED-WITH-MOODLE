@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ActionButton, ErrorSummary, Field, PasswordField } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
 import styles from "../page.module.css";
@@ -16,6 +17,7 @@ interface FieldError {
 // §16.1 support reference (§16.14 correlationId) is appended when the API
 // supplies one; the AUTH-* sentence itself stays verbatim.
 export function SignInForm() {
+  const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
 
@@ -35,7 +37,7 @@ export function SignInForm() {
       const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
       const ref = body.reference ? ` (Reference: ${body.reference})` : '';
       if (res.ok) {
-        window.location.href = "/";
+        router.push("/");
         return;
       }
       if (res.status === 429) {

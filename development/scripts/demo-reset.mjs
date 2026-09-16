@@ -11,7 +11,12 @@ import { loadEnv } from "./env.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function sh(cmd, args, options = {}) {
-  const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit", ...options });
+  const result = spawnSync(cmd, args, {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, ALLOW_DEMO_SEED: "true" },
+    ...options,
+  });
   if (result.status !== 0) throw new Error(`failed: ${cmd} ${args.join(" ")}`);
 }
 

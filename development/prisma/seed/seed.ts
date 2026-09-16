@@ -8,6 +8,14 @@
 // Credential table — never stored or printed in plain text.
 // Erasable TypeScript only (runs on Node 24 type stripping, no runner dep).
 
+// Local-demo kill-switch: this seed must never run outside an explicit local
+// reset (predictable fictional passwords). demo:reset sets the flag;
+// any other invocation aborts before touching the database.
+if (process.env.ALLOW_DEMO_SEED !== "true") {
+  console.error("refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)");
+  process.exit(1);
+}
+
 import { createRequire } from "node:module";
 
 // Both client and hasher ship as CommonJS — load via require for reliable

@@ -16,12 +16,23 @@ export class CsrfGuard implements CanActivate {
     const method = (request.method as string) ?? 'GET';
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return true;
     if (request.headers?.['x-requested-with'] === 'XMLHttpRequest') return true;
-    const { correlationId } = await auditAuth(this.prisma, {
-      action: 'CMD-IAM-Guard',
-      outcome: 'DENY',
-      reason: 'csrf-missing',
-      errorCategory: 'ERR-SEC',
+    // Audit failures must never turn a denial into a 500: the 403 stands
+    // with or without its audit row (reference attached when available).
+    let reference = '';
+    try {
+      const row = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-Guard',
+        outcome: 'DENY',
+        reason: 'csrf-missing',
+        errorCategory: 'ERR-SEC',
+      });
+      reference = row.correlationId;
+    } catch {
+      // Denial stands regardless of audit availability.
+    }
+    throw new ForbiddenException({
+      message: AUTH_MESSAGES.grantDenied.text,
+      ...(reference ? { reference } : {}),
     });
-    throw new ForbiddenException({ message: AUTH_MESSAGES.grantDenied.text, reference: correlationId });
   }
 }

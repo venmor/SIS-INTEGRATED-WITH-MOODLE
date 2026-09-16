@@ -29,4 +29,14 @@ describe('RateLimiter', () => {
     expect(RateLimiter.failureDelayMs(1)).toBe(1000);
     expect(RateLimiter.failureDelayMs(99)).toBe(5000);
   });
+
+  it('bounds the bucket map against distinct-key spam', () => {
+    const limiter = new RateLimiter();
+    for (let i = 0; i < 10500; i++) limiter.check(`spam-${i}`, 5, 15);
+    expect(limiter.size).toBeLessThanOrEqual(10000);
+  });
+
+  it('reads the authenticated-read budget from SECURITY-v1', () => {
+    expect(RateLimiter.readLimit()).toEqual({ maxAttempts: 120, windowMinutes: 1 });
+  });
 });

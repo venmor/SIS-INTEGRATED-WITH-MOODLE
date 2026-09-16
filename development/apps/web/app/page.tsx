@@ -29,7 +29,7 @@ async function loadMe(): Promise<Me | null> {
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/auth/me`, {
-      headers: { cookie: `sid=${sid}` },
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
     });
     if (!res.ok) return null;
