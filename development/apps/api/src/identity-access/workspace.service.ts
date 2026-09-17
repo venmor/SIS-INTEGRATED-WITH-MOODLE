@@ -137,6 +137,12 @@ export class WorkspaceService {
       targetRef: row.id,
       reason: 'workspace-switched',
       purpose: 'workspace-switch',
+      // Entering emergency access is incident work even though the session
+      // was not inside it yet (the interceptor only tags later requests).
+      metadata:
+        row.scopeType === 'BREAK_GLASS'
+          ? { incidentRef: row.scopeRef }
+          : undefined,
     });
     const workspace = toView(row);
     return {

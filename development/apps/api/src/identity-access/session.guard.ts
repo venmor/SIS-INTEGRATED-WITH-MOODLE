@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { auditAuth } from './audit.js';
 import { parseCookies } from './cookies.js';
@@ -34,7 +39,9 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const raw = request.headers?.cookie;
-    const token = parseCookies(Array.isArray(raw) ? raw.join('; ') : raw)[SECURITY_V1.session.cookieName];
+    const token = parseCookies(Array.isArray(raw) ? raw.join('; ') : raw)[
+      SECURITY_V1.session.cookieName
+    ];
     if (!token) {
       await this.auditDeny('missing-session');
       throw new UnauthorizedException(AUTH_MESSAGES.signInFailure.text);
@@ -49,7 +56,13 @@ export class SessionGuard implements CanActivate {
       sessionToken: token,
       assignmentId: session.assignmentId,
       activeRole: session.assignment?.role ?? null,
-      scope: session.assignment ? `${session.assignment.scopeType}:${session.assignment.scopeRef}` : null,
+      scope: session.assignment
+        ? `${session.assignment.scopeType}:${session.assignment.scopeRef}`
+        : null,
+      // Carried for the incident interceptor (§12.11 every-action audit):
+      // free, already resolved by validateSession, no extra query.
+      scopeType: session.assignment?.scopeType ?? null,
+      scopeRef: session.assignment?.scopeRef ?? null,
     };
     return true;
   }

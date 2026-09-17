@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { auditAuth } from './audit.js';
 import { accountStatusPolicy, evaluatePolicy } from './policy.service.js';
+import { ConfigurationService } from './configuration.service.js';
 import { WorkspaceService } from './workspace.service.js';
+import { createReviewSchedule, planReviewSchedule } from './review-schedule.js';
 import type { GrantRoleDto } from './dto.js';
 
 // ACT-IAM-001 grants (slices 3-4). Authority rule: the grantor must act under
@@ -15,9 +17,12 @@ import type { GrantRoleDto } from './dto.js';
 // High-risk self-assignment is denied; unknown users get the neutral reply.
 @Injectable()
 export class GrantsService {
+  private readonly logger = new Logger(GrantsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly workspaces: WorkspaceService,
+    private readonly config: ConfigurationService,
   ) {}
 
   private async deny(
@@ -233,6 +238,34 @@ export class GrantsService {
             occurredAt,
           },
         });
+      }
+      // §12.12 journey: every grant joins the access-review schedules.
+      // Scheduling never breaks the grant: config failure only logs.
+      try {
+        const risks = await this.config.getOrThrow<Record<string, string>>(
+          'security.roleRiskLevels',
+        );
+        const cadences = await this.config.getMany<number>([
+          'security.reviewCadence.high',
+          'security.reviewCadence.medium',
+          'security.reviewCadence.low',
+        ]);
+        const plan = planReviewSchedule(
+          row.role,
+          risks,
+          {
+            high: cadences['security.reviewCadence.high'] ?? 30,
+            medium: cadences['security.reviewCadence.medium'] ?? 90,
+            low: cadences['security.reviewCadence.low'] ?? 180,
+          },
+          occurredAt,
+        );
+        await createReviewSchedule(tx, plan, row.id, grantor.accountId);
+      } catch (error) {
+        this.logger.error(
+          `Review schedule skipped for assignment ${row.id}`,
+          error,
+        );
       }
       return row;
     });

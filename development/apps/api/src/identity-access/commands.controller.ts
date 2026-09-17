@@ -1,5 +1,18 @@
-import { Controller, Get, HttpException, HttpStatus, NotFoundException, Param, ParseUUIDPipe, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Req,
+  Res,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { AUTH_MESSAGES } from '@sis/config';
+import { IncidentInterceptor } from './incident.interceptor.js';
 import { SessionGuard } from './session.guard.js';
 import { PrismaService } from './prisma.service.js';
 import { RateLimiter } from './rate-limit.js';
@@ -20,6 +33,7 @@ interface PassthroughResponse {
 // the client checks the stored receipt by idempotency key before retrying.
 // Scoped to the requester's own account; misses stay neutral.
 @Controller('auth/commands')
+@UseInterceptors(IncidentInterceptor)
 export class CommandsController {
   constructor(
     private readonly prisma: PrismaService,
@@ -28,7 +42,9 @@ export class CommandsController {
 
   private clientIp(request: CommandRequest): string {
     const forwarded = request.headers?.['x-forwarded-for'];
-    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
+    const first = Array.isArray(forwarded)
+      ? forwarded[0]
+      : forwarded?.split(',')[0];
     return (request.ip ?? first ?? 'unknown').trim();
   }
 

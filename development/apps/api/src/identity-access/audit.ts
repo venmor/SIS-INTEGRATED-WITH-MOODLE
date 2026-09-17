@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
+import { currentIncidentRef } from './request-context.js';
 
 // Auth audit rows in final §16.14 shape (11 fields: error category,
 // workflow/action ref, actor/role+scope, record ref, idempotency ref, provider
@@ -26,8 +27,17 @@ export async function auditAuth(
     idempotencyRef?: string | null;
     priorState?: Prisma.InputJsonObject | null;
     newState?: Prisma.InputJsonObject | null;
+    metadata?: Prisma.InputJsonObject | null;
   },
 ): Promise<{ correlationId: string }> {
+  // §12.11 every-action audit: inside an emergency request (interceptor-set
+  // incident), tag the row unless the caller already recorded it. Daemon and
+  // guard paths run outside any store and pass through untouched.
+  const incidentRef = currentIncidentRef();
+  const metadata =
+    incidentRef && !(entry.metadata && 'incidentRef' in entry.metadata)
+      ? { ...(entry.metadata ?? {}), incidentRef }
+      : (entry.metadata ?? undefined);
   const row = await prisma.auditEvent.create({
     data: {
       action: entry.action,
@@ -42,9 +52,10 @@ export async function auditAuth(
       idempotencyRef: entry.idempotencyRef ?? null,
       priorState: entry.priorState ?? undefined,
       newState: entry.newState ?? undefined,
+      metadata,
       policyVersion: SECURITY_V1.version,
       correlationId: randomUUID(),
     },
   });
-  return { correlationId: row.correlationId ?? '' };
+  return { correlationId: row.correlationId };
 }

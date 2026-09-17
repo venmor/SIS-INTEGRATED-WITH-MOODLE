@@ -8,7 +8,9 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IncidentInterceptor } from './incident.interceptor.js';
 import { ConfigurationService } from './configuration.service.js';
 import { SessionGuard } from './session.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
@@ -17,8 +19,8 @@ interface PatchRequest {
   auth?: { accountId: string; sessionToken: string };
 }
 
-@ApiTags('Configuration')
 @Controller('config')
+@UseInterceptors(IncidentInterceptor)
 export class ConfigurationController {
   constructor(private readonly config: ConfigurationService) {}
 
@@ -93,7 +95,7 @@ export class ConfigurationController {
       key,
       body.value,
       body.changeReason || 'Configuration updated via API',
-      body.changeReason
+      body.changeReason,
     );
 
     return {

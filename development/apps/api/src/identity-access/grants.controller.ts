@@ -11,7 +11,9 @@ import {
   Req,
   Res,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IncidentInterceptor } from './incident.interceptor.js';
 import { AUTH_MESSAGES } from '@sis/config';
 import { CsrfGuard } from './csrf.guard.js';
 import { GrantRoleDto, ResolveGrantTargetDto } from './dto.js';
@@ -31,6 +33,8 @@ interface GrantRequest {
     assignmentId: string | null;
     activeRole: string | null;
     scope: string | null;
+    scopeType: string | null;
+    scopeRef: string | null;
   };
 }
 
@@ -41,6 +45,7 @@ interface PassthroughResponse {
 // ACT-IAM-001 role grants (slice 3). Authority comes from the grantor's live
 // active workspace (REQ-IAM-002), never from client-sent role state.
 @Controller('auth/grants')
+@UseInterceptors(IncidentInterceptor)
 export class GrantsController {
   constructor(
     private readonly sessions: SessionService,
@@ -50,7 +55,9 @@ export class GrantsController {
 
   private clientIp(request: GrantRequest): string {
     const forwarded = request.headers?.['x-forwarded-for'];
-    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
+    const first = Array.isArray(forwarded)
+      ? forwarded[0]
+      : forwarded?.split(',')[0];
     return (request.ip ?? first ?? 'unknown').trim();
   }
 
@@ -111,11 +118,21 @@ export class GrantsController {
       // Authority failures are 403; validation/lookup failures stay 400 and
       // neutral so usernames never leak (enumeration resistance).
       if (result.forbidden) {
-        throw new ForbiddenException({ message: result.message, reference: result.reference });
+        throw new ForbiddenException({
+          message: result.message,
+          reference: result.reference,
+        });
       }
-      throw new BadRequestException({ message: result.message, reference: result.reference });
+      throw new BadRequestException({
+        message: result.message,
+        reference: result.reference,
+      });
     }
-    return { assignmentId: result.assignmentId, message: result.message, reference: result.reference };
+    return {
+      assignmentId: result.assignmentId,
+      message: result.message,
+      reference: result.reference,
+    };
   }
 
   @Post('resolve')
@@ -155,10 +172,20 @@ export class GrantsController {
     });
     if (!result.ok) {
       if (result.status === 403) {
-        throw new ForbiddenException({ message: result.message, reference: result.reference });
+        throw new ForbiddenException({
+          message: result.message,
+          reference: result.reference,
+        });
       }
-      throw new NotFoundException({ message: result.message, reference: result.reference });
+      throw new NotFoundException({
+        message: result.message,
+        reference: result.reference,
+      });
     }
-    return { username: result.username, displayName: result.displayName, reference: result.reference };
+    return {
+      username: result.username,
+      displayName: result.displayName,
+      reference: result.reference,
+    };
   }
 }

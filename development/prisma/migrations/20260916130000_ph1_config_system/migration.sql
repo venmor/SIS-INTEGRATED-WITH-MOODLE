@@ -92,17 +92,3 @@ INSERT INTO "ConfigurationItem" ("id", "key", "category", "subCategory", "value"
 -- Audit
 ('cfg_audit_retention', 'security.auditRetentionDays', 'security', 'audit', '365', 'number', 'Audit Retention (days)', 'Audit log retention period in days', 30, 2555, NULL, false, false, 1, NOW(), NOW(), 'system'),
 ('cfg_audit_export_formats', 'security.auditExportFormats', 'security', 'audit', '["json","csv"]', 'array', 'Audit Export Formats', 'Allowed export formats for audit logs', NULL, NULL, NULL, false, false, 1, NOW(), NOW(), 'system');
-
--- ConfigurationVersion table
-CREATE TABLE "ConfigurationVersion" (
-    "id" TEXT NOT NULL,
-    "snapshot" JSONB NOT NULL,
-    "changedBy" TEXT NOT NULL,
-    "changeReason" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ConfigurationVersion_pkey" PRIMARY KEY ("id")
-);
-
--- Indexes
-CREATE INDEX "ConfigurationItem_category_subCategory_idx" ON "ConfigurationItem"("category", "subCategory");
-CREATE INDEX "ConfigurationItem_key_idx" ON "ConfigurationItem"("key");

@@ -51,8 +51,10 @@ model Account {
 // creates a new row and supersedes the old one (preserve-history rule).
 // Kinds: PASSWORD today; TOTP and RECOVERY_CODE arrive with slice 2/2b.
 // Extra-SQL hardening (see ph1_hardening migration, kept in sync by hand):
-// partial UNIQUE(accountId, kind) WHERE ACTIVE + AuditEvent correlationId
-// NOT NULL UNIQUE. `migrate diff` will flag these; never auto-drop.
+// partial UNIQUE(accountId, kind) WHERE ACTIVE on Credential (Prisma cannot
+// express partial indexes). AuditEvent correlationId NOT NULL UNIQUE is now
+// enforced in-schema (@unique). `migrate diff` will flag the Credential one;
+// never auto-drop.
 model Credential {
   id           String    @id @default(uuid())
   accountId    String
@@ -144,7 +146,13 @@ model AuditEvent {
   outcome        String
   reason         String?
   policyVersion  String?
-  correlationId  String?
+  // Slice-5 rebuild: correlationId is REQUIRED UNIQUE in schema (matches
+  // hand-maintained hardening — support-reference lookups must hit exactly
+  // one row). All writers set it (auditAuth mints randomUUID; services pass
+  // explicit IDs). Remaining extra-SQL (see ph1_hardening migration, kept in
+  // sync by hand): partial UNIQUE(accountId, kind) WHERE ACTIVE on
+  // Credential. `migrate diff` will flag that one; never auto-drop.
+  correlationId  String   @unique
   // Slice-4 purpose logging (§15.9): workflow-bound free text recorded at
   // decision time (grant reason, resolve context). No closed enum exists.
   purpose        String?
@@ -219,4 +227,63 @@ model ConfigurationVersion {
   changedBy   String
   changeReason String
   createdAt   DateTime @default(now())
+}
+
+// ADDITIVE ENTITIES for Phase 1 Slice 5
+
+model ReviewSchedule {
+  id           String   @id @default(uuid())
+  assignmentId String
+  reviewerId   String
+  riskLevel    String   // e.g., 'high', 'medium', 'low'
+  cadence      String   // e.g., 'quarterly', 'annual'
+  nextDueAt    DateTime
+  status       String   // e.g., 'pending', 'completed'
+  decision     String?  // 'confirm' | 'reduce' | 'reassign' | 'revoke' | 'clarify'
+  decidedAt    DateTime?
+  decidedBy    String?
+
+  @@index([nextDueAt, status])
+}
+
+model BreakGlassRequest {
+  id              String   @id @default(uuid())
+  requestorId     String
+  incidentRef     String
+  reason          String
+  scope           String
+  durationMinutes Int
+  approverId      String
+  status          String   // 'active', 'revoked', 'expired'
+  grantedAt       DateTime @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  // Post-use review (§15.20 "reviewed"): filled by POST
+  // /auth/break-glass/:id/review, never edited afterwards.
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewOutcome   String?  // 'justified' | 'excessive' | 'breach'
+  reviewNote      String?
+
+  @@index([expiresAt, status])
+}
+
+model ExpiryWarning {
+  id             String   @id @default(uuid())
+  assignmentId   String
+  warnedAt       DateTime @default(now())
+  acknowledgedAt DateTime?
+
+  @@index([assignmentId, acknowledgedAt])
+}
+// Extra-SQL (hand-maintained, Prisma cannot express partial indexes):
+// UNIQUE(assignmentId) WHERE acknowledgedAt IS NULL — one open warning per
+// assignment across concurrent daemon ticks. See ph1_hardening comment rule:
+// never auto-drop; mirror changes here.
+
+model ExpiryDaemonState {
+  id             String   @id @default(uuid())
+  lastRunAt      DateTime
+  nextRunAt      DateTime
+  processedCount Int      @default(0)
 }

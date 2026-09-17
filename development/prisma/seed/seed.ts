@@ -12,7 +12,9 @@
 // reset (predictable fictional passwords). demo:reset sets the flag;
 // any other invocation aborts before touching the database.
 if (process.env.ALLOW_DEMO_SEED !== "true") {
-  console.error("refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)");
+  console.error(
+    "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
+  );
   process.exit(1);
 }
 
@@ -164,7 +166,10 @@ const SEED: SeedAccount[] = [
   },
 ];
 
-async function ensureAccount(entry: SeedAccount, granterId: string | null): Promise<void> {
+async function ensureAccount(
+  entry: SeedAccount,
+  granterId: string | null,
+): Promise<void> {
   let account = await prisma.account.findUnique({
     where: { username: entry.username },
   });
@@ -230,6 +235,65 @@ async function ensureAccount(entry: SeedAccount, granterId: string | null): Prom
   }
 }
 
+// Quarterly review backfill (§12.12 journey: grants join the schedules).
+// Idempotent: one pending schedule per assignment. Risk/cadence mirror the
+// security.* demo configuration (GAP-010 institutional override pending).
+async function ensureReviewSchedules(reviewerId: string): Promise<void> {
+  const readConfig = async (key: string): Promise<unknown> => {
+    const row = await prisma.configurationItem.findUnique({ where: { key } });
+    if (!row) return null;
+    const value = row.value as unknown;
+    return typeof value === "string" ? JSON.parse(value) : value;
+  };
+  const fallbackRisks: Record<string, string> = {
+    SYSADMIN: "high",
+    DEAN: "high",
+    LEC: "medium",
+    TUT: "low",
+    STU: "low",
+    APP: "low",
+  };
+  const risks =
+    ((await readConfig("security.roleRiskLevels")) as Record<
+      string,
+      string
+    > | null) ?? fallbackRisks;
+  const daysFor = async (risk: string): Promise<number> => {
+    const days = (await readConfig(`security.reviewCadence.${risk}`)) as
+      number | null;
+    return typeof days === "number" && days > 0
+      ? days
+      : ({ high: 30, medium: 90, low: 180 }[risk] ?? 90);
+  };
+  const assignments = await prisma.roleAssignment.findMany({
+    where: {
+      revokedAt: null,
+      OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
+    },
+    select: { id: true, role: true },
+  });
+  for (const assignment of assignments) {
+    const open = await prisma.reviewSchedule.findFirst({
+      where: { assignmentId: assignment.id, status: "pending" },
+    });
+    if (open) continue;
+    const risk = ["high", "medium", "low"].includes(risks[assignment.role])
+      ? risks[assignment.role]
+      : "medium";
+    const days = await daysFor(risk);
+    await prisma.reviewSchedule.create({
+      data: {
+        assignmentId: assignment.id,
+        reviewerId,
+        riskLevel: risk,
+        cadence: risk === "high" ? "quarterly" : "annual",
+        nextDueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+        status: "pending",
+      },
+    });
+  }
+}
+
 async function main(): Promise<void> {
   // Identity administrator first so later grants reference a granter/approver.
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
@@ -240,6 +304,7 @@ async function main(): Promise<void> {
   for (const entry of SEED.filter((s) => s.username !== admin.username)) {
     await ensureAccount(entry, granter.id);
   }
+  await ensureReviewSchedules(granter.id);
   const counts = {
     persons: await prisma.person.count(),
     accounts: await prisma.account.count(),
