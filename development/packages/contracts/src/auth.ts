@@ -52,6 +52,8 @@ export interface ActiveWorkspace {
   role: string;
   scopeType: string;
   scopeRef: string;
+  /** Countdown-eligible expiry for the §12.11/§12.12 banners (slice 5). */
+  endsAt: string | null;
 }
 
 export interface MeResponse {

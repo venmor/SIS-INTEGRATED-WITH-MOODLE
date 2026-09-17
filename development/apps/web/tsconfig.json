@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@sis/ui": ["../../packages/ui/src/index.ts"]
+      "@sis/ui": ["../../packages/ui/src/index.ts"],
+      "@sis/contracts": ["../../packages/contracts/src/index.ts"]
     }
   },
   "include": [

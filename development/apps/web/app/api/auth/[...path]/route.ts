@@ -7,12 +7,20 @@ import { NextRequest, NextResponse } from "next/server";
 // Non-GET/POST methods are refused.
 const API = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
 
-// Handbook slice-2 + slice-3 + slice-4 scope only: sign-in/out, own record,
-// recovery, demo token, demo-visible policy, workspace switch, grants,
-// grant-target resolve, command receipts. Later-slice APIs belong here only
-// when their task packets land.
+// Handbook slice-2 + slice-3 + slice-4 + slice-5 scope: sign-in/out, own
+// record, recovery, demo token, demo-visible policy, workspace switch,
+// expiry warnings, grants, grant-target resolve, command receipts, access
+// reviews (+decide), reinstatement, break-glass, audit timeline.
+// Later-slice APIs belong here only when their task packets land.
 const ALLOWED: Record<string, readonly string[]> = {
-  GET: ["me", "policy", "demo/recovery-token"],
+  GET: [
+    "me",
+    "policy",
+    "demo/recovery-token",
+    "audit/timeline",
+    "reviews",
+    "workspace/expiry-warnings",
+  ],
   POST: [
     "sign-in",
     "sign-out",
@@ -21,37 +29,96 @@ const ALLOWED: Record<string, readonly string[]> = {
     "workspace/switch",
     "grants",
     "grants/resolve",
+    "break-glass",
+    "reinstate",
   ],
 };
 
-// Single dynamic exception: receipt lookup carries the idempotency key in
-// the path (GET commands/:key). scoped server-side to the requester.
+// Dynamic exceptions with requester-scoped server checks:
+// - receipt lookup carries the idempotency key (GET commands/:key)
+// - review decide carries the schedule id (POST reviews/:id/decide)
+// - warning ack carries the warning id (POST workspace/expiry-warnings/:id/ack)
 function allowedPath(method: string, path: string[]): boolean {
   if (ALLOWED[method]?.includes(path.join("/"))) return true;
-  return method === "GET" && path.length === 2 && path[0] === "commands" && path[1].length > 0;
+  if (
+    method === "GET" &&
+    path.length === 2 &&
+    path[0] === "commands" &&
+    path[1].length > 0
+  )
+    return true;
+  if (
+    method === "POST" &&
+    path.length === 3 &&
+    path[0] === "reviews" &&
+    path[1].length > 0 &&
+    path[2] === "decide"
+  )
+    return true;
+  if (
+    method === "POST" &&
+    path.length === 3 &&
+    path[0] === "break-glass" &&
+    path[1].length > 0 &&
+    path[2] === "review"
+  )
+    return true;
+  if (
+    method === "POST" &&
+    path.length === 4 &&
+    path[0] === "workspace" &&
+    path[1] === "expiry-warnings" &&
+    path[2].length > 0 &&
+    path[3] === "ack"
+  )
+    return true;
+  return false;
 }
+
+// Query keys the API reads per path family; everything else is stripped,
+// never proxied verbatim (deny-by-default on filter surface).
+const QUERY_KEYS: Record<string, readonly string[]> = {
+  "demo/recovery-token": ["username"],
+  "audit/timeline": [
+    "actorAccountId",
+    "role",
+    "scope",
+    "action",
+    "correlationId",
+    "startDate",
+    "endDate",
+    "skip",
+    "take",
+  ],
+  reviews: ["riskLevel", "status", "reviewerId", "skip", "take"],
+};
 
 async function proxy(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   if (req.method !== "GET" && req.method !== "POST") {
-    return NextResponse.json({ message: "Method not allowed." }, { status: 405 });
+    return NextResponse.json(
+      { message: "Method not allowed." },
+      { status: 405 },
+    );
   }
   const { path } = await params;
   const joined = path.join("/");
   if (!allowedPath(req.method, path)) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
-  // Forward only the query keys the API reads (username on the demo-token
-  // lookup); everything else is stripped, never proxied verbatim.
+  // Forward only the query keys the API reads for this path family;
+  // everything else is stripped, never proxied verbatim.
   const search = new URLSearchParams();
-  if (joined === "demo/recovery-token") {
-    const username = req.nextUrl.searchParams.get("username");
-    if (username) search.set("username", username);
+  for (const key of QUERY_KEYS[joined] ?? []) {
+    const value = req.nextUrl.searchParams.get(key);
+    if (value) search.set(key, value);
   }
   const url = `${API}/auth/${joined}${search.size > 0 ? `?${search}` : ""}`;
-  const headers: Record<string, string> = { "x-requested-with": "XMLHttpRequest" };
+  const headers: Record<string, string> = {
+    "x-requested-with": "XMLHttpRequest",
+  };
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
   const cookie = req.headers.get("cookie");
@@ -67,17 +134,28 @@ async function proxy(
     });
   } catch {
     return NextResponse.json(
-      { message: "We could not reach the sign-in service. Check your connection and try again." },
+      {
+        message:
+          "We could not reach the sign-in service. Check your connection and try again.",
+      },
       { status: 503 },
     );
   }
   const body = await upstream.text();
   const res = new NextResponse(body, {
     status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
+    headers: {
+      "content-type":
+        upstream.headers.get("content-type") ?? "application/json",
+    },
   });
-  const getSetCookie = (upstream.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
-  const cookies = typeof getSetCookie === "function" ? getSetCookie.call(upstream.headers) : [];
+  const getSetCookie = (
+    upstream.headers as Headers & { getSetCookie?: () => string[] }
+  ).getSetCookie;
+  const cookies =
+    typeof getSetCookie === "function"
+      ? getSetCookie.call(upstream.headers)
+      : [];
   if (cookies.length > 0) {
     for (const cookie of cookies) res.headers.append("set-cookie", cookie);
   } else {

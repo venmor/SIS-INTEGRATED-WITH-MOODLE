@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { SECURITY_V1 } from "@sis/config";
 import { ContextBar, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
+import { ExpiryBanner } from "./expiry-banner";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export const dynamic = "force-dynamic";
@@ -18,9 +20,20 @@ interface Workspace {
 }
 
 interface Me {
-  account: { accountId: string; personId: string; username: string; displayName: string };
+  account: {
+    accountId: string;
+    personId: string;
+    username: string;
+    displayName: string;
+  };
   workspaces: Workspace[];
-  activeWorkspace: { assignmentId: string; role: string; scopeType: string; scopeRef: string } | null;
+  activeWorkspace: {
+    assignmentId: string;
+    role: string;
+    scopeType: string;
+    scopeRef: string;
+    endsAt: string | null;
+  } | null;
 }
 
 async function loadMe(): Promise<Me | null> {
@@ -76,13 +89,32 @@ export default async function Home() {
     );
   }
   const active = me.activeWorkspace;
+  const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Student Information System</h1>
+        {breakGlass ? (
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-label="Emergency access active"
+          >
+            <Notice
+              severity="warning"
+              title="Emergency access active"
+              message={`Incident ${breakGlass.scopeRef} expires ${breakGlass.endsAt ? formatLusaka(breakGlass.endsAt) : "soon"}. All actions are subject to enhanced audit.`}
+            />
+          </div>
+        ) : null}
+        <ExpiryBanner />
         {active ? (
-          <ContextBar role={active.role} scopeType={active.scopeType} scopeRef={active.scopeRef} />
+          <ContextBar
+            role={active.role}
+            scopeType={active.scopeType}
+            scopeRef={active.scopeRef}
+          />
         ) : (
           <Notice
             severity="info"
@@ -97,12 +129,25 @@ export default async function Home() {
           updated={formatLusaka(new Date())}
           action="Choose a workspace below. Powers never appear silently — only the active role applies."
         />
-        <WorkspaceSwitcher workspaces={me.workspaces} activeId={active?.assignmentId ?? null} />
+        <WorkspaceSwitcher
+          workspaces={me.workspaces}
+          activeId={active?.assignmentId ?? null}
+        />
         <div className={styles.actions}>
           {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
             <a className={styles.primary} href="/admin/grants">
               Role assignments
             </a>
+          ) : null}
+          {active ? (
+            <Link className={styles.primary} href="/admin/reviews">
+              Access reviews
+            </Link>
+          ) : null}
+          {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
+            <Link className={styles.primary} href="/admin/audit">
+              Audit trail
+            </Link>
           ) : null}
           <a className={styles.primary} href="/sign-in">
             Switch account

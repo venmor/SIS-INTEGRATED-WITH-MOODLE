@@ -35,10 +35,7 @@ export const AUTH_MESSAGES = {
     "AUTH-RECOVERY-003",
     "Your password was changed. Other signed-in devices were signed out for your security.",
   ),
-  signedOut: template(
-    "AUTH-SIGNOUT-001",
-    "You are signed out.",
-  ),
+  signedOut: template("AUTH-SIGNOUT-001", "You are signed out."),
   workspaceSwitched: template(
     "WORKSPACE-001",
     "Workspace switched. Your active role and scope changed.",
@@ -58,6 +55,20 @@ export const AUTH_MESSAGES = {
   assignmentChanged: template(
     "WORKSPACE-005",
     "Your role assignment has changed. This action was not completed.",
+  ),
+  // Slice-5 packet-local outcomes (TASK-PH1-005 source map; handbook §12.11
+  // banner copy and §12.12 sentence live here so no route invents wording).
+  reinstated: template(
+    "WORKSPACE-006",
+    "Role assignment reinstated. The person can use it within its effective period.",
+  ),
+  breakGlassGranted: template(
+    "WORKSPACE-007",
+    "Emergency access granted. It expires automatically at the end of the approved period.",
+  ),
+  breakGlassReviewed: template(
+    "WORKSPACE-008",
+    "Emergency access review recorded. The incident audit chain is closed.",
   ),
 } as const;
 
