@@ -41,8 +41,10 @@ export default async function ReviewsPage() {
         ) : (
           <>
             <p className={styles.lede}>
-              Confirm each assignment is still required. Revocation takes effect
-              immediately and is audited.
+              {loaded.reviews.length >= 21
+                ? "More than 20 role assignments require confirmation — start with the highest risk."
+                : `${loaded.reviews.length} role assignments require confirmation.`}{" "}
+              Revocation takes effect immediately and is audited.
             </p>
             <ReviewQueue initial={loaded.reviews} />
           </>

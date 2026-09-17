@@ -11,6 +11,7 @@ import { PrismaService } from './prisma.service.js';
 import { ConfigurationService } from './configuration.service.js';
 import { auditAuth } from './audit.js';
 import { createReviewSchedule, planReviewSchedule } from './review-schedule.js';
+import { validReceipt } from './idempotency.js';
 import { randomUUID } from 'crypto';
 
 // Controlled reinstatement (slice 5, handbook §12.13: reason + evidence +
@@ -87,7 +88,10 @@ export class ReinstateService {
           reference: correlationId,
         });
       }
-      if (priorKey.status === 201) {
+      if (
+        priorKey.status === 201 &&
+        validReceipt(priorKey.response, ['assignmentId'])
+      ) {
         const receipt = priorKey.response as unknown as {
           assignmentId: string;
         };
@@ -140,7 +144,12 @@ export class ReinstateService {
       const winner = await this.prisma.idempotencyKey.findUnique({
         where: { key },
       });
-      if (winner && winner.status === 201 && winner.accountId === actorId) {
+      if (
+        winner &&
+        winner.status === 201 &&
+        winner.accountId === actorId &&
+        validReceipt(winner.response, ['assignmentId'])
+      ) {
         const receipt = winner.response as unknown as { assignmentId: string };
         const { correlationId } = await auditAuth(this.prisma, {
           action: 'CMD-IAM-ReinstateAssignment',
@@ -230,6 +239,24 @@ export class ReinstateService {
       });
     }
 
+    // No self-reinstatement (self-approval ban, GAP-012 spirit): restoring
+    // your own access needs another grantor.
+    if (prior.accountId === actorId) {
+      await this.prisma.idempotencyKey.delete({ where: { key } });
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-ReinstateAssignment',
+        outcome: 'DENY',
+        actorAccountId: actorId,
+        targetRef: assignmentId,
+        reason: 'reinstate-self',
+        errorCategory: 'ERR-SEC',
+      });
+      throw new ForbiddenException({
+        message: AUTH_MESSAGES.grantDenied.text,
+        reference: correlationId,
+      });
+    }
+
     const now = new Date();
     const correlationId = randomUUID();
 
@@ -261,7 +288,9 @@ export class ReinstateService {
           action: 'CMD-IAM-ReinstateAssignment',
           targetRef: created.id,
           outcome: 'ALLOW',
-          reason,
+          // Machine-readable reason (filterable taxonomy, grants convention);
+          // the human text rides in metadata, never in the reason slot.
+          reason: 'assignment-reinstated',
           purpose: 'access-reinstatement',
           correlationId,
           priorState: {
@@ -278,7 +307,7 @@ export class ReinstateService {
             startsAt: created.startsAt,
             endsAt: created.endsAt,
           },
-          metadata: { evidence },
+          metadata: { evidence, reason },
         },
       });
 

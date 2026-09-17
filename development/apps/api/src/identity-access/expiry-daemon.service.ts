@@ -23,10 +23,10 @@ export const EXPIRY_CHECK_JOB = 'expiry-check';
 export function intervalToCron(minutes: number): string {
   const n = Math.floor(minutes);
   // Invalid cadences fail loudly: a silently wrong schedule would leave
-  // expired authority live. Config validation bounds this to 1..60.
-  if (!Number.isFinite(n) || n < 1 || n > 60) {
+  // expired authority live. Config validation bounds this to integers 1..60.
+  if (!Number.isInteger(minutes) || n < 1 || n > 60) {
     throw new Error(
-      `Invalid expiry check interval: ${minutes} (expected 1..60 minutes)`,
+      `Invalid expiry check interval: ${minutes} (expected integer 1..60 minutes)`,
     );
   }
   if (n === 60) return '0 * * * *';
@@ -102,9 +102,9 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
       const thresholdMinutes = await this.config.getOrThrow<number>(
         'security.expiryWarningThresholdMinutes',
       );
-      if (!Number.isFinite(thresholdMinutes) || thresholdMinutes < 0) {
+      if (!Number.isFinite(thresholdMinutes) || thresholdMinutes < 1) {
         throw new Error(
-          `Invalid expiry warning threshold: ${thresholdMinutes} (expected >= 0 minutes)`,
+          `Invalid expiry warning threshold: ${thresholdMinutes} (expected >= 1 minutes, matching DB minValue)`,
         );
       }
       const horizon = new Date(now.getTime() + thresholdMinutes * 60 * 1000);
@@ -131,7 +131,10 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Revoke lapsed assignments in deterministic batches (oldest expiry
-      // first) until none remain — no starvation past any batch size.
+      // first) until none remain — no starvation past any batch size. A
+      // full batch with zero claims means every row is failing
+      // persistently: stop instead of spinning on the same rows forever
+      // (a wedged tick would starve all future ticks via isProcessing).
       let processedCount = 0;
       for (;;) {
         const batch = await this.prisma.roleAssignment.findMany({
@@ -140,16 +143,24 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           take: 100,
         });
         if (batch.length === 0) break;
-        if (batch.length > 0) {
-          this.logger.log(
-            `Found ${batch.length} expired assignments. Revoking...`,
-          );
-        }
+        this.logger.log(
+          `Found ${batch.length} expired assignments. Revoking...`,
+        );
+        let claimedInBatch = 0;
         for (const assignment of batch) {
           const claimed = await this.processOneExpiry(assignment, now);
-          if (claimed) processedCount += 1;
+          if (claimed) {
+            processedCount += 1;
+            claimedInBatch += 1;
+          }
         }
         if (batch.length < 100) break;
+        if (claimedInBatch === 0) {
+          this.logger.error(
+            'Expiry daemon stuck: full batch claimed nothing; pausing this tick for operator review.',
+          );
+          break;
+        }
       }
 
       // Observability advances on every tick, including idle ones.
@@ -177,7 +188,9 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
   ): Promise<boolean> {
     const correlationId = randomUUID();
     try {
-      await this.prisma.$transaction(async (tx) => {
+      // The transaction reports whether this tick won the claim, so losers
+      // never inflate processedCount.
+      return await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.roleAssignment.updateMany({
           where: { id: assignment.id, revokedAt: null },
           data: {
@@ -185,7 +198,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
             revokeReason: 'Auto-revoked by expiry daemon',
           },
         });
-        if (claimed.count === 0) return;
+        if (claimed.count === 0) return false;
 
         // Sessions stay valid: SessionService.validateSession resolves a
         // revoked/expired assignment to a null workspace, so safe reads
@@ -296,8 +309,8 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
             },
           });
         }
+        return true;
       });
-      return true;
     } catch (error) {
       this.logger.error(
         `Error revoking expired assignment ${assignment.id}`,
@@ -326,13 +339,29 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
         },
       });
     } else {
-      await this.prisma.expiryDaemonState.create({
-        data: {
-          lastRunAt,
-          nextRunAt,
-          processedCount,
-        },
-      });
+      // Singleton by convention: a concurrent tick may win the create race;
+      // fall back to updating the winner instead of duplicating the row.
+      try {
+        await this.prisma.expiryDaemonState.create({
+          data: {
+            lastRunAt,
+            nextRunAt,
+            processedCount,
+          },
+        });
+      } catch {
+        const winner = await this.prisma.expiryDaemonState.findFirst();
+        if (winner) {
+          await this.prisma.expiryDaemonState.update({
+            where: { id: winner.id },
+            data: {
+              lastRunAt,
+              nextRunAt,
+              processedCount: winner.processedCount + processedCount,
+            },
+          });
+        }
+      }
     }
   }
 }

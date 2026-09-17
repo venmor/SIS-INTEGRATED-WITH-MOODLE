@@ -77,6 +77,13 @@ describe('policy (e2e)', () => {
     await prisma.person.deleteMany({
       where: { displayName: { startsWith: 'E2E pol ' }, accounts: { none: {} } },
     });
+    // Test-made grants never outlive the run (schedules first: the grant
+    // hook schedules reviews for every grant).
+    const testMade = await prisma.roleAssignment.findMany({
+      where: { reason: { startsWith: 'E2E pol grant ' } },
+      select: { id: true },
+    });
+    await prisma.reviewSchedule.deleteMany({ where: { assignmentId: { in: testMade.map((a) => a.id) } } });
     await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E pol grant ' } } });
     await app.close();
   }, 60000);
@@ -120,7 +127,7 @@ describe('policy (e2e)', () => {
       .post('/auth/grants')
       .set(CSRF)
       .send(grantBody(target.username, mweene.id, `E2E pol grant ${stamp}`, { idempotencyKey: key }));
-    expect(second.status).toBe(201);
+    expect(second.status).toBe(200);
     expect(second.body.assignmentId).toBe(first.body.assignmentId);
     const rows = await prisma.roleAssignment.count({
       where: { accountId: target.id, reason: `E2E pol grant ${stamp}` },

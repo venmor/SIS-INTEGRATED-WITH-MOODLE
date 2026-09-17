@@ -63,7 +63,13 @@ describe('workspace (e2e)', () => {
     await prisma.person.deleteMany({
       where: { displayName: { startsWith: 'E2E ws ' }, accounts: { none: {} } },
     });
-    // Test-made grants on seed accounts never outlive the run.
+    // Test-made grants on seed accounts never outlive the run (schedules
+    // first: the grant hook schedules reviews for every grant).
+    const testMade = await prisma.roleAssignment.findMany({
+      where: { reason: { startsWith: 'E2E ws grant ' } },
+      select: { id: true },
+    });
+    await prisma.reviewSchedule.deleteMany({ where: { assignmentId: { in: testMade.map((a) => a.id) } } });
     await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E ws grant ' } } });
     await app.close();
   }, 60000);

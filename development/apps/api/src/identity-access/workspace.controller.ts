@@ -202,6 +202,14 @@ export class WorkspaceController {
       where: { id: warning.id, acknowledgedAt: null },
       data: { acknowledgedAt: new Date() },
     });
-    return { message: 'Warning acknowledged' };
+    const { correlationId } = await auditAuth(this.prisma, {
+      action: 'CMD-IAM-ExpiryWarnings',
+      outcome: 'ALLOW',
+      actorAccountId: req.auth?.accountId,
+      targetRef: warning.assignmentId,
+      reason: 'warning-acknowledged',
+      purpose: 'expiry-warning',
+    });
+    return { message: 'Warning acknowledged', reference: correlationId };
   }
 }

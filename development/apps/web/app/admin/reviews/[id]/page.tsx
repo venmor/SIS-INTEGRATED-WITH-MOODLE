@@ -9,15 +9,18 @@ export const dynamic = "force-dynamic";
 async function loadReview(id: string): Promise<ReviewSchedule | null> {
   const sid = (await cookies()).get("sid")?.value;
   if (!sid) return null;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  )
+    return null;
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    const res = await fetch(`${api}/auth/reviews?take=100`, {
+    const res = await fetch(`${api}/auth/reviews/${id}`, {
       headers: { cookie: `sid=${sid}` },
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const rows = (await res.json()) as ReviewSchedule[];
-    return rows.find((r) => r.id === id) ?? null;
+    return (await res.json()) as ReviewSchedule;
   } catch {
     return null;
   }

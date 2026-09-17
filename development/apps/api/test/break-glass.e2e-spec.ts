@@ -103,7 +103,8 @@ describe('break-glass (e2e)', () => {
         },
       });
       await prisma.idempotencyKey.deleteMany({
-        where: { key: { startsWith: 'breakglass:' } },
+        // Stamp-scoped: never wipe parallel workers' in-flight keys.
+        where: { key: { contains: stamp } },
       });
       await prisma.account.deleteMany({ where: { id: { in: staleIds } } });
     }
@@ -215,6 +216,7 @@ describe('break-glass (e2e)', () => {
     expect(audit).toBeDefined();
     expect(audit?.outcome).toBe('ALLOW');
     expect(audit?.purpose).toBe('emergency-access');
+    expect(audit?.reason).toBe('break-glass-granted');
     expect(audit?.metadata).toMatchObject({
       incidentRef: payload.incidentRef,
       durationMinutes: 25,
@@ -434,6 +436,20 @@ describe('break-glass (e2e)', () => {
       });
     expect(refused.status).toBe(403);
     expect(refused.body.reference).toBeDefined();
+
+    // Gate precedes loading: outsiders learn nothing from unknown ids (403,
+    // never a 404 oracle).
+    const strangerName = await makeUser('retro-out', 'Long-Enough-Password-1');
+    const stranger = request.agent(server as never);
+    await stranger
+      .post('/auth/sign-in')
+      .set(CSRF)
+      .send({ username: strangerName, password: 'Long-Enough-Password-1' });
+    const oracle = await stranger
+      .post('/auth/break-glass/123e4567-e89b-42d3-a456-426614174000/review')
+      .set(CSRF)
+      .send({ outcome: 'justified', note: 'oracle probe attempt' });
+    expect(oracle.status).toBe(403);
 
     const admin = request.agent(server as never);
     await admin

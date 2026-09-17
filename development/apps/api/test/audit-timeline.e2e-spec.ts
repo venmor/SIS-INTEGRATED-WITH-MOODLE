@@ -172,6 +172,7 @@ describe('audit-timeline (e2e)', () => {
     });
     expect(readAudit).toBeDefined();
     expect(readAudit?.purpose).toBe('audit-access');
+    expect(readAudit?.activeRole).toBe('SYSADMIN');
   });
 
   it('rate-limits timeline reads with neutral responses and references', async () => {

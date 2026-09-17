@@ -383,6 +383,66 @@ describe('review (e2e)', () => {
       where: { id: schedule.id },
     });
     expect(open.status).toBe('pending');
+
+    // Confirming a dead assignment is equally meaningless.
+    const scheduleB = await prisma.reviewSchedule.create({
+      data: {
+        assignmentId: assignment.id,
+        reviewerId: reviewer.id,
+        riskLevel: 'high',
+        cadence: 'quarterly',
+        nextDueAt: new Date(Date.now() - 1000),
+        status: 'pending',
+      },
+    });
+    const confirmDead = await admin
+      .post(`/auth/reviews/${scheduleB.id}/decide`)
+      .set(CSRF)
+      .send({ decision: 'confirm', reason: 'confirming a dead row anyway' });
+    expect(confirmDead.status).toBe(400);
+    await prisma.reviewSchedule.delete({ where: { id: scheduleB.id } });
+  });
+
+  it('refuses self-decisions: reviewers never decide their own assignments', async () => {
+    const admin = request.agent(server as never);
+    await admin
+      .post('/auth/sign-in')
+      .set(CSRF)
+      .send({ username: 'mutinta.l', password: 'Seed-2026-Mutinta' });
+    const reviewer = await prisma.account.findUniqueOrThrow({
+      where: { username: 'mutinta.l' },
+    });
+    // Direct insert: API grants refuse self-assignment, but the review layer
+    // must still refuse self-decisions on rows that exist anyway.
+    const assignment = await prisma.roleAssignment.create({
+      data: {
+        accountId: reviewer.id,
+        role: 'TUT',
+        scopeType: 'TUTORIAL_GROUP',
+        scopeRef: 'E2E-REV-SELF',
+        startsAt: new Date(Date.now() - 60 * 60 * 1000),
+        endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        reason: `E2E rev self grant ${stamp}`,
+      },
+    });
+    const schedule = await prisma.reviewSchedule.create({
+      data: {
+        assignmentId: assignment.id,
+        reviewerId: reviewer.id,
+        riskLevel: 'medium',
+        cadence: 'annual',
+        nextDueAt: new Date(Date.now() - 1000),
+        status: 'pending',
+      },
+    });
+    const res = await admin
+      .post(`/auth/reviews/${schedule.id}/decide`)
+      .set(CSRF)
+      .send({ decision: 'confirm', reason: 'self-approving my own access' });
+    expect(res.status).toBe(403);
+    expect(res.body.reference).toBeDefined();
+    await prisma.reviewSchedule.delete({ where: { id: schedule.id } });
+    await prisma.roleAssignment.delete({ where: { id: assignment.id } });
   });
 
   it('keeps clarified reviews pending for follow-up and defers unspecified decisions', async () => {
@@ -520,5 +580,35 @@ describe('review (e2e)', () => {
       (schedule!.nextDueAt.getTime() - before) / (24 * 60 * 60 * 1000);
     expect(dueInDays).toBeGreaterThan(179);
     expect(dueInDays).toBeLessThan(181);
+  });
+
+  it('reads one review by id for reviewers; others get neutral refusals', async () => {
+    const reviewer = request.agent(server as never);
+    await reviewer
+      .post('/auth/sign-in')
+      .set(CSRF)
+      .send({ username: 'mutinta.l', password: 'Seed-2026-Mutinta' });
+    const targetId = assignmentIds[0];
+    const schedule = await prisma.reviewSchedule.findFirstOrThrow({
+      where: { assignmentId: targetId },
+    });
+    const found = await reviewer.get(`/auth/reviews/${schedule.id}`);
+    expect(found.status).toBe(200);
+    expect(found.body.id).toBe(schedule.id);
+    expect(found.body.assignmentId).toBe(targetId);
+
+    const outsider = request.agent(server as never);
+    const username = await makeUser('byid', 'Long-Enough-Password-1');
+    await outsider
+      .post('/auth/sign-in')
+      .set(CSRF)
+      .send({ username, password: 'Long-Enough-Password-1' });
+    const refused = await outsider.get(`/auth/reviews/${schedule.id}`);
+    expect(refused.status).toBe(403);
+    expect(refused.body.reference).toBeDefined();
+    const ghost = await reviewer.get(
+      '/auth/reviews/123e4567-e89b-42d3-a456-426614174000',
+    );
+    expect(ghost.status).toBe(404);
   });
 });

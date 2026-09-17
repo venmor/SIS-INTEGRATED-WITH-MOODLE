@@ -74,6 +74,30 @@ export class ReviewService {
     });
   }
 
+  // Single-review read for the decide page (avoids list over-fetch): same
+  // reviewer gate, neutral 404 for unknown ids.
+  async getReviewById(actorId: string, scheduleId: string) {
+    await this.requireReviewer(actorId);
+    const schedule = await this.prisma.reviewSchedule.findUnique({
+      where: { id: scheduleId },
+    });
+    if (!schedule) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-ReviewAssignment',
+        outcome: 'DENY',
+        actorAccountId: actorId,
+        targetRef: scheduleId,
+        reason: 'review-not-found',
+        errorCategory: 'ERR-SEC',
+      });
+      throw new NotFoundException({
+        message: AUTH_MESSAGES.grantDenied.text,
+        reference: correlationId,
+      });
+    }
+    return schedule;
+  }
+
   async decideReview(
     actorId: string,
     scheduleId: string,
@@ -131,6 +155,49 @@ export class ReviewService {
       throw new BadRequestException({
         message: AUTH_MESSAGES.grantDenied.text,
         reference: deferredRef,
+      });
+    }
+
+    // Target liveness for every decision (confirming or clarifying a dead
+    // assignment is nonsense): fail closed instead of auditing fiction.
+    // Reviewers also never decide their own assignments (self-approval ban,
+    // GAP-012 spirit).
+    const target = await this.prisma.roleAssignment.findUnique({
+      where: { id: schedule.assignmentId },
+    });
+    const targetLive =
+      !!target &&
+      !target.revokedAt &&
+      target.startsAt.getTime() <= Date.now() &&
+      (!target.endsAt || target.endsAt.getTime() > Date.now());
+    if (!targetLive) {
+      const { correlationId: deadRef } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-ReviewAssignment',
+        outcome: 'DENY',
+        actorAccountId: actorId,
+        targetRef: schedule.assignmentId,
+        reason: 'review-target-dead',
+        errorCategory: 'ERR-SEC',
+        purpose: 'access-review',
+      });
+      throw new BadRequestException({
+        message: AUTH_MESSAGES.grantDenied.text,
+        reference: deadRef,
+      });
+    }
+    if (target.accountId === actorId) {
+      const { correlationId: selfRef } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-ReviewAssignment',
+        outcome: 'DENY',
+        actorAccountId: actorId,
+        targetRef: schedule.assignmentId,
+        reason: 'review-self-decision',
+        errorCategory: 'ERR-SEC',
+        purpose: 'access-review',
+      });
+      throw new ForbiddenException({
+        message: AUTH_MESSAGES.grantDenied.text,
+        reference: selfRef,
       });
     }
 

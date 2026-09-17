@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service.js';
 import { ConfigurationService } from './configuration.service.js';
 import { auditAuth } from './audit.js';
+import { validReceipt } from './idempotency.js';
 import { randomUUID } from 'crypto';
 import type { BreakGlassDto, BreakGlassOutcome } from './dto.js';
 
@@ -149,7 +150,14 @@ export class BreakGlassService {
           false,
         );
       }
-      if (prior.status === 201) {
+      if (
+        prior.status === 201 &&
+        validReceipt(prior.response, [
+          'breakGlassId',
+          'assignmentId',
+          'expiresAt',
+        ])
+      ) {
         const receipt = prior.response as unknown as {
           breakGlassId: string;
           assignmentId: string;
@@ -215,7 +223,12 @@ export class BreakGlassService {
       if (
         winner &&
         winner.status === 201 &&
-        winner.accountId === actor.accountId
+        winner.accountId === actor.accountId &&
+        validReceipt(winner.response, [
+          'breakGlassId',
+          'assignmentId',
+          'expiresAt',
+        ])
       ) {
         const receipt = winner.response as unknown as {
           breakGlassId: string;
@@ -247,94 +260,133 @@ export class BreakGlassService {
     const correlationId = randomUUID();
     const expiresAt = new Date(now.getTime() + dto.durationMinutes * 60 * 1000);
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const request = await tx.breakGlassRequest.create({
-        data: {
-          requestorId: actor.accountId,
-          incidentRef: dto.incidentRef,
-          reason: dto.reason,
-          scope: dto.scope,
-          durationMinutes: dto.durationMinutes,
-          approverId: dto.approverId,
-          status: 'active',
-          expiresAt,
-        },
-      });
-
-      // Grant the minimal capability: SYSADMIN scoped to the incident only.
-      const assignment = await tx.roleAssignment.create({
-        data: {
-          accountId: actor.accountId,
-          role: 'SYSADMIN',
-          scopeType: 'BREAK_GLASS',
-          scopeRef: dto.incidentRef,
-          startsAt: now,
-          endsAt: expiresAt,
-          grantedById: dto.approverId,
-          reason: `Break-glass request ${request.id}: ${dto.reason}`,
-        },
-      });
-
-      await tx.auditEvent.create({
-        data: {
-          occurredAt: now,
-          actorAccountId: actor.accountId,
-          activeRole: actor.activeRole,
-          scope: actor.scope,
-          action: 'CMD-IAM-BreakGlass',
-          targetRef: assignment.id,
-          outcome: 'ALLOW',
-          reason: dto.reason,
-          purpose: 'emergency-access',
-          correlationId,
-          newState: {
-            breakGlassId: request.id,
-            assignmentId: assignment.id,
-            incidentRef: dto.incidentRef,
-            expiresAt,
+    let created: { request: { id: string }; assignment: { id: string } };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        // Re-check approver authority inside the transaction (TOCTOU guard):
+        // an approver revoked between the pre-check and this commit must not
+        // mint emergency access.
+        const approverStillValid = await tx.roleAssignment.findMany({
+          where: {
+            accountId: dto.approverId,
+            revokedAt: null,
+            OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
           },
-          metadata: {
-            breakGlassId: request.id,
+          select: { role: true },
+        });
+        if (!approverStillValid.some((a) => approverRoles.includes(a.role))) {
+          throw new Error('break-glass-approver-lost');
+        }
+        const request = await tx.breakGlassRequest.create({
+          data: {
+            requestorId: actor.accountId,
             incidentRef: dto.incidentRef,
-            durationMinutes: dto.durationMinutes,
+            reason: dto.reason,
             scope: dto.scope,
+            durationMinutes: dto.durationMinutes,
             approverId: dto.approverId,
-          },
-        },
-      });
-
-      await tx.outboxEvent.create({
-        data: {
-          aggregate: 'RoleAssignment',
-          aggregateId: assignment.id,
-          type: 'BreakGlassGranted',
-          payload: {
-            assignmentId: assignment.id,
-            breakGlassId: request.id,
-            incidentRef: dto.incidentRef,
+            status: 'active',
             expiresAt,
           },
-          deliveredAt: now,
-        },
-      });
+        });
 
-      // The receipt commits atomically with the grant: no crash window can
-      // leave completed work parked as in-flight.
-      await tx.idempotencyKey.update({
-        where: { key },
-        data: {
-          status: 201,
-          response: {
-            breakGlassId: request.id,
-            assignmentId: assignment.id,
-            expiresAt: expiresAt.toISOString(),
-            message: AUTH_MESSAGES.breakGlassGranted.text,
-          } as Prisma.InputJsonValue,
-        },
-      });
+        // Grant the minimal capability: SYSADMIN scoped to the incident only.
+        const assignment = await tx.roleAssignment.create({
+          data: {
+            accountId: actor.accountId,
+            role: 'SYSADMIN',
+            scopeType: 'BREAK_GLASS',
+            scopeRef: dto.incidentRef,
+            startsAt: now,
+            endsAt: expiresAt,
+            grantedById: dto.approverId,
+            reason: `Break-glass request ${request.id}: ${dto.reason}`,
+          },
+        });
 
-      return { request, assignment };
-    });
+        await tx.auditEvent.create({
+          data: {
+            occurredAt: now,
+            actorAccountId: actor.accountId,
+            activeRole: actor.activeRole,
+            scope: actor.scope,
+            action: 'CMD-IAM-BreakGlass',
+            targetRef: assignment.id,
+            outcome: 'ALLOW',
+            // Machine-readable reason (filterable taxonomy, grants convention);
+            // the human text rides in metadata, never in the reason slot.
+            reason: 'break-glass-granted',
+            purpose: 'emergency-access',
+            correlationId,
+            newState: {
+              breakGlassId: request.id,
+              assignmentId: assignment.id,
+              incidentRef: dto.incidentRef,
+              expiresAt,
+            },
+            metadata: {
+              breakGlassId: request.id,
+              incidentRef: dto.incidentRef,
+              durationMinutes: dto.durationMinutes,
+              scope: dto.scope,
+              approverId: dto.approverId,
+              reason: dto.reason,
+            },
+          },
+        });
+
+        await tx.outboxEvent.create({
+          data: {
+            aggregate: 'RoleAssignment',
+            aggregateId: assignment.id,
+            type: 'BreakGlassGranted',
+            payload: {
+              assignmentId: assignment.id,
+              breakGlassId: request.id,
+              incidentRef: dto.incidentRef,
+              expiresAt,
+            },
+            deliveredAt: now,
+          },
+        });
+
+        // The receipt commits atomically with the grant: no crash window can
+        // leave completed work parked as in-flight.
+        await tx.idempotencyKey.update({
+          where: { key },
+          data: {
+            status: 201,
+            response: {
+              breakGlassId: request.id,
+              assignmentId: assignment.id,
+              expiresAt: expiresAt.toISOString(),
+              message: AUTH_MESSAGES.breakGlassGranted.text,
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        return { request, assignment };
+      });
+    } catch (error) {
+      // Approver lost authority mid-flight: release the claim (nothing was
+      // created) and fail closed instead of parking an in-flight row.
+      if (
+        error instanceof Error &&
+        error.message === 'break-glass-approver-lost'
+      ) {
+        await this.prisma.idempotencyKey
+          .delete({ where: { key } })
+          .catch(() => undefined);
+        await this.deny(
+          actor,
+          'break-glass-approver-forbidden',
+          undefined,
+          meta,
+          true,
+        );
+      }
+      throw error;
+    }
 
     const receipt = {
       breakGlassId: created.request.id,
@@ -368,6 +420,25 @@ export class BreakGlassService {
       },
       select: { role: true },
     });
+    // Gate before loading: non-grantors must not learn request existence
+    // from 404-vs-403 (no oracle). Self-review is refused after load.
+    if (!live.some((a) => grantorRoles.includes(a.role))) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-BreakGlass',
+        outcome: 'DENY',
+        actorAccountId: actor.accountId,
+        activeRole: actor.activeRole,
+        scope: actor.scope,
+        targetRef: requestId,
+        reason: 'break-glass-review-forbidden',
+        errorCategory: 'ERR-SEC',
+        purpose: 'emergency-access',
+      });
+      throw new ForbiddenException({
+        message: AUTH_MESSAGES.grantDenied.text,
+        reference: correlationId,
+      });
+    }
     const request = await this.prisma.breakGlassRequest.findUnique({
       where: { id: requestId },
     });
@@ -388,10 +459,7 @@ export class BreakGlassService {
         reference: correlationId,
       });
     }
-    if (
-      !live.some((a) => grantorRoles.includes(a.role)) ||
-      actor.accountId === request.requestorId
-    ) {
+    if (actor.accountId === request.requestorId) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-BreakGlass',
         outcome: 'DENY',
@@ -399,7 +467,7 @@ export class BreakGlassService {
         activeRole: actor.activeRole,
         scope: actor.scope,
         targetRef: requestId,
-        reason: 'break-glass-review-forbidden',
+        reason: 'break-glass-self-review',
         errorCategory: 'ERR-SEC',
         purpose: 'emergency-access',
       });

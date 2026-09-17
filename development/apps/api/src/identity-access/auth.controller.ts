@@ -333,7 +333,14 @@ export class AuthController {
       RateLimiter.readLimit(),
       'CMD-IAM-AuditTimeline',
     );
-    return this.auditTimeline.getTimeline(req.auth.accountId, query);
+    return this.auditTimeline.getTimeline(
+      {
+        accountId: req.auth.accountId,
+        activeRole: req.auth.activeRole,
+        scope: req.auth.scope,
+      },
+      query,
+    );
   }
 
   @Post('break-glass')
@@ -433,6 +440,24 @@ export class AuthController {
       'CMD-IAM-ReviewAssignment',
     );
     return this.reviewService.getReviews(req.auth.accountId, query);
+  }
+
+  @Get('reviews/:id')
+  @UseGuards(SessionGuard)
+  async getReviewById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() req: ProxyRequest,
+    @Res({ passthrough: true }) res: PassthroughResponse,
+  ) {
+    if (!req.auth) throw new UnauthorizedException();
+    await this.enforceRateLimit(
+      req,
+      res,
+      'reviews',
+      RateLimiter.readLimit(),
+      'CMD-IAM-ReviewAssignment',
+    );
+    return this.reviewService.getReviewById(req.auth.accountId, id);
   }
 
   @Post('reviews/:id/decide')

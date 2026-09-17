@@ -97,6 +97,42 @@ try {
     result.tables[table] = { expected, actual, ok };
     if (!ok) result.match = false;
   }
+  // Business reconciliation beyond counts: no dangling references in the
+  // restored copy (referential breaks are silent data corruption that
+  // count-equality alone would bless).
+  const orphans = {
+    assignmentsWithoutAccount: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "RoleAssignment" ra LEFT JOIN "Account" a ON a.id = ra."accountId" WHERE a.id IS NULL;',
+      ),
+    ),
+    sessionsWithoutAccount: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "Session" s LEFT JOIN "Account" a ON a.id = s."accountId" WHERE a.id IS NULL;',
+      ),
+    ),
+    warningsWithoutAssignment: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "ExpiryWarning" w LEFT JOIN "RoleAssignment" ra ON ra.id = w."assignmentId" WHERE ra.id IS NULL;',
+      ),
+    ),
+    schedulesWithoutAssignment: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "ReviewSchedule" rs LEFT JOIN "RoleAssignment" ra ON ra.id = rs."assignmentId" WHERE ra.id IS NULL;',
+      ),
+    ),
+  };
+  result.orphans = orphans;
+  for (const [name, count] of Object.entries(orphans)) {
+    if (count !== 0) {
+      result.match = false;
+      console.error(`backup:test FAILED — orphan rows: ${name}=${count}`);
+    }
+  }
 } finally {
   try {
     execFileSync(
@@ -115,7 +151,8 @@ console.log(JSON.stringify(result, null, 2));
 // scratch dir (which is removed below with the dump). Path printed so
 // release evidence can collect it.
 const artifact = join(tmpdir(), `sis-backup-reconciliation-${Date.now()}.json`);
-writeFileSync(artifact, JSON.stringify(result, null, 2));
+// Secret-bearing dump content (credential hashes, token hashes): owner-only.
+writeFileSync(artifact, JSON.stringify(result, null, 2), { mode: 0o600 });
 console.log(`reconciliation artifact: ${artifact}`);
 if (!result.match) {
   console.error("backup:test FAILED — restored counts differ");

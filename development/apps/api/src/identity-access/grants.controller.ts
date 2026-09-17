@@ -40,6 +40,7 @@ interface GrantRequest {
 
 interface PassthroughResponse {
   setHeader(name: string, value: string): void;
+  status(code: number): unknown;
 }
 
 // ACT-IAM-001 role grants (slice 3). Authority comes from the grantor's live
@@ -128,6 +129,8 @@ export class GrantsController {
         reference: result.reference,
       });
     }
+    // Idempotent replays answer 200 with the stored receipt; fresh grants 201.
+    res.status(result.replay ? HttpStatus.OK : HttpStatus.CREATED);
     return {
       assignmentId: result.assignmentId,
       message: result.message,

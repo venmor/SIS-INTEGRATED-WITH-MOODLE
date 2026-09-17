@@ -20,4 +20,8 @@ describe('intervalToCron', () => {
     expect(() => intervalToCron(61)).toThrow();
     expect(() => intervalToCron(Number.NaN)).toThrow();
   });
+
+  it('rejects fractional cadences instead of silently flooring', () => {
+    expect(() => intervalToCron(1.9)).toThrow();
+  });
 });

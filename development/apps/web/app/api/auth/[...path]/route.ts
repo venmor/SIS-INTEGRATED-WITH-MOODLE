@@ -36,6 +36,7 @@ const ALLOWED: Record<string, readonly string[]> = {
 
 // Dynamic exceptions with requester-scoped server checks:
 // - receipt lookup carries the idempotency key (GET commands/:key)
+// - single review read carries the schedule id (GET reviews/:id)
 // - review decide carries the schedule id (POST reviews/:id/decide)
 // - warning ack carries the warning id (POST workspace/expiry-warnings/:id/ack)
 function allowedPath(method: string, path: string[]): boolean {
@@ -44,6 +45,13 @@ function allowedPath(method: string, path: string[]): boolean {
     method === "GET" &&
     path.length === 2 &&
     path[0] === "commands" &&
+    path[1].length > 0
+  )
+    return true;
+  if (
+    method === "GET" &&
+    path.length === 2 &&
+    path[0] === "reviews" &&
     path[1].length > 0
   )
     return true;
@@ -109,11 +117,13 @@ async function proxy(
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
   // Forward only the query keys the API reads for this path family;
-  // everything else is stripped, never proxied verbatim.
+  // everything else is stripped, never proxied verbatim. Empty strings are
+  // forwarded as-is (fail-closed at the API's whitelist validation) rather
+  // than silently dropped into a broader query.
   const search = new URLSearchParams();
   for (const key of QUERY_KEYS[joined] ?? []) {
     const value = req.nextUrl.searchParams.get(key);
-    if (value) search.set(key, value);
+    if (value !== null) search.set(key, value);
   }
   const url = `${API}/auth/${joined}${search.size > 0 ? `?${search}` : ""}`;
   const headers: Record<string, string> = {

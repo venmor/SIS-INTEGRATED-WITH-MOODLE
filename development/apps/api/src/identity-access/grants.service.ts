@@ -26,7 +26,11 @@ export class GrantsService {
   ) {}
 
   private async deny(
-    grantor: { accountId: string; activeRole: string | null; activeScope: string | null },
+    grantor: {
+      accountId: string;
+      activeRole: string | null;
+      activeScope: string | null;
+    },
     reason: string,
     targetRef?: string,
     forbidden = false,
@@ -55,19 +59,38 @@ export class GrantsService {
 
   async grant(
     dto: GrantRoleDto,
-    grantor: { accountId: string; activeRole: string | null; activeScope: string | null },
+    grantor: {
+      accountId: string;
+      activeRole: string | null;
+      activeScope: string | null;
+    },
   ) {
     // Idempotency first: claim the key row (status 0 = in-flight) so
     // concurrent double-submits converge; the loser replays the winner's
     // receipt instead of double-creating (UI-SUBMIT-001 + 19.41).
     if (dto.idempotencyKey) {
-      const prior = await this.prisma.idempotencyKey.findUnique({ where: { key: dto.idempotencyKey } });
+      const prior = await this.prisma.idempotencyKey.findUnique({
+        where: { key: dto.idempotencyKey },
+      });
       if (prior) {
-        if (prior.accountId !== grantor.accountId || prior.action !== 'CMD-IAM-GrantRole') {
-          return this.deny(grantor, 'idempotency-key-mismatch', undefined, false, dto.reason, dto.idempotencyKey);
+        if (
+          prior.accountId !== grantor.accountId ||
+          prior.action !== 'CMD-IAM-GrantRole'
+        ) {
+          return this.deny(
+            grantor,
+            'idempotency-key-mismatch',
+            undefined,
+            false,
+            dto.reason,
+            dto.idempotencyKey,
+          );
         }
         if (prior.status === 201) {
-          const receipt = prior.response as { assignmentId: string; message: string };
+          const receipt = prior.response as {
+            assignmentId: string;
+            message: string;
+          };
           const { correlationId } = await auditAuth(this.prisma, {
             action: 'CMD-IAM-GrantRole',
             outcome: 'ALLOW',
@@ -81,25 +104,55 @@ export class GrantsService {
             priorState: null,
             newState: { assignmentId: receipt.assignmentId },
           });
-          return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
+          return {
+            ok: true as const,
+            assignmentId: receipt.assignmentId,
+            message: receipt.message,
+            reference: correlationId,
+            replay: true as const,
+          };
         }
         // Pending claim: a crashed first attempt leaves status 0 behind.
         // Claims older than 15 minutes are taken over; fresh ones wait.
         const ageMs = Date.now() - prior.createdAt.getTime();
         if (ageMs <= 15 * 60 * 1000) {
-          return this.deny(grantor, 'idempotent-in-flight', undefined, false, dto.reason, dto.idempotencyKey);
+          return this.deny(
+            grantor,
+            'idempotent-in-flight',
+            undefined,
+            false,
+            dto.reason,
+            dto.idempotencyKey,
+          );
         }
-        await this.prisma.idempotencyKey.delete({ where: { key: dto.idempotencyKey } });
+        await this.prisma.idempotencyKey.delete({
+          where: { key: dto.idempotencyKey },
+        });
       }
       try {
         await this.prisma.idempotencyKey.create({
-          data: { key: dto.idempotencyKey, accountId: grantor.accountId, action: 'CMD-IAM-GrantRole', status: 0, response: {} },
+          data: {
+            key: dto.idempotencyKey,
+            accountId: grantor.accountId,
+            action: 'CMD-IAM-GrantRole',
+            status: 0,
+            response: {},
+          },
         });
       } catch {
         // Lost the claim race: re-read the winner's row and replay it.
-        const winner = await this.prisma.idempotencyKey.findUnique({ where: { key: dto.idempotencyKey as string } });
-        if (winner && winner.status === 201 && winner.accountId === grantor.accountId) {
-          const receipt = winner.response as { assignmentId: string; message: string };
+        const winner = await this.prisma.idempotencyKey.findUnique({
+          where: { key: dto.idempotencyKey as string },
+        });
+        if (
+          winner &&
+          winner.status === 201 &&
+          winner.accountId === grantor.accountId
+        ) {
+          const receipt = winner.response as {
+            assignmentId: string;
+            message: string;
+          };
           const { correlationId } = await auditAuth(this.prisma, {
             action: 'CMD-IAM-GrantRole',
             outcome: 'ALLOW',
@@ -113,13 +166,28 @@ export class GrantsService {
             priorState: null,
             newState: { assignmentId: receipt.assignmentId },
           });
-          return { ok: true as const, assignmentId: receipt.assignmentId, message: receipt.message, reference: correlationId };
+          return {
+            ok: true as const,
+            assignmentId: receipt.assignmentId,
+            message: receipt.message,
+            reference: correlationId,
+            replay: true as const,
+          };
         }
-        return this.deny(grantor, 'idempotent-in-flight', undefined, false, dto.reason, dto.idempotencyKey);
+        return this.deny(
+          grantor,
+          'idempotent-in-flight',
+          undefined,
+          false,
+          dto.reason,
+          dto.idempotencyKey,
+        );
       }
     }
     // §15.21 central decision (verb, SoD, self-approval, approver presence).
-    const actorRoles = (await this.workspaces.liveWorkspaces(grantor.accountId)).map((w) => w.role);
+    const actorRoles = (
+      await this.workspaces.liveWorkspaces(grantor.accountId)
+    ).map((w) => w.role);
     const decision = evaluatePolicy({
       action: 'iam.grant.create',
       activeRole: grantor.activeRole,
@@ -131,28 +199,77 @@ export class GrantsService {
       approverRequired: true,
     });
     if (!decision.allow) {
-      return this.deny(grantor, decision.reason ?? 'policy-denied', undefined, decision.reason === 'verb-denied', dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        decision.reason ?? 'policy-denied',
+        undefined,
+        decision.reason === 'verb-denied',
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
-    const target = await this.prisma.account.findUnique({ where: { username: dto.username } });
+    const target = await this.prisma.account.findUnique({
+      where: { username: dto.username },
+    });
     if (!target || !accountStatusPolicy(target.status).allow) {
-      return this.deny(grantor, 'unknown-or-inactive-account', dto.username, false, dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        'unknown-or-inactive-account',
+        dto.username,
+        false,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     if (target.id === grantor.accountId) {
-      return this.deny(grantor, 'self-assignment-denied', target.username, true, dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        'self-assignment-denied',
+        target.username,
+        true,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     // Approver must be a real account and never the target (self-approval
     // ban); approver scope-authority has no registry (GAP-006).
-    const approver = await this.prisma.account.findUnique({ where: { id: dto.approverId } });
+    const approver = await this.prisma.account.findUnique({
+      where: { id: dto.approverId },
+    });
     if (!approver) {
-      return this.deny(grantor, 'approver-unknown', target.username, false, dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        'approver-unknown',
+        target.username,
+        false,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     if (approver.id === target.id) {
-      return this.deny(grantor, 'self-approval', target.username, true, dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        'self-approval',
+        target.username,
+        true,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
-    if (Number.isNaN(startsAt.getTime()) || (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))) {
-      return this.deny(grantor, 'invalid-effective-period', target.username, false, dto.reason, dto.idempotencyKey);
+    if (
+      Number.isNaN(startsAt.getTime()) ||
+      (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))
+    ) {
+      return this.deny(
+        grantor,
+        'invalid-effective-period',
+        target.username,
+        false,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     const overlap = await this.prisma.roleAssignment.findFirst({
       where: {
@@ -166,7 +283,14 @@ export class GrantsService {
       },
     });
     if (overlap) {
-      return this.deny(grantor, 'duplicate-or-overlap', target.username, false, dto.reason, dto.idempotencyKey);
+      return this.deny(
+        grantor,
+        'duplicate-or-overlap',
+        target.username,
+        false,
+        dto.reason,
+        dto.idempotencyKey,
+      );
     }
     // Same transaction: assignment row + outbox events (architecture §18.7).
     // Single-step demo mapping: an authorized admin's grant is request and
@@ -199,7 +323,11 @@ export class GrantsService {
           aggregate: 'RoleAssignment',
           aggregateId: row.id,
           type: 'RoleAssignmentRequested',
-          payload: { assignmentId: row.id, accountId: target.id, actorAccountId: grantor.accountId },
+          payload: {
+            assignmentId: row.id,
+            accountId: target.id,
+            actorAccountId: grantor.accountId,
+          },
           occurredAt,
         },
       });
@@ -208,7 +336,11 @@ export class GrantsService {
           aggregate: 'RoleAssignment',
           aggregateId: row.id,
           type: 'RoleAssignmentApproved',
-          payload: { assignmentId: row.id, approverId: dto.approverId, actorAccountId: grantor.accountId },
+          payload: {
+            assignmentId: row.id,
+            approverId: dto.approverId,
+            actorAccountId: grantor.accountId,
+          },
           occurredAt,
         },
       });
@@ -302,7 +434,12 @@ export class GrantsService {
         data: { status: 201, response: receipt },
       });
     }
-    return { ok: true as const, ...receipt, reference: correlationId };
+    return {
+      ok: true as const,
+      ...receipt,
+      reference: correlationId,
+      replay: false as const,
+    };
   }
 
   /**
@@ -313,9 +450,15 @@ export class GrantsService {
    */
   async resolveTarget(
     username: string,
-    grantor: { accountId: string; activeRole: string | null; activeScope: string | null },
+    grantor: {
+      accountId: string;
+      activeRole: string | null;
+      activeScope: string | null;
+    },
   ) {
-    const actorRoles = (await this.workspaces.liveWorkspaces(grantor.accountId)).map((w) => w.role);
+    const actorRoles = (
+      await this.workspaces.liveWorkspaces(grantor.accountId)
+    ).map((w) => w.role);
     const decision = evaluatePolicy({
       action: 'iam.account.resolve',
       activeRole: grantor.activeRole,
@@ -344,7 +487,11 @@ export class GrantsService {
     // REQ-NFR-005: select only the required fields — never the full row.
     const target = await this.prisma.account.findUnique({
       where: { username },
-      select: { username: true, status: true, person: { select: { displayName: true } } },
+      select: {
+        username: true,
+        status: true,
+        person: { select: { displayName: true } },
+      },
     });
     if (!target || !accountStatusPolicy(target.status).allow) {
       const { correlationId } = await auditAuth(this.prisma, {

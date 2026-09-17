@@ -72,6 +72,14 @@ describe('expiry-warning (e2e)', () => {
     await prisma.expiryWarning.deleteMany({
       where: { assignmentId: { in: assignmentIds } },
     });
+    // Daemon ticks during this file also write audit/outbox rows for the
+    // swept assignments: remove them so reruns stay hermetic.
+    await prisma.outboxEvent.deleteMany({
+      where: { aggregateId: { in: assignmentIds } },
+    });
+    await prisma.auditEvent.deleteMany({
+      where: { targetRef: { in: assignmentIds } },
+    });
     if (staleIds.length > 0) {
       await prisma.session.deleteMany({
         where: { accountId: { in: staleIds } },

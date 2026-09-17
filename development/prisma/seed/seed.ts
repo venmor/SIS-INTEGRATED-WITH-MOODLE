@@ -269,6 +269,8 @@ async function ensureReviewSchedules(reviewerId: string): Promise<void> {
     where: {
       revokedAt: null,
       OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
+      // Emergency access is temporary by construction: never scheduled.
+      NOT: { scopeType: "BREAK_GLASS" },
     },
     select: { id: true, role: true },
   });

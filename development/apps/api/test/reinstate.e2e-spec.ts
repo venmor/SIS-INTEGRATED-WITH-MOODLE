@@ -242,6 +242,7 @@ describe('reinstate (e2e)', () => {
     expect(audit).toBeDefined();
     expect(audit?.outcome).toBe('ALLOW');
     expect(audit?.purpose).toBe('access-reinstatement');
+    expect(audit?.reason).toBe('assignment-reinstated');
     expect(audit?.priorState).toMatchObject({ assignmentId: assignment.id });
     expect(audit?.newState).toMatchObject({
       assignmentId: restored.body.assignmentId,
@@ -385,5 +386,62 @@ describe('reinstate (e2e)', () => {
       where: { accountId: target.id, revokedAt: null },
     });
     expect(rows).toHaveLength(1);
+  });
+
+  it('refuses self-reinstatement: restoring your own access needs another grantor', async () => {
+    const mweene = await prisma.account.findUniqueOrThrow({
+      where: { username: 'mweene.t' },
+    });
+    const username = await makeUser('selfadmin', 'Long-Enough-Password-1');
+    const target = await prisma.account.findUniqueOrThrow({
+      where: { username },
+    });
+    // Direct inserts: the point is the reinstate gate, not the grant path
+    // (and the file's admin sign-in budget is spent).
+    const elevated = await prisma.roleAssignment.create({
+      data: {
+        accountId: target.id,
+        role: 'SYSADMIN',
+        scopeType: 'SCHOOL',
+        scopeRef: 'E2E-SELF',
+        startsAt: new Date(Date.now() - 60 * 60 * 1000),
+        endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        grantedById: mweene.id,
+        reason: `E2E reinstate selfadmin grant ${stamp}`,
+      },
+    });
+    assignmentIds.push(elevated.id);
+    const tut = await prisma.roleAssignment.create({
+      data: {
+        accountId: target.id,
+        role: 'TUT',
+        scopeType: 'TUTORIAL_GROUP',
+        scopeRef: 'E2E-RST-SELF',
+        startsAt: new Date(Date.now() - 60 * 60 * 1000),
+        endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        reason: 'E2E reinstate self grant',
+      },
+    });
+    assignmentIds.push(tut.id);
+    await prisma.roleAssignment.update({
+      where: { id: tut.id },
+      data: { revokedAt: new Date(), revokeReason: 'E2E self revocation' },
+    });
+    const agent = request.agent(server as never);
+    await agent
+      .post('/auth/sign-in')
+      .set(CSRF)
+      .send({ username, password: 'Long-Enough-Password-1' });
+    const res = await agent.post('/auth/reinstate').set(CSRF).send({
+      assignmentId: tut.id,
+      reason: 'restoring my own access here',
+      evidence: 'self-declared evidence here',
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.reference).toBeDefined();
+    const stillDead = await prisma.roleAssignment.findUniqueOrThrow({
+      where: { id: tut.id },
+    });
+    expect(stillDead.revokedAt).not.toBeNull();
   });
 });

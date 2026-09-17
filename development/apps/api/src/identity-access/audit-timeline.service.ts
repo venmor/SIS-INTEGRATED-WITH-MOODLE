@@ -21,7 +21,15 @@ export class AuditTimelineService {
     private readonly config: ConfigurationService,
   ) {}
 
-  async getTimeline(actorId: string, filters: AuditTimelineQueryDto) {
+  async getTimeline(
+    actor: {
+      accountId: string;
+      activeRole: string | null;
+      scope: string | null;
+    },
+    filters: AuditTimelineQueryDto,
+  ) {
+    const actorId = actor.accountId;
     const grantorRoles = await this.config.getOrThrow<string[]>(
       'security.grantorRoles',
     );
@@ -110,11 +118,14 @@ export class AuditTimelineService {
     ]);
 
     // §19 access-to-audit is itself audited: successful reads leave one
-    // ALLOW row (admin-only surface, low volume — no flood risk).
+    // ALLOW row (admin-only surface, low volume — no flood risk), fully
+    // attributed with the reader's active role and scope.
     await auditAuth(this.prisma, {
       action: 'CMD-IAM-AuditTimeline',
       outcome: 'ALLOW',
       actorAccountId: actorId,
+      activeRole: actor.activeRole,
+      scope: actor.scope,
       reason: 'timeline-read',
       purpose: 'audit-access',
     });
