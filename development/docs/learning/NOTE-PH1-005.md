@@ -2,7 +2,7 @@
 
 - Lead developer: Charles
 - Reviewer: Chitindu Milimbo
-- Date/release: 2026-09-17 / v0.2.0 Phase 1 slice 5 (access audit, expiry daemon, reviews, reinstatement, break-glass; e2e 50/50 green after fix batch — see NOTE-PH1-005-FIXES.md)
+- Date/release: 2026-09-17 / v0.2.0 Phase 1 slice 5 (access audit, expiry daemon, reviews, reinstatement, break-glass; e2e 55/55 green after two fix batches — see NOTE-PH1-005-FIXES.md)
 
 ## What we built and why
 
@@ -95,11 +95,11 @@ correlation references; one correlationId per row (UNIQUE).
 ## Tests and what they prove
 
 TDD throughout (RED watched before every GREEN; brownfield gaps dejar fixed
-only after a failing test named them). Unit 9 files/39 pass. **E2E: 11
-files, 50/50 green** (23 pre-existing + 27 slice-5: daemon 5, scheduler 2,
-review 6, reinstate 5, break-glass 5, timeline 3, warning 2 — see
-NOTE-PH1-005-FIXES.md for the review-findings batch that followed this
-note). New suites
+only after a failing test named them). Unit 10 files/42 pass. **E2E: 12
+files, 55/55 green** (23 pre-existing + 32 slice-5: daemon 5, scheduler 2,
+review 8, reinstate 6, break-glass 5, timeline 3, warning 1, config-authz 2
+— see NOTE-PH1-005-FIXES.md for the review-findings batches that followed
+this note). New suites
 prove: revoke→null-workspace→§12.12→audit-shape→delivered-outbox→warning→
 state→idempotent-replay; scheduler registration + config reschedule;
 reviewer gating; reinstatement with history preserved + session restore;
@@ -122,9 +122,9 @@ parallel files starved the default; 30s fails real hangs only).
 
 1. `npx prisma migrate status` → 9 migrations, up to date; seed accounts
    `mweene.t` (SYSADMIN reviewer), `mutinta.l` (LEC+DEAN).
-2. Unit: `npm run test --workspace=apps/api` → 39/39. E2E:
+2. Unit: `npm run test --workspace=apps/api` → 42/42. E2E:
    `node scripts/with-env.mjs npm run test:e2e --workspace=apps/api` →
-   50/50. Backup: `npm run backup:test` → 15/15 reconcile.
+   55/55. Backup: `npm run backup:test` → 15/15 reconcile + 0 orphans.
 3. UI: Mweene → Access reviews → decide revoke with reason → audit trail
    shows `CMD-IAM-ReviewAssignment`; grant break-glass (incident
    INC-2026-041, 25 min) → home shows emergency banner → expiry ends it.
@@ -158,7 +158,7 @@ revoked → §12.12 sentence, draft safe; reviewed quarterly; wrongly revoked
 → reinstated with reason; emergency → bannered, audited, auto-ended.
 Architecture: identity-access owns daemon/scheduler/reviews/audit. Data: 4
 tables + delivered outbox + immutable audit. Code: 5 services, 6 DTOs,
-scheduler resync, scoped UI. Evidence: 39 unit + 50 e2e + backup green.
+scheduler resync, scoped UI. Evidence: 42 unit + 55 e2e + backup green.
 
 ## Terms/concepts learned
 

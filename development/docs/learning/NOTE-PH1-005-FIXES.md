@@ -6,17 +6,120 @@
 - Parent note: `NOTE-PH1-005.md` (unchanged record); this file tracks the
   review findings and their fixes, TDD per item, Phases 0–5.
 
-## Deferred ownership (recorded, not built)
+## Review rounds 2–3 (correctness, scope, handbook-wide audit, 2026-09-17)
 
-- Session idle/absolute timeout warnings (design-12:284, applicant-journey
-  modal pattern) belong to slice 2 (sessions), not slice 5 (role expiry).
-  Slice 5 delivers role-expiry countdowns only. Slice-2 follow-up: return
-  `sessionExpiresAt` from `/auth/me` + idle modal reusing the banner island.
+Two agents swept all non-roadmap docs and re-audited the code; every
+High/Critical claim was re-verified in primary sources before fixing.
+Downgraded with reasons: guard-audit incident gaps (unknowable pre-auth —
+the store exists but guards run before the value is knowable),
+outbox `deliveredAt` marking (packet-mandated), sweep starvation beyond
+100 (progress guaranteed by warned-row exclusion), review-list breadth
+(campaign model by design), commands in-flight leak (slice-4 code, noted),
+migration INSERT idempotency (migrations run once), 409-on-replay (explicit
+conflict beats silent success), per-route rate budgets (established
+pattern; comment corrected to describe them honestly), duration-cap UX
+opacity (maxMinutes rides in audit metadata for admins; response stays
+oracle-free), proxy body limits (Express 100kb default + DTO MaxLengths
+suffice). Deferred by handbook rule: MFA/step-up (2b, packet qualified),
+notifications (GAP-008), hash-linking + retention entities (Phase 8),
+counselling/finance deny-lists (no modules yet; TEST-AUTH-006/007/010 stay
+deferred), dashboards (no monitoring stack), session-expiry overlay
+(slice 2, noted Phase 0), review-list self-scoping, decision-envelope
+uniformity.
 
-## Fix log
+- Critical: `/config` was session-open (security thresholds readable by any
+  login; PATCH crashed 500 with no SessionGuard). Now grantor-gated
+  throughout with audited 403s, actor-attributed updates, CSRF on batch;
+  RED `config-authz.e2e-spec.ts`. No prior consumers existed (verified).
+- Critical: daemon wedged-tick (a fully-failing batch re-fetched forever)
+  now breaks with an error log; `processOneExpiry` returns the claim so
+  race losses never inflate counts.
+- Critical: `reviewBreakGlass` gates before loading (was 404-before-403
+  oracle; RED outsider test).
+- Grants replays answer 200 with the stored receipt (was always 201);
+  `policy.e2e` replay expectation updated.
+- Self-decide and self-reinstate refused 403 (GAP-012 spirit); confirm and
+  clarify require live targets like revoke does (was confirm-on-dead
+  ALLOW). RED tests each; forced DEAN-path coverage via sign-in budgets.
+- Ack writes its own audit row; timeline reads carry activeRole/scope.
+- Replay receipts shape-guarded (`idempotency.ts`, unit-tested RED→GREEN);
+  malformed rows fall through to in-flight/stale handling.
+- Approver authority re-checked inside the break-glass tx with claim
+  release on loss (TOCTOU window closed).
+- `intervalToCron` rejects fractions (unit-tested); warning threshold
+  floor aligned to DB minValue 1; daemon-state create races fall back to
+  updating the winner.
+- Seed backfill excludes `BREAK_GLASS`; backup artifact is 0o600 and now
+  includes FK-orphan reconciliation — which immediately caught 5 orphan
+  schedules from older suites' sweeps (fixed at the source).
+- `GET /reviews/:id` ends the take-100 detail over-fetch (reviewer-gated,
+  neutral 404); proxy forwards empty filter strings instead of widening.
+- ALLOW audit reasons aligned to the grants taxonomy (codes in `reason`,
+  human text in `metadata`); queue page shows the confirmation count line.
+- ADR-002 records the `@nestjs/schedule` 19.46 review; packet REQ-IAM-005
+  qualified (MFA half = 2b) and phantom TEST-BRK-001 already remapped.
+- Reliability notes added: per-file rate budgets force reviewer-role
+  spread across seed users; ghost UUIDs must be v4-valid for ParseUUID
+  paths; verify every edit with grep (edits went missing mid-session more
+  than once — all caught by failing tests, none by messages).
 
-(Filled per phase as built; each entry: finding → RED test → GREEN change →
-proof.)
+Two agents swept all non-roadmap handbook docs and re-audited the code;
+every High/Critical claim was re-verified in primary sources before fixing.
+Downgraded with reasons: guard-audit incident gaps (unknowable pre-auth),
+outbox `deliveredAt` marking (packet-mandated), sweep starvation (progress
+guaranteed), review-list breadth (campaign model), commands in-flight leak
+(slice-4 code), migration INSERT idempotency (runs once), 409-on-replay
+(explicit conflict beats silent success). Deferred by handbook rule:
+MFA/step-up (2b), notifications (GAP-008), hash-linking + retention entities
+(Phase 8), counselling deny-list (no module yet), dashboards (no stack),
+session-expiry overlay (slice 2, noted Phase 0).
+
+- Critical: `/config` routes were session-open (secrets to any login) and
+  PATCH crashed 500 (no SessionGuard). Now grantor-gated throughout with
+  audited 403s, actor-attributed updates, CSRF on batch; RED
+  `config-authz.e2e-spec.ts` (was 200-leak + 500, now 403/401/200). No
+  existing consumers existed (verified).
+- Critical: daemon wedged-tick (same failing 100 re-fetched forever) now
+  breaks on zero-claim batches with an error log; `processOneExpiry`
+  returns the claim result (was overcounting race losses).
+- Critical: `reviewBreakGlass` gated before loading (was 404-before-403
+  oracle; RED outsider-unknown-id test now 403).
+- Grants replays now answer 200 with stored receipt (was always 201);
+  `policy.e2e` replay expectation updated.
+- Self-decide and self-reinstate refused (403, GAP-012 spirit); confirm and
+  clarify now require live targets like revoke does (was confirm-on-dead
+  ALLOW). RED tests for each; DEAN-path coverage as a bonus (sign-in
+  budget discipline — see standing rules).
+- Ack writes its own audit row; timeline reads carry activeRole/scope.
+- Replay receipts shape-guarded (`idempotency.ts`, unit-tested RED→GREEN);
+  malformed rows fall through to in-flight/stale handling.
+- Approver authority re-checked inside the break-glass tx with claim
+  release on loss (TOCTOU window closed).
+- `intervalToCron` rejects fractions (unit-tested); warning threshold
+  floor aligned to DB minValue 1; daemon-state create races fall back to
+  updating the winner.
+- Seed backfill excludes `BREAK_GLASS`; backup artifact is 0o600 and now
+  includes FK-orphan reconciliation (all must be 0); proxy forwards empty
+  filter strings instead of widening the query.
+- `GET /reviews/:id` ends the take-100 detail over-fetch (reviewer-gated,
+  neutral 404); detail page uses it.
+- ALLOW audit reasons aligned to the grants taxonomy (codes in `reason`,
+  human text in `metadata`); review queue page shows the confirmation
+  count line from the packet dashboard story.
+- ADR-002 records the `@nestjs/schedule` 19.46 review; packet REQ-IAM-005
+  qualified (MFA half = 2b) and phantom TEST-BRK-001 already remapped.
+- Standing rules added: per-file rate budgets force reviewer-role spread
+  across seed users; ghost UUIDs must be v4-valid for ParseUUID paths;
+  exact-count e2e assertions must survive parallel ticks.
+
+## Fix log (per-phase RED→GREEN record)
+
+- Phase 0: packet TEST-BRK-001 remap, GAP-014, session-warning ownership note.
+- Phase 1: C1/C2/C3/H6/M4/M6/M7/M8 + ack hardening (see round summaries above).
+- Phase 2: H2 schedules + seed backfill; H1/H3/H5/M5/M3 + timeline validation.
+- Phase 3: retrospective endpoint + corrective migration + proxy/contracts.
+- Phase 4: UI polish + backup artifact.
+- Phase 5/rounds 2–3: this file's review-round sections.
 
 ### Phase 0 — governance
 
@@ -116,3 +219,12 @@ proof.)
   per-tick deltas).
 - Test sweeps must cover derived rows (schedules, idempotency keys) or
   reruns poison themselves.
+- Ghost UUIDs in tests must be v4-valid on ParseUUID paths (else 400
+  masks the intended 404).
+
+## Deferred ownership (recorded, not built)
+
+- Session idle/absolute timeout warnings (design-12:284, applicant-journey
+  modal pattern) belong to slice 2 (sessions), not slice 5 (role expiry).
+  Slice 5 delivers role-expiry countdowns only. Slice-2 follow-up: return
+  `sessionExpiresAt` from `/auth/me` + idle modal reusing the banner island.

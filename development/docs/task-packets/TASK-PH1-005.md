@@ -3,8 +3,7 @@
 ## Authority
 
 - Phase/release: v0.2.0 Phase 1 (slice 5 of handbook 5; one slice)
-- Requirement IDs: REQ-IAM-002/003/004 (active-role evaluation, assignment shape, deny-by-default), REQ-IAM-005/006 (re-auth hooks, recovery no-disclosure), REQ-OPS-004 (append-only audit), REQ-NFR-001/003/004 (deny-by-default, accessibility, idempotency), REQ-SUP-005 (break-glass)
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope identity-access expiry daemon, review schedules, audit review UI, controlled reinstatement, break-glass, audit timeline UI
+- Requirement IDs: REQ-IAM-002/003/004 (active-role evaluation, assignment shape, deny-by-default), REQ-IAM-005/006 (re-auth hooks, recovery no-disclosure), REQ-OPS-004 (append-only audit), REQ-NFR-001/003/004 (deny-by-default, accessibility, idempotency), REQ-SUP-005 (break-glass)- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope identity-access expiry daemon, review schedules, audit review UI, controlled reinstatement, break-glass, audit timeline UI
 - Action/screen/component IDs: ACT-IAM-001 (grant), ACT-SUP-001 (break-glass), UI-ACCESS-001 (denial), UI-EMPTY-001 (empty states), UI-CONTEXT-001 (workspace bar), UI-SUBMIT-001 (idempotency), TEST-AUTH-006/007/008/009/010/011 (denials), TEST-REC-006 (expiry), TEST-REC-008 (backup restore)
 - Policy/configuration version: SECURITY-v1 (new: expiry check interval, review risk-levels, break-glass TTL, reinstatement reason) + demo-seed v0.2
 - Acceptance-test IDs (packet-local; mapped in appendix): audit-timeline, expiry-daemon, review-schedule, reinstate-controlled, break-glass-request, expiry-warning-draft, revocation-during-session, backup-restore-reconciliation, prior-new-audit-expiry
@@ -80,7 +79,7 @@ An IAM Administrator sees a dashboard: "18 role assignments require confirmation
 
 ## Out of scope
 
-MFA enforcement (2b/production), notification delivery/templates (v0.9 per GAP-008), review-schedule UI beyond basic list/decide (v0.9 per GAP-010), full break-glass retrospective UI (hardening slice; minimal review endpoint + fields shipped in fix batch 2026-09-17), applicant/student/finance/moodle modules, TOTP, full ops queue UI (GAP-009), full review schedule UI (GAP-010), suspicious-recovery pause (GAP-011), SoD pair table (GAP-012), §12.13 leftover rows (GAP-013), review reduce/reassign/change-end-date inputs (GAP-014), full backup/restore UI (Phase 8), delegation workflow (GAP-001)
+MFA enforcement (2b/production; covers the MFA half of REQ-IAM-005 — this packet delivers the non-MFA half: approver-active-role gates plus audited high-impact commands, full step-up MFA arrives in 2b), notification delivery/templates (v0.9 per GAP-008), review-schedule UI beyond basic list/decide (v0.9 per GAP-010), full break-glass retrospective UI (hardening slice; minimal review endpoint + fields shipped in fix batch 2026-09-17), applicant/student/finance/moodle modules, TOTP, full ops queue UI (GAP-009), full review schedule UI (GAP-010), suspicious-recovery pause (GAP-011), SoD pair table (GAP-012), §12.13 leftover rows (GAP-013), review reduce/reassign/change-end-date inputs (GAP-014), full backup/restore UI (Phase 8), delegation workflow (GAP-001)
 
 ## Definition of done
 
@@ -104,31 +103,28 @@ MFA enforcement (2b/production), notification delivery/templates (v0.9 per GAP-0
 
 ## Execution evidence (2026-09-17, TDD RED→GREEN per cycle)
 
-- Unit: 9 files / 39 pass (`npm run test --workspace=apps/api`,
-  pre-existing suites plus `intervalToCron` + `planReviewSchedule`/`createReviewSchedule` specs).
-- E2E: 11 files / 50 pass (`node scripts/with-env.mjs npm run test:e2e
+- Unit: 10 files / 42 pass (`npm run test --workspace=apps/api`,
+  pre-existing suites plus `intervalToCron`, `planReviewSchedule`/
+  `createReviewSchedule` and receipt-guard specs).
+- E2E: 12 files / 55 pass (`node scripts/with-env.mjs npm run test:e2e
 --workspace=apps/api`): `test/expiry-daemon` (incl. 105-row drain,
   idle-tick state, open-warning uniqueness), `test/expiry-scheduler`,
-  `test/review` (incl. race serialization, dead-target close, clarify,
-  schedule-on-grant), `test/reinstate` (incl. expired refusal, idempotent
-  replay), `test/break-glass` (incl. rate limits, incident tagging,
-  post-use review), `test/audit-timeline` (incl. rate limits, read audit,
-  inverted range), `test/expiry-warning` (incl. tolerant ack, UUID 400)
+  `test/review` (incl. race serialization, dead-target close, self-decision
+  refusal, clarify, schedule-on-grant, by-id read), `test/reinstate` (incl.
+  expired refusal, idempotent replay, self-reinstatement refusal),
+  `test/break-glass` (incl. rate limits, incident tagging, post-use review,
+  gate-before-load), `test/audit-timeline` (incl. rate limits, read audit,
+  inverted range), `test/expiry-warning` (incl. tolerant ack, UUID 400),
+  `test/config-authz` (secret-leak closure, PATCH auth, actor attribution)
   - slices 2–4 suites.
-    Revocation-during-session and prior-new-audit-expiry are proven inside the
-    review/daemon suites (switch-after-revoke §12.12 + prior/new assertions).
-- E2E: 11 files / 38 pass (`node scripts/with-env.mjs npm run test:e2e
---workspace=apps/api`): `test/expiry-daemon`, `test/expiry-scheduler`,
-  `test/review`, `test/reinstate`, `test/break-glass`,
-  `test/audit-timeline`, `test/expiry-warning` + slices 2–4 suites.
-  Revocation-during-session and prior-new-audit-expiry are proven inside the
-  review/daemon suites (switch-after-revoke §12.12 + prior/new assertions).
 - Migration: rebuilt additive-only `20260917140705_ph1_slice_5` (4 tables +
   3 indexes, no `AuditEvent` alteration); `migrate status` clean; indexes +
   `AuditEvent_correlationId_key` verified live; `correlationId` now
   schema-`@unique`.
 - Backup: `npm run backup:test` → 15/15 tables reconcile after scratch-DB
-  restore.
+  restore, plus FK-orphan reconciliation (assignments/sessions/warnings/
+  schedules all must resolve — caught 5 orphan schedules from older suite
+  sweeps during verification) and a 0o600 evidence artifact.
 - Recorded deviations (see `docs/learning/NOTE-PH1-005.md`): scheduler is
   `@nestjs/schedule@12` (in-process) instead of packet-literal `node-cron`/
   `expiry-daemon.mjs`; 19.49 "no new deps" superseded by that call
