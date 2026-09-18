@@ -287,3 +287,85 @@ model ExpiryDaemonState {
   nextRunAt      DateTime
   processedCount Int      @default(0)
 }
+
+// Public programme catalogue (TASK-PH2-001, applicant journey Part 2).
+// Seed-local demo data under DEMO-ACADEMIC-2026-v1 until curriculum/
+// organisation tables land (GAP-004: presence/format checks only, no
+// registry validation). Availability vocabulary: OPEN | SOON | CLOSED |
+// RETIRED. Requirement kinds: GRADE | BOOLEAN | TEXT.
+
+model QualificationRoute {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  label     String
+  createdAt DateTime @default(now())
+  rules     RequirementRule[]
+}
+
+model Programme {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  name             String
+  awardLevel       String
+  school           String
+  department       String?
+  duration         String
+  overview         String
+  feeScheduleRef   String
+  publishedVersion String
+  effectiveDate    DateTime
+  owningOffice     String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  offerings        ProgrammeOffering[]
+  rules            RequirementRule[]
+}
+
+model ProgrammeOffering {
+  id          String    @id @default(uuid())
+  programmeId String
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  intake      String
+  studyMode   String
+  campus      String
+  availability String  // OPEN | SOON | CLOSED | RETIRED
+  deadline    DateTime?
+  // Closed/unavailable explanation shown verbatim-safe (packet copy).
+  statusNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([programmeId, intake, studyMode, campus])
+  @@index([programmeId])
+}
+
+model RequirementRule {
+  id                   String              @id @default(uuid())
+  programmeId          String
+  programme            Programme           @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  routeId              String?
+  route                QualificationRoute? @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  ruleKey              String
+  label                String
+  kind                 String  // GRADE | BOOLEAN | TEXT
+  mandatory            Boolean @default(true)
+  minGrade             Int?
+  requiresVerification Boolean @default(false)
+  evidence             String
+  version              Int     @default(1)
+  createdAt            DateTime @default(now())
+
+  @@unique([programmeId, ruleKey, version])
+  @@index([programmeId])
+}
+
+// Transient anonymous guidance sessions (Part 2 §6.3): entered facts only,
+// no personal data, short TTL, swept by expiry. Session-only retention.
+model GuidanceSession {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  payload   Json
+
+  @@index([expiresAt])
+}

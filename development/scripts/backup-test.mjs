@@ -34,6 +34,11 @@ const TABLES = [
   "BreakGlassRequest",
   "ExpiryWarning",
   "ExpiryDaemonState",
+  "QualificationRoute",
+  "Programme",
+  "ProgrammeOffering",
+  "RequirementRule",
+  "GuidanceSession",
 ];
 
 function psql(url, sql) {
@@ -123,6 +128,24 @@ try {
       psql(
         scratchUrl(),
         'SELECT COUNT(*) FROM "ReviewSchedule" rs LEFT JOIN "RoleAssignment" ra ON ra.id = rs."assignmentId" WHERE ra.id IS NULL;',
+      ),
+    ),
+    offeringsWithoutProgramme: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "ProgrammeOffering" o LEFT JOIN "Programme" p ON p.id = o."programmeId" WHERE p.id IS NULL;',
+      ),
+    ),
+    rulesWithoutProgramme: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "RequirementRule" r LEFT JOIN "Programme" p ON p.id = r."programmeId" WHERE p.id IS NULL;',
+      ),
+    ),
+    rulesWithoutRoute: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "RequirementRule" r LEFT JOIN "QualificationRoute" q ON q.id = r."routeId" WHERE r."routeId" IS NOT NULL AND q.id IS NULL;',
       ),
     ),
   };

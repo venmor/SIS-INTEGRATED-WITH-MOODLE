@@ -1,5 +1,7 @@
 export { SECURITY_V1 } from "./security.js";
 export type { SecurityConfig } from "./security.js";
+export { CATALOGUE_V1 } from "./catalogue.js";
+export type { CatalogueConfig } from "./catalogue.js";
 export { AUTH_MESSAGES } from "./messages.js";
 export type { MessageTemplate, AuthMessageKey } from "./messages.js";
 export * from "./configuration.js";

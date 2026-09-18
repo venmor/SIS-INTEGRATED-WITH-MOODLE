@@ -20,6 +20,10 @@ export interface SecurityConfig {
     workspaceSwitch: { maxAttempts: number; windowMinutes: number };
     grantResolve: { maxAttempts: number; windowMinutes: number };
     read: { maxAttempts: number; windowMinutes: number };
+    // Slice PH2-001 (packet-local demo value): anonymous catalogue search/
+    // guidance budget. The handbook threat model requires search abuse limits
+    // but names no anonymous row — this fills it, labelled as demo.
+    catalogueSearch: { maxAttempts: number; windowMinutes: number };
   };
   lockout: { failuresBeforeLock: number; lockMinutes: number };
   // Demo mapping of the handbook's IAM Administrator grantor (the handbook
@@ -57,6 +61,8 @@ export const SECURITY_V1: SecurityConfig = {
     grantResolve: { maxAttempts: 30, windowMinutes: 15 },
     // Authenticated read budget for receipt lookups (demo value).
     read: { maxAttempts: 120, windowMinutes: 1 },
+    // Public catalogue search/evaluate budget per IP (demo value, packet-local).
+    catalogueSearch: { maxAttempts: 60, windowMinutes: 1 },
   },
   lockout: { failuresBeforeLock: 5, lockMinutes: 15 },
   grantorRoles: ['SYSADMIN'],

@@ -20,7 +20,11 @@ export class RateLimiter {
     return this.windows.size;
   }
 
-  check(key: string, maxAttempts: number, windowMinutes: number): { allowed: boolean; retryAfterSeconds: number } {
+  check(
+    key: string,
+    maxAttempts: number,
+    windowMinutes: number,
+  ): { allowed: boolean; retryAfterSeconds: number } {
     const now = Date.now();
     const windowMs = windowMinutes * 60 * 1000;
     let entry = this.windows.get(key);
@@ -34,8 +38,13 @@ export class RateLimiter {
     }
     entry.hits = entry.hits.filter((t) => now - t < windowMs);
     if (entry.hits.length >= maxAttempts) {
-      const retryAfterSeconds = Math.ceil((entry.hits[0] + windowMs - now) / 1000);
-      return { allowed: false, retryAfterSeconds: Math.max(retryAfterSeconds, 1) };
+      const retryAfterSeconds = Math.ceil(
+        (entry.hits[0] + windowMs - now) / 1000,
+      );
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(retryAfterSeconds, 1),
+      };
     }
     entry.hits.push(now);
     return { allowed: true, retryAfterSeconds: 0 };
@@ -59,6 +68,10 @@ export class RateLimiter {
 
   static readLimit() {
     return SECURITY_V1.rateLimits.read;
+  }
+
+  static catalogueSearchLimit() {
+    return SECURITY_V1.rateLimits.catalogueSearch;
   }
 
   static workspaceSwitchLimit() {

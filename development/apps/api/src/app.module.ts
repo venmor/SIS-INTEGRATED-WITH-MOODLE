@@ -4,9 +4,10 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { HealthController } from './health.controller.js';
 import { IdentityAccessModule } from './identity-access/identity-access.module.js';
+import { CatalogueModule } from './catalogue/catalogue.module.js';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), IdentityAccessModule],
+  imports: [ScheduleModule.forRoot(), IdentityAccessModule, CatalogueModule],
   controllers: [AppController, HealthController],
   providers: [AppService],
 })

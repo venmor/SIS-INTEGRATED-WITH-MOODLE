@@ -27,8 +27,7 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Purpose | Communicate one decision/event and its consequence with an optional action |
 | Allowed contexts | Post-action confirmations, callouts, banners above a task |
 | Explicit non-uses | Sole evidence of high-impact completion (receipt/timeline required); chatbot panels |
-| Anatomy | Title + message (19.9: happened → means → do next) + optional action link + optional dismiss |
-| Content rules | Plain language; severity matches 19.7 meanings; action names its consequence |
+| Anatomy | Title + message (19.9: happened → means → do next) + optional action link + optional dismiss || Content rules | Plain language; severity matches 19.7 meanings; action names its consequence |
 | States | `info/success/attention/warning/error`; `alert` role for attention/warning/error, `status` otherwise |
 | Interaction | Dismiss button (keyboard-focusable, visible focus ring); action is a real link |
 | Validation | Display-only |
@@ -66,7 +65,7 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Anatomy | Persistent label + optional help + input + optional error |
 | Content rules | Sentence-case labels; help states format, not secrets |
 | States | Default, focus (blue ring), filled, error (red border + message), disabled native |
-| Interaction | Native input (managers + paste never blocked); error `role="alert"`, `aria-describedby` links help + error |
+| Interaction | Native input (managers + paste never blocked); error `role="alert"`, `aria-describedby` links help + error; submitted values restore via `defaultValue` |
 | Validation | Display-only; validation lives in the form/API |
 | Error/recovery | Keeps entered value; valid entries preserved on resubmit |
 | Accessibility | Label `for`/`id`; AA text; keyboard native |
@@ -163,3 +162,75 @@ Approved reusable UI primitives. Tokens: `src/tokens.css` (proposed UNZA palette
 | Responsive | Same block pattern |
 | Data/audit | Persists/logs nothing |
 | Acceptance tests | Denied matrix shows panel (not summary); no hidden-record disclosure |
+
+## DISC-CARD-001 — Programme search-result card (`src/ProgrammeCard.tsx`, server; packet-local TASK-PH2-001)
+
+| Field | Contract |
+|---|---|
+| Purpose | One offering per card: official facts, availability in words, deadline, requirement summary, View/Compare actions |
+| Allowed contexts | Public programme search results |
+| Explicit non-uses | Ranking ("best match"); colour-only availability; inactive buttons without explanation |
+| Anatomy | Name link + award/school + mode/campus/duration + availability text + deadline + requirement summary + optional status note + View action + compare-tray action (swaps to "Added to comparison" when selected) |
+| Content rules | Facts from API summaries; availability always words; statusNote only for non-open offerings; link names always include the programme name |
+| States | Open/soon/closed/retired rendered as text; optional deadline/note lines; selected vs unselected compare action |
+| Interaction | Real links only; no buttons, no client state |
+| Validation | Display-only |
+| Error/recovery | n/a |
+| Accessibility | `article aria-label`=programme name; link text names the destination |
+| Responsive | Same block pattern, max 40rem |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Card shows name/facts/availability/deadline/summary; closed cards carry the explanation note |
+
+## DISC-FILTER-001 — Labelled select filter (`src/FilterGroup.tsx`, server; packet-local TASK-PH2-001)
+
+| Field | Contract |
+|---|---|
+| Purpose | One labelled catalogue filter control (level, mode, campus, school, intake, availability) |
+| Allowed contexts | Public programme search form |
+| Explicit non-uses | Icon-only controls; free-text where a fixed list exists |
+| Anatomy | Visible label + optional help + select with an "All" empty option |
+| Content rules | Labels name the dimension; options come from API/config, never invented |
+| States | Default "All"; submitted value restored via defaultValue |
+| Interaction | Uncontrolled; parent form owns submission (results update on submit) |
+| Validation | Display-only; API whitelist-validates submitted values |
+| Error/recovery | n/a |
+| Accessibility | `label htmlFor`; help via `aria-describedby`; keyboard-native select |
+| Responsive | Full-width select, max 40rem |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Every filter labelled; submitted filters restore; empty means All |
+
+## DISC-COMPARE-001 — Programme comparison table (`src/CompareTable.tsx`, server; packet-local TASK-PH2-001)
+
+| Field | Contract |
+|---|---|
+| Purpose | Side-by-side differences for up to three offerings, never ranked |
+| Allowed contexts | Public programme comparison page |
+| Explicit non-uses | Rankings, recommendations, "best" labels; more than three columns |
+| Anatomy | Caption + field rows (award, duration, campus/mode, status, deadline, core requirements, additional requirements, version/updated, fee ref, actions) + optional limit note |
+| Content rules | Differences only; limit note when truncated; remove/eligibility links name the programme; version row carries published version + updated date |
+| States | Limit note shown only when truncated; missing deadline renders "Not published" |
+| Interaction | Real links only (view, remove) |
+| Validation | Display-only |
+| Error/recovery | n/a |
+| Accessibility | `th scope` row/col headers; caption states no ranking; `role="status"` on limit note |
+| Responsive | Stacks to labelled rows under 40rem via data-label (no horizontal scroll) |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Three-column cap with notice; remove keeps other entries; stacked mobile order matches headers |
+
+## DISC-GUIDE-001 — Eligibility-guidance result (`src/GuidanceResult.tsx`, server; packet-local TASK-PH2-001)
+
+| Field | Contract |
+|---|---|
+| Purpose | Per-requirement verdicts in words, overall outcome, mandatory non-decision disclaimer |
+| Allowed contexts | Public eligibility-guidance result step |
+| Explicit non-uses | Admit/reject language; colour-only verdicts; verdict copy invented in components |
+| Anatomy | Programme/intake title + route + outcome list (label + entered evidence + verdict) + overall + disclaimer |
+| Content rules | All wording arrives via props from DISC-* templates; never promises admission |
+| States | Four tones (success/attention/info/error) reinforce text, never replace it; single announcement via the owning form's overall outcome |
+| Interaction | Static; overall outcome announced as status by the owning form; verdicts plain text (single announcement) |
+| Validation | Display-only |
+| Error/recovery | n/a |
+| Accessibility | Section labelled "Eligibility guidance result"; overall outcome announced as status by the owning form; verdicts plain text (single announcement, not N) |
+| Responsive | Same block pattern, max 40rem |
+| Data/audit | Persists/logs nothing |
+| Acceptance tests | Five verdict wordings render verbatim; disclaimer always present; no admit/reject terms |

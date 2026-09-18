@@ -1,7 +1,7 @@
 # UNZA SIS–Moodle Design and Development Handbook
 
 Version: **3.0.0 — documentation baseline**  
-Audience: Charles Hangoma, Chitindu Milimbo, supervisors, reviewers and future AI development agents.
+Audience: Charles Hangoma, Chitundu Milimbo, supervisors, reviewers and future AI development agents.
 
 This ZIP is the report-ready, documentation-only handoff for the proposed Student Information System and Moodle integration. It contains the recovered design, reorganized from problem and user needs through architecture, journeys, UI/UX, security, delivery, learning, testing, demonstration and controlled expansion.
 

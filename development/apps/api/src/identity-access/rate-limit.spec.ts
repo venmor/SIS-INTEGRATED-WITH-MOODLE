@@ -3,8 +3,14 @@ import { SECURITY_V1 } from '@sis/config';
 
 describe('RateLimiter', () => {
   it('reads baselines from SECURITY-v1, never hardcoded', () => {
-    expect(RateLimiter.signInLimit()).toEqual({ maxAttempts: 5, windowMinutes: 15 });
-    expect(RateLimiter.recoveryLimit()).toEqual({ maxAttempts: 3, windowMinutes: 60 });
+    expect(RateLimiter.signInLimit()).toEqual({
+      maxAttempts: 5,
+      windowMinutes: 15,
+    });
+    expect(RateLimiter.recoveryLimit()).toEqual({
+      maxAttempts: 3,
+      windowMinutes: 60,
+    });
     expect(SECURITY_V1.version).toBe('SECURITY-v1');
   });
 
@@ -37,6 +43,16 @@ describe('RateLimiter', () => {
   });
 
   it('reads the authenticated-read budget from SECURITY-v1', () => {
-    expect(RateLimiter.readLimit()).toEqual({ maxAttempts: 120, windowMinutes: 1 });
+    expect(RateLimiter.readLimit()).toEqual({
+      maxAttempts: 120,
+      windowMinutes: 1,
+    });
+  });
+
+  it('reads the public catalogue-search budget from SECURITY-v1', () => {
+    expect(RateLimiter.catalogueSearchLimit()).toEqual({
+      maxAttempts: 60,
+      windowMinutes: 1,
+    });
   });
 });

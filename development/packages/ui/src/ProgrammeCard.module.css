@@ -1,0 +1,55 @@
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: var(--space-4);
+  max-width: 40rem;
+}
+
+.card + .card {
+  margin-top: var(--space-3);
+}
+
+.name {
+  font-size: var(--font-body);
+  line-height: var(--line-tight);
+  margin: 0;
+}
+
+.link {
+  color: var(--blue-700);
+}
+
+.facts {
+  margin-top: var(--space-1);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+
+.availability {
+  margin-top: var(--space-2);
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meta {
+  margin-top: var(--space-1);
+  font-size: var(--font-supporting);
+  color: var(--text-secondary);
+}
+
+.note {
+  margin-top: var(--space-2);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+
+.actions {
+  margin-top: var(--space-3);
+  font-size: var(--font-body);
+}
+
+.action + .action {
+  margin-left: var(--space-3);
+}

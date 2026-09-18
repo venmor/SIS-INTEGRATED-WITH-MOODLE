@@ -296,6 +296,330 @@ async function ensureReviewSchedules(reviewerId: string): Promise<void> {
   }
 }
 
+// Public catalogue seed (TASK-PH2-001, DEMO-ACADEMIC-2026-v1: exactly the 3
+// demo programmes, fictional). Idempotent: unique code / composite offering /
+// programme+ruleKey+version. Closed/soon states ride intake availability so
+// handbook §3.3 states are provable without extra programmes.
+interface SeedRule {
+  ruleKey: string;
+  label: string;
+  kind: "GRADE" | "BOOLEAN" | "TEXT";
+  mandatory: boolean;
+  minGrade: number | null;
+  requiresVerification: boolean;
+  evidence: string;
+  routeCode: string | null;
+}
+
+interface SeedOffering {
+  intake: string;
+  studyMode: string;
+  campus: string;
+  availability: "OPEN" | "SOON" | "CLOSED" | "RETIRED";
+  deadline: string | null;
+  statusNote: string | null;
+}
+
+interface SeedProgramme {
+  code: string;
+  name: string;
+  awardLevel: string;
+  school: string;
+  department: string | null;
+  duration: string;
+  overview: string;
+  feeScheduleRef: string;
+  offerings: SeedOffering[];
+  rules: SeedRule[];
+}
+
+const ROUTES: Array<{ code: string; label: string }> = [
+  { code: "ECZ", label: "Grade 12 / ECZ" },
+  { code: "DIPLOMA", label: "Diploma" },
+  { code: "DEGREE", label: "Bachelor's degree" },
+  { code: "POSTGRAD", label: "Postgraduate" },
+  { code: "INTL", label: "International qualification" },
+];
+
+const CATALOGUE: SeedProgramme[] = [
+  {
+    code: "SWE",
+    name: "BSc Software Engineering",
+    awardLevel: "Bachelor's degree",
+    school: "Computing",
+    department: "Software Engineering",
+    duration: "4 years",
+    overview:
+      "Full-time undergraduate study in software design, construction and teamwork.",
+    feeScheduleRef: "DEMO-ACADEMIC-2026-v1/fees/undergraduate",
+    offerings: [
+      {
+        intake: "2026S1",
+        studyMode: "Full-time",
+        campus: "Main Campus",
+        availability: "OPEN",
+        deadline: "2026-09-30T23:59:00+02:00",
+        statusNote: null,
+      },
+      {
+        intake: "2026S2",
+        studyMode: "Full-time",
+        campus: "Main Campus",
+        availability: "SOON",
+        deadline: null,
+        statusNote: "Applications open soon for this intake.",
+      },
+    ],
+    rules: [
+      {
+        ruleKey: "math",
+        label: "Mathematics",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        requiresVerification: false,
+        evidence: "Grade 12 result statement",
+        routeCode: "ECZ",
+      },
+      {
+        ruleKey: "english",
+        label: "English",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        requiresVerification: false,
+        evidence: "Grade 12 result statement",
+        routeCode: "ECZ",
+      },
+      {
+        ruleKey: "ecz-statement",
+        label: "Verified result statement",
+        kind: "BOOLEAN",
+        mandatory: true,
+        minGrade: null,
+        requiresVerification: true,
+        evidence: "ECZ result statement",
+        routeCode: null,
+      },
+      {
+        ruleKey: "zaqa",
+        label: "Equivalency assessment",
+        kind: "BOOLEAN",
+        mandatory: true,
+        minGrade: null,
+        requiresVerification: true,
+        evidence: "ZAQA or other equivalency evidence",
+        routeCode: "INTL",
+      },
+    ],
+  },
+  {
+    code: "RAD",
+    name: "BSc Radiography",
+    awardLevel: "Bachelor's degree",
+    school: "Health Sciences",
+    department: "Radiography",
+    duration: "4 years",
+    overview:
+      "Full-time undergraduate study in diagnostic imaging and patient care.",
+    feeScheduleRef: "DEMO-ACADEMIC-2026-v1/fees/undergraduate",
+    offerings: [
+      {
+        intake: "2026S1",
+        studyMode: "Full-time",
+        campus: "Main Campus",
+        availability: "OPEN",
+        deadline: "2026-09-30T23:59:00+02:00",
+        statusNote: null,
+      },
+    ],
+    rules: [
+      {
+        ruleKey: "math",
+        label: "Mathematics",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        requiresVerification: false,
+        evidence: "Grade 12 result statement",
+        routeCode: "ECZ",
+      },
+      {
+        ruleKey: "science",
+        label: "Science subject",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        requiresVerification: false,
+        evidence: "Grade 12 result statement",
+        routeCode: "ECZ",
+      },
+      {
+        ruleKey: "ecz-statement",
+        label: "Verified result statement",
+        kind: "BOOLEAN",
+        mandatory: true,
+        minGrade: null,
+        requiresVerification: true,
+        evidence: "ECZ result statement",
+        routeCode: null,
+      },
+    ],
+  },
+  {
+    code: "BBA",
+    name: "Bachelor of Business Administration",
+    awardLevel: "Bachelor's degree",
+    school: "Business",
+    department: "Business Administration",
+    duration: "4 years",
+    overview:
+      "Full-time undergraduate study in management, finance and enterprise.",
+    feeScheduleRef: "DEMO-ACADEMIC-2026-v1/fees/undergraduate",
+    offerings: [
+      {
+        intake: "2026S1",
+        studyMode: "Full-time",
+        campus: "Main Campus",
+        availability: "CLOSED",
+        deadline: null,
+        statusNote:
+          "This programme is not accepting applications for the selected intake. The next planned intake is being confirmed.",
+      },
+    ],
+    rules: [
+      {
+        ruleKey: "english",
+        label: "English",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        requiresVerification: false,
+        evidence: "Grade 12 result statement",
+        routeCode: "ECZ",
+      },
+      {
+        ruleKey: "ecz-statement",
+        label: "Verified result statement",
+        kind: "BOOLEAN",
+        mandatory: true,
+        minGrade: null,
+        requiresVerification: true,
+        evidence: "ECZ result statement",
+        routeCode: null,
+      },
+    ],
+  },
+];
+
+async function ensureCatalogue(): Promise<void> {
+  for (const route of ROUTES) {
+    const existing = await prisma.qualificationRoute.findUnique({
+      where: { code: route.code },
+    });
+    if (!existing) {
+      await prisma.qualificationRoute.create({ data: route });
+    }
+  }
+  for (const entry of CATALOGUE) {
+    let programme = await prisma.programme.findUnique({
+      where: { code: entry.code },
+    });
+    if (!programme) {
+      programme = await prisma.programme.create({
+        data: {
+          code: entry.code,
+          name: entry.name,
+          awardLevel: entry.awardLevel,
+          school: entry.school,
+          department: entry.department,
+          duration: entry.duration,
+          overview: entry.overview,
+          feeScheduleRef: entry.feeScheduleRef,
+          publishedVersion: "DEMO-ACADEMIC-2026-v1",
+          effectiveDate: new Date("2026-01-01T00:00:00Z"),
+          owningOffice: "Admissions",
+        },
+      });
+    }
+    for (const offering of entry.offerings) {
+      const existing = await prisma.programmeOffering.findUnique({
+        where: {
+          programmeId_intake_studyMode_campus: {
+            programmeId: programme.id,
+            intake: offering.intake,
+            studyMode: offering.studyMode,
+            campus: offering.campus,
+          },
+        },
+      });
+      if (!existing) {
+        await prisma.programmeOffering.create({
+          data: {
+            programmeId: programme.id,
+            intake: offering.intake,
+            studyMode: offering.studyMode,
+            campus: offering.campus,
+            availability: offering.availability,
+            deadline: offering.deadline ? new Date(offering.deadline) : null,
+            statusNote: offering.statusNote,
+          },
+        });
+      } else {
+        // Demo correction path: availability/deadline/note follow the seed
+        // on re-run so stale demo states never persist (additive only).
+        const deadline = offering.deadline ? new Date(offering.deadline) : null;
+        if (
+          existing.availability !== offering.availability ||
+          existing.statusNote !== offering.statusNote ||
+          (existing.deadline?.getTime() ?? null) !== (deadline?.getTime() ?? null)
+        ) {
+          await prisma.programmeOffering.update({
+            where: { id: existing.id },
+            data: {
+              availability: offering.availability,
+              deadline,
+              statusNote: offering.statusNote,
+            },
+          });
+        }
+      }
+    }
+    for (const rule of entry.rules) {
+      const route = rule.routeCode
+        ? await prisma.qualificationRoute.findUnique({
+            where: { code: rule.routeCode },
+          })
+        : null;
+      const existing = await prisma.requirementRule.findUnique({
+        where: {
+          programmeId_ruleKey_version: {
+            programmeId: programme.id,
+            ruleKey: rule.ruleKey,
+            version: 1,
+          },
+        },
+      });
+      if (!existing) {
+        await prisma.requirementRule.create({
+          data: {
+            programmeId: programme.id,
+            routeId: route ? route.id : null,
+            ruleKey: rule.ruleKey,
+            label: rule.label,
+            kind: rule.kind,
+            mandatory: rule.mandatory,
+            minGrade: rule.minGrade,
+            requiresVerification: rule.requiresVerification,
+            evidence: rule.evidence,
+            version: 1,
+          },
+        });
+      }
+    }
+  }
+}
+
 async function main(): Promise<void> {
   // Identity administrator first so later grants reference a granter/approver.
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
@@ -307,14 +631,18 @@ async function main(): Promise<void> {
     await ensureAccount(entry, granter.id);
   }
   await ensureReviewSchedules(granter.id);
+  await ensureCatalogue();
   const counts = {
     persons: await prisma.person.count(),
     accounts: await prisma.account.count(),
     roles: await prisma.roleAssignment.count(),
     credentials: await prisma.credential.count(),
+    programmes: await prisma.programme.count(),
+    offerings: await prisma.programmeOffering.count(),
+    rules: await prisma.requirementRule.count(),
   };
   console.log(
-    `seed v0.2 complete: ${counts.persons} persons, ${counts.accounts} accounts, ${counts.roles} role assignments, ${counts.credentials} credentials`,
+    `seed v0.2 complete: ${counts.persons} persons, ${counts.accounts} accounts, ${counts.roles} role assignments, ${counts.credentials} credentials, ${counts.programmes} programmes, ${counts.offerings} offerings, ${counts.rules} requirement rules`,
   );
 }
 

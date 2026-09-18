@@ -1,4 +1,7 @@
 export type { HealthResponse } from "./health.js";
+// Types-only barrel: every consumer imports `import type`, erased before
+// emit, so package.json exports target this source directly (no dist).
+// Non-spec sources import these shapes since TASK-PH2-001.
 export type {
   SignInBody,
   AuthAccount,
@@ -30,3 +33,16 @@ export type {
   ExpiryWarningView,
 } from "./review.js";
 export type { AuditTimelineRow, AuditTimelineResponse } from "./audit.js";
+export type {
+  AvailabilityStatus,
+  CataloguePage,
+  CompareResult,
+  GuidanceEvaluation,
+  GuidanceResult,
+  GuidanceVerdict,
+  ProgrammeOfferingDetail,
+  ProgrammeSummary,
+  RequirementFact,
+  RequirementKind,
+  RequirementRule,
+} from "./catalogue.js";

@@ -50,6 +50,7 @@ import { ExpiryDaemonService } from './expiry-daemon.service.js';
     WorkspaceService,
     PolicyService,
     ConfigurationService,
+    CsrfGuard,
   ],
 })
 export class IdentityAccessModule implements NestModule {

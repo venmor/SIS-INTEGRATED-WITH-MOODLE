@@ -6,6 +6,8 @@ interface FieldProps {
   help?: string;
   error?: string;
   autoComplete?: string;
+  /** Uncontrolled restore value (filter/search forms re-render from URL). */
+  defaultValue?: string;
   inputProps?: {
     type?: string;
     name?: string;
@@ -20,7 +22,7 @@ interface FieldProps {
  * help text, per-field error with aria-describedby association. Managers and
  * paste are never blocked by this component.
  */
-export function Field({ id, label, help, error, autoComplete, inputProps }: FieldProps) {
+export function Field({ id, label, help, error, autoComplete, defaultValue, inputProps }: FieldProps) {
   const helpId = help ? `${id}-help` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [helpId, errorId].filter(Boolean).join(" ") || undefined;
@@ -43,6 +45,7 @@ export function Field({ id, label, help, error, autoComplete, inputProps }: Fiel
         maxLength={inputProps?.maxLength}
         minLength={inputProps?.minLength}
         autoComplete={autoComplete}
+        defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
       />

@@ -194,6 +194,10 @@ export const ConfigKeys = {
         readMaxAttempts: 'security.rateLimit.read.maxAttempts',
         readWindowMinutes: 'security.rateLimit.read.windowMinutes',
       },
+      catalogueSearch: {
+        catalogueSearchMaxAttempts: 'security.rateLimit.catalogueSearch.maxAttempts',
+        catalogueSearchWindowMinutes: 'security.rateLimit.catalogueSearch.windowMinutes',
+      },
     },
     lockout: {
       failuresBeforeLock: 'security.lockout.failuresBeforeLock',
@@ -222,6 +226,12 @@ export const ConfigKeys = {
     // Audit
     auditRetentionDays: 'security.auditRetentionDays',
     auditExportFormats: 'security.auditExportFormats',
+  },
+  catalogue: {
+    searchDefaultTake: 'catalogue.search.defaultTake',
+    searchMaxTake: 'catalogue.search.maxTake',
+    compareMax: 'catalogue.compareMax',
+    sessionTtlMinutes: 'catalogue.sessionTtlMinutes',
   },
 } as const;
 

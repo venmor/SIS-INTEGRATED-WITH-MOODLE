@@ -12,6 +12,7 @@
 | Phase 1 sessions + recovery + sign-in UI | Charles | Chitindu Milimbo | Sign-in/out, recovery, session cookies, sign-in UI (MFA later) | [TASK-PH1-002a](../task-packets/TASK-PH1-002a.md) | [NOTE-PH1-002a](./NOTE-PH1-002a.md) | Pending Chitindu replay (steps in note) |
 | Phase 1 grants + workspace switch | Charles | Chitindu Milimbo | Grant API, active workspace, context bar + switcher + grant form | [TASK-PH1-003](../task-packets/TASK-PH1-003.md) | [NOTE-PH1-003](./NOTE-PH1-003.md) | Pending Chitindu replay (steps in note) |
 | Phase 1 permission policy + denial | Charles | Chitindu Milimbo | Policy engine, SoD, purpose, denial UX, grant hardening + resolve | [TASK-PH1-004](../task-packets/TASK-PH1-004.md) | [NOTE-PH1-004](./NOTE-PH1-004.md) | Pending Chitindu replay (steps in note) |
+| Phase 2 public programme discovery | Chitindu Milimbo | Charles Hangoma | Catalogue module, 5 tables + seed, discovery/compare/guidance UI, proxy, rate limit | [TASK-PH2-001](../task-packets/TASK-PH2-001.md) | [NOTE-PH2-001](./NOTE-PH2-001.md) | Pending Charles replay (rotation change per user decision 2026-09-18; confirm vs standing ruling line 18) |
 
 Assign the lead and reviewer before implementation work begins. Swap their roles on the next vertical slice.
 
