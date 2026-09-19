@@ -9,11 +9,11 @@
 - AI task/handoff rules: `09-AI-AGENT-OPERATING-MANUAL`
 - Release sequence: `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP`
 - Decisions/coverage/changes: `90-TRACEABILITY-AND-GOVERNANCE`
-- Exact recovered source: `99-EVIDENCE-ARCHIVE`
+- Active exact approved source: `15-APPROVED-DESIGN-EVIDENCE`
 
-## Future application repository
+## Application workspace
 
-Do not copy the full evidence archive into every code module. The future repo should keep short root/module `AGENTS.md` files, architecture overview, ADRs, approved-design links, task packets, module READMEs and traceability. Detailed evidence remains a reference package.
+The sibling `development/` workspace keeps short root/module `AGENTS.md` files, architecture overview, ADRs, approved-design links, task packets, module READMEs and traceability. Link each task to its exact approved evidence rather than copying the entire compendium into every module. Detailed evidence remains active and authoritative within its approval scope.
 
 ## Editing rules
 
@@ -23,3 +23,4 @@ Do not copy the full evidence archive into every code module. The future repo sh
 - Do not duplicate policy text across modules; reference the controlling configuration/specification.
 - Archive superseded versions; do not silently rewrite the history.
 - Run link, inventory and checksum validation before publishing a new handbook release.
+- The user-authorized 2026-09-19 folder rename is recorded as SUP-012. Renaming/navigation corrections must preserve the original approved source bodies and update path references, package inventory and SHA-256 checksums together.

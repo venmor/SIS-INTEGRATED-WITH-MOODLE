@@ -6,12 +6,12 @@ Load in this order:
 
 1. Root `AGENTS.md`
 2. Current task packet
-3. Linked role journey/action contract
+3. Linked role journey/action contract and its individual exact records in `15-APPROVED-DESIGN-EVIDENCE/`
 4. Linked permission/security rules
 5. Linked UI or architecture contract
 6. Linked acceptance tests and current module README/ADR
 
-Do not load the whole 70-record compendium unless investigating provenance. Large context increases contradiction and pattern drift.
+Do not load the whole 70-record compendium unless investigating provenance. Read the task-relevant exact records completely: they are active requirements, not optional background. Large unrelated context increases contradiction and pattern drift.
 
 ## During work
 

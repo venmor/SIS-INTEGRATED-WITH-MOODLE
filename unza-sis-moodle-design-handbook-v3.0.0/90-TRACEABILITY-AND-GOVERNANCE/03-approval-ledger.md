@@ -1,6 +1,6 @@
 # Approval Ledger
 
-The exact approval wording follows each standalone design record in `99-EVIDENCE-ARCHIVE`. This ledger summarizes treatment in the curated baseline.
+The exact approval wording follows each standalone design record in `15-APPROVED-DESIGN-EVIDENCE`. This ledger summarizes treatment in the curated baseline.
 
 | Design family | Baseline treatment |
 |---|---|

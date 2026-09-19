@@ -1,13 +1,13 @@
 # AI Agent and Developer Rules
 
-This package is authoritative documentation, not an application repository.
+This directory contains authoritative design documentation. The sibling `development/` directory contains the application; use its instructions and task packets for code work.
 
 ## Before planning or implementing
 
 1. Read `START-HERE.md` and `PROJECT-STATUS.md`.
-2. Read `90-TRACEABILITY-AND-GOVERNANCE/SUPERSESSION-REGISTER.md` and `IMPLEMENTATION-READINESS-MATRIX.md`.
+2. Read `90-TRACEABILITY-AND-GOVERNANCE/SUPERSESSION-REGISTER.md` and `90-TRACEABILITY-AND-GOVERNANCE/IMPLEMENTATION-READINESS-MATRIX.md`.
 3. Load the assigned task packet.
-4. Read the linked role journey/action, permission, UI, architecture, security/recovery and test documents.
+4. Read the linked role journey/action, permission, UI, architecture, security/recovery and test documents, including their individual exact sources in `15-APPROVED-DESIGN-EVIDENCE/`. These are active requirements, not optional history.
 5. Confirm lead developer, reviewer, release and explicit out-of-scope list.
 
 ## Non-negotiable rules
@@ -17,7 +17,7 @@ This package is authoritative documentation, not an application repository.
 - If an action still lacks authority, visibility, state, recovery or test detail, create a `GAP-*` record and stop that action.
 - Do not load or use the evidence compendium as a substitute for task-linked controlling documents.
 - Later corrections and the supersession register override earlier wording.
-- The ZIP contains no application code and does not prove implementation.
+- The original documentation ZIP contains no application code and does not prove implementation. Current implementation evidence belongs in `development/`.
 - Use Next.js + TypeScript + CSS Modules, NestJS + TypeScript, PostgreSQL + Prisma unless a later approved ADR changes the stack.
 - Do not add Tailwind, microservices, Redis, Kafka/RabbitMQ or Kubernetes without an approved ADR.
 - Enforce authorization on the server using role, scope, relationship, state, purpose and time-bound authority.

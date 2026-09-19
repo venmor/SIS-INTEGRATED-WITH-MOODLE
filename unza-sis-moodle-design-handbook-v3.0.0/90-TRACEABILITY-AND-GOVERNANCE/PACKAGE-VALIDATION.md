@@ -14,3 +14,7 @@ The published ZIP must pass all of these checks:
 - ZIP checksum and internal SHA-256 manifest are recorded.
 
 Validation results for the generated archive are recorded outside this file during packaging and summarized to the user.
+
+## Repository review — 2026-09-19
+
+The original ZIP-only checks above apply to a standalone handbook package. The repository now also has a sibling application; links to that sibling are valid in this repository and require inclusion or explicit external treatment when producing a new standalone ZIP. No new ZIP was generated in this implementation review. The evidence rename preserves all 70 individual records and their approval text; checksums are refreshed for the current handbook files.

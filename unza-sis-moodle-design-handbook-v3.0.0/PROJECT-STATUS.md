@@ -2,7 +2,11 @@
 
 ## Current stage
 
-**Research and design handoff complete; application coding has not started in this package.**
+**The handbook is the design baseline; application code exists in the sibling `development/` workspace.**
+
+The 2026-09-19 review repaired earlier Phase 0/1 and discovery defects and implemented Phase 2 slices 2–5 for a bounded fictional demonstration. See the [current implementation review](../development/docs/learning/PHASE-2-IMPLEMENTATION-REVIEW.md) and [verification evidence](../development/docs/learning/VERIFICATION.md). Phase 2 slice 6, named earlier-phase gaps, human review and production approval remain pending. See the [application README](../development/README.md), [task packets](../development/docs/task-packets/README.md) and [rotation ledger](../development/docs/learning/ROTATION-LEDGER.md) for implementation and review evidence. Existing code is not evidence that every phase exit or human walkthrough has passed.
+
+Original statements that the package contains no code describe this handbook directory and the original documentation ZIP, not the whole repository today.
 
 ## Locked decisions
 

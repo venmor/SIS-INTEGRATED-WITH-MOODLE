@@ -1,13 +1,15 @@
 # UNZA SIS–Moodle Design and Development Handbook
 
 Version: **3.0.0 — documentation baseline**  
-Audience: Charles Hangoma, Chitundu Milimbo, supervisors, reviewers and future AI development agents.
+Audience: Charles Hangoma, Chitindu Milimbo, supervisors, reviewers and future AI development agents.
 
-This ZIP is the report-ready, documentation-only handoff for the proposed Student Information System and Moodle integration. It contains the recovered design, reorganized from problem and user needs through architecture, journeys, UI/UX, security, delivery, learning, testing, demonstration and controlled expansion.
+This directory is the report-ready design handbook for the Student Information System and Moodle integration. It contains the recovered design, reorganized from problem and user needs through architecture, journeys, UI/UX, security, delivery, learning, testing, demonstration and controlled expansion.
 
-It deliberately contains **no application source code**, no runnable scaffold, no database, no credentials, no real student data and none of the earlier implementation files that appeared as attachments in the design conversation.
+The handbook directory deliberately contains **no application source code**, no runnable scaffold, no database, no credentials, no real student data and none of the earlier implementation files that appeared as attachments in the design conversation. Current application code lives separately in [development](../development/README.md).
 
 Begin with [START-HERE.md](START-HERE.md), then follow [MASTER-CONTENTS.md](MASTER-CONTENTS.md).
+
+[Approved design evidence](15-APPROVED-DESIGN-EVIDENCE/README.md) is part of the active requirement set. Task-linked exact records must be read alongside the curated journey and subject handbooks.
 
 ## Controlling principles
 
@@ -23,4 +25,4 @@ Begin with [START-HERE.md](START-HERE.md), then follow [MASTER-CONTENTS.md](MAST
 
 ## Package status
 
-This package is ready for design review, report writing, task planning and bounded AI-assisted development preparation. Actual coding begins only after the entry gate for a selected task is satisfied.
+This package supports design review, report writing, task planning and bounded AI-assisted development. Each coding task still requires its entry gate; [Project Status](PROJECT-STATUS.md) distinguishes the handbook baseline from current implementation and pending review.

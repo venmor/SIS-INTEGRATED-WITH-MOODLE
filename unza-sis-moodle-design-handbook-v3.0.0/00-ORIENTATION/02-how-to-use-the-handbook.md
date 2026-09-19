@@ -14,7 +14,7 @@ Record the chain in a task packet. Do not ask an AI agent to read the entire rep
 
 ## For AI sessions
 
-Load `AGENTS.md`, the task packet and only the linked controlling documents. At the end, require a completion report and an updated handoff note. A fresh agent must be able to resume without relying on the previous agent’s memory.
+Load `AGENTS.md`, the task packet and the linked controlling documents, including the individual exact approved records in `15-APPROVED-DESIGN-EVIDENCE/`. Read them completely; curated summaries do not remove detailed acceptance requirements. At the end, require a completion report and an updated handoff note. A fresh agent must be able to resume without relying on the previous agent’s memory.
 
 ## For presentation
 

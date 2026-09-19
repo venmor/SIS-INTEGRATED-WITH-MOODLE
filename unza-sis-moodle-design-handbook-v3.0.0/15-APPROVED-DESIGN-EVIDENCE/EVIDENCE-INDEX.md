@@ -1,4 +1,6 @@
-# Evidence Index
+# Active Approved Design Evidence Index
+
+These 70 exact records are implementation sources. Start with the selected roadmap and journey, then read the relevant role, UI, permission, security, recovery and test records below. Their recorded approval scope and the [supersession register](../90-TRACEABILITY-AND-GOVERNANCE/SUPERSESSION-REGISTER.md) remain controlling.
 
 | Order | Family | Exact record |
 |---:|---|---|

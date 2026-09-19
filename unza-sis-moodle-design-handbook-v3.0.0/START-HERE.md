@@ -2,11 +2,11 @@
 
 ## What this package is
 
-This repository is the single ordered handbook for understanding and later implementing the SIS–Moodle project. It turns the recovered design chat into human-readable, AI-loadable Markdown documents.
+This directory is the ordered handbook for understanding and implementing the SIS–Moodle project. It turns the recovered design chat into human-readable, AI-loadable Markdown documents. The containing repository also has an [application workspace](../development/README.md).
 
 ## What this package is not
 
-It is not an implemented system. Unzipping it will not start a website. It contains no Next.js, NestJS, Prisma, SQL, CSS or deployment code. The future application repository must be created during Phase 0 under the rules documented here.
+The handbook directory is not executable application code. Its original documentation ZIP did not contain a runnable scaffold. Application development now lives in the sibling `development/` directory; read its current task packets and verification records before claiming a feature or phase is complete.
 
 ## First reading session — both developers together
 
@@ -24,11 +24,13 @@ When documents appear to conflict, use this order:
 
 1. A later approved decision or supersession record
 2. Security, privacy, permission and official-record integrity rules
-3. Exact approved design evidence in `99-EVIDENCE-ARCHIVE/`
+3. Exact approved design evidence in `15-APPROVED-DESIGN-EVIDENCE/`
 4. Curated journey and subject handbooks
 5. Templates and examples
 
 Examples are illustrative unless explicitly marked as approved policy. A programme rule, fee, grade boundary, role authority, provider identifier or deadline must be confirmed through versioned configuration before implementation.
+
+The evidence directory contains active implementation requirements. Read the individual records linked to the task; its new name and [SUP-012](90-TRACEABILITY-AND-GOVERNANCE/SUPERSESSION-REGISTER.md) remove earlier wording that could suggest these requirements were optional historical material.
 
 ## Before any coding task
 

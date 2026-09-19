@@ -17,7 +17,7 @@
 | 12 | `12-TESTING-AND-ACCEPTANCE` | Proof required for features and releases | Test lead, reviewer |
 | 13 | `13-DEMO-AND-PRESENTATION` | Seeded demo, stories, evidence and defence preparation | Presenters |
 | 14 | `14-TEMPLATES` | Reusable task, ADR, PR, learning, release and incident records | Developers and AI agents |
-| 15 | `90-TRACEABILITY-AND-GOVERNANCE` | Coverage, decisions, changes and validation | Team, supervisor, auditor |
-| 16 | `99-EVIDENCE-ARCHIVE` | Exact recovered design outputs and approvals | Verification only |
+| 15 | `15-APPROVED-DESIGN-EVIDENCE` | Active exact design requirements and their approvals | Developers, AI agents, testers, reviewers |
+| 16 | `90-TRACEABILITY-AND-GOVERNANCE` | Coverage, decisions, changes and validation | Team, supervisor, auditor |
 
-The main development route stops at the controlling documents. The evidence archive is used to verify wording or approval history; it is not loaded wholesale into an AI prompt.
+The development route includes the task-linked exact approved records as well as curated handbooks. Read the relevant individual evidence files completely; do not load the whole compendium into every AI prompt. Check the authority order and supersession register before resolving a disagreement between a summary and its source.

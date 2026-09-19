@@ -2,7 +2,7 @@
 
 ## Included source class
 
-The authoritative source is the assistant-generated SIS design in the shared conversation, together with the user’s approval/correction messages. The evidence archive contains the 70 recovered design outputs and their following approvals.
+The authoritative source is the assistant-generated SIS design in the shared conversation, together with the user’s approval/correction messages. `15-APPROVED-DESIGN-EVIDENCE/` contains the 70 recovered design outputs and their following approvals. These exact approved records are active implementation sources, subject to later corrections and security/privacy/official-record rules.
 
 ## Explicitly excluded
 

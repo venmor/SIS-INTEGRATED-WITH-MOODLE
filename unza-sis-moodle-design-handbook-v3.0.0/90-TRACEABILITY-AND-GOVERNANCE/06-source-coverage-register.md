@@ -28,4 +28,4 @@
 | 11 QA/leadership/audit/reporting | Composite Part 1 + 4 standalone parts | `03.../11a...` and `11...` |
 | 12 Operations | 3 standalone parts merged | `03.../12-system-moodle-integration-operations-journey-book.md` |
 
-The evidence archive preserves standalone source records. Composite books name their controlling sources and remain subject to task-level policy confirmation.
+`15-APPROVED-DESIGN-EVIDENCE/` preserves active standalone source records. Composite books name their controlling sources and remain subject to task-level policy confirmation. Read the relevant exact records when implementing; their requirements are not replaced by the shorter composites.
