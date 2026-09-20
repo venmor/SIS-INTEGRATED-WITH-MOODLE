@@ -46,6 +46,11 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
+    // Vercel functions are request-started and short-lived. The approved
+    // schedule needs a platform cron/worker before it can run there; starting
+    // an in-process job during every cold start would also block liveness on a
+    // database call. Local and long-running deployments retain the scheduler.
+    if (process.env.VERCEL) return;
     await this.resyncSchedule();
   }
 

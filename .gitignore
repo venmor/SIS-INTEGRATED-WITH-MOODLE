@@ -19,3 +19,7 @@ playwright-report/
 test-results/
 .vercel
 .env*
+
+# Provider-installed local agent skills are tooling state, not application code.
+.agents/
+skills-lock.json

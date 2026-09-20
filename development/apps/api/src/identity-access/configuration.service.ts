@@ -1,22 +1,16 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
 import { ConfigurationItem, Prisma } from '@prisma/client';
 import { coerceConfigValue } from '@sis/config';
 
 @Injectable()
-export class ConfigurationService implements OnModuleInit {
+export class ConfigurationService {
   private readonly prisma: PrismaService;
   private cache = new Map<string, { value: unknown; expiresAt: number }>();
   private readonly TTL_MS = 30_000; // 30-second cache TTL
-  private allKeys: string[] = [];
 
   constructor(prisma: PrismaService) {
     this.prisma = prisma;
-  }
-
-  async onModuleInit(): Promise<void> {
-    // Pre-load all config keys for validation
-    this.allKeys = await this.getAllConfigKeys();
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { createRequire } from 'node:module';
 
 // House pattern for CJS deps under ESM (proven in seed): values via require,
@@ -10,7 +10,7 @@ const { PrismaPg } = require('@prisma/adapter-pg') as typeof import('@prisma/ada
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
+  implements OnModuleDestroy
 {
   constructor() {
     super({
@@ -18,10 +18,6 @@ export class PrismaService
         connectionString: process.env.DATABASE_URL as string,
       }),
     });
-  }
-
-  async onModuleInit(): Promise<void> {
-    await this.$connect();
   }
 
   async onModuleDestroy(): Promise<void> {
