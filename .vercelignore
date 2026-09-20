@@ -1,0 +1,3 @@
+# Local review worktrees contain duplicate source and ignored test artifacts.
+# Vercel builds the tracked main checkout only.
+.worktree/

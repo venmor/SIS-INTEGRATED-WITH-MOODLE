@@ -17,3 +17,5 @@ pgdata/
 # Browser test outputs
 playwright-report/
 test-results/
+.vercel
+.env*
