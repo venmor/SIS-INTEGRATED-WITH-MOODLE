@@ -50,3 +50,15 @@ in TASK-PH1-005 evidence and NOTE-PH1-005-FIXES.md).
 Verify: `test/expiry-scheduler.e2e-spec.ts` (registration + reschedule),
 `test/expiry-daemon.e2e-spec.ts` (revoke + idempotency), `npm audit`
 clean for new packages. Reverse by new ADR — never silent edit.
+
+## Vercel hosting addendum (2026-09-20)
+
+This decision assumes a continuously running NestJS process. A Vercel function
+is request-started and may stop between requests, so the demonstration API
+does not start the in-process expiry job when `VERCEL` is set. Local and other
+long-running deployments retain the approved scheduler unchanged.
+
+This is an operational boundary, not a replacement scheduler. A future
+production Vercel deployment needs an approved, authenticated Vercel Cron
+route or worker, its ownership and monitoring evidence, and separate tests
+before it can claim automatic expiry execution.

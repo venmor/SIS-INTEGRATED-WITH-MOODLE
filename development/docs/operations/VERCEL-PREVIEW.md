@@ -1,40 +1,56 @@
-# Vercel frontend preview
+# Vercel demonstration deployment
 
-The current demonstration frontend is available at [sis-moodle.vercel.app](https://sis-moodle.vercel.app). It is a Vercel-hosted Next.js preview of the `apps/web` package, built on 2026-09-20 from the local main checkout. This is the `charles-chitundu` team deployment; it supersedes the earlier `sikaprimemarketing-proj/web` preview for this project.
+The public demonstration frontend is [sis-moodle.vercel.app](https://sis-moodle.vercel.app). It is a fictional review environment for the implemented Phase 0, Phase 1, and Phase 2 applicant slices. It is not an institutional applicant service and must never receive real applicant, identity, academic, or document data.
 
-## What is online
+## What is configured
 
-The public pages, layout, navigation and server-rendered frontend are online over HTTPS. The preview does **not** make the applicant workflow production-ready: there is no public Nest API or PostgreSQL database behind it yet. Catalogue pages can show their safe unavailable state, while sign-in, saved drafts, document upload and submission require the separate API/database deployment described in [GAP-015](../gaps/GAP-015-applicant-production-and-prior-phase-gates.md).
+| Part | Vercel project | Role |
+|---|---|---|
+| Frontend | `sis-moodle` | Next.js pages and same-site API proxy |
+| API | `sis-moodle-api` | One NestJS serverless function |
+| Database | `sis-moodle-demo-db` | Neon PostgreSQL with fictional migrations and seed data |
 
-Use fictional data only. Do not enter real applicant, identity, academic or document data into this preview.
+Both projects belong to the `charles-chitundu` team. The frontend has the server-only `API_INTERNAL_URL=https://sis-moodle-api.vercel.app/api` configuration for Preview and Production. It is deliberately not a `NEXT_PUBLIC_*` value.
 
-## Vercel project settings
-
-| Setting | Value |
-|---|---|
-| Team | `charles-chitundu` |
-| Project | `sis-moodle` |
-| Root directory | `development/apps/web` |
-| Node.js | `24.x` |
-| Install command | `cd ../.. && npm ci --ignore-scripts` |
-| Build command | `cd ../.. && npm run build --workspace=@sis/config && npm run build --workspace=apps/web` |
-
-The custom commands are necessary because the frontend imports shared workspace packages. The shared configuration is built before Next.js.
-
-`.vercelignore` excludes local review worktrees from command-line deployments. `.vercel/` and local environment files remain untracked.
-
-## Repeat a manual preview
-
-From the repository root, authenticate with Vercel, pull the project settings, build, then publish only the prebuilt output:
-
-```sh
-npx vercel pull --yes --environment=preview
-npx vercel build --yes --target=preview
-npx vercel deploy --prebuilt --archive=tgz --yes
+```mermaid
+flowchart LR
+  B[Browser] --> W[Next.js frontend]
+  W -->|same-site /api proxy| A[Nest API /api]
+  A --> D[(Neon demo database)]
 ```
 
-Inspect the returned deployment URL before presenting it. The first Vercel deployment was automatically assigned the project’s production alias because no prior deployment existed; later deployments should be treated as previews unless deliberately promoted.
+The browser calls the frontend's same-site proxy. Server-rendered pages and that proxy use `API_INTERNAL_URL` to reach Nest. Session cookies stay on the frontend domain, and neither a database URL nor an API credential is sent to the browser.
 
-## Next deployment boundary
+## API deployment behavior
 
-Before live applicant testing, deploy the Nest API and a separate fictional PostgreSQL database, then set Vercel's server-only `API_INTERNAL_URL` for Preview and Production to that API URL. Do not use a local `localhost` URL: Vercel cannot reach this machine. GitHub auto-deploy is connected to `venmor/SIS-INTEGRATED-WITH-MOODLE`, so a push to `main` will create a Vercel deployment.
+Vercel recognizes `apps/api/src/main.ts` as the Nest entry point. It now exports a cached request handler for the Vercel function and keeps the usual listener for local `npm run dev:api`. In Vercel it uses the `/api` route prefix, while local development retains routes such as `http://localhost:3001/health`.
+
+The API starts before it opens a PostgreSQL connection. Prisma connects when a database-backed route needs it, rather than blocking `/api/health`. Configuration is loaded on demand. The in-process expiry scheduler is deliberately disabled in Vercel because a serverless function is not continuously running; a separately authorized, authenticated Vercel Cron route or worker is required before expiry automation can be claimed in this hosting environment.
+
+## Build settings
+
+| Setting | Frontend | API |
+|---|---|---|
+| Root directory | `development/apps/web` | `development/apps/api` |
+| Node.js | `24.x` | `24.x` |
+| Install command | `cd ../.. && npm ci --ignore-scripts` | `cd ../.. && npm ci` |
+| Build command | `cd ../.. && npm run build --workspace=@sis/config && npm run build --workspace=apps/web` | Vercel NestJS automatic build |
+
+Vercel's NestJS preset has no custom build command or output directory. The frontend needs its custom build command because it imports a shared workspace package.
+
+## Deploy and verify after a push
+
+GitHub automatic deployments are connected to `venmor/SIS-INTEGRATED-WITH-MOODLE`. After the next push to `main`, wait for both `sis-moodle` and `sis-moodle-api` deployments to finish, then run:
+
+```sh
+curl --fail https://sis-moodle-api.vercel.app/api/health
+curl --fail 'https://sis-moodle.vercel.app/api/catalogue/programmes?take=3'
+```
+
+The first command must return the API health JSON. The second must return fictional programme data through the frontend proxy. Then open [Discover programmes](https://sis-moodle.vercel.app/discover) and confirm that the seeded catalogue appears. A failed check means the demonstration is unavailable; it does not justify entering real data or marking a phase gate complete.
+
+For a manual deployment, first link the repository root to the intended Vercel project. Local `.vercel/` metadata and environment files are ignored by Git, and `.vercelignore` excludes local review worktrees from uploads.
+
+## Remaining boundaries
+
+The seeded database contains only fictional accounts, programmes, and application data. Public registration, verified communications, MFA, real document scanning/storage, institutional policy approvals, production expiry execution, delivery workers, accessibility review, and human phase acceptance remain open in [GAP-015](../gaps/GAP-015-applicant-production-and-prior-phase-gates.md) and the existing Phase 1/2 review records.
