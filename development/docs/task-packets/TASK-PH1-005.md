@@ -24,33 +24,12 @@
 
 ## User outcome
 
-Every role assignment is time-bounded, auditable, and reversible without data loss: IAM Administrators run quarterly reviews by risk level; expiring assignments auto-revoke with warnings; revoked-while-composing shows the §12.12 sentence and preserves drafts; erroneous revocations are reinstated with reason + audit (never history edit); break-glass grants minimal temporary access with enhanced audit; every action is traceable via immutable audit timeline; backup/restore is tested and reconciled.
-
-## Architecture boundary
-
-- Owning module: identity-access (new `expiry-daemon.mjs` worker, `review.service.ts`, `audit-timeline.service.ts`, `reinstate.service.ts`, `break-glass.service.ts`; existing `PolicyService`, `WorkspaceService`, `GrantsService`, `SessionService` extended; `AuthController` extended with break-glass endpoint; `AuthController` extended with audit timeline endpoint; `WorkspaceController` extended with expiry warnings; `AuthController` extended with reinstatement endpoint; `WorkspaceController` extended with expiry warnings; no cross-module writes)
-- Permitted dependencies: node-cron (scheduler), no new external services (outbox worker delivery is v0.9)
-- API/command/event contracts:
-  - `GET /auth/audit/timeline` (paginated, filtered by actor/role/scope/action/date)
-  - `POST /auth/break-glass` (incident ref, reason, scope, duration, approver)
-  - `POST /auth/reinstate` (assignmentId, reason, evidence)
-  - `GET /auth/reviews` (paginated, filtered by risk level/status/reviewer)
-  - `POST /auth/reviews/:id/decide` (confirm/reduce/reassign/revoke/clarify)
-  - `GET /auth/expiry-warnings` (active user's expiring assignments)
-  - `POST /auth/expiry-warnings/:id/ack` (acknowledge warning)
-  - Outbox events: `RoleAssignmentRevokedByExpiry`, `RoleAssignmentReviewCompleted`, `BreakGlassGranted`, `BreakGlassRevoked`, `RoleAssignmentReinstated`
-  - Commands: `CMD-IAM-ReviewAssignment`, `CMD-IAM-ReinstateAssignment`, `CMD-IAM-BreakGlass`, `CMD-IAM-ExpiryDaemon`
-- Data entities/migration impact: ADDITIVE — `ReviewSchedule` (assignmentId, reviewerId, riskLevel, cadence, nextDueAt, status, decision, decidedAt, decidedBy), `BreakGlassRequest` (id, requestorId, incidentRef, reason, scope, durationMinutes, approverId, status, grantedAt, expiresAt, revokedAt), `ExpiryWarning` (assignmentId, warnedAt, acknowledgedAt), `ExpiryDaemonState` (lastRunAt, nextRunAt, processedCount), `AuditEvent` columns already exist (purpose, priorState, newState, idempotencyRef), indexes on ReviewSchedule(nextDueAt, status), BreakGlassRequest(expiresAt, status), ExpiryWarning(assignmentId, acknowledgedAt)
-- External adapters: none (notification delivery v0.9, scheduler is in-process)
-
-## User outcome
-
 An IAM Administrator sees a dashboard: "18 role assignments require confirmation" with risk-level badges. They click one, see the assignment details, click "Revoke" — the assignment is instantly revoked, the user's active workspace drops to null, their draft is preserved, and the audit log shows "CMD-IAM-ReviewAssignment DENY reason=revoked-by-review". A Dean's acting appointment expires at midnight; the expiry daemon revokes it, the session guard on next request returns null workspace, the user sees "Your role assignment has changed. This action was not completed." and their draft is safe. A Lecturer's role is wrongly revoked; the IAM Admin reinstates it with reason "erroneous revocation" — the assignment is reactivated, audit logs "CMD-IAM-ReinstateAssignment ALLOW reason=erroneous-revocation". A System Admin needs emergency access to fix a payment outage; they request break-glass with incident INC-2026-041, scope "payment-recovery", duration 25 minutes — the system grants minimal access, shows "Emergency access active — expires in 25 minutes" banner, logs every action with enhanced audit, auto-revokes at expiry. An IAM Admin runs `npm run backup:test` — the system restores a test backup, verifies record counts, logs reconciliation result.
 
 ## Architecture boundary
 
-- Owning module: identity-access (new `expiry-daemon.mjs` worker process, `ReviewService`, `AuditTimelineService`, `ReinstateService`, `BreakGlassService`; existing `PolicyService`, `WorkspaceService`, `GrantsService`, `SessionService`, `SessionService` extended with expiry warnings; `AuthController` extended with `/audit/timeline`, `/break-glass`, `/reinstate`; `WorkspaceController` with expiry warnings; no cross-module writes)
-- Permitted dependencies: `node-cron` (scheduler), no new external services (outbox worker delivery remains v0.9 per GAP-008/009)
+- Owning module: identity-access (new `expiry-daemon.service.ts` scheduler service process, `ReviewService`, `AuditTimelineService`, `ReinstateService`, `BreakGlassService`; existing `PolicyService`, `WorkspaceService`, `GrantsService`, `SessionService`, `SessionService` extended with expiry warnings; `AuthController` extended with `/audit/timeline`, `/break-glass`, `/reinstate`; `WorkspaceController` with expiry warnings; no cross-module writes)
+- Permitted dependencies: `@nestjs/schedule` with its `cron` dependency (in-process scheduler), no new external services (outbox worker delivery remains v0.9 per GAP-008/009)
 - API/command/event contracts:
   - `GET /auth/audit/timeline` (paginated, filters: actor/role/scope/action/date/correlationId)
   - `POST /auth/break-glass` { incidentRef, reason, scope, durationMinutes, approverId } → { breakGlassId, expiresAt, reference }
@@ -135,3 +114,7 @@ MFA enforcement (2b/production; covers the MFA half of REQ-IAM-005 — this pack
 Packet-local: expiry check interval, review cadences, break-glass TTL, reinstatement reason/evidence fields, audit timeline filters, demo-seed v0.2 expiry scenarios, kebab test IDs, CMD names, outbox event types, UI component IDs (audit timeline, review queue, break-glass banner, expiry countdown, reinstate form). Handbook: §12.11 break-glass, §12.12 revocation copy, §12.13 rows, §12.14 acceptance, §15.9/15.10/15.19/15.21/15.22, §15.19 admin rows, §15.20 break-glass, §15.21 pseudocode, §15.22 acceptance, §16.1/16.4/16.14 errors, §11.1 account states, §15.9/15.10 enforcement, §16.1/16.4/16.14 errors, 06/07 observability, 07/05 security acceptance gates, 12/03 auth test guide, 02/02 stakeholder roles, 06/07 observability-audit-archive, 05/05 data policy, TEST-AUTH-006–011, TEST-REC-006, TEST-REC-008. TEST-AUTH coverage: 006/007/008/009/010/011 DEFERRED to domain slices, 001/002/003/004/005 COVERED via deny-by-default + test matrix. TEST-REC-006 COVERED (expiry daemon + session guard). TEST-REC-008 COVERED (backup:test restore + reconciliation). Break-glass over-scope denial (TEST-AUTH-011 shape) is covered at the IAM layer by approver/scope/duration gates + expiry auto-revoke; full domain over-scope denial waits for domain modules. (Correction 2026-09-17: earlier drafts cited TEST-BRK-001, which has zero handbook hits — never invent IDs.) TEST-AUTH rows needing nonexistent modules marked DEFERRED with target slices (never dropped per 05-traceability:22-28).
 
 ---
+
+## 2026-09-19 review correction
+
+Duplicate outcome/architecture sections were consolidated and the scheduler name corrected against the code. Historical run evidence above is retained; current tests, active-role/configuration/backup fixes and unresolved phase gates are in [PRIOR-PHASE-REVIEW](../learning/PRIOR-PHASE-REVIEW.md). Human acceptance remains pending.

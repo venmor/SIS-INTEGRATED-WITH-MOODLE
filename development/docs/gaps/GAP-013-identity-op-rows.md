@@ -36,3 +36,7 @@ Pending.
 ## Documents/task packets to update
 
 TASK-PH1-004 (Gate 11 + DEFERRED table).
+
+## Factual implementation update — 2026-09-19
+
+Controlled reinstatement now exists in reinstate.service.ts and has API tests; it creates a new assignment and preserves old history. Duplicate-identity matching cases and accessible alternative recovery remain open. The original no-endpoint statement is historical.

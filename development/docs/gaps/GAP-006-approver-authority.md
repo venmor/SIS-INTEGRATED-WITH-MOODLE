@@ -33,3 +33,7 @@ Pending.
 ## Documents/task packets to update
 
 TASK-PH1-004 (Gate 11).
+
+## Factual implementation update — 2026-09-19
+
+Grant/break-glass code now checks the configured approver role plus current effective dates, revocation and active account; the earlier existence-only description is historical. Institutional hierarchy and approver authority over the exact target scope remain unresolved.

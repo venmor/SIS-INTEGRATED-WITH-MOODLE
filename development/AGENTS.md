@@ -3,7 +3,7 @@
 ## Required context before planning or coding
 
 1. Read [README.md](README.md), [DESIGN-INDEX.md](DESIGN-INDEX.md), and the assigned task packet.
-2. Read the controlling handbook journey, action, permission, UI, architecture, security/recovery, and test documents.
+2. Read the controlling handbook journey, action, permission, UI, architecture, security/recovery, and test documents, including the individual exact records in `../unza-sis-moodle-design-handbook-v3.0.0/15-APPROVED-DESIGN-EVIDENCE/`. These records are active requirements.
 3. Check the handbook [supersession register](../unza-sis-moodle-design-handbook-v3.0.0/90-TRACEABILITY-AND-GOVERNANCE/SUPERSESSION-REGISTER.md), readiness matrix, and open decisions.
 4. Confirm a human lead, reviewer, release/phase, and explicit out-of-scope list.
 
@@ -25,7 +25,7 @@ Do not add Tailwind, microservices, Redis, Kafka/RabbitMQ, Kubernetes, native mo
 - Preserve auditable/immutable history for high-impact decisions and use idempotency, retry/reconciliation, and outbox patterns where external effects require them.
 - Add allow and deny tests plus failure, recovery, security, accessibility, API/integration, and E2E coverage required by the task packet.
 - Keep module boundaries explicit; minimize dependencies and cross-module coupling.
-- Never replace, reorganize, or silently alter the handbook. Add application-local links, ADRs, learning notes, and task packets instead.
+- Preserve the handbook and its approved source history. Changes require explicit user authorization and a recorded explanation; do not silently rewrite policy or exact source bodies. The user authorized the 2026-09-19 evidence-directory rename and contradiction review (SUP-012). Add application-local links, ADRs, learning notes, and task packets for implementation decisions.
 
 ## Completion report
 

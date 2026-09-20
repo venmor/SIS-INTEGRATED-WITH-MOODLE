@@ -36,3 +36,7 @@ Pending.
 ## Documents/task packets to update
 
 TASK-PH1-004 (Gate 11), TASK-PH1-005.
+
+## Factual implementation update — 2026-09-19
+
+The bounded Phase 1 slice 5 implementation now includes ReviewSchedule, the Nest expiry scheduler, basic review UI and configured demo cadence. The earlier statement that all of this was deferred is historical. Production cadence/authority policy and advanced review controls remain open; see TASK-PH1-005 and GAP-014.
