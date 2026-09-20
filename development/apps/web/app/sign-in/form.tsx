@@ -16,7 +16,7 @@ interface FieldError {
 // with announced progress (04/05); focus moves to the summary on failure.
 // §16.1 support reference (§16.14 correlationId) is appended when the API
 // supplies one; the AUTH-* sentence itself stays verbatim.
-export function SignInForm() {
+export function SignInForm({ returnTo }: { returnTo?: string }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
@@ -30,26 +30,54 @@ export function SignInForm() {
       const data = new FormData(event.currentTarget);
       const res = await fetch("/api/auth/sign-in", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-requested-with": "XMLHttpRequest" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-requested-with": "XMLHttpRequest",
+        },
         credentials: "same-origin",
-        body: JSON.stringify({ username: data.get("username"), password: data.get("password") }),
+        body: JSON.stringify({
+          username: data.get("username"),
+          password: data.get("password"),
+        }),
       });
-      const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
-      const ref = body.reference ? ` (Reference: ${body.reference})` : '';
+      const body = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        reference?: string;
+      };
+      const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
-        router.push("/");
+        // Only local applicant/discovery routes survive authentication.
+        const target =
+          returnTo &&
+          /^\/(applicant|discover)(\/|\?|$)/.test(returnTo) &&
+          !/[\\\r\n]/.test(returnTo)
+            ? returnTo
+            : "/";
+        router.replace(target);
+        router.refresh();
         return;
       }
       if (res.status === 429) {
-        setErrors([{ fieldId: "username", message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}` }]);
+        setErrors([
+          {
+            fieldId: "username",
+            message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}`,
+          },
+        ]);
       } else {
-        setErrors([{ fieldId: "password", message: `${body.message ?? AUTH_MESSAGES.signInFailure.text}${ref}` }]);
+        setErrors([
+          {
+            fieldId: "password",
+            message: `${body.message ?? AUTH_MESSAGES.signInFailure.text}${ref}`,
+          },
+        ]);
       }
     } catch {
       setErrors([
         {
           fieldId: "username",
-          message: "We could not confirm whether your request was received. Check your connection — your entries are kept — then try again.",
+          message:
+            "We could not confirm whether your request was received. Check your connection — your entries are kept — then try again.",
         },
       ]);
     } finally {
@@ -59,7 +87,9 @@ export function SignInForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate={false}>
-      {errors.length > 0 ? <ErrorSummary title="We could not sign you in." errors={errors} /> : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="We could not sign you in." errors={errors} />
+      ) : null}
       <Field
         id="username"
         label="Username"
@@ -75,7 +105,11 @@ export function SignInForm() {
         error={errors.find((e) => e.fieldId === "password")?.message}
       />
       <div className={styles.actions}>
-        <ActionButton kind="primary" pending={pending} loadingText="Signing in…">
+        <ActionButton
+          kind="primary"
+          pending={pending}
+          loadingText="Signing in…"
+        >
           Sign in
         </ActionButton>
       </div>

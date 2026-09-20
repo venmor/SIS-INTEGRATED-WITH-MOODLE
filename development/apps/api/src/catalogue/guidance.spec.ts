@@ -156,7 +156,7 @@ describe('evaluateGuidance', () => {
     for (const value of ['yes', 1, 0]) {
       const result = evaluateGuidance(
         [VERIFY_RULE],
-        facts({ ecz: { value: value as boolean } }),
+        facts({ ecz: { value: value as unknown as boolean } }),
       );
       expect(result.results[0].verdict).toBe('INFO_MISSING');
       expect(result.results[0].blocking).toBe(true);

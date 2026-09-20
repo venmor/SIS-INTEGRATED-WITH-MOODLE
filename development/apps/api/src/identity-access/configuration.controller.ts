@@ -1,12 +1,12 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   ForbiddenException,
   Get,
   Param,
   Patch,
   Post,
-  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -15,13 +15,17 @@ import {
 import { AUTH_MESSAGES } from '@sis/config';
 import { IncidentInterceptor } from './incident.interceptor.js';
 import { auditAuth } from './audit.js';
+import {
+  hasActiveAuthority,
+  type ActiveAuthority,
+} from './active-authority.js';
 import { ConfigurationService } from './configuration.service.js';
 import { PrismaService } from './prisma.service.js';
 import { SessionGuard } from './session.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
 
 interface ConfigRequest {
-  auth?: { accountId: string };
+  auth?: ActiveAuthority;
 }
 
 // Security configuration (rate limits, lockout, roles, cadences): readable
@@ -47,15 +51,10 @@ export class ConfigurationController {
     const grantorRoles = await this.config.getOrThrow<string[]>(
       'security.grantorRoles',
     );
-    const live = await this.prisma.roleAssignment.findMany({
-      where: {
-        accountId,
-        revokedAt: null,
-        OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
-      },
-      select: { role: true },
-    });
-    if (!live.some((a) => grantorRoles.includes(a.role))) {
+    if (
+      !req.auth ||
+      !(await hasActiveAuthority(this.prisma, req.auth, grantorRoles))
+    ) {
       const { correlationId } = await auditAuth(this.prisma, {
         action,
         outcome: 'DENY',
@@ -80,20 +79,6 @@ export class ConfigurationController {
   async getAll(@Req() req: ConfigRequest) {
     await this.requireGrantor(req, 'CMD-IAM-ConfigRead');
     return this.config.getAllGrouped();
-  }
-
-  /**
-   * Get a single configuration value by key
-   */
-  @Get(':key')
-  @UseGuards(SessionGuard)
-  async getOne(@Param('key') key: string, @Req() req: ConfigRequest) {
-    await this.requireGrantor(req, 'CMD-IAM-ConfigRead');
-    const value = await this.config.get(key);
-    if (value === null) {
-      return { key, value: null };
-    }
-    return { key, value };
   }
 
   /**
@@ -141,7 +126,7 @@ export class ConfigurationController {
     const accountId = await this.requireGrantor(req, 'CMD-IAM-ConfigUpdate');
     const reason = body.changeReason || 'Configuration updated via API';
 
-    const { item, version } = await this.config.update(
+    const { item } = await this.config.update(
       key,
       body.value,
       accountId,
@@ -167,29 +152,82 @@ export class ConfigurationController {
     };
   }
 
-  /**
-   * Create a configuration version snapshot (for rollback)
-   */
+  /** Persist the snapshot and audit together; never report an unperformed action. */
   @Post('versions')
   @UseGuards(CsrfGuard, SessionGuard)
   async createVersion(
     @Body() body: { changeReason: string },
     @Req() req: ConfigRequest,
   ) {
-    await this.requireGrantor(req, 'CMD-IAM-ConfigUpdate');
-    // This would create a full snapshot of all config
-    // Implementation would snapshot all config items
-    return { message: 'Version snapshot created' };
+    const accountId = await this.requireGrantor(req, 'CMD-IAM-ConfigSnapshot');
+    if (
+      !body ||
+      Object.keys(body).some((k) => k !== 'changeReason') ||
+      typeof body.changeReason !== 'string' ||
+      body.changeReason.trim().length < 8 ||
+      body.changeReason.length > 500
+    )
+      throw new BadRequestException('Provide a reason of 8 to 500 characters.');
+    return this.prisma.$transaction(async (tx) => {
+      const items = await tx.configurationItem.findMany({
+        where: { isSecret: false },
+        orderBy: { key: 'asc' },
+      });
+      const snapshot = await tx.configurationVersion.create({
+        data: {
+          snapshot: Object.fromEntries(
+            items.map((i) => [i.key, { value: i.value, version: i.version }]),
+          ),
+          changedBy: accountId,
+          changeReason: body.changeReason.trim(),
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorAccountId: accountId,
+          activeRole: req.auth!.activeRole,
+          scope: req.auth!.scope,
+          action: 'CMD-IAM-ConfigSnapshot',
+          targetRef: snapshot.id,
+          outcome: 'ALLOW',
+          correlationId: crypto.randomUUID(),
+          purpose: 'configuration-change',
+          reason: body.changeReason.trim(),
+        },
+      });
+      return { id: snapshot.id, createdAt: snapshot.createdAt };
+    });
   }
 
-  /**
-   * Get configuration versions for rollback
-   */
   @Get('versions')
   @UseGuards(SessionGuard)
   async getVersions(@Req() req: ConfigRequest) {
     await this.requireGrantor(req, 'CMD-IAM-ConfigRead');
-    // Return list of configuration versions for rollback
-    return { versions: [] };
+    return {
+      versions: await this.prisma.configurationVersion.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          createdAt: true,
+          changedBy: true,
+          changeReason: true,
+        },
+      }),
+    };
+  }
+
+  /**
+   * Get a single configuration value by key
+   */
+  @Get(':key')
+  @UseGuards(SessionGuard)
+  async getOne(@Param('key') key: string, @Req() req: ConfigRequest) {
+    await this.requireGrantor(req, 'CMD-IAM-ConfigRead');
+    const value = await this.config.get(key);
+    if (value === null) {
+      return { key, value: null };
+    }
+    return { key, value };
   }
 }

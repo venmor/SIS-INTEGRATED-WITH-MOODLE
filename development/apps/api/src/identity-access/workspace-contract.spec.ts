@@ -23,23 +23,39 @@ function consumesGrant(body: GrantRoleBody): string {
 
 describe('workspace contract compatibility', () => {
   it('exposes demo grant/switch rate limits from SECURITY-v1', () => {
-    expect(SECURITY_V1.rateLimits.grant).toEqual({ maxAttempts: 20, windowMinutes: 60 });
-    expect(SECURITY_V1.rateLimits.workspaceSwitch).toEqual({ maxAttempts: 30, windowMinutes: 15 });
-    expect(SECURITY_V1.rateLimits.grantResolve).toEqual({ maxAttempts: 30, windowMinutes: 15 });
+    expect(SECURITY_V1.rateLimits.grant).toEqual({
+      maxAttempts: 20,
+      windowMinutes: 60,
+    });
+    expect(SECURITY_V1.rateLimits.workspaceSwitch).toEqual({
+      maxAttempts: 30,
+      windowMinutes: 15,
+    });
+    expect(SECURITY_V1.rateLimits.grantResolve).toEqual({
+      maxAttempts: 30,
+      windowMinutes: 15,
+    });
     expect(RateLimiter.grantLimit().maxAttempts).toBe(20);
     expect(RateLimiter.workspaceSwitchLimit().maxAttempts).toBe(30);
     expect(RateLimiter.grantResolveLimit().maxAttempts).toBe(30);
   });
 
   it('exposes workspace message templates with stable IDs', () => {
-    const templates = AUTH_MESSAGES as unknown as Record<string, { id: string; text: string } | undefined>;
+    const templates = AUTH_MESSAGES as unknown as Record<
+      string,
+      { id: string; text: string } | undefined
+    >;
     expect(templates.workspaceSwitched).toBeDefined();
     expect(templates.workspaceSwitched?.id).toBe('WORKSPACE-001');
     expect(AUTH_MESSAGES.grantCreated.id).toBe('WORKSPACE-002');
     expect(AUTH_MESSAGES.grantDenied.id).toBe('WORKSPACE-003');
-    expect(AUTH_MESSAGES.workspaceSwitched.text).toContain('Workspace switched');
+    expect(AUTH_MESSAGES.workspaceSwitched.text).toContain(
+      'Workspace switched',
+    );
     expect(templates.scopedEmpty?.id).toBe('WORKSPACE-004');
-    expect(templates.scopedEmpty?.text).toBe('There are no records available in your current role and scope.');
+    expect(templates.scopedEmpty?.text).toBe(
+      'There are no records available in your current role and scope.',
+    );
   });
 
   it('DTO shapes satisfy canonical contracts', () => {
@@ -72,9 +88,15 @@ describe('workspace contract compatibility', () => {
       role: 'LEC',
       scopeType: 'OFFERING',
       scopeRef: 'SWE101-2026S1',
+      endsAt: null,
     };
     const me: MeResponse = {
-      account: { accountId: 'a', personId: 'p', username: 'u', displayName: 'n' },
+      account: {
+        accountId: 'a',
+        personId: 'p',
+        username: 'u',
+        displayName: 'n',
+      },
       workspaces: [ws],
       activeWorkspace: active,
     };

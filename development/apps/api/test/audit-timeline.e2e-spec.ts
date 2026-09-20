@@ -183,17 +183,18 @@ describe('audit-timeline (e2e)', () => {
       .send({ username: 'mweene.t', password: 'Seed-2026-Mweene' });
     // Read budget is 120/minute shared across this file's reads: hammer
     // until held (bounded), then assert the neutral 429 shape.
-    let limited: {
+    type LimitedResponse = {
       status: number;
       body: { message?: string; reference?: string };
       headers: Record<string, string>;
-    } | null = null;
+    };
+    let limited: LimitedResponse | null = null;
     for (let i = 0; i < 130; i++) {
       const res = (await admin
         .get('/auth/audit/timeline')
-        .query({ take: 1 })) as unknown as typeof limited & object;
+        .query({ take: 1 })) as unknown as LimitedResponse;
       if (res && (res as { status: number }).status === 429) {
-        limited = res as typeof limited;
+        limited = res;
         break;
       }
       expect((res as { status: number }).status).toBe(200);

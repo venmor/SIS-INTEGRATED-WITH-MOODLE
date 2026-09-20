@@ -42,13 +42,14 @@ const VERDICT_TEXT: Record<string, string> = {
   UNAVAILABLE: AUTH_MESSAGES.guidanceUnavailable.text,
 };
 
-const VERDICT_TONE: Record<string, "success" | "attention" | "info" | "error"> = {
-  APPEARS_MET: "success",
-  NEEDS_VERIFICATION: "attention",
-  INFO_MISSING: "info",
-  NOT_MET: "error",
-  UNAVAILABLE: "info",
-};
+const VERDICT_TONE: Record<string, "success" | "attention" | "info" | "error"> =
+  {
+    APPEARS_MET: "success",
+    NEEDS_VERIFICATION: "attention",
+    INFO_MISSING: "info",
+    NOT_MET: "error",
+    UNAVAILABLE: "info",
+  };
 
 const GRADE_HINT = AUTH_MESSAGES.gradeHint.text;
 
@@ -112,7 +113,8 @@ export function EligibilityForm({
   function validateGrade(value: string): string | null {
     if (!value.trim()) return null;
     const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 9) return GRADE_HINT;
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 9)
+      return GRADE_HINT;
     return null;
   }
 
@@ -122,7 +124,10 @@ export function EligibilityForm({
     const chosen = String(data.get("routeCode") ?? "");
     if (!routes.some((route) => route.code === chosen)) {
       setFieldErrors([
-        { fieldId: "guide-route", message: "Choose a listed qualification route." },
+        {
+          fieldId: "guide-route",
+          message: "Choose a listed qualification route.",
+        },
       ]);
       return;
     }
@@ -165,7 +170,8 @@ export function EligibilityForm({
       const fact = next[rule.id];
       if (rule.kind === "GRADE" && fact && !fact.unknown) {
         const problem = validateGrade(fact.value);
-        if (problem) errors.push({ fieldId: `guide-${rule.id}`, message: problem });
+        if (problem)
+          errors.push({ fieldId: `guide-${rule.id}`, message: problem });
       }
     }
     setFieldErrors(errors);
@@ -188,7 +194,10 @@ export function EligibilityForm({
       });
       if (!sessionRes.ok) throw new Error("session");
       const session = (await sessionRes.json()) as { sessionId: string };
-      const payload: Record<string, { value?: string | number | boolean; unknown?: boolean }> = {};
+      const payload: Record<
+        string,
+        { value?: string | number | boolean; unknown?: boolean }
+      > = {};
       for (const rule of applicable) {
         const fact = facts[rule.id];
         if (!fact) continue;
@@ -197,7 +206,8 @@ export function EligibilityForm({
           continue;
         }
         if (rule.kind === "GRADE") {
-          if (fact.value.trim()) payload[rule.id] = { value: Number(fact.value) };
+          if (fact.value.trim())
+            payload[rule.id] = { value: Number(fact.value) };
         } else if (rule.kind === "BOOLEAN") {
           if (fact.value === "yes") payload[rule.id] = { value: true };
           if (fact.value === "no") payload[rule.id] = { value: false };
@@ -239,7 +249,8 @@ export function EligibilityForm({
 
   function enteredText(ruleId: string): string {
     const fact = facts[ruleId];
-    if (!fact || (!fact.value && !fact.unknown)) return "No information entered.";
+    if (!fact || (!fact.value && !fact.unknown))
+      return "No information entered.";
     if (fact.unknown) return "You chose “I do not know this result yet.”";
     if (fact.value === "yes") return "You answered yes.";
     if (fact.value === "no") return "You answered no.";
@@ -267,11 +278,7 @@ export function EligibilityForm({
             <ErrorSummary title="There is a problem" errors={fieldErrors} />
           ) : null}
           <label htmlFor="guide-route">Qualification route</label>
-          <select
-            id="guide-route"
-            name="routeCode"
-            defaultValue={routeCode}
-          >
+          <select id="guide-route" name="routeCode" defaultValue={routeCode}>
             {routes.map((route) => (
               <option key={route.code} value={route.code}>
                 {route.label}
@@ -472,7 +479,11 @@ export function EligibilityForm({
             ))}
           </ul>
           {formError ? (
-            <Notice severity="error" title="Guidance failed" message={formError} />
+            <Notice
+              severity="error"
+              title="Guidance failed"
+              message={formError}
+            />
           ) : null}
           <p>
             <ActionButton
@@ -503,7 +514,8 @@ export function EligibilityForm({
             routeLabel={routeLabel}
             outcomes={outcomes}
             overallText={
-              VERDICT_TEXT[result.overall] ?? AUTH_MESSAGES.guidanceUnavailable.text
+              VERDICT_TEXT[result.overall] ??
+              AUTH_MESSAGES.guidanceUnavailable.text
             }
             disclaimer={AUTH_MESSAGES.guidanceDisclaimer.text}
           />
@@ -521,15 +533,19 @@ export function EligibilityForm({
           </p>
           {canStart ? (
             <p>
-              <Link href="/sign-in">Start application</Link> (account required;
-              the application form arrives in the next slice).
+              <Link
+                href={`/applicant/start?offeringId=${encodeURIComponent(offeringId)}&routeCode=${encodeURIComponent(routeCode)}`}
+              >
+                Start application
+              </Link>{" "}
+              (account required).
             </p>
           ) : (
             <p>{closedNote ?? "Applications cannot be started right now."}</p>
           )}
           <p>
-            Saving this guidance needs an account; the application form
-            arrives in the next slice.
+            This guidance is not an admission decision. Review your
+            qualifications in your application before submitting.
           </p>
         </div>
       ) : null}

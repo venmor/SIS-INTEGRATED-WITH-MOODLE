@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SIS integrated with Moodle — modular monolith (Phase 0 shells, no business logic yet)",
+  "description": "SIS integrated with Moodle \u2014 identity, programme discovery and applicant self-service",
   "engines": {
     "node": "24.21.0",
     "npm": ">=11"
@@ -18,15 +18,20 @@
     "dev:api": "npm run start:dev --workspace=apps/api",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspace=apps/web --workspace=apps/api",
+    "build": "npm run build --workspace=@sis/config && npm run build --workspace=apps/web --workspace=apps/api",
     "demo:reset": "node scripts/demo-reset.mjs",
     "backup:test": "node scripts/backup-test.mjs",
-    "postinstall": "node scripts/with-env.mjs prisma generate"
+    "postinstall": "node scripts/with-env.mjs prisma generate",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "scan": "node scripts/check-source.mjs",
+    "test:browser": "node scripts/with-env.mjs playwright test",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json"
   },
   "prisma": {
     "seed": "node prisma/seed/seed.ts"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "prisma": "7.10.0"
   },
   "license": "UNLICENSED",

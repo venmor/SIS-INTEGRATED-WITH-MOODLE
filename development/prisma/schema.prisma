@@ -1,5 +1,4 @@
-// Phase 0 shell: connection contract only — no models, no migrations yet.
-// First model/migration arrives with the first database-backed slice.
+// SIS identity, catalogue and applicant persistence. Migrations are additive.
 // Prisma 7+: connection URL lives in prisma.config.ts (schema holds provider only).
 generator client {
   provider = "prisma-client-js"
@@ -43,6 +42,7 @@ model Account {
   credentials  Credential[]
   sessions     Session[]
   recoveryTokens RecoveryToken[]
+  applications Application[]
 
   @@index([personId])
 }
@@ -332,6 +332,7 @@ model ProgrammeOffering {
   deadline    DateTime?
   // Closed/unavailable explanation shown verbatim-safe (packet copy).
   statusNote  String?
+  applications Application[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -368,4 +369,77 @@ model GuidanceSession {
   payload   Json
 
   @@index([expiresAt])
+}
+
+// Phase 2: applicant-owned drafts; the receipt/snapshot is immutable in SQL.
+model Application {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  offeringId String
+  offering ProgrammeOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  reference String @unique
+  state String @default("Created")
+  version Int @default(1)
+  policyVersion String
+  requirementVersion String
+  personal Json @default("{}")
+  contact Json @default("{}")
+  qualifications Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  documents ApplicationDocument[]
+  submission ApplicationSubmission?
+  revisions ApplicationRevision[]
+  @@index([accountId, updatedAt])
+  @@index([offeringId])
+}
+model ApplicationRevision {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  version Int
+  section String
+  data Json
+  occurredAt DateTime @default(now())
+  @@unique([applicationId, version])
+}
+model ApplicationDocument {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  category String
+  fileName String
+  mimeType String
+  size Int
+  content Bytes
+  sha256 String
+  status String @default("SecurityScanPending")
+  scanner String?
+  version Int
+  replacesId String? @unique
+  replaces ApplicationDocument? @relation("Replacement", fields:[replacesId], references:[id], onDelete: Restrict)
+  replacedBy ApplicationDocument? @relation("Replacement")
+  replacementReason String?
+  createdAt DateTime @default(now())
+  @@index([applicationId, category, createdAt])
+}
+model ApplicationSubmission {
+  id String @id @default(uuid())
+  applicationId String @unique
+  application Application @relation(fields: [applicationId], references:[id], onDelete: Restrict)
+  reference String @unique
+  snapshot Json
+  receipt Json
+  createdAt DateTime @default(now())
+}
+model ApplicationCommand {
+  key String @id
+  accountId String
+  action String
+  digest String
+  status Int
+  response Json
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
 }

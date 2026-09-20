@@ -9,6 +9,10 @@ import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { ConfigurationService } from './configuration.service.js';
 import { auditAuth } from './audit.js';
+import {
+  hasActiveAuthority,
+  type ActiveAuthority,
+} from './active-authority.js';
 import { randomUUID } from 'crypto';
 import type { ReviewDecision, ReviewQueryDto } from './dto.js';
 
@@ -26,24 +30,12 @@ export class ReviewService {
     private readonly config: ConfigurationService,
   ) {}
 
-  private async liveRoles(accountId: string): Promise<string[]> {
-    const assignments = await this.prisma.roleAssignment.findMany({
-      where: {
-        accountId,
-        revokedAt: null,
-        OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
-      },
-      select: { role: true },
-    });
-    return assignments.map((a) => a.role);
-  }
-
-  private async requireReviewer(actorId: string): Promise<void> {
+  private async requireReviewer(actor: ActiveAuthority): Promise<void> {
+    const actorId = actor.accountId;
     const reviewRoles = await this.config.getOrThrow<string[]>(
       'security.reviewRoles',
     );
-    const roles = await this.liveRoles(actorId);
-    if (!roles.some((r) => reviewRoles.includes(r))) {
+    if (!(await hasActiveAuthority(this.prisma, actor, reviewRoles))) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ReviewAssignment',
         outcome: 'DENY',
@@ -58,8 +50,8 @@ export class ReviewService {
     }
   }
 
-  async getReviews(actorId: string, filters: ReviewQueryDto) {
-    await this.requireReviewer(actorId);
+  async getReviews(actor: ActiveAuthority, filters: ReviewQueryDto) {
+    await this.requireReviewer(actor);
     const where: { riskLevel?: string; status?: string; reviewerId?: string } =
       {};
     if (filters.riskLevel) where.riskLevel = filters.riskLevel;
@@ -76,8 +68,9 @@ export class ReviewService {
 
   // Single-review read for the decide page (avoids list over-fetch): same
   // reviewer gate, neutral 404 for unknown ids.
-  async getReviewById(actorId: string, scheduleId: string) {
-    await this.requireReviewer(actorId);
+  async getReviewById(actor: ActiveAuthority, scheduleId: string) {
+    const actorId = actor.accountId;
+    await this.requireReviewer(actor);
     const schedule = await this.prisma.reviewSchedule.findUnique({
       where: { id: scheduleId },
     });
@@ -99,12 +92,13 @@ export class ReviewService {
   }
 
   async decideReview(
-    actorId: string,
+    actor: ActiveAuthority,
     scheduleId: string,
     decision: ReviewDecision,
     reason: string,
   ) {
-    await this.requireReviewer(actorId);
+    const actorId = actor.accountId;
+    await this.requireReviewer(actor);
     const schedule = await this.prisma.reviewSchedule.findUnique({
       where: { id: scheduleId },
     });

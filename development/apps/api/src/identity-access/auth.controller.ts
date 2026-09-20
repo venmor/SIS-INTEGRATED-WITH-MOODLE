@@ -336,6 +336,7 @@ export class AuthController {
     return this.auditTimeline.getTimeline(
       {
         accountId: req.auth.accountId,
+        assignmentId: req.auth.assignmentId,
         activeRole: req.auth.activeRole,
         scope: req.auth.scope,
       },
@@ -361,6 +362,7 @@ export class AuthController {
     const receipt = await this.breakGlass.requestBreakGlass(
       {
         accountId: req.auth.accountId,
+        assignmentId: req.auth.assignmentId,
         activeRole: req.auth.activeRole,
         scope: req.auth.scope,
       },
@@ -390,6 +392,7 @@ export class AuthController {
     return this.breakGlass.reviewBreakGlass(
       {
         accountId: req.auth.accountId,
+        assignmentId: req.auth.assignmentId,
         activeRole: req.auth.activeRole,
         scope: req.auth.scope,
       },
@@ -415,7 +418,7 @@ export class AuthController {
       'CMD-IAM-ReinstateAssignment',
     );
     const receipt = await this.reinstate.reinstateAssignment(
-      req.auth.accountId,
+      req.auth,
       body.assignmentId,
       body.reason,
       body.evidence,
@@ -439,7 +442,7 @@ export class AuthController {
       RateLimiter.readLimit(),
       'CMD-IAM-ReviewAssignment',
     );
-    return this.reviewService.getReviews(req.auth.accountId, query);
+    return this.reviewService.getReviews(req.auth, query);
   }
 
   @Get('reviews/:id')
@@ -457,7 +460,7 @@ export class AuthController {
       RateLimiter.readLimit(),
       'CMD-IAM-ReviewAssignment',
     );
-    return this.reviewService.getReviewById(req.auth.accountId, id);
+    return this.reviewService.getReviewById(req.auth, id);
   }
 
   @Post('reviews/:id/decide')
@@ -478,7 +481,7 @@ export class AuthController {
       'CMD-IAM-ReviewAssignment',
     );
     return this.reviewService.decideReview(
-      req.auth.accountId,
+      req.auth,
       id,
       body.decision,
       body.reason,

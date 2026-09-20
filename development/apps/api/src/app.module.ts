@@ -1,3 +1,4 @@
+import { AdmissionsModule } from './admissions/admissions.module.js';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
@@ -7,7 +8,12 @@ import { IdentityAccessModule } from './identity-access/identity-access.module.j
 import { CatalogueModule } from './catalogue/catalogue.module.js';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), IdentityAccessModule, CatalogueModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    IdentityAccessModule,
+    CatalogueModule,
+    AdmissionsModule,
+  ],
   controllers: [AppController, HealthController],
   providers: [AppService],
 })

@@ -10,15 +10,15 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service.js';
 import { ConfigurationService } from './configuration.service.js';
 import { auditAuth } from './audit.js';
+import {
+  hasActiveAuthority,
+  type ActiveAuthority,
+} from './active-authority.js';
 import { validReceipt } from './idempotency.js';
 import { randomUUID } from 'crypto';
 import type { BreakGlassDto, BreakGlassOutcome } from './dto.js';
 
-export interface BreakGlassActor {
-  accountId: string;
-  activeRole: string | null;
-  scope: string | null;
-}
+export type BreakGlassActor = ActiveAuthority;
 
 export interface BreakGlassReceipt {
   breakGlassId: string;
@@ -116,6 +116,9 @@ export class BreakGlassService {
     const approverLive = await this.prisma.roleAssignment.findMany({
       where: {
         accountId: dto.approverId,
+        startsAt: { lte: new Date() },
+        scopeType: { not: 'BREAK_GLASS' },
+        account: { status: { equals: 'ACTIVE', mode: 'insensitive' } },
         revokedAt: null,
         OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
       },
@@ -269,6 +272,9 @@ export class BreakGlassService {
         const approverStillValid = await tx.roleAssignment.findMany({
           where: {
             accountId: dto.approverId,
+            startsAt: { lte: new Date() },
+            scopeType: { not: 'BREAK_GLASS' },
+            account: { status: { equals: 'ACTIVE', mode: 'insensitive' } },
             revokedAt: null,
             OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
           },
@@ -412,17 +418,8 @@ export class BreakGlassService {
     const grantorRoles = await this.config.getOrThrow<string[]>(
       'security.grantorRoles',
     );
-    const live = await this.prisma.roleAssignment.findMany({
-      where: {
-        accountId: actor.accountId,
-        revokedAt: null,
-        OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
-      },
-      select: { role: true },
-    });
-    // Gate before loading: non-grantors must not learn request existence
-    // from 404-vs-403 (no oracle). Self-review is refused after load.
-    if (!live.some((a) => grantorRoles.includes(a.role))) {
+    // Gate before loading a request: no record-existence oracle.
+    if (!(await hasActiveAuthority(this.prisma, actor, grantorRoles))) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-BreakGlass',
         outcome: 'DENY',

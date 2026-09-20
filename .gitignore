@@ -13,3 +13,7 @@ coverage/
 .env.local
 pgdata/
 *.tsbuildinfo
+
+# Browser test outputs
+playwright-report/
+test-results/

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOriginMutation } from "../../../../lib/same-origin";
 
 // Same-origin proxy to the NestJS API (slice 2a). The browser never talks to
 // the API directly (no CORS), cookies stay httpOnly, and this layer always sets
@@ -111,6 +112,15 @@ async function proxy(
       { status: 405 },
     );
   }
+  if (!isSameOriginMutation(req)) {
+    return NextResponse.json(
+      {
+        message:
+          "This request could not be verified. Refresh the page and try again.",
+      },
+      { status: 403, headers: { "cache-control": "no-store" } },
+    );
+  }
   const { path } = await params;
   const joined = path.join("/");
   if (!allowedPath(req.method, path)) {
@@ -137,6 +147,7 @@ async function proxy(
   try {
     upstream = await fetch(url, {
       method: req.method,
+      cache: "no-store",
       headers,
       body: req.method === "POST" ? await req.text() : undefined,
       // A hanging API must not hang the page: fail to the 503 below.
@@ -157,8 +168,11 @@ async function proxy(
     headers: {
       "content-type":
         upstream.headers.get("content-type") ?? "application/json",
+      "cache-control": "no-store",
     },
   });
+  const retryAfter = upstream.headers.get("retry-after");
+  if (retryAfter) res.headers.set("retry-after", retryAfter);
   const getSetCookie = (
     upstream.headers as Headers & { getSetCookie?: () => string[] }
   ).getSetCookie;

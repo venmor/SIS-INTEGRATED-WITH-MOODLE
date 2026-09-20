@@ -4,6 +4,7 @@
 // scratch database → compare counts → print a JSON reconciliation log → drop
 // the scratch database. Exits non-zero on any mismatch (CI/dev gate).
 // Never prints connection values (secret-safe logging).
+import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,9 +17,30 @@ loadEnv({ root, requireFile: true });
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "";
 if (!DATABASE_URL) throw new Error("DATABASE_URL is missing");
-const SCRATCH_DB = process.env.BACKUP_TEST_DB ?? "sis_backup_test";
+try {
+  const parsed = new URL(DATABASE_URL);
+  if (!["postgres:", "postgresql:"].includes(parsed.protocol))
+    throw new Error();
+} catch {
+  throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
+}
+const SCRATCH_DB =
+  process.env.BACKUP_TEST_DB ??
+  `sis_backup_test_${randomUUID().replaceAll("-", "")}`;
+
+if (
+  !/^[a-z][a-z0-9_]{0,62}$/.test(SCRATCH_DB) ||
+  new URL(DATABASE_URL).pathname.slice(1) === SCRATCH_DB
+)
+  throw new Error("Unsafe scratch database name");
+let scratchCreated = false;
 
 const TABLES = [
+  "Application",
+  "ApplicationRevision",
+  "ApplicationDocument",
+  "ApplicationSubmission",
+  "ApplicationCommand",
   "Person",
   "Account",
   "Credential",
@@ -41,26 +63,48 @@ const TABLES = [
   "GuidanceSession",
 ];
 
-function psql(url, sql) {
-  return execFileSync("psql", [url, "-tAc", sql], { encoding: "utf8" }).trim();
+function connectionEnv(connection) {
+  const url = new URL(connection);
+  return {
+    ...process.env,
+    PGHOST: url.hostname,
+    PGPORT: url.port || "5432",
+    PGUSER: decodeURIComponent(url.username),
+    PGPASSWORD: decodeURIComponent(url.password),
+    PGDATABASE: decodeURIComponent(url.pathname.slice(1)),
+    ...(url.searchParams.has("sslmode")
+      ? { PGSSLMODE: url.searchParams.get("sslmode") }
+      : {}),
+  };
 }
-
+function runPg(tool, connection, args) {
+  try {
+    return execFileSync(tool, args, {
+      encoding: "utf8",
+      env: connectionEnv(connection),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    // Never attach child-process errors: command arguments/environment may hold
+    // secrets in other callers. This boundary emits only the operation name.
+    throw new Error(
+      `Backup verification failed in ${tool}; check connectivity, permissions and PostgreSQL tool versions.`,
+    );
+  }
+}
+function psql(connection, sql) {
+  return runPg("psql", connection, [
+    "--no-password",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-tAc",
+    sql,
+  ]).trim();
+}
 function scratchUrl() {
   const url = new URL(DATABASE_URL);
   url.pathname = `/${SCRATCH_DB}`;
   return url.toString();
-}
-
-function secretEnv() {
-  // pg tools read PGPASSWORD; derive it without ever logging the URL.
-  try {
-    const password = new URL(DATABASE_URL).password;
-    return password
-      ? { ...process.env, PGPASSWORD: password }
-      : { ...process.env };
-  } catch {
-    return { ...process.env };
-  }
 }
 
 const workdir = mkdtempSync(join(tmpdir(), "sis-backup-test-"));
@@ -78,21 +122,21 @@ try {
       psql(DATABASE_URL, `SELECT COUNT(*) FROM "${table}";`),
     );
   }
-  execFileSync("pg_dump", [DATABASE_URL, "--no-owner", "--file", dumpFile], {
-    stdio: "ignore",
-    env: secretEnv(),
-  });
-  execFileSync(
-    "psql",
-    [DATABASE_URL, "-c", `DROP DATABASE IF EXISTS "${SCRATCH_DB}";`],
-    { stdio: "ignore" },
-  );
-  execFileSync(
-    "psql",
-    [DATABASE_URL, "-c", `CREATE DATABASE "${SCRATCH_DB}";`],
-    { stdio: "ignore" },
-  );
-  execFileSync("psql", [scratchUrl(), "-f", dumpFile], { stdio: "ignore" });
+  runPg("pg_dump", DATABASE_URL, [
+    "--no-password",
+    "--no-owner",
+    "--file",
+    dumpFile,
+  ]);
+  psql(DATABASE_URL, `CREATE DATABASE "${SCRATCH_DB}";`);
+  scratchCreated = true;
+  runPg("psql", scratchUrl(), [
+    "--no-password",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-f",
+    dumpFile,
+  ]);
   for (const table of TABLES) {
     const expected = before[table];
     const actual = Number(
@@ -158,11 +202,7 @@ try {
   }
 } finally {
   try {
-    execFileSync(
-      "psql",
-      [DATABASE_URL, "-c", `DROP DATABASE IF EXISTS "${SCRATCH_DB}";`],
-      { stdio: "ignore" },
-    );
+    if (scratchCreated) psql(DATABASE_URL, `DROP DATABASE "${SCRATCH_DB}";`);
   } catch {
     // Best effort: a leftover scratch DB never blocks the verdict below.
   }

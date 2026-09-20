@@ -46,3 +46,4 @@ export type {
   RequirementKind,
   RequirementRule,
 } from "./catalogue.js";
+export type * from "./applications.js";

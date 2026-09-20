@@ -409,6 +409,19 @@ describe('review (e2e)', () => {
       .post('/auth/sign-in')
       .set(CSRF)
       .send({ username: 'mutinta.l', password: 'Seed-2026-Mutinta' });
+    await admin.get('/auth/reviews').expect(403);
+    const deanWorkspace = await prisma.roleAssignment.findFirstOrThrow({
+      where: {
+        account: { username: 'mutinta.l' },
+        role: 'DEAN',
+        revokedAt: null,
+      },
+    });
+    await admin
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: deanWorkspace.id })
+      .expect(200);
     const reviewer = await prisma.account.findUniqueOrThrow({
       where: { username: 'mutinta.l' },
     });
@@ -481,6 +494,19 @@ describe('review (e2e)', () => {
       .post('/auth/sign-in')
       .set(CSRF)
       .send({ username: 'mutinta.l', password: 'Seed-2026-Mutinta' });
+    await admin.get('/auth/reviews').expect(403);
+    const deanWorkspace = await prisma.roleAssignment.findFirstOrThrow({
+      where: {
+        account: { username: 'mutinta.l' },
+        role: 'DEAN',
+        revokedAt: null,
+      },
+    });
+    await admin
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: deanWorkspace.id })
+      .expect(200);
 
     const clarified = await admin
       .post(`/auth/reviews/${schedule.id}/decide`)
@@ -588,6 +614,19 @@ describe('review (e2e)', () => {
       .post('/auth/sign-in')
       .set(CSRF)
       .send({ username: 'mutinta.l', password: 'Seed-2026-Mutinta' });
+    await reviewer.get('/auth/reviews').expect(403);
+    const deanWorkspace = await prisma.roleAssignment.findFirstOrThrow({
+      where: {
+        account: { username: 'mutinta.l' },
+        role: 'DEAN',
+        revokedAt: null,
+      },
+    });
+    await reviewer
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: deanWorkspace.id })
+      .expect(200);
     const targetId = assignmentIds[0];
     const schedule = await prisma.reviewSchedule.findFirstOrThrow({
       where: { assignmentId: targetId },

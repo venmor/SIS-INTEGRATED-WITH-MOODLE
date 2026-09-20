@@ -13,11 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UNZA SIS — Phase 0 Shell",
-  description: "Student Information System integrated with Moodle (implementation shell)",
+  title: "SIS · Admissions and student services",
+  description:
+    "Student Information System — programme discovery and applicant self-service",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>{children}</body>

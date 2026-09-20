@@ -572,7 +572,8 @@ async function ensureCatalogue(): Promise<void> {
         if (
           existing.availability !== offering.availability ||
           existing.statusNote !== offering.statusNote ||
-          (existing.deadline?.getTime() ?? null) !== (deadline?.getTime() ?? null)
+          (existing.deadline?.getTime() ?? null) !==
+            (deadline?.getTime() ?? null)
         ) {
           await prisma.programmeOffering.update({
             where: { id: existing.id },
@@ -632,6 +633,17 @@ async function main(): Promise<void> {
   }
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
+  // Explicit fictional verified-contact fixture; never infer verification for real users.
+  if (process.env.DEMO_MODE === "true") {
+    const applicant = await prisma.account.findUnique({
+      where: { username: "bwalya.m" },
+    });
+    if (applicant)
+      await prisma.person.update({
+        where: { id: applicant.personId },
+        data: { emailVerifiedAt: new Date("2026-09-19T00:00:00Z") },
+      });
+  }
   const counts = {
     persons: await prisma.person.count(),
     accounts: await prisma.account.count(),

@@ -1,0 +1,64 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: development
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sis_ci_review
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci -d sis_ci_review"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ci_review
+      DEMO_MODE: "true"
+      APPLICATION_SCANNER: demo-fixtures
+      API_INTERNAL_URL: http://127.0.0.1:3101
+      PORT: "3101"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: development/.nvmrc
+          cache: npm
+          cache-dependency-path: development/package-lock.json
+      - run: npm ci
+      - run: npm run build --workspace=@sis/config
+      - run: npm run scan && npm run test:scripts
+      - run: npm run lint
+      - run: npm test
+      - run: npx prisma validate && npx prisma migrate deploy
+      - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
+      - run: npm run test:e2e --workspace=apps/api -- --exclude '**/applications.e2e-spec.ts' --exclude '**/config-versions.e2e-spec.ts' --no-file-parallelism
+      - run: npm run test:e2e --workspace=apps/api -- applications.e2e-spec.ts config-versions.e2e-spec.ts --no-file-parallelism
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - name: Use a fresh browser database
+        run: |
+          PGPASSWORD=ci psql -h localhost -U ci -d postgres -c 'CREATE DATABASE sis_browser_review'
+          DATABASE_URL=postgresql://ci:ci@localhost:5432/sis_browser_review npx prisma migrate deploy
+          DATABASE_URL=postgresql://ci:ci@localhost:5432/sis_browser_review ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
+      - run: npm run test:browser
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_browser_review
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            development/playwright-report/
+            development/test-results/

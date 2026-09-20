@@ -49,7 +49,10 @@ async function loadOffering(id: string): Promise<{
       cache: "no-store",
     });
     if (!res.ok) return { status: res.status, detail: null };
-    return { status: 200, detail: (await res.json()) as ProgrammeOfferingDetail };
+    return {
+      status: 200,
+      detail: (await res.json()) as ProgrammeOfferingDetail,
+    };
   } catch {
     return { status: 0, detail: null };
   }
@@ -154,8 +157,12 @@ export default async function OfferingPage({
           {detail.canStart ? (
             <>
               Applications are open.{" "}
-              <Link href="/sign-in">Start application</Link> (account required;
-              the application form arrives in the next slice).
+              <Link
+                href={`/applicant/start?offeringId=${encodeURIComponent(id)}`}
+              >
+                Start application
+              </Link>{" "}
+              (account required).
             </>
           ) : (
             <>Applications cannot be started for this offering right now.</>

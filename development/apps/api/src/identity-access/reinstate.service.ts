@@ -10,6 +10,10 @@ import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { ConfigurationService } from './configuration.service.js';
 import { auditAuth } from './audit.js';
+import {
+  hasActiveAuthority,
+  type ActiveAuthority,
+} from './active-authority.js';
 import { createReviewSchedule, planReviewSchedule } from './review-schedule.js';
 import { validReceipt } from './idempotency.js';
 import { randomUUID } from 'crypto';
@@ -31,23 +35,16 @@ export class ReinstateService {
   ) {}
 
   async reinstateAssignment(
-    actorId: string,
+    actor: ActiveAuthority,
     assignmentId: string,
     reason: string,
     evidence: string,
   ) {
+    const actorId = actor.accountId;
     const grantorRoles = await this.config.getOrThrow<string[]>(
       'security.grantorRoles',
     );
-    const live = await this.prisma.roleAssignment.findMany({
-      where: {
-        accountId: actorId,
-        revokedAt: null,
-        OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
-      },
-      select: { role: true },
-    });
-    if (!live.some((a) => grantorRoles.includes(a.role))) {
+    if (!(await hasActiveAuthority(this.prisma, actor, grantorRoles))) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-ReinstateAssignment',
         outcome: 'DENY',

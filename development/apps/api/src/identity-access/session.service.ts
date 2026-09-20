@@ -36,8 +36,15 @@ export class SessionService {
     private readonly workspaces: WorkspaceService,
   ) {}
 
-  async signIn(username: string, password: string, ip: string | undefined, userAgent: string | undefined) {
-    const account = await this.prisma.account.findUnique({ where: { username } });
+  async signIn(
+    username: string,
+    password: string,
+    ip: string | undefined,
+    userAgent: string | undefined,
+  ) {
+    const account = await this.prisma.account.findUnique({
+      where: { username },
+    });
     // §11.1 status gate: only Active authorizes; Closed and every other
     // state deny generically (no existence oracle either way).
     if (!account || !accountStatusPolicy(account.status).allow) {
@@ -62,12 +69,18 @@ export class SessionService {
         errorCategory: 'ERR-SEC',
       });
       await sleep(RateLimiter.failureDelayMs(account.failedSignInCount));
-      return { ok: false as const, failures: account.failedSignInCount, reference: correlationId };
+      return {
+        ok: false as const,
+        failures: account.failedSignInCount,
+        reference: correlationId,
+      };
     }
     const credential = await this.prisma.credential.findFirst({
       where: { accountId: account.id, kind: 'PASSWORD', status: 'ACTIVE' },
     });
-    const valid = credential ? await verify(credential.secretHash, password).catch(() => false) : false;
+    const valid = credential
+      ? await verify(credential.secretHash, password).catch(() => false)
+      : false;
     if (!valid) {
       const failures = account.failedSignInCount + 1;
       const locked =
@@ -103,13 +116,17 @@ export class SessionService {
         tokenHash: hashToken(token),
         accountId: account.id,
         activeAssignmentId: initial?.assignmentId ?? null,
-        expiresAt: new Date(now.getTime() + SECURITY_V1.session.absoluteSeconds * 1000),
+        expiresAt: new Date(
+          now.getTime() + SECURITY_V1.session.absoluteSeconds * 1000,
+        ),
         createdIp: ip,
         userAgent,
         lastSeenAt: now,
       },
     });
-    const person = await this.prisma.person.findUniqueOrThrow({ where: { id: account.personId } });
+    const person = await this.prisma.person.findUniqueOrThrow({
+      where: { id: account.personId },
+    });
     const { correlationId } = await auditAuth(this.prisma, {
       action: 'CMD-IAM-SignIn',
       outcome: 'ALLOW',
@@ -138,24 +155,39 @@ export class SessionService {
    * revoked, expired, or never chosen — the session itself stays valid so
    * safe reads like /me keep working), else null. Sliding idle window.
    */
-  async validateSession(
-    token: string,
-  ): Promise<{ accountId: string; assignmentId: string | null; assignment: {
-    id: string;
-    role: string;
-    scopeType: string;
-    scopeRef: string;
-  } | null } | null> {
+  async validateSession(token: string): Promise<{
+    accountId: string;
+    assignmentId: string | null;
+    assignment: {
+      id: string;
+      role: string;
+      scopeType: string;
+      scopeRef: string;
+    } | null;
+  } | null> {
     const session = await this.prisma.session.findUnique({
       where: { tokenHash: hashToken(token) },
-      include: { activeAssignment: true },
+      include: {
+        activeAssignment: true,
+        account: { select: { status: true } },
+      },
     });
     if (!session || session.revokedAt) return null;
+    // Account suspension/closure is effective on the next request, including
+    // safe reads; a previously issued cookie never preserves disabled access.
+    if (!accountStatusPolicy(session.account.status).allow) return null;
     const now = Date.now();
     if (session.expiresAt.getTime() <= now) return null;
-    if (now - session.lastSeenAt.getTime() > SECURITY_V1.session.idleSeconds * 1000) return null;
+    if (
+      now - session.lastSeenAt.getTime() >
+      SECURITY_V1.session.idleSeconds * 1000
+    )
+      return null;
     if (now - session.lastSeenAt.getTime() > 60 * 1000) {
-      await this.prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date(now) } });
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { lastSeenAt: new Date(now) },
+      });
     }
     // Expiry/revocation bites immediately: a dead assignment resolves to no
     // workspace instead of stale authority (03-permissions:135, §12.13).
@@ -166,9 +198,18 @@ export class SessionService {
       row.accountId === session.accountId &&
       row.startsAt.getTime() <= now &&
       (!row.endsAt || row.endsAt.getTime() > now)
-        ? { id: row.id, role: row.role, scopeType: row.scopeType, scopeRef: row.scopeRef }
+        ? {
+            id: row.id,
+            role: row.role,
+            scopeType: row.scopeType,
+            scopeRef: row.scopeRef,
+          }
         : null;
-    return { accountId: session.accountId, assignmentId: live?.id ?? null, assignment: live };
+    return {
+      accountId: session.accountId,
+      assignmentId: live?.id ?? null,
+      assignment: live,
+    };
   }
 
   async revokeSession(token: string): Promise<void> {

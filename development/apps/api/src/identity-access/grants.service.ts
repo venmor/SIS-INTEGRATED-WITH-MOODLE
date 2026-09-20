@@ -65,6 +65,30 @@ export class GrantsService {
       activeScope: string | null;
     },
   ) {
+    // §15.21 central decision (verb, SoD, self-approval, approver presence).
+    const actorRoles = (
+      await this.workspaces.liveWorkspaces(grantor.accountId)
+    ).map((w) => w.role);
+    const decision = evaluatePolicy({
+      action: 'iam.grant.create',
+      activeRole: grantor.activeRole,
+      scope: grantor.activeScope,
+      assignmentLive: grantor.activeRole !== null,
+      actorRoles,
+      approverAccountId: dto.approverId ?? null,
+      targetAccountId: null,
+      approverRequired: true,
+    });
+    if (!decision.allow) {
+      return this.deny(
+        grantor,
+        decision.reason ?? 'policy-denied',
+        undefined,
+        decision.reason === 'verb-denied',
+        dto.reason,
+        dto.idempotencyKey,
+      );
+    }
     // Idempotency first: claim the key row (status 0 = in-flight) so
     // concurrent double-submits converge; the loser replays the winner's
     // receipt instead of double-creating (UI-SUBMIT-001 + 19.41).
@@ -183,30 +207,6 @@ export class GrantsService {
           dto.idempotencyKey,
         );
       }
-    }
-    // §15.21 central decision (verb, SoD, self-approval, approver presence).
-    const actorRoles = (
-      await this.workspaces.liveWorkspaces(grantor.accountId)
-    ).map((w) => w.role);
-    const decision = evaluatePolicy({
-      action: 'iam.grant.create',
-      activeRole: grantor.activeRole,
-      scope: grantor.activeScope,
-      assignmentLive: grantor.activeRole !== null,
-      actorRoles,
-      approverAccountId: dto.approverId ?? null,
-      targetAccountId: null,
-      approverRequired: true,
-    });
-    if (!decision.allow) {
-      return this.deny(
-        grantor,
-        decision.reason ?? 'policy-denied',
-        undefined,
-        decision.reason === 'verb-denied',
-        dto.reason,
-        dto.idempotencyKey,
-      );
     }
     const target = await this.prisma.account.findUnique({
       where: { username: dto.username },

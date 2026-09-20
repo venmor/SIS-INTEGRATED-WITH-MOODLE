@@ -58,31 +58,26 @@ export default async function Home() {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.context}>Implementation shell · Phase 0</p>
+          <p className={styles.context}>Admissions and student services</p>
           <h1 className={styles.title}>Student Information System</h1>
           <p className={styles.lede}>
-            UNZA student lifecycle coordination, integrated with Moodle. This
-            shell proves the interface baseline renders — no business feature
-            lives here yet.
+            Explore programmes and entry requirements, then sign in to start or
+            continue your application.
           </p>
           <Status
             severity="info"
-            state="Shell running — no business data"
-            reason="Interface, API liveness and design tokens are in place. Applicant, registration and result workflows arrive in later slices."
-            updated="Phase 0, slice 4"
-            action="Next: sign in, then continue to the roles slice."
+            state="Start with programme discovery"
+            reason="Read requirements, compare programmes and check the intake deadline before applying."
+            updated="Programme details show their latest published version."
+            action="Choose a programme or sign in to continue."
           />
           <div className={styles.actions}>
-            <a className={styles.primary} href="/sign-in">
-              Sign in
-            </a>
+            <Link className={styles.primary} href="/discover">
+              Find a programme
+            </Link>
           </div>
           <p className={styles.supporting}>
-            Expected API shape:{" "}
-            <code className={styles.code}>
-              {"{ status: 'ok', version: '0.1.0' }"}
-            </code>
-            . Colours are a proposed palette and require institutional approval.
+            <Link href="/applicant">Sign in to the applicant portal</Link>
           </p>
         </main>
       </div>
@@ -134,6 +129,11 @@ export default async function Home() {
           activeId={active?.assignmentId ?? null}
         />
         <div className={styles.actions}>
+          {active?.role === "APPLICANT" ? (
+            <Link className={styles.primary} href="/applicant">
+              Applicant portal
+            </Link>
+          ) : null}
           {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
             <a className={styles.primary} href="/admin/grants">
               Role assignments

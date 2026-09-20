@@ -62,3 +62,50 @@ async function proxy(
 }
 
 export const POST = proxy;
+
+// Read-only discovery context used by deliberate application start/change.
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const joined = (await params).path.join("/");
+  if (joined !== "programmes" && !/^offerings\/[a-fA-F0-9-]{36}$/.test(joined))
+    return NextResponse.json({ message: "Not found." }, { status: 404 });
+  const search = new URLSearchParams();
+  if (joined === "programmes")
+    for (const key of [
+      "q",
+      "take",
+      "skip",
+      "school",
+      "availability",
+      "route",
+    ]) {
+      const value = req.nextUrl.searchParams.get(key);
+      if (value !== null) search.set(key, value);
+    }
+  try {
+    const upstream = await fetch(
+      `${API}/catalogue/${joined}${search.size ? "?" + search : ""}`,
+      { cache: "no-store", signal: AbortSignal.timeout(10000) },
+    );
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: {
+        "content-type": "application/json",
+        "Cache-Control": "no-store",
+        ...(upstream.headers.has("retry-after")
+          ? { "Retry-After": upstream.headers.get("retry-after")! }
+          : {}),
+      },
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        message:
+          "Programme information is unavailable. Keep your draft and retry shortly.",
+      },
+      { status: 503 },
+    );
+  }
+}

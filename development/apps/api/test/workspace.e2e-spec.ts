@@ -14,8 +14,10 @@ import { PrismaService } from '../src/identity-access/prisma.service.js';
 const require = createRequire(import.meta.url);
 const { hash } = require('argon2') as typeof import('argon2');
 
-const GRANT_DENIED = 'This change was not completed. Check the details and try again, or ask an administrator.';
-const ASSIGNMENT_CHANGED = 'Your role assignment has changed. This action was not completed.';
+const GRANT_DENIED =
+  'This change was not completed. Check the details and try again, or ask an administrator.';
+const ASSIGNMENT_CHANGED =
+  'Your role assignment has changed. This action was not completed.';
 const CSRF = { 'x-requested-with': 'XMLHttpRequest' };
 
 describe('workspace (e2e)', () => {
@@ -24,25 +26,46 @@ describe('workspace (e2e)', () => {
   let server: unknown;
   const stamp = Date.now().toString(36);
 
-  const signIn = (agent: { post(url: string): unknown }, username: string, password: string) =>
-    (agent.post('/auth/sign-in') as ReturnType<typeof request>).set(CSRF).send({ username, password });
+  const signIn = (
+    agent: { post(url: string): unknown },
+    username: string,
+    password: string,
+  ) =>
+    (agent.post('/auth/sign-in') as request.Test)
+      .set(CSRF)
+      .send({ username, password });
 
   const makeUser = async (tag: string, password: string): Promise<string> => {
     const username = `e2e.ws.${tag}.${stamp}`;
-    const person = await prisma.person.create({ data: { displayName: `E2E ws ${tag}` } });
+    const person = await prisma.person.create({
+      data: { displayName: `E2E ws ${tag}` },
+    });
     const account = await prisma.account.create({
       data: { personId: person.id, username, status: 'ACTIVE' },
     });
     await prisma.credential.create({
-      data: { accountId: account.id, kind: 'PASSWORD', secretHash: await hash(password), status: 'ACTIVE' },
+      data: {
+        accountId: account.id,
+        kind: 'PASSWORD',
+        secretHash: await hash(password),
+        status: 'ACTIVE',
+      },
     });
     return username;
   };
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
     server = app.getHttpServer();
     prisma = app.get(PrismaService);
@@ -55,9 +78,13 @@ describe('workspace (e2e)', () => {
     });
     for (const account of stale) {
       await prisma.session.deleteMany({ where: { accountId: account.id } });
-      await prisma.recoveryToken.deleteMany({ where: { accountId: account.id } });
+      await prisma.recoveryToken.deleteMany({
+        where: { accountId: account.id },
+      });
       await prisma.credential.deleteMany({ where: { accountId: account.id } });
-      await prisma.roleAssignment.deleteMany({ where: { accountId: account.id } });
+      await prisma.roleAssignment.deleteMany({
+        where: { accountId: account.id },
+      });
       await prisma.account.delete({ where: { id: account.id } });
     }
     await prisma.person.deleteMany({
@@ -69,18 +96,28 @@ describe('workspace (e2e)', () => {
       where: { reason: { startsWith: 'E2E ws grant ' } },
       select: { id: true },
     });
-    await prisma.reviewSchedule.deleteMany({ where: { assignmentId: { in: testMade.map((a) => a.id) } } });
-    await prisma.roleAssignment.deleteMany({ where: { reason: { startsWith: 'E2E ws grant ' } } });
+    await prisma.reviewSchedule.deleteMany({
+      where: { assignmentId: { in: testMade.map((a) => a.id) } },
+    });
+    await prisma.roleAssignment.deleteMany({
+      where: { reason: { startsWith: 'E2E ws grant ' } },
+    });
     await app.close();
   }, 60000);
 
   it('lists live workspaces with a deterministic default (expired TUT excluded)', async () => {
     const agent = request.agent(server as never);
-    await (signIn(agent, 'mutinta.l', 'Seed-2026-Mutinta') as unknown as Promise<{ status: number }>);
+    await (signIn(
+      agent,
+      'mutinta.l',
+      'Seed-2026-Mutinta',
+    ) as unknown as Promise<{ status: number }>);
     const me = await agent.get('/auth/me');
     expect(me.status).toBe(200);
     expect(me.body.workspaces).toHaveLength(2);
-    expect(me.body.workspaces.map((w: { role: string }) => w.role).sort()).toEqual(['DEAN', 'LEC']);
+    expect(
+      me.body.workspaces.map((w: { role: string }) => w.role).sort(),
+    ).toEqual(['DEAN', 'LEC']);
     // Earliest-started live assignment wins the default: LEC (2026-01-15).
     expect(me.body.activeWorkspace.role).toBe('LEC');
     expect(me.body.activeWorkspace.scopeRef).toBe('SWE101-2026S1');
@@ -88,14 +125,27 @@ describe('workspace (e2e)', () => {
 
   it('switches deliberately with audit, then reads back the Dean header facts', async () => {
     const agent = request.agent(server as never);
-    await (signIn(agent, 'mutinta.l', 'Seed-2026-Mutinta') as unknown as Promise<{ status: number }>);
+    await (signIn(
+      agent,
+      'mutinta.l',
+      'Seed-2026-Mutinta',
+    ) as unknown as Promise<{ status: number }>);
     const me = await agent.get('/auth/me');
-    const dean = me.body.workspaces.find((w: { role: string }) => w.role === 'DEAN');
-    const res = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: dean.assignmentId });
+    const dean = me.body.workspaces.find(
+      (w: { role: string }) => w.role === 'DEAN',
+    );
+    const res = await agent
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: dean.assignmentId });
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('Workspace switched');
     expect(res.body.reference).toBeDefined();
-    expect(res.body.activeWorkspace).toMatchObject({ role: 'DEAN', scopeType: 'SCHOOL', scopeRef: 'Computing' });
+    expect(res.body.activeWorkspace).toMatchObject({
+      role: 'DEAN',
+      scopeType: 'SCHOOL',
+      scopeRef: 'Computing',
+    });
     const after = await agent.get('/auth/me');
     expect(after.body.activeWorkspace.role).toBe('DEAN');
     const audit = await prisma.auditEvent.findFirst({
@@ -108,52 +158,112 @@ describe('workspace (e2e)', () => {
 
   it('denies foreign and expired assignments without disclosure', async () => {
     const agent = request.agent(server as never);
-    await (signIn(agent, 'mutinta.l', 'Seed-2026-Mutinta') as unknown as Promise<{ status: number }>);
-    const chanda = await prisma.account.findUniqueOrThrow({ where: { username: 'chanda.k' } });
-    const foreign = await prisma.roleAssignment.findFirstOrThrow({ where: { accountId: chanda.id } });
-    const bad = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: foreign.id });
+    await (signIn(
+      agent,
+      'mutinta.l',
+      'Seed-2026-Mutinta',
+    ) as unknown as Promise<{ status: number }>);
+    const chanda = await prisma.account.findUniqueOrThrow({
+      where: { username: 'chanda.k' },
+    });
+    const foreign = await prisma.roleAssignment.findFirstOrThrow({
+      where: { accountId: chanda.id },
+    });
+    const bad = await agent
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: foreign.id });
     expect(bad.status).toBe(400);
     expect(bad.body.message).toBe(ASSIGNMENT_CHANGED);
     expect(bad.body.reference).toBeDefined();
-    const mutinta = await prisma.account.findUniqueOrThrow({ where: { username: 'mutinta.l' } });
+    const mutinta = await prisma.account.findUniqueOrThrow({
+      where: { username: 'mutinta.l' },
+    });
     const expired = await prisma.roleAssignment.findFirstOrThrow({
       where: { accountId: mutinta.id, role: 'TUT' },
     });
-    const gone = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: expired.id });
+    const gone = await agent
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: expired.id });
     expect(gone.status).toBe(400);
     expect(gone.body.message).toBe(ASSIGNMENT_CHANGED);
   });
 
   it('rejects unknown switch fields', async () => {
     const agent = request.agent(server as never);
-    await (signIn(agent, 'mutinta.l', 'Seed-2026-Mutinta') as unknown as Promise<{ status: number }>);
+    await (signIn(
+      agent,
+      'mutinta.l',
+      'Seed-2026-Mutinta',
+    ) as unknown as Promise<{ status: number }>);
     const res = await agent
       .post('/auth/workspace/switch')
       .set(CSRF)
-      .send({ assignmentId: '123e4567-e89b-12d3-a456-426614174000', extra: 'nope' });
+      .send({
+        assignmentId: '123e4567-e89b-12d3-a456-426614174000',
+        extra: 'nope',
+      });
     expect(res.status).toBe(400);
   });
 
   it('grants as SYSADMIN, denies self-grants, unknown users and non-admins', async () => {
     const admin = request.agent(server as never);
-    await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
+    await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{
+      status: number;
+    }>);
     const target = await makeUser('grantee', 'Long-Enough-Password-1');
-    const mweene = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
-    const grant = { username: target, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene.id, reason: `E2E ws grant ${stamp}` };
+    const mweene = await prisma.account.findUniqueOrThrow({
+      where: { username: 'mweene.t' },
+    });
+    const grant = {
+      username: target,
+      role: 'TUT',
+      scopeType: 'TUTORIAL_GROUP',
+      scopeRef: 'SWE101-TG9-2026S1',
+      startsAt: '2026-03-01',
+      appointmentRef: 'HR-2026-099',
+      authoritySource: 'University Appointments',
+      approverId: mweene.id,
+      reason: `E2E ws grant ${stamp}`,
+    };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     expect(created.body.assignmentId).toBeDefined();
     expect(created.body.message).toContain('Role assignment created');
-    const self = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: 'mweene.t', reason: `E2E ws grant self ${stamp}` });
+    const self = await admin
+      .post('/auth/grants')
+      .set(CSRF)
+      .send({
+        ...grant,
+        username: 'mweene.t',
+        reason: `E2E ws grant self ${stamp}`,
+      });
     expect(self.status).toBe(403);
     expect(self.body.message).toBe(GRANT_DENIED);
-    const ghost = await admin.post('/auth/grants').set(CSRF).send({ ...grant, username: `ghost.${stamp}`, reason: `E2E ws grant ghost ${stamp}` });
+    const ghost = await admin
+      .post('/auth/grants')
+      .set(CSRF)
+      .send({
+        ...grant,
+        username: `ghost.${stamp}`,
+        reason: `E2E ws grant ghost ${stamp}`,
+      });
     expect(ghost.status).toBe(400);
     expect(ghost.body.message).toBe(GRANT_DENIED);
     expect(ghost.body.reference).toBeDefined();
     const user = request.agent(server as never);
-    await (signIn(user, 'chanda.k', 'Seed-2026-Chanda') as unknown as Promise<{ status: number }>);
-    const rogue = await user.post('/auth/grants').set(CSRF).send({ ...grant, username: target, reason: `E2E ws grant rogue ${stamp}` });
+    await (signIn(user, 'chanda.k', 'Seed-2026-Chanda') as unknown as Promise<{
+      status: number;
+    }>);
+    const rogue = await user
+      .post('/auth/grants')
+      .set(CSRF)
+      .send({
+        ...grant,
+        username: target,
+        reason: `E2E ws grant rogue ${stamp}`,
+      });
     expect(rogue.status).toBe(403);
     expect(rogue.body.message).toBe(GRANT_DENIED);
   });
@@ -161,14 +271,35 @@ describe('workspace (e2e)', () => {
   it('drops dead assignments from the session without killing sign-in', async () => {
     const username = await makeUser('revokee', 'Long-Enough-Password-1');
     const admin = request.agent(server as never);
-    await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{ status: number }>);
-    const mweene2 = await prisma.account.findUniqueOrThrow({ where: { username: 'mweene.t' } });
-    const grant = { username, role: 'TUT', scopeType: 'TUTORIAL_GROUP', scopeRef: 'SWE101-TG9-2026S1', startsAt: '2026-03-01', appointmentRef: 'HR-2026-099', authoritySource: 'University Appointments', approverId: mweene2.id, reason: `E2E ws grant ${stamp}` };
+    await (signIn(admin, 'mweene.t', 'Seed-2026-Mweene') as unknown as Promise<{
+      status: number;
+    }>);
+    const mweene2 = await prisma.account.findUniqueOrThrow({
+      where: { username: 'mweene.t' },
+    });
+    const grant = {
+      username,
+      role: 'TUT',
+      scopeType: 'TUTORIAL_GROUP',
+      scopeRef: 'SWE101-TG9-2026S1',
+      startsAt: '2026-03-01',
+      appointmentRef: 'HR-2026-099',
+      authoritySource: 'University Appointments',
+      approverId: mweene2.id,
+      reason: `E2E ws grant ${stamp}`,
+    };
     const created = await admin.post('/auth/grants').set(CSRF).send(grant);
     expect(created.status).toBe(201);
     const agent = request.agent(server as never);
-    await (signIn(agent, username, 'Long-Enough-Password-1') as unknown as Promise<{ status: number }>);
-    const switched = await agent.post('/auth/workspace/switch').set(CSRF).send({ assignmentId: created.body.assignmentId });
+    await (signIn(
+      agent,
+      username,
+      'Long-Enough-Password-1',
+    ) as unknown as Promise<{ status: number }>);
+    const switched = await agent
+      .post('/auth/workspace/switch')
+      .set(CSRF)
+      .send({ assignmentId: created.body.assignmentId });
     expect(switched.status).toBe(200);
     await prisma.roleAssignment.update({
       where: { id: created.body.assignmentId },

@@ -30,18 +30,33 @@ export function evaluatePolicy(input: PolicyInput): PolicyDecision {
   };
   // Arm 1: active role is valid (live assignment resolved by the guard).
   if (!input.activeRole) return { allow: false, reason: 'role-invalid' };
+  // Incident-only emergency access never confers ordinary IAM powers.
+  // Safe own-session reads and deliberate workspace switching remain usable.
+  if (
+    input.scope?.startsWith('BREAK_GLASS:') &&
+    !['iam.me.read', 'iam.workspace.switch'].includes(input.action)
+  ) {
+    return { allow: false, reason: 'emergency-scope-restricted' };
+  }
   // Arm 2: role contains the requested verb (unknown actions deny).
   const verbs = policy.verbs[input.action];
-  if (!verbs || !verbs.includes(input.activeRole)) return { allow: false, reason: 'verb-denied' };
+  if (!verbs || !verbs.includes(input.activeRole))
+    return { allow: false, reason: 'verb-denied' };
   // Arm 3: assignment is live (revoked/expired/never-chosen denies).
-  if (input.assignmentLive === false) return { allow: false, reason: 'assignment-inactive' };
+  if (input.assignmentLive === false)
+    return { allow: false, reason: 'assignment-inactive' };
   // Arm 4: no SoD conflict among held roles.
   const held = new Set(input.actorRoles ?? [input.activeRole]);
   for (const [left, right] of policy.sodPairs) {
-    if (held.has(left) && held.has(right)) return { allow: false, reason: 'sod-conflict' };
+    if (held.has(left) && held.has(right))
+      return { allow: false, reason: 'sod-conflict' };
   }
   // Arm 5: no self-approval; approver present where required.
-  if (input.approverAccountId && input.targetAccountId && input.approverAccountId === input.targetAccountId) {
+  if (
+    input.approverAccountId &&
+    input.targetAccountId &&
+    input.approverAccountId === input.targetAccountId
+  ) {
     return { allow: false, reason: 'self-approval' };
   }
   if (input.approverRequired && !input.approverAccountId) {
@@ -66,9 +81,13 @@ export class PolicyService {
  * (documented demo limit, not a handbook bypass). The timed lockedUntil
  * mechanism is preserved alongside the LOCKED marker.
  */
-export function accountStatusPolicy(status: string): { allow: boolean; reason: string | null } {
+export function accountStatusPolicy(status: string): {
+  allow: boolean;
+  reason: string | null;
+} {
   const normalized = status.toUpperCase();
   if (normalized === 'ACTIVE') return { allow: true, reason: null };
-  if (normalized === 'CLOSED') return { allow: false, reason: 'account-closed' };
+  if (normalized === 'CLOSED')
+    return { allow: false, reason: 'account-closed' };
   return { allow: false, reason: 'account-inactive' };
 }

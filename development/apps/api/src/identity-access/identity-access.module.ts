@@ -45,6 +45,7 @@ import { ExpiryDaemonService } from './expiry-daemon.service.js';
     ExpiryDaemonService,
   ],
   exports: [
+    SessionGuard,
     PrismaService,
     SessionService,
     WorkspaceService,
