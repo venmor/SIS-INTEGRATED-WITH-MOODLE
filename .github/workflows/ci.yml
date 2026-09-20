@@ -35,6 +35,8 @@ jobs:
           node-version-file: development/.nvmrc
           cache: npm
           cache-dependency-path: development/package-lock.json
+      - name: Install CI source-scan dependency
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y ripgrep
       - run: npm ci
       - run: npm run build --workspace=@sis/config
       - run: npm run scan && npm run test:scripts
