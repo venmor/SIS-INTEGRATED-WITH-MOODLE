@@ -1,6 +1,6 @@
 # Vercel frontend preview
 
-The demonstration frontend is available at [web-sikaprimemarketing-proj.vercel.app](https://web-sikaprimemarketing-proj.vercel.app). It is a Vercel-hosted Next.js preview of the `apps/web` package, built on 2026-09-20 from the local main checkout.
+The current demonstration frontend is available at [sis-moodle.vercel.app](https://sis-moodle.vercel.app). It is a Vercel-hosted Next.js preview of the `apps/web` package, built on 2026-09-20 from the local main checkout. This is the `charles-chitundu` team deployment; it supersedes the earlier `sikaprimemarketing-proj/web` preview for this project.
 
 ## What is online
 
@@ -12,8 +12,8 @@ Use fictional data only. Do not enter real applicant, identity, academic or docu
 
 | Setting | Value |
 |---|---|
-| Team | `sikaprimemarketing-proj` |
-| Project | `web` |
+| Team | `charles-chitundu` |
+| Project | `sis-moodle` |
 | Root directory | `development/apps/web` |
 | Node.js | `24.x` |
 | Install command | `cd ../.. && npm ci --ignore-scripts` |
@@ -25,7 +25,7 @@ The custom commands are necessary because the frontend imports shared workspace 
 
 ## Repeat a manual preview
 
-From `development/apps/web`, authenticate with Vercel, pull the project settings, build, then publish only the prebuilt output:
+From the repository root, authenticate with Vercel, pull the project settings, build, then publish only the prebuilt output:
 
 ```sh
 npx vercel pull --yes --environment=preview
@@ -37,4 +37,4 @@ Inspect the returned deployment URL before presenting it. The first Vercel deplo
 
 ## Next deployment boundary
 
-Before live applicant testing, deploy the Nest API and a separate fictional PostgreSQL database, then set Vercel's server-only `API_INTERNAL_URL` for Preview and Production to that API URL. Do not use a local `localhost` URL: Vercel cannot reach this machine. GitHub auto-deploy is also pending because the Vercel account needs its GitHub login connection added first.
+Before live applicant testing, deploy the Nest API and a separate fictional PostgreSQL database, then set Vercel's server-only `API_INTERNAL_URL` for Preview and Production to that API URL. Do not use a local `localhost` URL: Vercel cannot reach this machine. GitHub auto-deploy is connected to `venmor/SIS-INTEGRATED-WITH-MOODLE`, so a push to `main` will create a Vercel deployment.
