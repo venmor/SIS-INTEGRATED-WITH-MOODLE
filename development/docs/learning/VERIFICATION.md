@@ -130,3 +130,12 @@ Fixes found through these runs (first two test-only, third app UX):
 4. `getByLabel("Reply").first()` resolved to the `<form aria-label="Reply to support ticket">` instead of the textbox. Fixed with `{ exact: true }`.
 
 Sign-in screenshots captured from the same production build (desktop + 390px, `/tmp/opencode/signin-desktop.png`, `signin-mobile.png`): demo applicant panel, labelled fields, no mobile overflow. Typecheck + web lint re-verified clean after the `ticket-forms.tsx` change.
+
+Light-only decision (2026-09-21, user): the app followed the visitor OS
+`prefers-color-scheme` into a full dark theme (`tokens.css` dark token block +
+`color-scheme: dark` in `globals.css`), so dark-mode devices saw a black site.
+Vercel was not forcing it — reproduced locally with Playwright
+`colorScheme: "dark"`. Per user decision the dark overrides were removed
+(`packages/ui/src/tokens.css`, `apps/web/app/globals.css` now
+`color-scheme: light`); a dark-OS screenshot after rebuild renders the approved
+light palette. Web build exit 0. Uncommitted pending review.

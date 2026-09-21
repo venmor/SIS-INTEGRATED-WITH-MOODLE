@@ -128,27 +128,5 @@
   --focus-ring: 0 0 0 2px var(--white), 0 0 0 4px var(--blue-500);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-page: #101010;
-    --bg-surface: #1a1a1a;
-    --bg-sunken: #2b2b2b;
-    --text-primary: #ededed;
-    --text-secondary: #bdbdbd;
-    --border: #2b2b2b;
-    --link: var(--blue-300);
-    --link-hover: var(--blue-200);
-    --success-bg: var(--green-900);
-    --success-text: var(--green-200);
-    --warning-bg: var(--gold-900);
-    --warning-text: var(--gold-200);
-    --attention-bg: var(--gold-900);
-    --attention-text: var(--gold-200);
-    --error-bg: #4a1510;
-    --error-text: #f0a49a;
-    --info-bg: var(--blue-900);
-    --info-text: var(--blue-200);
-    --neutral-bg: #2b2b2b;
-    --neutral-text: #ededed;
-  }
-}
+/* Light-only (2026-09-21 decision): no dark overrides. The demo presents the
+ * approved proposed light palette to every visitor regardless of OS setting. */

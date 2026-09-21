@@ -42,8 +42,6 @@ button:focus-visible {
   border-radius: var(--radius-sm);
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+html {
+  color-scheme: light;
 }
