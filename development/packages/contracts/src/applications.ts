@@ -96,7 +96,12 @@ export interface ApplicationView {
   id: string;
   reference: string;
   state:
-    "Created" | "InProgress" | "ReadyForReview" | "Discarded" | "Submitted";
+    | "Created"
+    | "InProgress"
+    | "ReadyForReview"
+    | "Discarded"
+    | "Submitted"
+    | "Withdrawn";
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -155,4 +160,156 @@ export interface ApplicationError {
   fieldErrors?: Record<string, string>;
   currentVersion?: number;
   applicationId?: string;
+}
+/** Phase 2 slice 6: post-submit case views. All dates ISO server timestamps. */
+export interface ApplicationStatusEvent {
+  id: string;
+  occurredAt: string;
+  code: string;
+  label: string;
+  detail: string | null;
+  actorRole: string;
+  applicantVisible: boolean;
+}
+export interface ApplicantTimeline {
+  applicationId: string;
+  reference: string;
+  state: string;
+  version: number;
+  events: ApplicationStatusEvent[];
+}
+export type ClarificationStatus = "OPEN" | "ANSWERED" | "CLOSED";
+export interface ClarificationView {
+  id: string;
+  question: string;
+  deadline: string | null;
+  response: string | null;
+  status: ClarificationStatus;
+  askedBy: string;
+  askedAt: string;
+  answeredAt: string | null;
+  receipt: string | null;
+}
+export type CorrectionStatus = "PENDING" | "APPROVED" | "REJECTED";
+export interface CorrectionRequestView {
+  id: string;
+  section: string;
+  field: string;
+  reason: string;
+  status: CorrectionStatus;
+  createdAt: string;
+  decidedAt: string | null;
+}
+export type DecisionOutcome = "OFFERED" | "NOT_OFFERED" | "WAITLISTED";
+export interface DecisionView {
+  applicationId: string;
+  reference: string;
+  outcome: DecisionOutcome;
+  message: string;
+  conditions: string[];
+  decidedAt: string;
+}
+export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
+export interface TicketMessageView {
+  id: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+export interface SupportTicketView {
+  id: string;
+  subject: string;
+  status: TicketStatus;
+  createdAt: string;
+  messages: TicketMessageView[];
+}
+export interface WithdrawalReceipt {
+  applicationId: string;
+  reference: string;
+  reason: string | null;
+  receipt: string;
+  withdrawnAt: string;
+}
+export interface ApplicantNotification {
+  id: string;
+  type: string;
+  title: string;
+  applicationId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+/** Phase 3 slice 1: staff review queue views. All dates ISO server timestamps. */
+export interface ReviewQueueItem {
+  applicationId: string;
+  reference: string;
+  state: string;
+  version: number;
+  submittedAt: string | null;
+  claimedAt: string | null;
+  openClarifications: number;
+  openCorrections: number;
+  actionNeeded: boolean;
+}
+export interface ReviewCaseSummary {
+  applicationId: string;
+  reference: string;
+  state: string;
+  version: number;
+  claimedAt: string | null;
+  submittedAt: string | null;
+  openClarifications: number;
+  openCorrections: number;
+  hasDecision: boolean;
+}
+/** Phase 3 slice 2: evidence comparison views. Dates are ISO server timestamps. */
+export interface ReviewDocumentView {
+  id: string;
+  category: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  status: string;
+  scanner: string | null;
+  version: number;
+  replacesId: string | null;
+  replacementReason: string | null;
+  createdAt: string;
+  canPreview: boolean;
+}
+export interface ReviewEvidenceView {
+  applicationId: string;
+  reference: string;
+  state: string;
+  version: number;
+  policyVersion: string;
+  requirementVersion: string;
+  offering: {
+    programmeCode: string;
+    programmeName: string;
+    intake: string;
+  };
+  personal: unknown;
+  contact: unknown;
+  qualifications: unknown;
+  submission: { reference: string; createdAt: string } | null;
+  documents: ReviewDocumentView[];
+  openClarifications: number;
+  openCorrections: number;
+  pendingCorrections: {
+    id: string;
+    section: string;
+    field: string;
+    reason: string;
+    createdAt: string;
+  }[];
+  hasDecision: boolean;
+}
+export interface ReviewFindingView {
+  id: string;
+  kind: string;
+  subject: string;
+  detail: string;
+  severity: string;
+  status: string;
+  createdAt: string;
 }

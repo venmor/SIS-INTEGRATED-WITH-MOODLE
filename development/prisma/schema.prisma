@@ -391,8 +391,18 @@ model Application {
   documents ApplicationDocument[]
   submission ApplicationSubmission?
   revisions ApplicationRevision[]
+  statusEvents ApplicationStatusEvent[]
+  clarifications ApplicationClarification[]
+  correctionRequests ApplicationCorrectionRequest[]
+  decision ApplicationDecision?
+  tickets SupportTicket[]
+  withdrawal ApplicationWithdrawal?
+  notifications ApplicantNotification[]
+  reviewAssignments ReviewAssignment[]
+  reviewFindings ReviewFinding[]
   @@index([accountId, updatedAt])
   @@index([offeringId])
+  @@index([state, createdAt])
 }
 model ApplicationRevision {
   id String @id @default(uuid())
@@ -442,4 +452,132 @@ model ApplicationCommand {
   response Json
   createdAt DateTime @default(now())
   @@index([accountId, createdAt])
+}
+
+// Phase 2 slice 6: post-submit case. Status events are immutable rows (never
+// mutate Application for history); staff-only rows stay out of applicant
+// views by applicantVisible=false. All relations Restrict like the rest.
+model ApplicationStatusEvent {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  occurredAt DateTime @default(now())
+  code String
+  label String
+  detail String?
+  actorRole String
+  applicantVisible Boolean @default(true)
+  createdAt DateTime @default(now())
+  @@index([applicationId, occurredAt])
+}
+model ApplicationClarification {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  question String
+  deadline DateTime?
+  response String?
+  status String @default("OPEN")
+  askedBy String @default("ADMISSIONS")
+  askedAt DateTime @default(now())
+  answeredAt DateTime?
+  receipt String?
+  @@index([applicationId, status])
+}
+model ApplicationCorrectionRequest {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  section String
+  field String
+  reason String
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  decidedAt DateTime?
+  @@index([applicationId, status])
+}
+model ApplicationDecision {
+  id String @id @default(uuid())
+  applicationId String @unique
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  outcome String
+  message String
+  conditions Json?
+  decidedAt DateTime @default(now())
+  releasedAt DateTime?
+}
+model SupportTicket {
+  id String @id @default(uuid())
+  accountId String
+  applicationId String?
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  subject String
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  messages SupportTicketMessage[]
+  @@index([accountId, createdAt])
+}
+model SupportTicketMessage {
+  id String @id @default(uuid())
+  ticketId String
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  authorRole String
+  body String
+  createdAt DateTime @default(now())
+  @@index([ticketId, createdAt])
+}
+model ApplicationWithdrawal {
+  id String @id @default(uuid())
+  applicationId String @unique
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  reason String?
+  receipt String
+  withdrawnAt DateTime @default(now())
+}
+model ApplicantNotification {
+  id String @id @default(uuid())
+  accountId String
+  applicationId String?
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  type String
+  title String
+  payload Json?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([accountId, readAt])
+}
+
+// Phase 3 slice 1: staff review assignments. One active (CLAIMED) row per
+// application, enforced by the partial unique index in migration
+// 20260922120000_ph3_review_queue (Prisma cannot express it; same hand-
+// maintained pattern as the Credential active-kind and ExpiryWarning
+// acknowledgement partial uniques). History rows stay RELEASED.
+model ReviewAssignment {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  assigneeAccountId String
+  status String @default("CLAIMED")
+  claimedAt DateTime @default(now())
+  releasedAt DateTime?
+  @@index([assigneeAccountId, status])
+  @@index([status, applicationId])
+}
+
+// Phase 3 slice 2: immutable staff review findings. Findings describe review
+// observations (COMPLETENESS, DECLARATION_MISMATCH, DOCUMENT_QUALITY,
+// PAYMENT_STATUS, NOTE) with INFO/ACTION_NEEDED severity. They never modify
+// applicant data; a mistaken finding is superseded by a new finding.
+model ReviewFinding {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  kind String
+  subject String
+  detail String
+  severity String @default("INFO")
+  status String @default("OPEN")
+  createdByAccountId String
+  createdAt DateTime @default(now())
+  @@index([applicationId, status])
 }

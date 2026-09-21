@@ -61,6 +61,16 @@ const TABLES = [
   "ProgrammeOffering",
   "RequirementRule",
   "GuidanceSession",
+  "ApplicationStatusEvent",
+  "ApplicationClarification",
+  "ApplicationCorrectionRequest",
+  "ApplicationDecision",
+  "SupportTicket",
+  "SupportTicketMessage",
+  "ApplicationWithdrawal",
+  "ApplicantNotification",
+  "ReviewAssignment",
+  "ReviewFinding",
 ];
 
 function connectionEnv(connection) {
@@ -190,6 +200,24 @@ try {
       psql(
         scratchUrl(),
         'SELECT COUNT(*) FROM "RequirementRule" r LEFT JOIN "QualificationRoute" q ON q.id = r."routeId" WHERE r."routeId" IS NOT NULL AND q.id IS NULL;',
+      ),
+    ),
+    findingsWithoutApplication: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "ReviewFinding" f LEFT JOIN "Application" a ON a.id = f."applicationId" WHERE a.id IS NULL;',
+      ),
+    ),
+    assignmentsWithoutApplication: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM "ReviewAssignment" ra LEFT JOIN "Application" a ON a.id = ra."applicationId" WHERE a.id IS NULL;',
+      ),
+    ),
+    caseRowsWithoutApplication: Number(
+      psql(
+        scratchUrl(),
+        'SELECT COUNT(*) FROM (SELECT "applicationId" FROM "ApplicationStatusEvent" UNION ALL SELECT "applicationId" FROM "ApplicationClarification" UNION ALL SELECT "applicationId" FROM "ApplicationCorrectionRequest" UNION ALL SELECT "applicationId" FROM "ApplicationDecision" UNION ALL SELECT "applicationId" FROM "ApplicationWithdrawal" UNION ALL SELECT "applicationId" FROM "ApplicationDocument") c LEFT JOIN "Application" a ON a.id = c."applicationId" WHERE a.id IS NULL;',
       ),
     ),
   };

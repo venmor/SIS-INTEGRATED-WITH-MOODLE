@@ -16,7 +16,10 @@ export default async function Home() {
         A saved draft has not been submitted. Continue an application below or
         choose a programme.
       </p>
-      <Link href="/discover">Find a programme</Link>
+      <p>
+        <Link href="/discover">Find a programme</Link> ·{" "}
+        <Link href="/applicant/notifications">Notifications</Link>
+      </p>
       {!result.data.items.length ? (
         <p>No applications yet. Start from a published programme.</p>
       ) : (
@@ -29,8 +32,21 @@ export default async function Home() {
             <Link href={`/applicant/${a.id}`}>
               {a.state === "Submitted"
                 ? "View submitted application"
-                : "Continue application"}
+                : a.state === "Withdrawn"
+                  ? "View withdrawn application"
+                  : "Continue application"}
             </Link>
+            {a.state === "Submitted" || a.state === "Withdrawn" ? (
+              <p>
+                <Link href={`/applicant/${a.id}/status`}>
+                  Status and timeline
+                </Link>{" "}
+                ·{" "}
+                <Link href={`/applicant/${a.id}/decision`}>
+                  Admission decision
+                </Link>
+              </p>
+            ) : null}
           </article>
         ))
       )}

@@ -24,5 +24,6 @@ Store application-local task packets, ADRs, learning records and evidence in the
 - [Runbook and presentation rehearsal](docs/demo/APPLICANT-WALKTHROUGH.md).
 - [Institutional and production gaps](docs/gaps/GAP-015-applicant-production-and-prior-phase-gates.md).
 - [Recorded decisions](docs/adr/ADR-002-applicant-demonstration-boundaries.md).
+- [Phase 3 slices 1–2 review (2026-09-21, uncommitted)](docs/learning/PHASE-3-IMPLEMENTATION-REVIEW.md): assigned queue and evidence comparison for fictional reviewers; slices 3–6 pending.
 
 `REQ-ADM-002`/`ACT-APP-001` map to owned draft/section saving. `REQ-ADM-003` maps to current-section/document readiness. `REQ-ADM-004`/`ACT-APP-002` map to immutable, idempotent submission. Exact Blueprint 1 Parts 4–8 supply detailed actions without invented handbook identifiers. Endpoint names and test titles are implementation references, not new institutional requirement IDs.

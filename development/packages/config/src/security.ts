@@ -69,8 +69,26 @@ export const SECURITY_V1: SecurityConfig = {
   policyVerbs: {
     'iam.grant.create': ['SYSADMIN'],
     'iam.account.resolve': ['SYSADMIN'],
-    'iam.workspace.switch': ['SYSADMIN', 'LEC', 'DEAN', 'STU', 'APP', 'TUT'],
-    'iam.me.read': ['SYSADMIN', 'LEC', 'DEAN', 'STU', 'APP', 'TUT'],
+    'iam.workspace.switch': [
+      'SYSADMIN',
+      'LEC',
+      'DEAN',
+      'STU',
+      'APP',
+      'TUT',
+      'ADMISSIONS_OFFICER',
+      'ADMISSIONS_APPROVER',
+    ],
+    'iam.me.read': [
+      'SYSADMIN',
+      'LEC',
+      'DEAN',
+      'STU',
+      'APP',
+      'TUT',
+      'ADMISSIONS_OFFICER',
+      'ADMISSIONS_APPROVER',
+    ],
   },
   sodPairs: [],
   passwordPolicy: {

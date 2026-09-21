@@ -48,3 +48,33 @@ Use the exact commands/environment in [APPLICANT-WALKTHROUGH.md](../demo/APPLICA
 On 2026-09-20 the user authorized commits and integration into local `main`, with no pull request and the push left to the user. The verification above records the implementation review on 2026-09-19. No human walkthrough signature, production policy approval or complete-phase acceptance is implied by Git integration.
 
 The 2026-09-20 pre-commit recheck passed: 64 unit tests, six script tests, full TypeScript checks, source scan, whitespace checks and all 227 handbook checksums. Only handoff documentation changed during this integration step; the database/browser/build evidence above remains the 2026-09-19 run. Fresh pre-commit logs use the `commit-` prefix in the same ignored evidence directory.
+
+## Phase 3 slices 1–2 verification — 2026-09-21 (uncommitted worktree)
+
+Node **22.13.1** on this box vs pinned **24.21.0**; PostgreSQL **18** via
+`sis-postgres-18`. Fresh isolated databases per run
+(`sis_ph3_review4` for API e2e, `sis_ph3_browser2` for browser); committed
+npm lockfile. Full API e2e in walkthrough order on the fresh DB.
+
+| Check | Current result | What it establishes |
+|---|---|---|
+| `npx tsc --noEmit` API + web | **Passed** | Full source/test type safety incl. review service, DTOs, staff pages |
+| `npm run lint` | **Passed, warnings only, no errors** | No new lint debt |
+| `npm test` (unit) | **66 passed, 14 files** | Contracts, guards, scanner, IAM (policy.spec covers new verbs) |
+| Prior API suite (13 files, excl. admissions/review) | **67 passed** | No regression in Phases 0–1 + catalogue |
+| Admissions + case + review suites (5 files) | **64 passed** | Draft→submit→receipt intact; 13 queue + 12 evidence tests green |
+| `npm run build --workspace=apps/web` | **Passed** | Production build incl. `/admin/admissions/queue`, `/admin/admissions/case/[id]`, `/api/review` proxy |
+| API dist (`tsc -p tsconfig.build.json`) | **Passed** | Direct `tsc` used: `nest` CLI crashes on Node 22 (ora ESM cycle) |
+| `test:browser` staff queue | **1 passed** | Claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage |
+| `test:browser` applicant regression | **2 passed** | Existing applicant journeys intact |
+| `prisma migrate deploy` fresh + demo seed | **Passed, 18 migrations** | Queue, findings and index migrations apply in order; 3 demo staff seeded |
+
+Not run here with fresh evidence: `test:scripts` (needs ripgrep + Node 24
+type-stripping; 1 scanner test fails environmentally), `scan`
+(ripgrep unavailable), `backup:test` (no `psql` client on this box;
+script updated to 35 tables/10 orphans), slice-6 `applicant-case` browser
+spec (cancelled per user instruction). Manual screen-reader, WSL replay,
+remote CI, branch protection and human walkthrough remain **not verified**.
+The [Phase 3 learning review](PHASE-3-IMPLEMENTATION-REVIEW.md) records
+scope, issues found, and presentation limits. No human signoff, production
+approval or phase acceptance is implied.

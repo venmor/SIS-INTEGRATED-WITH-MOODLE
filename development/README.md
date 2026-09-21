@@ -1,6 +1,6 @@
 # SIS--Moodle Application Workspace
 
-This directory contains the runnable Next.js/NestJS application, shared TypeScript contracts, PostgreSQL migrations and tests. Phase 0 foundations, bounded Phase 1 identity/access, and Phase 2 applicant slices 1–5 are implemented for a fictional demonstration. Human review and the full phase exit gates remain pending.
+This directory contains the runnable Next.js/NestJS application, shared TypeScript contracts, PostgreSQL migrations and tests. Phase 0 foundations, bounded Phase 1 identity/access, Phase 2 applicant slices 1–5, and Phase 3 slices 1–2 (assigned review queue and evidence comparison, uncommitted 2026-09-21) are implemented for a fictional demonstration. Human review and the full phase exit gates remain pending.
 
 **Start the current review with [the plain-language guide](docs/learning/PHASE-2-IMPLEMENTATION-REVIEW.md), then [run and demonstrate it](docs/demo/APPLICANT-WALKTHROUGH.md).** [Earlier-slice findings](docs/learning/PRIOR-PHASE-REVIEW.md) explain repairs and remaining gaps. [Handbook review](docs/learning/HANDBOOK-REVIEW.md) explains the source hierarchy and renamed evidence.
 

@@ -1,6 +1,6 @@
 import type { ApplicationReview } from "@sis/contracts";
 import { loadApplicant } from "../server";
-import { ApplicationUnavailable } from "../chrome";
+import { ApplicationCaseNav, ApplicationUnavailable } from "../chrome";
 import { Workspace } from "../workspace";
 export default async function Page({
   params,
@@ -12,9 +12,16 @@ export default async function Page({
     `/${id}/review`,
     `/applicant/${id}`,
   );
-  return r.data ? (
-    <Workspace initial={r.data} section="overview" />
-  ) : (
-    <ApplicationUnavailable message={r.message} />
+  if (!r.data) {
+    return <ApplicationUnavailable message={r.message} />;
+  }
+  const submitted =
+    r.data.application.state === "Submitted" ||
+    r.data.application.state === "Withdrawn";
+  return (
+    <>
+      <Workspace initial={r.data} section="overview" />
+      {submitted ? <ApplicationCaseNav applicationId={id} /> : null}
+    </>
   );
 }

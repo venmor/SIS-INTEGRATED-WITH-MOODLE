@@ -164,6 +164,73 @@ const SEED: SeedAccount[] = [
       },
     ],
   },
+  // Phase 3 slice 1 demonstration staff (TASK-PH3-001). Fictional
+  // assignments only: intake-scoped review capability for officers,
+  // decision capability for the approver (used from slice 5; seeded now so
+  // separation-of-duties denial is testable). Not UNZA policy.
+  {
+    username: "temwani.r",
+    personName: "Temwani R.",
+    email: "temwani.r@demo.invalid",
+    phone: "+260950000005",
+    password: "Seed-2026-Temwani",
+    roles: [
+      {
+        role: "ADMISSIONS_OFFICER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-101",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["review-assigned"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration admissions reviewer",
+      },
+    ],
+  },
+  {
+    username: "lubuto.s",
+    personName: "Lubuto S.",
+    email: "lubuto.s@demo.invalid",
+    phone: "+260950000006",
+    password: "Seed-2026-Lubuto",
+    roles: [
+      {
+        role: "ADMISSIONS_OFFICER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-102",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["review-assigned"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration admissions reviewer",
+      },
+    ],
+  },
+  {
+    username: "kasonde.a",
+    personName: "Kasonde A.",
+    email: "kasonde.a@demo.invalid",
+    phone: "+260950000007",
+    password: "Seed-2026-Kasonde",
+    roles: [
+      {
+        role: "ADMISSIONS_APPROVER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-103",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["decide-offer"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration admissions approver",
+      },
+    ],
+  },
 ];
 
 async function ensureAccount(

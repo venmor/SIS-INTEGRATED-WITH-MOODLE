@@ -167,7 +167,7 @@ export class ApplicationsService {
     );
   }
   editable(row: Row, version: number) {
-    if (['Submitted', 'Discarded'].includes(row.state))
+    if (['Submitted', 'Discarded', 'Withdrawn'].includes(row.state))
       this.fail(
         'LOCKED',
         'This application is no longer editable. View its saved record.',

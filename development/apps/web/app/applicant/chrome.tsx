@@ -65,8 +65,33 @@ export function ApplicationUnavailable({ message }: { message: string }) {
   );
 }
 
-export function ApplicationSteps({
-  application,
+export function ApplicationCaseNav({
+  applicationId,
+}: {
+  applicationId: string;
+}) {
+  const items: Array<[string, string]> = [
+    ["status", "Status and timeline"],
+    ["clarifications", "Clarification requests"],
+    ["corrections", "Correction requests"],
+    ["decision", "Admission decision"],
+    ["tickets", "Support tickets"],
+    ["withdraw", "Withdraw application"],
+  ];
+  return (
+    <nav aria-label="Submitted application">
+      <ul className={styles.steps}>
+        {items.map(([key, label]) => (
+          <li key={key}>
+            <Link href={applicationPath(applicationId, key)}>{label}</Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+export function ApplicationSteps({  application,
 }: {
   application: ApplicationView;
 }) {

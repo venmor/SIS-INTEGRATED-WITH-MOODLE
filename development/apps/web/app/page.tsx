@@ -134,6 +134,11 @@ export default async function Home() {
               Applicant portal
             </Link>
           ) : null}
+          {active?.role === "ADMISSIONS_OFFICER" ? (
+            <Link className={styles.primary} href="/admin/admissions/queue">
+              Admissions queue
+            </Link>
+          ) : null}
           {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
             <a className={styles.primary} href="/admin/grants">
               Role assignments

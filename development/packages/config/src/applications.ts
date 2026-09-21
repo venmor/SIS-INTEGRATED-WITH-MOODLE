@@ -74,4 +74,14 @@ export const APPLICATION_DEMO_V1 = {
     allowAwaiting: false,
   },
   help: "Contact Admissions through your institution’s published support route. Use fictional data in this demonstration.",
+  case: {
+    statusPollMs: 30000,
+    clarificationResponseDays: 14,
+    correctionReviewNote:
+      "Corrections need an Admissions decision. The submitted application stays unchanged until approval.",
+    withdrawalConfirmation:
+      "Withdrawing ends assessment of this application. This does not request a refund.",
+    supportChannels: ["Admissions", "Technical access", "Documents", "Decision"],
+    notificationRetentionDays: 90,
+  },
 };

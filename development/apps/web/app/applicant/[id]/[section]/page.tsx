@@ -18,6 +18,13 @@ export default async function Page({
       "review",
       "receipt",
       "programme",
+      "status",
+      "clarifications",
+      "corrections",
+      "decision",
+      "tickets",
+      "withdraw",
+      "notifications",
     ].includes(section)
   )
     notFound();
