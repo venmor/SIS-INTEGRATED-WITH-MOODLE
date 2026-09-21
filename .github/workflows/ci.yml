@@ -38,7 +38,8 @@ jobs:
       - name: Install CI source-scan dependency
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y ripgrep
       - run: npm ci
-      - run: npm run build --workspace=@sis/config
+      - name: Build the API and its shared dependency from a clean checkout
+        run: npm run build --workspace=apps/api
       - run: npm run scan && npm run test:scripts
       - run: npm run lint
       - run: npm test

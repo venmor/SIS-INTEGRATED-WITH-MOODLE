@@ -49,12 +49,15 @@ On 2026-09-20 the user authorized commits and integration into local `main`, wit
 
 The 2026-09-20 pre-commit recheck passed: 64 unit tests, six script tests, full TypeScript checks, source scan, whitespace checks and all 227 handbook checksums. Only handoff documentation changed during this integration step; the database/browser/build evidence above remains the 2026-09-19 run. Fresh pre-commit logs use the `commit-` prefix in the same ignored evidence directory.
 
-## Phase 3 slices 1–2 verification — 2026-09-21 (uncommitted worktree)
+## Phase 3 slices 1–2 verification — 2026-09-21 (committed in `e44170a`)
 
-Node **22.13.1** on this box vs pinned **24.21.0**; PostgreSQL **18** via
+Node **22.13.1** on that box vs pinned **24.21.0**; PostgreSQL **18** via
 `sis-postgres-18`. Fresh isolated databases per run
 (`sis_ph3_review4` for API e2e, `sis_ph3_browser2` for browser); committed
-npm lockfile. Full API e2e in walkthrough order on the fresh DB.
+npm lockfile. Full API e2e in walkthrough order on the fresh DB. The work has
+since been committed to local `main`; pinned-stack rechecks done in this
+checkout are recorded in the docs-pass section below (scan, scripts,
+typecheck, lint, unit) — API e2e, browser, and backup reruns are still pending.
 
 | Check | Current result | What it establishes |
 |---|---|---|
@@ -69,12 +72,28 @@ npm lockfile. Full API e2e in walkthrough order on the fresh DB.
 | `test:browser` applicant regression | **2 passed** | Existing applicant journeys intact |
 | `prisma migrate deploy` fresh + demo seed | **Passed, 18 migrations** | Queue, findings and index migrations apply in order; 3 demo staff seeded |
 
-Not run here with fresh evidence: `test:scripts` (needs ripgrep + Node 24
-type-stripping; 1 scanner test fails environmentally), `scan`
-(ripgrep unavailable), `backup:test` (no `psql` client on this box;
-script updated to 35 tables/10 orphans), slice-6 `applicant-case` browser
-spec (cancelled per user instruction). Manual screen-reader, WSL replay,
-remote CI, branch protection and human walkthrough remain **not verified**.
-The [Phase 3 learning review](PHASE-3-IMPLEMENTATION-REVIEW.md) records
-scope, issues found, and presentation limits. No human signoff, production
-approval or phase acceptance is implied.
+## Docs pass + pinned-stack rechecks — 2026-09-21 (this checkout, `e44170a` + docs edits)
+
+Pinned Node **24.21.0** via `fnm`; `rg` 15.2.0 and `psql` 18.6 present.
+No code behavior changed in this pass except `apps/web/eslint.config.mjs`
+(ignore `.vercel/**`, which is gitignored build output); generated Prisma
+client + `@sis/config` dist were refreshed (see fixes).
+
+| Check | Current result | What it establishes |
+|---|---|---|
+| `npm run scan` | **Passed, exit 0** | No prohibited source/dependency patterns; not an exhaustive audit |
+| `npm run test:scripts` | **6 passed** | Same-origin, scan-gate, CAT/year rendering, password-safe backup |
+| `npm run typecheck` | **Passed, exit 0** | Full API + web TS checks after `prisma generate` + `@sis/config` build |
+| `npm run lint` (all workspaces) | **Passed, warnings only** | Web clean; API warnings as previously reported |
+| `npm test` (unit) | **68 passed, 15 files** | Up from 66/14 (includes `main.spec.ts` + case cover) |
+| `git diff --check` | **Clean** | No whitespace errors in docs/code edits |
+| Handbook untouched | **`git status` shows no handbook paths** | 70 exact record bodies + checksums undisturbed by this docs pass |
+| New-note links | **All resolve** | NOTE-PH2-006, NOTE-PH3-001/002 linked from DESIGN-INDEX, PHASE reviews, ROTATION-LEDGER |
+
+Fixes found through this pass (stale generated artifacts, not source bugs):
+
+1. Prisma client predated `e44170a` migrations → typecheck errors on `applicationStatusEvent`, `reviewAssignment`, etc. Fixed with `node scripts/with-env.mjs npx prisma generate`; typecheck then showed only `@sis/config` staleness.
+2. `@sis/config` dist predated the slice-6 `case` policy → `policy.case` errors. Fixed with `npm run build --workspace=@sis/config`; typecheck then passed.
+3. Web lint failed with 18 errors, all inside `apps/web/.vercel/output/**` (Vercel build output, gitignored but not eslint-ignored). Fixed by adding `.vercel/**` to `globalIgnores` in `apps/web/eslint.config.mjs`; web lint then passed, full lint warnings-only.
+
+Still **not run** here: API e2e suites (need isolated fresh DBs), `test:browser` suites, `backup:test`, manual screen-reader/WSL replay, remote CI, branch protection, human walkthrough. TASK-PH2-006/PH3-001/PH3-002 completion and human explanation/review remain **pending**. The [Phase 3 learning review](PHASE-3-IMPLEMENTATION-REVIEW.md) records scope, issues found, and presentation limits. No human signoff, production approval or phase acceptance is implied.

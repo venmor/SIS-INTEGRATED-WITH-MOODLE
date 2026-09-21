@@ -1,4 +1,5 @@
 import styles from "../page.module.css";
+import discovery from "./discover.module.css";
 import Link from "next/link";
 import { AUTH_MESSAGES } from "@sis/config";
 import { Empty } from "@sis/ui";
@@ -116,14 +117,16 @@ export default async function DiscoverPage({
   const take = Number(firstParam(params, "take") ?? "12");
   const showPager = page !== null && page.total > take;
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <p className={styles.context}>Admissions · Public catalogue</p>
-        <h1 className={styles.title}>Find a programme</h1>
-        <p className={styles.lede}>
-          Search by programme name, subject or qualification.{" "}
-          <Link href="/sign-in">Sign in</Link> when you are ready to apply.
-        </p>
+    <div className={discovery.page}>
+      <main className={discovery.main}>
+        <header className={discovery.heading}>
+          <p className={styles.context}>Admissions · Public catalogue</p>
+          <h1 className={styles.title}>Find a programme</h1>
+          <p className={styles.lede}>
+            Search by programme name, subject or qualification.{" "}
+            <Link href="/sign-in">Sign in</Link> when you are ready to apply.
+          </p>
+        </header>
         <SearchForm initial={initial} routes={routes} />
         {page === null ? (
           <Notice
@@ -139,18 +142,26 @@ export default async function DiscoverPage({
             action={{ label: "Clear search", href: "/discover" }}
           />
         ) : (
-          <>
-            <p className={styles.supporting} role="status">
-              {page.total} {page.total === 1 ? "programme" : "programmes"}{" "}
-              listed.
-            </p>
+          <section
+            className={discovery.results}
+            aria-labelledby="programme-results-title"
+          >
+            <div className={discovery.resultsHeading}>
+              <h2 id="programme-results-title">Programme results</h2>
+              <p className={discovery.resultCount} role="status">
+                {page.total} {page.total === 1 ? "programme" : "programmes"}{" "}
+                listed.
+              </p>
+            </div>
             {schools.length > 0 ? (
-              <p className={styles.supporting}>
+              <p className={discovery.schools}>
                 Browse by school:{" "}
                 {schools.map((school, index) => (
                   <span key={school}>
                     {index > 0 ? " · " : null}
-                    <Link href={`/discover?school=${encodeURIComponent(school)}`}>
+                    <Link
+                      href={`/discover?school=${encodeURIComponent(school)}`}
+                    >
                       {school}
                     </Link>
                   </span>
@@ -158,47 +169,51 @@ export default async function DiscoverPage({
               </p>
             ) : null}
             {comparePageHref ? (
-              <p className={styles.supporting} role="status">
+              <p className={discovery.comparison} role="status">
                 {compareIds.length}{" "}
-                {compareIds.length === 1 ? "programme" : "programmes"}{" "}
-                selected for comparison.{" "}
+                {compareIds.length === 1 ? "programme" : "programmes"} selected
+                for comparison.{" "}
                 <Link href={comparePageHref}>View comparison</Link>
               </p>
             ) : null}
-            {page.items.map((item) => {
-              const selected = compareIds.includes(item.offeringId);
-              return (
-                <ProgrammeCard
-                  key={item.offeringId}
-                  name={item.programmeName}
-                  awardLevel={item.awardLevel}
-                  school={item.school}
-                  duration={item.duration}
-                  campus={item.campus}
-                  studyMode={item.studyMode}
-                  availabilityText={availabilityText(item.availability)}
-                  deadlineText={
-                    item.deadline
-                      ? `Applications open until ${formatLusaka(item.deadline)}`
-                      : null
-                  }
-                  requirementSummary={item.requirementSummary}
-                  statusNote={item.statusNote}
-                  viewHref={`/discover/${item.offeringId}`}
-                  compareHref={
-                    selected ? comparePageHref ?? "" : trayHref(item.offeringId)
-                  }
-                  compareSelected={selected}
-                />
-              );
-            })}
+            <div className={discovery.programmeGrid}>
+              {page.items.map((item) => {
+                const selected = compareIds.includes(item.offeringId);
+                return (
+                  <ProgrammeCard
+                    key={item.offeringId}
+                    name={item.programmeName}
+                    awardLevel={item.awardLevel}
+                    school={item.school}
+                    duration={item.duration}
+                    campus={item.campus}
+                    studyMode={item.studyMode}
+                    availabilityText={availabilityText(item.availability)}
+                    deadlineText={
+                      item.deadline
+                        ? `Applications open until ${formatLusaka(item.deadline)}`
+                        : null
+                    }
+                    requirementSummary={item.requirementSummary}
+                    statusNote={item.statusNote}
+                    viewHref={`/discover/${item.offeringId}`}
+                    compareHref={
+                      selected
+                        ? (comparePageHref ?? "")
+                        : trayHref(item.offeringId)
+                    }
+                    compareSelected={selected}
+                  />
+                );
+              })}
+            </div>
             {showPager ? (
               <p className={styles.supporting}>
                 Showing {page.items.length} of {page.total}. Refine your search
                 to narrow results.
               </p>
             ) : null}
-          </>
+          </section>
         )}
       </main>
     </div>

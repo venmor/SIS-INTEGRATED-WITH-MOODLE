@@ -1,6 +1,6 @@
 # Phase 3 slices 1–2 — learning and implementation review
 
-Review date: 2026-09-21. Worktree: uncommitted on local `main`; no pull
+Review date: 2026-09-21. Committed in `e44170a` on local `main` (“Implemented phase 2 slice 6 and phase 3 slice 1 and 2”); no pull
 request. Human learning and acceptance checks below remain pending.
 
 A fictional admissions officer can now claim submitted applications from an

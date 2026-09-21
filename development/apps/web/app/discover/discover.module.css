@@ -1,0 +1,179 @@
+.page {
+  flex: 1;
+  padding: var(--space-12) var(--space-6);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 48rem;
+}
+
+.searchForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--green-500);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.searchField > div {
+  max-width: none;
+}
+
+.searchField input {
+  min-height: 3.25rem;
+}
+
+.filters {
+  min-width: 0;
+  border: 0;
+}
+
+.filters legend {
+  padding: 0;
+  margin-bottom: var(--space-4);
+  font-size: var(--font-supporting);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+}
+
+.filterGrid > div {
+  min-width: 0;
+  max-width: none;
+  margin-top: 0;
+}
+
+.filterGrid input,
+.filterGrid select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.875rem;
+}
+
+.searchActions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.activeFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-supporting);
+}
+
+.activeFilters > p {
+  font-weight: 600;
+}
+
+.activeFilters ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.activeFilters li {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  overflow-wrap: anywhere;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.resultsHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.resultsHeading h2 {
+  font-size: var(--font-section);
+  line-height: var(--line-tight);
+}
+
+.resultCount,
+.schools {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  line-height: var(--line-body);
+}
+
+.comparison {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--gold-500);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  font-size: var(--font-supporting);
+  line-height: var(--line-body);
+}
+
+.programmeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.programmeGrid > article {
+  min-width: 0;
+  max-width: none;
+  margin-top: 0;
+}
+
+@media (max-width: 1000px) {
+  .filterGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .searchForm {
+    padding: var(--space-4);
+  }
+
+  .filterGrid,
+  .programmeGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .searchActions > button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,82 @@
+.backLink {
+  align-self: flex-start;
+  font-size: var(--font-supporting);
+  font-weight: 600;
+  padding-block: var(--space-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.demoPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--unza-green);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  line-height: var(--line-body);
+}
+
+.demoPanel h2 {
+  font-size: var(--font-section);
+  line-height: var(--line-tight);
+}
+
+.demoLabel {
+  font-size: var(--font-supporting);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.credentials {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.credentials > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+
+.credentials dt {
+  min-width: 5.5rem;
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.credentials dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.credentials code {
+  font-family: var(--font-geist-mono, monospace);
+  font-size: var(--font-supporting);
+  font-weight: 600;
+}
+
+.demoNote,
+.demoStatus {
+  font-size: var(--font-supporting);
+}
+
+.demoNote {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .demoPanel {
+    padding: var(--space-4);
+  }
+}

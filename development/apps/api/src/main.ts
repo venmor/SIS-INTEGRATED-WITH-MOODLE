@@ -29,6 +29,10 @@ async function createApplication(): Promise<INestApplication> {
   // clients collapse to the proxy IP in rate-limit keys and audit rows.
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 'loopback');
+  // Cache the complete boot, including lifecycle hooks. Nest's init() only
+  // marks itself initialized after its async work finishes, so calling it
+  // independently for simultaneous cold requests can register routes twice.
+  await app.init();
   return app;
 }
 
@@ -53,7 +57,6 @@ export default async function handler(
   response: ServerResponse,
 ): Promise<void> {
   const app = await getApplication();
-  await app.init();
   const expressApp = app.getHttpAdapter().getInstance() as HttpHandler;
   expressApp(request, response);
 }
