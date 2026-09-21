@@ -162,7 +162,7 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await page
     .getByRole("button", { name: "Submit response", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.locator("main").getByRole("alert")).toContainText(
     "Write a response before submitting",
   );
   const responseBox = page.getByLabel("Your response (only this item)");
@@ -187,7 +187,7 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await page
     .getByRole("button", { name: "Request correction", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator("main").getByRole("alert")).toBeVisible();
   await page.getByLabel("Category").fill("contact");
   await page.getByLabel("Item to correct").fill("address");
   await page.getByLabel("Reason").fill("Moved house (browser).");
@@ -206,14 +206,14 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await page
     .getByRole("button", { name: "Open ticket", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator("main").getByRole("alert")).toBeVisible();
   await page.getByLabel("Subject").fill("Upload question");
   await page.getByLabel("Message").fill("Which file goes where?");
   await page
     .getByRole("button", { name: "Open ticket", exact: true })
     .click();
   await expect(page.getByText("Ticket opened")).toBeVisible();
-  const replyBox = page.getByLabel("Reply").first();
+  const replyBox = page.getByLabel("Reply", { exact: true });
   await replyBox.fill("Extra detail from browser.");
   await replyBox.evaluate((el: HTMLElement) =>
     el.closest("form")?.requestSubmit(),
@@ -261,7 +261,7 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await page
     .getByRole("button", { name: "Submit withdrawal request", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.locator("main").getByRole("alert")).toContainText(
     "Confirm the withdrawal",
   );
   await page.getByLabel(/does not request a refund/).check();

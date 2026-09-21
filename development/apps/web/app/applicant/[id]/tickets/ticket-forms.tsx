@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ActionButton } from "@sis/ui";
 import { ErrorSummary } from "@sis/ui";
 import { Field } from "@sis/ui";
@@ -20,6 +21,7 @@ function useTicketPost(path: string, version: number) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const key = useRef<string | null>(null);
+  const router = useRouter();
 
   async function submit(body: Record<string, string>) {
     if (pending) return false;
@@ -34,6 +36,9 @@ function useTicketPost(path: string, version: number) {
       });
       key.current = null;
       setDone(true);
+      // The ticket list is server-rendered: revalidate so the new ticket
+      // (and its reply box) appears without a manual reload.
+      router.refresh();
       return true;
     } catch (error) {
       setErrors([{ fieldId: "subject", message: errorMessage(error) }]);

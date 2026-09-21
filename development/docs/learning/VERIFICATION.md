@@ -86,6 +86,8 @@ client + `@sis/config` dist were refreshed (see fixes).
 | `npm run typecheck` | **Passed, exit 0** | Full API + web TS checks after `prisma generate` + `@sis/config` build |
 | `npm run lint` (all workspaces) | **Passed, warnings only** | Web clean; API warnings as previously reported |
 | `npm test` (unit) | **68 passed, 15 files** | Up from 66/14 (includes `main.spec.ts` + case cover) |
+| API e2e `catalogue` alone | **12 passed, 1 file** | Seed catalogue intact on fresh `sis_ph3_review_docs` |
+| API e2e remaining 17 files | **119 passed, 17 files** | Draft→submit→case→review intact; queue + evidence + case suites green |
 | `git diff --check` | **Clean** | No whitespace errors in docs/code edits |
 | Handbook untouched | **`git status` shows no handbook paths** | 70 exact record bodies + checksums undisturbed by this docs pass |
 | New-note links | **All resolve** | NOTE-PH2-006, NOTE-PH3-001/002 linked from DESIGN-INDEX, PHASE reviews, ROTATION-LEDGER |
@@ -96,4 +98,35 @@ Fixes found through this pass (stale generated artifacts, not source bugs):
 2. `@sis/config` dist predated the slice-6 `case` policy → `policy.case` errors. Fixed with `npm run build --workspace=@sis/config`; typecheck then passed.
 3. Web lint failed with 18 errors, all inside `apps/web/.vercel/output/**` (Vercel build output, gitignored but not eslint-ignored). Fixed by adding `.vercel/**` to `globalIgnores` in `apps/web/eslint.config.mjs`; web lint then passed, full lint warnings-only.
 
-Still **not run** here: API e2e suites (need isolated fresh DBs), `test:browser` suites, `backup:test`, manual screen-reader/WSL replay, remote CI, branch protection, human walkthrough. TASK-PH2-006/PH3-001/PH3-002 completion and human explanation/review remain **pending**. The [Phase 3 learning review](PHASE-3-IMPLEMENTATION-REVIEW.md) records scope, issues found, and presentation limits. No human signoff, production approval or phase acceptance is implied.
+Still **not run** here: `backup:test`, manual screen-reader/WSL replay, remote CI, branch protection, human walkthrough. TASK-PH2-006/PH3-001/PH3-002 completion and human explanation/review remain **pending**. The [Phase 3 learning review](PHASE-3-IMPLEMENTATION-REVIEW.md) records scope, issues found, and presentation limits. No human signoff, production approval or phase acceptance is implied.
+
+API e2e ordering lesson (2026-09-21 rerun): running all 18 e2e files in one
+parallel vitest invocation fails `catalogue.e2e-spec.ts` (expects 4 offerings,
+sees 8) because admissions suites create synthetic programmes in the shared
+test DB while catalogue counts. Fresh DB + catalogue-first, then the remaining
+17 files, gives 12 + 119 green. The `pg` concurrent-query DeprecationWarning
+above is the pre-existing client warning, not a failure.
+
+## Browser reruns — 2026-09-21 (this checkout, pinned Node 24.21.0)
+
+Separate seeded browser DB `sis_browser_review_docs` (migrated + `ALLOW_DEMO_SEED`
+seed); production builds (`npm run build --workspace=apps/api` incl. committed
+prebuild, `npm run build --workspace=apps/web` — both exit 0); Playwright
+starts API dist on 3101 + web on 3100 with `PORT=3101`,
+`API_INTERNAL_URL=http://127.0.0.1:3101`, `DEMO_MODE=true`,
+`APPLICATION_SCANNER=demo-fixtures`. No shared database was reset.
+
+| Spec | Current result | What it establishes |
+|---|---|---|
+| `admissions-queue.spec.ts` | **1 passed** | Officer claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage |
+| `applicant.spec.ts` | **2 passed** | Mobile keyboard journey + lost-submit recovery; cross-origin denial |
+| `applicant-case.spec.ts` (slice 6) | **1 passed** | Timeline, decision, tickets+reply, corrections, withdraw gate→receipt→`Withdrawn`, inbox; 390px, no overflow, empty localStorage |
+
+Fixes found through these runs (first two test-only, third app UX):
+
+1. Playwright expected headless-shell build 1243 but only 1228/1234 were cached → `browserType.launch` failure. Fixed with `npx playwright install chromium` (environment, not code).
+2. `applicant-case` bare `getByRole("alert")` matched both the app ErrorSummary and Next.js `#__next-route-announcer__` (strict-mode violation). Fixed by scoping to `page.locator("main").getByRole("alert")` (4 sites); ErrorSummary renders inside `<main id="applicant-content">`.
+3. New ticket + ReplyForm never appeared after create without manual reload (`TicketsPage` is server-rendered). Fixed with `router.refresh()` in the shared `useTicketPost` submit (`ticket-forms.tsx`), matching the existing `workspace.tsx` pattern; also refreshes sent replies into view.
+4. `getByLabel("Reply").first()` resolved to the `<form aria-label="Reply to support ticket">` instead of the textbox. Fixed with `{ exact: true }`.
+
+Sign-in screenshots captured from the same production build (desktop + 390px, `/tmp/opencode/signin-desktop.png`, `signin-mobile.png`): demo applicant panel, labelled fields, no mobile overflow. Typecheck + web lint re-verified clean after the `ticket-forms.tsx` change.
