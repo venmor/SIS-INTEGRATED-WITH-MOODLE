@@ -40,8 +40,11 @@ async function loadProgrammes(
     if (first) search.set(key, first);
   }
   try {
+    // Public catalogue data changes only with seed/migrations, so cache per
+    // URL for 5 minutes instead of hitting the API and database on every
+    // visit. Search variations cache under their own query string.
     const res = await fetch(`${api}/catalogue/programmes?${search}`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
     if (!res.ok) return null;
     return (await res.json()) as CataloguePage;
@@ -53,7 +56,11 @@ async function loadProgrammes(
 async function loadRoutes(): Promise<Array<{ code: string; label: string }>> {
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    const res = await fetch(`${api}/catalogue/routes`, { cache: "no-store" });
+    // Qualification routes are reference data: cache for 5 minutes like the
+    // programme catalogue above.
+    const res = await fetch(`${api}/catalogue/routes`, {
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return [];
     return (
       (await res.json()) as {

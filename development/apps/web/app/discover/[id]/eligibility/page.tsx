@@ -18,7 +18,8 @@ async function loadOffering(id: string): Promise<ProgrammeOfferingDetail | null>
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/catalogue/offerings/${id}`, {
-      cache: "no-store",
+      // Published offering detail changes only with seed/migrations.
+      next: { revalidate: 300 },
     });
     if (!res.ok) return null;
     return (await res.json()) as ProgrammeOfferingDetail;
@@ -30,7 +31,10 @@ async function loadOffering(id: string): Promise<ProgrammeOfferingDetail | null>
 async function loadRoutes(): Promise<Array<{ code: string; label: string }>> {
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    const res = await fetch(`${api}/catalogue/routes`, { cache: "no-store" });
+    const res = await fetch(`${api}/catalogue/routes`, {
+      // Qualification routes are reference data: cached for 5 minutes.
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return [];
     return (
       (await res.json()) as {

@@ -46,7 +46,8 @@ async function loadOffering(id: string): Promise<{
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/catalogue/offerings/${id}`, {
-      cache: "no-store",
+      // Published offering detail changes only with seed/migrations.
+      next: { revalidate: 300 },
     });
     if (!res.ok) return { status: res.status, detail: null };
     return {

@@ -26,7 +26,8 @@ async function loadCompare(ids: string): Promise<CompareResult | null> {
   try {
     const res = await fetch(
       `${api}/catalogue/compare?ids=${encodeURIComponent(ids)}`,
-      { cache: "no-store" },
+      // Reference data: cached per compared set for 5 minutes.
+      { next: { revalidate: 300 } },
     );
     if (!res.ok) return null;
     return (await res.json()) as CompareResult;
