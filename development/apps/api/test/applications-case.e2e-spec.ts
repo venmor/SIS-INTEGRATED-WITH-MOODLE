@@ -21,7 +21,8 @@ describe('Phase 2 post-submit applicant case', () => {
   let db: PrismaService;
   let cookie: string;
   let other: string;
-  let sysadmin: string;
+  let officer: string;
+  let approver: string;
   let offeringId: string;
   const csrf = { 'x-requested-with': 'XMLHttpRequest' };
   const key = () => randomUUID();
@@ -33,8 +34,19 @@ describe('Phase 2 post-submit applicant case', () => {
       .send(body);
   const get = (path: string, c = cookie) =>
     request(app.getHttpServer()).get(`/applications${path}`).set('Cookie', c);
+  const reviewPost = (path: string, body: object, c: string) =>
+    request(app.getHttpServer())
+      .post(`/review${path}`)
+      .set(csrf)
+      .set('Cookie', c)
+      .send(body);
 
-  async function user(role = 'APP') {
+  async function user(
+    role = 'APP',
+    capabilities?: string[],
+    scopeType?: string,
+    scopeRef?: string,
+  ) {
     const person = await db.person.create({
       data: {
         displayName: 'Fictional case applicant',
@@ -49,9 +61,11 @@ describe('Phase 2 post-submit applicant case', () => {
       data: {
         accountId: account.id,
         role,
-        scopeType: role === 'APP' ? 'APPLICATION' : 'SYSTEM',
-        scopeRef: role === 'APP' ? account.id : 'SYSTEM',
-        capabilities: role === 'APP' ? ['apply'] : ['administer-case-demo'],
+        scopeType: scopeType ?? (role === 'APP' ? 'APPLICATION' : 'SYSTEM'),
+        scopeRef: scopeRef ?? (role === 'APP' ? account.id : 'SYSTEM'),
+        capabilities:
+          capabilities ??
+          (role === 'APP' ? ['apply'] : ['administer-case-demo']),
         reason: 'isolated test',
         startsAt: new Date('2020-01-01'),
       },
@@ -159,6 +173,66 @@ describe('Phase 2 post-submit applicant case', () => {
     return { id, receipt: submitted.body, cookie: c };
   }
 
+  // Staff-side seeding through the real officer/approver endpoints (GAP-017:
+  // the SYSADMIN simulation endpoints are deleted; suites exercise the same
+  // authority paths as the product). Each helper reads the current version
+  // from the staff summary, so sequential staff writes never go stale.
+  async function staffVersion(id: string, c: string) {
+    const summary = await request(app.getHttpServer())
+      .get(`/review/queue/${id}`)
+      .set('Cookie', c)
+      .expect(200);
+    return (summary.body as { version: number }).version;
+  }
+
+  async function staffClaim(id: string, applicantCookie: string) {
+    // Claim first: the staff summary only exists for claimed cases, so the
+    // claim carries the applicant timeline version.
+    const timeline = await request(app.getHttpServer())
+      .get(`/applications/${id}/timeline`)
+      .set('Cookie', applicantCookie)
+      .expect(200);
+    const version = (timeline.body as { version: number }).version;
+    await reviewPost(
+      `/${id}/claim`,
+      { version, idempotencyKey: key() },
+      officer,
+    ).expect(201);
+  }
+
+  async function staffClarify(
+    id: string,
+    question: string,
+    extra: object = {},
+  ) {
+    const res = await reviewPost(
+      `/${id}/clarifications`,
+      {
+        version: await staffVersion(id, officer),
+        idempotencyKey: key(),
+        question,
+        ...extra,
+      },
+      officer,
+    ).expect(201);
+    return res.body as { id: string; status: string };
+  }
+
+  async function staffRecommend(id: string) {
+    const res = await reviewPost(
+      `/${id}/recommendations`,
+      {
+        version: await staffVersion(id, officer),
+        idempotencyKey: key(),
+        eligibilityOutcome: 'ELIGIBLE',
+        recommendation: 'FAVOURABLE',
+        rationale: 'Fixture recommendation for decision tests.',
+      },
+      officer,
+    ).expect(201);
+    return res.body as { id: string };
+  }
+
   beforeAll(async () => {
     const database = process.env.DATABASE_URL;
     if (!database || !/(test|review|ci)/i.test(new URL(database).pathname))
@@ -186,7 +260,12 @@ describe('Phase 2 post-submit applicant case', () => {
     db = app.get(PrismaService);
     cookie = (await user()).cookie;
     other = (await user()).cookie;
-    sysadmin = (await user('SYSADMIN')).cookie;
+    officer = (
+      await user('ADMISSIONS_OFFICER', ['review-assigned'], 'INTAKE', '2026')
+    ).cookie;
+    approver = (
+      await user('ADMISSIONS_APPROVER', ['decide-offer'], 'INTAKE', '2026')
+    ).cookie;
     const seeded = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: 'SWE' }, availability: 'OPEN' },
     });
@@ -229,12 +308,9 @@ describe('Phase 2 post-submit applicant case', () => {
 
   it('case-clarify-flow: simulate, respond, receipt, closed on replay', async () => {
     const { id, cookie: mine } = await submittedApp();
-    const sim = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Provide a complete result statement.', idempotencyKey: key() },
-      sysadmin,
-    ).expect(201);
-    const clarId = sim.body.id as string;
+    await staffClaim(id, mine);
+    const clar = await staffClarify(id, 'Provide a complete result statement.');
+    const clarId = clar.id;
     const listed = await get(`/${id}/clarifications`, mine).expect(200);
     expect(
       (listed.body as { items: Array<{ id: string }> }).items.some(
@@ -345,7 +421,10 @@ describe('Phase 2 post-submit applicant case', () => {
       confirmed: true,
       idempotencyKey: key(),
     }).expect(201);
-    const draftTimeline = await get(`/${draft.body.id}/timeline`, cookie).expect(200);
+    const draftTimeline = await get(
+      `/${draft.body.id}/timeline`,
+      cookie,
+    ).expect(200);
     const draftVersion = (draftTimeline.body as { version: number }).version;
     await post(
       `/${draft.body.id}/corrections`,
@@ -363,25 +442,39 @@ describe('Phase 2 post-submit applicant case', () => {
   it('case-decision: pending is neutral, released decision views fully', async () => {
     const { id, cookie: mine } = await submittedApp();
     await get(`/${id}/decision`, mine).expect(404);
-    await post(
-      `/${id}/simulate-decision`,
+    await staffClaim(id, mine);
+    await staffRecommend(id);
+    await reviewPost(
+      `/${id}/decision/release`,
       {
-        outcome: 'OFFERED',
-        message: 'Offered a place with conditions.',
-        conditions: ['Provide certified documents.'],
+        version: await staffVersion(id, approver),
         idempotencyKey: key(),
+        outcome: 'ADMIT_WITH_CONDITIONS',
+        message: 'Offered a place with conditions.',
+        acceptBy: '2027-01-15T17:00:00.000Z',
+        conditions: [
+          {
+            text: 'Provide certified documents.',
+            detail: null,
+            owner: 'APPLICANT',
+            deadline: null,
+            blocksMatriculation: false,
+          },
+        ],
       },
-      sysadmin,
+      approver,
     ).expect(201);
     const res = await get(`/${id}/decision`, mine).expect(200);
     const body = res.body as {
       outcome: string;
       message: string;
-      conditions: string[];
+      conditions: Array<{ text: string }>;
       reference: string;
     };
-    expect(body.outcome).toBe('OFFERED');
-    expect(body.conditions).toEqual(['Provide certified documents.']);
+    expect(body.outcome).toBe('ADMIT_WITH_CONDITIONS');
+    expect(body.conditions.map((c) => c.text)).toEqual([
+      'Provide certified documents.',
+    ]);
     expect(JSON.stringify(body)).not.toContain('assessor');
     const notes = await get('/notifications', mine).expect(200);
     const titles = (
@@ -423,9 +516,7 @@ describe('Phase 2 post-submit applicant case', () => {
       again.body as {
         items: Array<{ messages: Array<{ body: string }> }>;
       }
-    ).items.find((t) =>
-      t.messages.some((m) => m.body === 'Extra detail.'),
-    );
+    ).items.find((t) => t.messages.some((m) => m.body === 'Extra detail.'));
     expect(found).toBeDefined();
   });
 
@@ -469,11 +560,8 @@ describe('Phase 2 post-submit applicant case', () => {
 
   it('case-notifications: list, mark read, foreign cannot read', async () => {
     const { id, cookie: mine } = await submittedApp();
-    await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Notify me.', idempotencyKey: key() },
-      sysadmin,
-    ).expect(201);
+    await staffClaim(id, mine);
+    await staffClarify(id, 'Notify me.');
     const listed = await get('/notifications', mine).expect(200);
     const items = (listed.body as { items: Array<{ id: string }> }).items;
     expect(items.length).toBeGreaterThan(0);
@@ -488,66 +576,70 @@ describe('Phase 2 post-submit applicant case', () => {
   });
 
   it('case-idempotency: same key replays the stored receipt', async () => {
-    const { id } = await submittedApp();
+    const { id, cookie: mine } = await submittedApp();
+    await staffClaim(id, mine);
     const same = key();
-    const first = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Replay me.', idempotencyKey: same },
-      sysadmin,
+    // Same key AND same payload (pinned version): the stored result replays.
+    const version = await staffVersion(id, officer);
+    const body = { version, idempotencyKey: same, question: 'Replay me.' };
+    const first = await reviewPost(
+      `/${id}/clarifications`,
+      body,
+      officer,
     ).expect(201);
-    const second = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Replay me.', idempotencyKey: same },
-      sysadmin,
+    const second = await reviewPost(
+      `/${id}/clarifications`,
+      body,
+      officer,
     ).expect(201);
     expect(second.body.id).toBe(first.body.id);
   });
 
-  it('case-sim-forbidden: applicants cannot drive the simulation', async () => {
+  it('case-sims-removed: the simulation endpoints are gone', async () => {
     const { id } = await submittedApp();
     await post(`/${id}/simulate-clarification`, {
       question: 'Self ask.',
       idempotencyKey: key(),
-    }).expect(403);
-    await post(
-      `/${id}/simulate-decision`,
-      {
-        outcome: 'OFFERED',
-        message: 'Self grant.',
-        idempotencyKey: key(),
-      },
-    ).expect(403);
+    }).expect(404);
+    await post(`/${id}/simulate-decision`, {
+      outcome: 'ADMIT',
+      message: 'Self grant.',
+      idempotencyKey: key(),
+    }).expect(404);
+    await post(`/${id}/simulate-correction-decision`, {
+      correctionId: randomUUID(),
+      approve: true,
+      idempotencyKey: key(),
+    }).expect(404);
   });
 
   it('case-version: stale versions conflict on case writes', async () => {
     const { id, cookie: mine } = await submittedApp();
-    const timeline = await get(`/${id}/timeline`, mine).expect(200);
-    const version = (timeline.body as { version: number }).version;
-    const sim = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Version check.', idempotencyKey: key() },
-      sysadmin,
-    ).expect(201);
-    const clarId = sim.body.id as string;
+    await staffClaim(id, mine);
+    const clar = await staffClarify(id, 'Version check.');
+    const clarId = clar.id;
+    // Staff writes advance the version: re-read before responding.
+    const fresh = await get(`/${id}/timeline`, mine).expect(200);
+    const current = (fresh.body as { version: number }).version;
     // Stale version must conflict with current version surfaced.
     const stale = await post(
       `/${id}/clarifications/${clarId}/respond`,
       {
-        version: version + 99,
+        version: current + 99,
         response: 'Stale attempt.',
         idempotencyKey: key(),
       },
       mine,
     ).expect(409);
     expect((stale.body as { code: string }).code).toBe('VERSION_CONFLICT');
-    expect(
-      (stale.body as { currentVersion?: number }).currentVersion,
-    ).toBe(version);
+    expect((stale.body as { currentVersion?: number }).currentVersion).toBe(
+      current,
+    );
     // Correct version succeeds.
     const ok = await post(
       `/${id}/clarifications/${clarId}/respond`,
       {
-        version,
+        version: current,
         response: 'Current version response.',
         idempotencyKey: key(),
       },
@@ -600,20 +692,13 @@ describe('Phase 2 post-submit applicant case', () => {
 
   it('case-scoped: responding to one clarification leaves others open', async () => {
     const { id, cookie: mine } = await submittedApp();
+    await staffClaim(id, mine);
+    const first = await staffClarify(id, 'First item.');
+    const second = await staffClarify(id, 'Second item.');
     const timeline = await get(`/${id}/timeline`, mine).expect(200);
     const version = (timeline.body as { version: number }).version;
-    const first = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'First item.', idempotencyKey: key() },
-      sysadmin,
-    ).expect(201);
-    const second = await post(
-      `/${id}/simulate-clarification`,
-      { question: 'Second item.', idempotencyKey: key() },
-      sysadmin,
-    ).expect(201);
     await post(
-      `/${id}/clarifications/${first.body.id}/respond`,
+      `/${id}/clarifications/${first.id}/respond`,
       {
         version,
         response: 'Answering only the first.',
@@ -622,9 +707,13 @@ describe('Phase 2 post-submit applicant case', () => {
       mine,
     ).expect(201);
     const listed = await get(`/${id}/clarifications`, mine).expect(200);
-    const items = (listed.body as { items: Array<{ id: string; status: string; response: string | null }> }).items;
-    const answered = items.find((c) => c.id === first.body.id);
-    const untouched = items.find((c) => c.id === second.body.id);
+    const items = (
+      listed.body as {
+        items: Array<{ id: string; status: string; response: string | null }>;
+      }
+    ).items;
+    const answered = items.find((c) => c.id === first.id);
+    const untouched = items.find((c) => c.id === second.id);
     expect(answered?.status).toBe('ANSWERED');
     expect(answered?.response).toBe('Answering only the first.');
     expect(untouched?.status).toBe('OPEN');
@@ -643,39 +732,50 @@ describe('Phase 2 post-submit applicant case', () => {
     const version = (timeline.body as { version: number }).version;
     const done = await post(
       `/${id}/withdraw`,
-      { version, confirmed: true, reason: 'Wording check.', idempotencyKey: key() },
+      {
+        version,
+        confirmed: true,
+        reason: 'Wording check.',
+        idempotencyKey: key(),
+      },
       mine,
     ).expect(201);
     expect((done.body as { receipt: string }).receipt).toBeDefined();
     const after = await get(`/${id}/timeline`, mine).expect(200);
-    const events = (after.body as { events: Array<{ code: string; detail: string | null }> }).events;
+    const events = (
+      after.body as { events: Array<{ code: string; detail: string | null }> }
+    ).events;
     const withdrawn = events.find((e) => e.code === 'Withdrawn');
     expect(withdrawn).toBeDefined();
     expect(withdrawn?.detail ?? '').toMatch(/refund/i);
     expect(withdrawn?.detail ?? '').toMatch(/separate/i);
   });
 
-  it('case-notify-dedupe: replaying a simulation does not duplicate notices', async () => {
+  it('case-notify-dedupe: replaying a request does not duplicate notices', async () => {
     const { id, cookie: mine } = await submittedApp();
+    await staffClaim(id, mine);
     const before = await get('/notifications', mine).expect(200);
-    const beforeCount = (
-      before.body as { items: Array<unknown> }
-    ).items.length;
+    const beforeCount = (before.body as { items: Array<unknown> }).items.length;
     const same = key();
-    const payload = { question: 'Dedupe check.', idempotencyKey: same };
-    const first = await post(
-      `/${id}/simulate-clarification`,
+    const version = await staffVersion(id, officer);
+    const payload = {
+      version,
+      idempotencyKey: same,
+      question: 'Dedupe check.',
+    };
+    const first = await reviewPost(
+      `/${id}/clarifications`,
       payload,
-      sysadmin,
+      officer,
     ).expect(201);
     const afterFirst = await get('/notifications', mine).expect(200);
     const firstCount = (afterFirst.body as { items: Array<unknown> }).items
       .length;
     expect(firstCount).toBe(beforeCount + 1);
-    const second = await post(
-      `/${id}/simulate-clarification`,
+    const second = await reviewPost(
+      `/${id}/clarifications`,
       payload,
-      sysadmin,
+      officer,
     ).expect(201);
     expect(second.body.id).toBe(first.body.id);
     const afterSecond = await get('/notifications', mine).expect(200);
@@ -713,6 +813,7 @@ describe('Phase 2 post-submit applicant case', () => {
 
   it('case-correction-decision: approval preserves the submitted snapshot', async () => {
     const { id, cookie: mine } = await submittedApp();
+    await staffClaim(id, mine);
     const timeline = await get(`/${id}/timeline`, mine).expect(200);
     const version = (timeline.body as { version: number }).version;
     const created = await post(
@@ -731,20 +832,21 @@ describe('Phase 2 post-submit applicant case', () => {
       where: { applicationId: id },
     });
     const snapshotBefore = JSON.stringify(submission.snapshot);
-    const approved = await post(
-      `/${id}/simulate-correction-decision`,
+    const approved = await reviewPost(
+      `/corrections/${correctionId}/decide`,
       {
-        correctionId,
         approve: true,
         note: 'Approved in demo.',
         idempotencyKey: key(),
       },
-      sysadmin,
+      officer,
     ).expect(201);
     expect((approved.body as { status: string }).status).toBe('APPROVED');
     const listed = await get(`/${id}/corrections`, mine).expect(200);
     const found = (
-      listed.body as { items: Array<{ id: string; status: string; decidedAt: string | null }> }
+      listed.body as {
+        items: Array<{ id: string; status: string; decidedAt: string | null }>;
+      }
     ).items.find((c) => c.id === correctionId);
     expect(found?.status).toBe('APPROVED');
     expect(found?.decidedAt).not.toBeNull();
@@ -764,6 +866,7 @@ describe('Phase 2 post-submit applicant case', () => {
 
   it('case-correction-decline: declined corrections record a decision', async () => {
     const { id, cookie: mine } = await submittedApp();
+    await staffClaim(id, mine);
     const timeline = await get(`/${id}/timeline`, mine).expect(200);
     const version = (timeline.body as { version: number }).version;
     const created = await post(
@@ -778,15 +881,14 @@ describe('Phase 2 post-submit applicant case', () => {
       mine,
     ).expect(201);
     const correctionId = (created.body as { id: string }).id;
-    const declined = await post(
-      `/${id}/simulate-correction-decision`,
+    const declined = await reviewPost(
+      `/corrections/${correctionId}/decide`,
       {
-        correctionId,
         approve: false,
         note: 'Locked after deadline.',
         idempotencyKey: key(),
       },
-      sysadmin,
+      officer,
     ).expect(201);
     expect((declined.body as { status: string }).status).toBe('REJECTED');
   });

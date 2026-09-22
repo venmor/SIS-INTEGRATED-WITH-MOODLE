@@ -38,10 +38,11 @@ export default async function DecisionPage({
       <p className={styles.eyebrow}>Application {decision.reference}</p>
       <h1>Admission decision</h1>
       <p className={styles.muted}>
-        Decided {formatLusaka(decision.decidedAt)}. Opened by you just now;
-        this page is never previewed in notifications.
+        Decided {formatLusaka(decision.decidedAt)}. Opened by you just now; this
+        page is never previewed in notifications.
       </p>
-      {decision.outcome === "OFFERED" ? (
+      {decision.outcome === "ADMIT" ||
+      decision.outcome === "ADMIT_WITH_CONDITIONS" ? (
         <>
           <h2>You have received an admission offer</h2>
           <p>{decision.message}</p>
@@ -50,13 +51,21 @@ export default async function DecisionPage({
               <h3>Conditions</h3>
               <ul>
                 {decision.conditions.map((condition) => (
-                  <li key={condition}>{condition}</li>
+                  <li key={condition.text}>
+                    {condition.text}
+                    {condition.deadline ? (
+                      <> — meet by {formatLusaka(condition.deadline)}</>
+                    ) : null}
+                    {condition.blocksMatriculation ? (
+                      <> (required before registration)</>
+                    ) : null}
+                  </li>
                 ))}
               </ul>
             </>
           ) : null}
         </>
-      ) : decision.outcome === "WAITLISTED" ? (
+      ) : decision.outcome === "WAITLIST" ? (
         <>
           <h2>Your application is on the waiting list</h2>
           <p>{decision.message}</p>

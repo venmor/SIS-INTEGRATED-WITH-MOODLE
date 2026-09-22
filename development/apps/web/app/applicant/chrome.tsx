@@ -75,6 +75,8 @@ export function ApplicationCaseNav({
     ["clarifications", "Clarification requests"],
     ["corrections", "Correction requests"],
     ["decision", "Admission decision"],
+    ["offer", "Admission offer"],
+    ["onboarding", "Onboarding tasks"],
     ["tickets", "Support tickets"],
     ["withdraw", "Withdraw application"],
   ];
@@ -91,7 +93,8 @@ export function ApplicationCaseNav({
   );
 }
 
-export function ApplicationSteps({  application,
+export function ApplicationSteps({
+  application,
 }: {
   application: ApplicationView;
 }) {

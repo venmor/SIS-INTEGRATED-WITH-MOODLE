@@ -129,8 +129,9 @@ describe('Phase 3 evidence and declaration comparison', () => {
       .field('idempotencyKey', key())
       .attach('file', pdf, 'fictional-result.pdf')
       .expect(201);
-    const docId = (uploaded.body as { documents: Array<{ id: string }> })
-      .documents.at(-1)?.id as string;
+    const docId = (
+      uploaded.body as { documents: Array<{ id: string }> }
+    ).documents.at(-1)?.id as string;
     version = (uploaded.body as { version: number }).version;
     await appPost(
       `/${id}/documents/${docId}/scan`,
@@ -222,9 +223,9 @@ describe('Phase 3 evidence and declaration comparison', () => {
       documents: Array<{ category: string; status: string }>;
     };
     expect(body.applicationId).toBe(id);
-    expect(
-      body.documents.some((d) => d.category === 'qualification'),
-    ).toBe(true);
+    expect(body.documents.some((d) => d.category === 'qualification')).toBe(
+      true,
+    );
     // No file bytes in the projection.
     expect(JSON.stringify(body)).not.toContain('content');
     await get(`/${id}/evidence`, officer2).expect(404);
@@ -370,6 +371,76 @@ describe('Phase 3 evidence and declaration comparison', () => {
     expect((dupe.body as { code: string }).code).toBe('DUPLICATE_TASK');
   });
 
+  it('summary-answered-counts: answered items leave the open counts', async () => {
+    const app = await claimedApp(officer);
+    const id = app.id;
+    let officerVersion = app.version;
+    const applicant = app.cookie;
+    const summary = async () =>
+      (await get(`/queue/${id}`, officer).expect(200)).body as {
+        openClarifications: number;
+        openCorrections: number;
+      };
+    // Raise a clarification: open count rises.
+    const created = await post(
+      `/${id}/clarifications`,
+      {
+        version: officerVersion,
+        question: 'Provide a complete result statement.',
+        deadlineDays: 7,
+        idempotencyKey: key(),
+      },
+      officer,
+    ).expect(201);
+    const clarId = (created.body as { id: string }).id;
+    officerVersion += 1;
+    expect((await summary()).openClarifications).toBe(1);
+    // Applicant answers through the existing flow.
+    const applicantVersion = (
+      (await appGet(`/${id}/timeline`, applicant).expect(200)).body as {
+        version: number;
+      }
+    ).version;
+    await appPost(
+      `/${id}/clarifications/${clarId}/respond`,
+      {
+        version: applicantVersion,
+        idempotencyKey: key(),
+        response: 'Uploaded a clearer copy.',
+      },
+      applicant,
+    ).expect(201);
+    // Answered: history keeps it, open count drops.
+    expect((await summary()).openClarifications).toBe(0);
+    // Correction requested then decided: open count drops.
+    const correctionVersion = (
+      (await appGet(`/${id}/timeline`, applicant).expect(200)).body as {
+        version: number;
+      }
+    ).version;
+    const correction = await appPost(
+      `/${id}/corrections`,
+      {
+        version: correctionVersion,
+        idempotencyKey: key(),
+        section: 'contact',
+        field: 'preferredChannel',
+        reason: 'Changed number.',
+      },
+      applicant,
+    ).expect(201);
+    const correctionId = (correction.body as { id: string }).id;
+    expect((await summary()).openCorrections).toBe(1);
+    await post(
+      `/corrections/${correctionId}/decide`,
+      { approve: false, note: 'Not needed.', idempotencyKey: key() },
+      officer,
+    ).expect(201);
+    const closed = await summary();
+    expect(closed.openCorrections).toBe(0);
+    expect(closed.openClarifications).toBe(0);
+  });
+
   it('correction-decide-regated: officer decides, applicant cannot', async () => {
     const { id, version, cookie } = await claimedApp(officer);
     const correction = await appPost(
@@ -460,9 +531,7 @@ describe('Phase 3 evidence and declaration comparison', () => {
     expect(codes).not.toContain('ReviewClaimed');
     expect(codes).toContain('Submitted');
     const notes = await appGet('/notifications', cookie).expect(200);
-    expect(
-      (notes.body as { items: Array<unknown> }).items.length,
-    ).toBe(0);
+    expect((notes.body as { items: Array<unknown> }).items.length).toBe(0);
   });
 
   it('evidence-version-bump: applicant writes invalidate stale officer state', async () => {

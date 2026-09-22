@@ -22,10 +22,10 @@ Store application-local task packets, ADRs, learning records and evidence in the
 - [Phase 0, Phase 1 and Phase 2 slice 1 review](docs/learning/PRIOR-PHASE-REVIEW.md).
 - [Phase 2 slices 2–5 requirement-to-code-to-test map](docs/learning/PHASE-2-IMPLEMENTATION-REVIEW.md), with slice 6 post-submit case row added 2026-09-21 (code committed in `e44170a`; human review pending).
 - [Phase 2 slice 6 learning note](docs/learning/NOTE-PH2-006.md): status timeline, clarification, correction, decision, tickets, withdrawal, inbox.
-- [Phase 3 slices 1–2 learning notes](docs/learning/NOTE-PH3-001.md) ([slice 2](docs/learning/NOTE-PH3-002.md)).
+- [Phase 3 slices 1–6 learning notes](docs/learning/NOTE-PH3-001.md) ([slice 2](docs/learning/NOTE-PH3-002.md), [slice 3](docs/learning/NOTE-PH3-003.md), [slice 4](docs/learning/NOTE-PH3-004.md), [slice 5](docs/learning/NOTE-PH3-005.md), [slice 6](docs/learning/NOTE-PH3-006.md)).
 - [Runbook and presentation rehearsal](docs/demo/APPLICANT-WALKTHROUGH.md).
 - [Institutional and production gaps](docs/gaps/GAP-015-applicant-production-and-prior-phase-gates.md).
 - [Recorded decisions](docs/adr/ADR-002-applicant-demonstration-boundaries.md).
-- [Phase 3 slices 1–2 review (2026-09-21, committed in `e44170a`)](docs/learning/PHASE-3-IMPLEMENTATION-REVIEW.md): assigned queue and evidence comparison for fictional reviewers; slices 3–6 pending.
+- [Phase 3 slices 1–6 review (2026-09-21; slices 1–2 in `e44170a`, slices 3–6 in the worktree)](docs/learning/PHASE-3-IMPLEMENTATION-REVIEW.md): assigned queue, evidence comparison, clarification round-trip, recommendation, decision/offer, acceptance/onboarding; Phase 4 conversion pending.
 
 `REQ-ADM-002`/`ACT-APP-001` map to owned draft/section saving. `REQ-ADM-003` maps to current-section/document readiness. `REQ-ADM-004`/`ACT-APP-002` map to immutable, idempotent submission. Exact Blueprint 1 Parts 4–8 supply detailed actions without invented handbook identifiers. Endpoint names and test titles are implementation references, not new institutional requirement IDs.

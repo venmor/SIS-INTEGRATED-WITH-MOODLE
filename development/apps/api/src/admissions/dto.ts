@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -93,14 +94,6 @@ export class TicketReplyDto extends VersionDto {
   @MaxLength(2000)
   message!: string;
 }
-export class SimCorrectionDecisionDto extends KeyDto {
-  @IsUUID() correctionId!: string;
-  @IsBoolean() approve!: boolean;
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  note?: string;
-}
 // Phase 3 slice 1 staff queue DTOs (TASK-PH3-001). Claim/release carry the
 // reviewed application version plus the idempotency key, matching the
 // applicant case-write pattern.
@@ -172,28 +165,105 @@ export class CorrectionDecideDto extends KeyDto {
   @MaxLength(500)
   note?: string;
 }
-export class SimClarificationDto extends KeyDto {
+// Phase 3 slice 4 recommendation DTOs (TASK-PH3-004). Outcomes and
+// recommendations are demo enumerations validated against the versioned demo
+// criteria in @sis/config; the service stamps criteriaVersion server-side.
+// supersedesId targets the currently ACTIVE package for an explicit,
+// history-preserving new version.
+export class RecommendationDto extends VersionDto {
   @IsString()
-  @MaxLength(1000)
-  question!: string;
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(60)
-  deadlineDays?: number;
-}
-export class SimDecisionDto extends KeyDto {
+  @IsIn(['ELIGIBLE', 'NOT_ELIGIBLE', 'UNDETERMINED'])
+  eligibilityOutcome!: string;
   @IsString()
-  @IsIn(['OFFERED', 'NOT_OFFERED', 'WAITLISTED'])
-  outcome!: string;
-  @IsString()
-  @MaxLength(2000)
-  message!: string;
+  @IsIn(['FAVOURABLE', 'UNFAVOURABLE', 'NEEDS_INFORMATION'])
+  recommendation!: string;
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)
   @IsString({ each: true })
-  @MaxLength(300, { each: true })
-  conditions?: string[];
+  @MaxLength(40, { each: true })
+  criteria?: string[];
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  rationale!: string;
+  @IsOptional()
+  @IsUUID()
+  supersedesId?: string;
+}
+// Phase 3 slice 5 decision release DTOs (TASK-PH3-005). Outcomes follow the
+// Design Section 6 catalogue; conditions carry text plus optional deadline
+// and matriculation-blocking flag (never generic "Conditional").
+export class DecisionConditionDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  text!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  detail?: string;
+  @IsString()
+  @IsIn(['APPLICANT', 'ADMISSIONS', 'FINANCE', 'OTHER'])
+  owner!: string;
+  @IsOptional()
+  @IsDateString()
+  deadline?: string;
+  @IsOptional()
+  @IsBoolean()
+  blocksMatriculation?: boolean;
+}
+export class ReleaseDecisionDto extends VersionDto {
+  @IsString()
+  @IsIn([
+    'ADMIT',
+    'ADMIT_WITH_CONDITIONS',
+    'WAITLIST',
+    'REJECT',
+    'REFER_TO_ALTERNATIVE_PROGRAMME',
+    'REQUEST_FURTHER_REVIEW',
+  ])
+  outcome!: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  message!: string;
+  @IsDateString()
+  acceptBy!: string;
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => DecisionConditionDto)
+  conditions!: DecisionConditionDto[];
+}
+// Phase 3 slice 6 offer acceptance DTOs (TASK-PH3-006). Exactly one immutable
+// response per application; decline carries an optional reason.
+export class OfferResponseDto extends VersionDto {
+  @IsString()
+  @IsIn(['ACCEPT', 'DECLINE'])
+  decision!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  declarations?: string[];
+}
+export class TaskCompleteDto extends VersionDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  taskKey!: string;
+}
+export class ExtendOfferDto extends VersionDto {
+  @IsDateString()
+  newDeadline!: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
 }

@@ -1,8 +1,9 @@
 # GAP-017 — Simulation endpoint removal and re-gating (Phase 3 exit)
 
-Status: Open
+Status: Implemented in code, pending human decision
 Raised by: implementation review, Phase 3 slices 1–2
 Date: 2026-09-21
+Resolved in code: 2026-09-21 (TASK-PH3-005, uncommitted worktree)
 
 ## Missing or contradictory design
 
@@ -32,6 +33,17 @@ authority evidence.
 Re-gate clarification/correction sims to officer authority or delete them
 once no suite needs them; decision sim stays SYSADMIN-gated until slice 5;
 final removal before any production use.
+
+## Resolution (code, 2026-09-21)
+
+All three simulation endpoints (`simulate-clarification`,
+`simulate-correction-decision`, `simulate-decision`) plus `staffGate`,
+`simIdempotent`, `staffAudit` and the Sim DTOs are deleted. Suites seed
+through the real officer/approver endpoints instead
+(`applications-case.e2e-spec.ts` uses claim/raise/recommend/release/decide;
+removed-endpoint calls assert 404). The approver release reuses the sims'
+neutral event/notification wording. Full API e2e (20 files) and browser
+(4 tests) pass without sims.
 
 ## Human decision
 

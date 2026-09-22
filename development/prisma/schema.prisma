@@ -400,6 +400,9 @@ model Application {
   notifications ApplicantNotification[]
   reviewAssignments ReviewAssignment[]
   reviewFindings ReviewFinding[]
+  recommendations ReviewRecommendation[]
+  offerResponse ApplicationOfferResponse?
+  onboardingTasks OnboardingTask[]
   @@index([accountId, updatedAt])
   @@index([offeringId])
   @@index([state, createdAt])
@@ -503,6 +506,13 @@ model ApplicationDecision {
   outcome String
   message String
   conditions Json?
+  // Offer version, explicit per the Phase 3 exit gate. A linked superseding
+  // decision bumps it; decisions are never overwritten (slice 5 releases
+  // version 1; re-release of the same decision is refused, not replaced).
+  version Int @default(1)
+  // Offer acceptance deadline (slice 6). Null only for legacy rows; the
+  // release path always sets it. Late responses need an authorized extension.
+  acceptBy DateTime?
   decidedAt DateTime @default(now())
   releasedAt DateTime?
 }
@@ -579,5 +589,61 @@ model ReviewFinding {
   status String @default("OPEN")
   createdByAccountId String
   createdAt DateTime @default(now())
+  @@index([applicationId, status])
+}
+
+// Phase 3 slice 4: eligibility and recommendation package. One ACTIVE row per
+// application, enforced by the partial unique index in migration
+// 20260923120000_ph3_recommendation (same hand-maintained pattern as
+// ReviewAssignment). A new version supersedes the old row; history is never
+// overwritten. createdByAccountId supports the slice-5 self-approval check.
+model ReviewRecommendation {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  version Int
+  eligibilityOutcome String
+  recommendation String
+  criteriaVersion String
+  criteria Json?
+  rationale String
+  status String @default("ACTIVE")
+  createdByAccountId String
+  createdAt DateTime @default(now())
+  decidedAt DateTime?
+  @@index([applicationId, status])
+}
+
+// Phase 3 slice 6: immutable offer response. Exactly one row per application
+// (unique applicationId, no update path): accept or decline, recorded once.
+// A second response attempt receives the stored final status; decline is
+// final unless an authorized reconsideration reopens it (later work).
+model ApplicationOfferResponse {
+  id String @id @default(uuid())
+  applicationId String @unique
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  decision String
+  reason String?
+  receipt String
+  respondedAt DateTime @default(now())
+}
+
+// Phase 3 slice 6: onboarding task list. Created from the demo task list when
+// an offer is accepted. Applicant-owned tasks complete through the applicant
+// case; institution-owned tasks stay pending until staff work completes them
+// (later slices). No task here creates a student record (Phase 4 boundary).
+model OnboardingTask {
+  id String @id @default(uuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  taskKey String
+  title String
+  owner String
+  required Boolean @default(true)
+  status String @default("PENDING")
+  dueAt DateTime?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([applicationId, taskKey])
   @@index([applicationId, status])
 }

@@ -210,8 +210,11 @@ describe('break-glass (e2e)', () => {
     expect(granted[0].role).toBe('SYSADMIN');
     assignmentIds.push(granted[0].id);
 
+    // Oldest first: the replay writes a second row for the same target, so
+    // an unordered lookup can return either under parallel-suite load.
     const audit = await prisma.auditEvent.findFirst({
       where: { targetRef: granted[0].id, action: 'CMD-IAM-BreakGlass' },
+      orderBy: { occurredAt: 'asc' },
     });
     expect(audit).toBeDefined();
     expect(audit?.outcome).toBe('ALLOW');

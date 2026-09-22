@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOriginMutation } from "../../../../lib/same-origin";
 const uuid = "[a-fA-F0-9-]{36}";
 const reads = new RegExp(
-  `^(|policy|commands/${uuid}|notifications|${uuid}(/review|/receipt|/timeline|/decision|/tickets|/clarifications|/corrections|/documents/${uuid}/content)?)$`,
+  `^(|policy|commands/${uuid}|notifications|${uuid}(/review|/receipt|/timeline|/decision|/offer|/onboarding|/tickets|/clarifications|/corrections|/documents/${uuid}/content)?)$`,
 );
 const writes = new RegExp(
-  `^(|${uuid}/(sections/(personal|contact|qualifications)|documents|documents/${uuid}/scan|change-programme|discard|submit|clarifications/${uuid}/respond|corrections|withdraw|tickets|tickets/${uuid}/replies)|notifications/${uuid}/read)$`,
+  `^(|${uuid}/(sections/(personal|contact|qualifications)|documents|documents/${uuid}/scan|change-programme|discard|submit|clarifications/${uuid}/respond|corrections|withdraw|tickets|tickets/${uuid}/replies|offer/response|onboarding/tasks)|notifications/${uuid}/read)$`,
 );
 async function proxy(
   req: NextRequest,

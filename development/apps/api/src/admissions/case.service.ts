@@ -1,21 +1,23 @@
 import { Injectable, HttpException } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
 import type {
   ApplicantNotification,
+  ApplicantOfferView,
   ApplicantTimeline,
   ApplicationStatusEvent,
   ClarificationView,
   CorrectionRequestView,
   DecisionOutcome,
   DecisionView,
+  OfferReceipt,
+  OnboardingView,
   SupportTicketView,
   WithdrawalReceipt,
 } from '@sis/contracts';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
-import { hasActiveAuthority } from '../identity-access/active-authority.js';
 import { ApplicationsService } from './applications.service.js';
 import { visibleTimeline } from './case.js';
 
@@ -27,9 +29,8 @@ const json = (v: unknown) =>
 // responses, correction requests, decision viewing, support tickets,
 // withdrawal with receipt, notification inbox. Read/write split: applicant
 // views never include staff-only rows (visibleTimeline); staff issuance
-// arrives only through the SYSADMIN-gated simulation endpoints below, which
-// write the same commands/events/audit rows the Phase 3 queue will write.
-// Removal before any production use is tracked as an open gate.
+// arrives through the Phase 3 officer/approver endpoints, which write the
+// same commands/events/audit rows (GAP-017 closed in slice 5).
 @Injectable()
 export class ApplicationCaseService {
   constructor(
@@ -55,19 +56,6 @@ export class ApplicationCaseService {
       },
       status,
     );
-  }
-
-  private async staffGate(actor: ActiveAuthority): Promise<void> {
-    const ok = await hasActiveAuthority(this.prisma, actor, ['SYSADMIN']);
-    if (!ok) {
-      throw new HttpException(
-        {
-          message:
-            'This demonstration action needs an administrator workspace.',
-        },
-        403,
-      );
-    }
   }
 
   private async event(
@@ -121,72 +109,6 @@ export class ApplicationCaseService {
         { currentVersion: row.version },
       );
     }
-  }
-
-  // Simulation endpoints bypass apps.command() (its actor() gate requires
-  // an APP workspace; SYSADMIN drives these). Same idempotency contract:
-  // key bound to actor/action/payload, replay returns the stored response.
-  private async simIdempotent<T>(
-    actor: ActiveAuthority,
-    key: string,
-    action: string,
-    payload: unknown,
-    fn: () => Promise<T>,
-  ): Promise<T> {
-    const digest = createHash('sha256')
-      .update(JSON.stringify(payload))
-      .digest('hex');
-    const prior = await this.prisma.applicationCommand.findUnique({
-      where: { key },
-    });
-    if (prior) {
-      if (
-        prior.accountId !== actor.accountId ||
-        prior.action !== action ||
-        prior.digest !== digest
-      ) {
-        this.fail(
-          'IDEMPOTENCY_CONFLICT',
-          'This request reference belongs to a different action. Review the current saved state.',
-        );
-      }
-      return prior.response as T;
-    }
-    const body = await fn();
-    await this.prisma.applicationCommand.create({
-      data: {
-        key,
-        accountId: actor.accountId,
-        action,
-        digest,
-        status: 201,
-        response: JSON.parse(JSON.stringify(body)),
-      },
-    });
-    return body;
-  }
-
-  private async staffAudit(
-    db: Tx,
-    actor: ActiveAuthority,
-    action: string,
-    applicationId: string,
-    outcome = 'ALLOW',
-  ): Promise<void> {
-    await db.auditEvent.create({
-      data: {
-        action,
-        actorAccountId: actor.accountId,
-        activeRole: actor.activeRole ?? 'SYSADMIN',
-        scope: `APPLICATION:${applicationId}`,
-        targetRef: applicationId,
-        outcome,
-        correlationId: randomUUID(),
-        policyVersion: policy.version,
-        purpose: 'Demonstration staff simulation',
-        metadata: json({ demo: true }),
-      },
-    });
   }
 
   private toEvent(row: {
@@ -716,249 +638,392 @@ export class ApplicationCaseService {
         404,
       );
     }
-    const conditions = Array.isArray(decision.conditions)
-      ? (decision.conditions as string[])
+    const raw = Array.isArray(decision.conditions)
+      ? (decision.conditions as unknown[])
       : [];
+    // Structured conditions (slice 5); legacy plain-string rows read as
+    // text-only applicant-owned conditions so older fixtures keep rendering.
+    const conditions = raw.map((c) => {
+      if (typeof c === 'string')
+        return {
+          text: c,
+          detail: null,
+          owner: 'APPLICANT',
+          deadline: null,
+          blocksMatriculation: false,
+        };
+      const row = c as Record<string, unknown>;
+      return {
+        text: typeof row.text === 'string' ? row.text : '',
+        detail: typeof row.detail === 'string' ? row.detail : null,
+        owner: typeof row.owner === 'string' ? row.owner : 'APPLICANT',
+        deadline: typeof row.deadline === 'string' ? row.deadline : null,
+        blocksMatriculation: row.blocksMatriculation === true,
+      };
+    });
     return {
       applicationId,
       reference: row.reference,
       outcome: decision.outcome as DecisionOutcome,
       message: decision.message,
       conditions,
+      acceptBy: decision.acceptBy ? decision.acceptBy.toISOString() : null,
       decidedAt: decision.decidedAt.toISOString(),
     };
   }
 
-  async simulateClarification(
-    actor: ActiveAuthority,
-    applicationId: string,
-    key: string,
-    question: string,
-    deadlineDays?: number,
-  ): Promise<{ id: string; status: string }> {
-    await this.staffGate(actor);
-    const days = deadlineDays ?? policy.case.clarificationResponseDays;
-    const row = await this.prisma.application.findFirst({
-      where: { id: applicationId },
-    });
-    if (!row) this.fail('NOT_FOUND', 'Application not found.', 404);
-    if (row.state !== 'Submitted') {
-      this.fail(
-        'NOT_SUBMITTED',
-        'Clarification needs a submitted application.',
-      );
-    }
-    return this.simIdempotent(
-      actor,
-      key,
-      'SimulateClarification',
-      { applicationId, question, deadlineDays },
-      async () =>
-        this.prisma.$transaction(async (db) => {
-          const clar = await db.applicationClarification.create({
-            data: {
-              applicationId,
-              question: question.trim(),
-              deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
-              status: 'OPEN',
-              askedBy: 'ADMISSIONS (simulation)',
-            },
-          });
-          await this.event(db, applicationId, {
-            code: 'ClarificationRequired',
-            label: 'Action needed: provide information',
-            detail: question.trim(),
-            actorRole: 'ADMISSIONS',
-          });
-          await this.notify(
-            db,
-            row.accountId,
-            applicationId,
-            'CLARIFICATION_REQUEST',
-            'Action needed on your application',
-            { applicationId, clarificationId: clar.id },
-          );
-          await this.staffAudit(
-            db,
-            actor,
-            'ApplicationClarificationRequested',
-            applicationId,
-            key,
-          );
-          return { id: clar.id, status: clar.status };
-        }),
-    );
+  private toOffer(
+    row: {
+      id: string;
+      reference: string;
+      offering: {
+        intake: string;
+        studyMode: string;
+        campus: string;
+        programme: { name: string };
+      };
+    },
+    decision: {
+      outcome: string;
+      message: string;
+      conditions: unknown;
+      acceptBy: Date | null;
+      decidedAt: Date;
+    },
+    response: {
+      decision: string;
+      receipt: string;
+      respondedAt: Date;
+    } | null,
+  ): ApplicantOfferView {
+    const raw = Array.isArray(decision.conditions)
+      ? (decision.conditions as unknown[])
+      : [];
+    return {
+      applicationId: row.id,
+      reference: row.reference,
+      programmeName: row.offering.programme.name,
+      intake: row.offering.intake,
+      studyMode: row.offering.studyMode,
+      campus: row.offering.campus,
+      outcome: decision.outcome,
+      message: decision.message,
+      conditions: raw.map((c) => {
+        if (typeof c === 'string')
+          return {
+            text: c,
+            detail: null,
+            owner: 'APPLICANT',
+            deadline: null,
+            blocksMatriculation: false,
+          };
+        const item = c as Record<string, unknown>;
+        return {
+          text: typeof item.text === 'string' ? item.text : '',
+          detail: typeof item.detail === 'string' ? item.detail : null,
+          owner: typeof item.owner === 'string' ? item.owner : 'APPLICANT',
+          deadline: typeof item.deadline === 'string' ? item.deadline : null,
+          blocksMatriculation: item.blocksMatriculation === true,
+        };
+      }),
+      acceptBy: decision.acceptBy ? decision.acceptBy.toISOString() : null,
+      decidedAt: decision.decidedAt.toISOString(),
+      response: response
+        ? {
+            decision: response.decision,
+            receipt: response.receipt,
+            respondedAt: response.respondedAt.toISOString(),
+          }
+        : null,
+    };
   }
 
-  async simulateDecision(
-    actor: ActiveAuthority,
+  private isOfferOutcome(outcome: string): boolean {
+    return outcome === 'ADMIT' || outcome === 'ADMIT_WITH_CONDITIONS';
+  }
+
+  async offer(
+    auth: ActiveAuthority,
     applicationId: string,
-    key: string,
-    outcome: string,
-    message: string,
-    conditions: string[],
-  ): Promise<{ id: string; outcome: string }> {
-    await this.staffGate(actor);
+  ): Promise<ApplicantOfferView> {
     const row = await this.prisma.application.findFirst({
       where: { id: applicationId },
+      include: { offering: { include: { programme: true } } },
     });
     if (!row) this.fail('NOT_FOUND', 'Application not found.', 404);
-    if (row.state !== 'Submitted') {
-      this.fail(
-        'NOT_SUBMITTED',
-        'Decisions release only for submitted applications.',
-      );
-    }
-    const existing = await this.prisma.applicationDecision.findUnique({
+    await this.apps.own(this.prisma, auth, applicationId);
+    const decision = await this.prisma.applicationDecision.findUnique({
       where: { applicationId },
     });
-    if (existing?.releasedAt) {
+    if (!decision || !decision.releasedAt) {
       this.fail(
-        'ALREADY_RELEASED',
-        'A decision is already released for this application.',
+        'DECISION_PENDING',
+        'No admission decision is available for this application yet.',
+        404,
       );
     }
-    return this.simIdempotent(
-      actor,
-      key,
-      'SimulateDecision',
-      { applicationId, outcome, message, conditions },
-      async () =>
-        this.prisma.$transaction(async (db) => {
-          const decision = existing
-            ? await db.applicationDecision.update({
-                where: { applicationId },
-                data: {
-                  outcome,
-                  message: message.trim(),
-                  conditions:
-                    conditions as unknown as Prisma.InputJsonValue,
-                  decidedAt: new Date(),
-                  releasedAt: new Date(),
-                },
-              })
-            : await db.applicationDecision.create({
-                data: {
-                  applicationId,
-                  outcome,
-                  message: message.trim(),
-                  conditions:
-                    conditions as unknown as Prisma.InputJsonValue,
-                  releasedAt: new Date(),
-                },
-              });
-          await this.event(db, applicationId, {
-            code: outcome === 'OFFERED' ? 'Offered' : 'DecisionReleased',
-            label:
-              outcome === 'OFFERED'
-                ? 'Admission offer available'
-                : 'Admission decision available',
-            detail: 'Sign in to view the decision securely.',
-            actorRole: 'ADMISSIONS',
-          });
-          await this.notify(
-            db,
-            row.accountId,
-            applicationId,
-            'DECISION_RELEASED',
-            'An admission decision is available for your application. Sign in to view it securely.',
-            { applicationId, decisionId: decision.id },
-          );
-          await this.staffAudit(
-            db,
-            actor,
-            'AdmissionDecisionReleased',
-            applicationId,
-            key,
-          );
-          return { id: decision.id, outcome: decision.outcome };
-        }),
-    );
+    if (!this.isOfferOutcome(decision.outcome)) {
+      this.fail(
+        'OFFER_NOT_AVAILABLE',
+        'No admission offer is available for this application.',
+        404,
+      );
+    }
+    const response = await this.prisma.applicationOfferResponse.findUnique({
+      where: { applicationId },
+    });
+    return this.toOffer(row, decision, response);
   }
 
-  // Demo stand-in for the Phase 3 correction-approval queue. Records an
-  // approval or rejection without rewriting the immutable submitted snapshot:
-  // approval preserves the original by construction.
-  async simulateCorrectionDecision(
-    actor: ActiveAuthority,
+  async respondToOffer(
+    auth: ActiveAuthority,
     applicationId: string,
     key: string,
-    correctionId: string,
-    approve: boolean,
-    note?: string,
-  ): Promise<{ id: string; status: string }> {
-    await this.staffGate(actor);
-    const row = await this.prisma.application.findFirst({
-      where: { id: applicationId },
-    });
-    if (!row) this.fail('NOT_FOUND', 'Application not found.', 404);
-    if (row.state !== 'Submitted') {
-      this.fail(
-        'NOT_SUBMITTED',
-        'Correction decisions need a submitted application.',
-      );
-    }
-    return this.simIdempotent(
-      actor,
+    version: number,
+    decisionInput: string,
+    reason?: string,
+    declarations?: string[],
+  ): Promise<OfferReceipt> {
+    const result = await this.apps.command(
+      auth,
       key,
-      'SimulateCorrectionDecision',
-      { applicationId, correctionId, approve, note },
-      async () =>
-        this.prisma.$transaction(async (db) => {
-          const correction =
-            await db.applicationCorrectionRequest.findFirst({
-              where: { id: correctionId, applicationId },
-            });
-          if (!correction) {
+      'RecordOfferResponse',
+      { applicationId, version, decision: decisionInput },
+      async (db) => {
+        const row = await this.apps.own(db, auth, applicationId);
+        if (row.state !== 'Submitted') {
+          this.fail(
+            'NOT_SUBMITTED',
+            'Offer responses need a submitted application.',
+          );
+        }
+        const decision = await db.applicationDecision.findUnique({
+          where: { applicationId },
+        });
+        if (!decision || !decision.releasedAt) {
+          this.fail(
+            'DECISION_PENDING',
+            'No admission decision is available for this application yet.',
+            404,
+          );
+        }
+        if (!this.isOfferOutcome(decision.outcome)) {
+          this.fail(
+            'OFFER_NOT_AVAILABLE',
+            'No admission offer is available for this application.',
+            404,
+          );
+        }
+        const prior = await db.applicationOfferResponse.findUnique({
+          where: { applicationId },
+        });
+        // Resource-idempotent: a second response attempt receives the stored
+        // final status instead of creating a second record.
+        if (prior) {
+          return {
+            body: {
+              receipt: prior.receipt,
+              decision: prior.decision,
+              respondedAt: (prior.respondedAt as Date).toISOString(),
+            },
+          };
+        }
+        this.checkVersion(row, version);
+        if (decisionInput === 'ACCEPT') {
+          if (!decision.acceptBy || decision.acceptBy.getTime() < Date.now()) {
             this.fail(
-              'NOT_FOUND',
-              'Correction request not found.',
-              404,
-            );
-          }
-          if (correction.status !== 'PENDING') {
-            this.fail(
-              'REQUEST_CLOSED',
-              'This correction request is already decided.',
+              'OFFER_EXPIRED',
+              'This offer expired. Contact Admissions only if a late-response review applies; extensions need an authorized approver.',
               409,
             );
           }
-          const status = approve ? 'APPROVED' : 'REJECTED';
-          const decided = await db.applicationCorrectionRequest.update({
-            where: { id: correction.id },
-            data: { status, decidedAt: new Date() },
-          });
-          await this.event(db, applicationId, {
-            code: approve ? 'AmendmentApproved' : 'AmendmentDeclined',
-            label: approve
-              ? 'Correction approved'
-              : 'Correction not approved',
-            detail: note?.trim()
-              ? note.trim()
-              : approve
-                ? 'Admissions approved the correction request. The submitted snapshot stays unchanged in this demonstration.'
-                : 'Admissions did not approve the correction request. The submitted application is unchanged.',
-            actorRole: 'ADMISSIONS',
-          });
-          await this.notify(
-            db,
-            row.accountId,
+          // Required acceptance declarations (Part 10 s4.1) against the
+          // versioned demo offer policy.
+          const required = (
+            policy.offer.acceptanceDeclarations as Array<{ key: string }>
+          ).map((d) => d.key);
+          const accepted = new Set(declarations ?? []);
+          if (!required.every((k) => accepted.has(k))) {
+            this.fail(
+              'DECLARATIONS_INCOMPLETE',
+              'Confirm every offer declaration before accepting.',
+              400,
+            );
+          }
+        }
+        const receipt = randomUUID();
+        const created = await db.applicationOfferResponse.create({
+          data: {
             applicationId,
-            approve ? 'CORRECTION_APPROVED' : 'CORRECTION_DECLINED',
-            'Update on your correction request. Sign in to view it securely.',
-            { applicationId, correctionId: correction.id, status },
-          );
-          await this.staffAudit(
-            db,
-            actor,
-            approve
-              ? 'ApplicationAmendmentApproved'
-              : 'ApplicationAmendmentDeclined',
-            applicationId,
-            key,
-          );
-          return { id: decided.id, status: decided.status };
-        }),
+            decision: decisionInput,
+            reason: reason?.trim() ? reason.trim() : null,
+            receipt,
+          },
+        });
+        if (decisionInput === 'ACCEPT') {
+          for (const task of policy.onboarding.tasks as Array<{
+            key: string;
+            title: string;
+            owner: string;
+            required: boolean;
+          }>) {
+            await db.onboardingTask.create({
+              data: {
+                applicationId,
+                taskKey: task.key,
+                title: task.title,
+                owner: task.owner,
+                required: task.required,
+              },
+            });
+          }
+        }
+        await this.event(db, applicationId, {
+          code: decisionInput === 'ACCEPT' ? 'OfferAccepted' : 'OfferDeclined',
+          label:
+            decisionInput === 'ACCEPT'
+              ? 'Admission offer accepted'
+              : 'Admission offer declined',
+          detail:
+            decisionInput === 'ACCEPT'
+              ? 'Onboarding tasks are now listed for this application.'
+              : 'The response is recorded. Capacity returns through the admissions workflow.',
+          actorRole: 'APPLICANT',
+        });
+        await db.application.update({
+          where: { id: applicationId },
+          data: { version: { increment: 1 } },
+        });
+        await this.apps.audit(
+          db,
+          auth,
+          'AdmissionOfferResponseRecorded',
+          applicationId,
+          key,
+          'ALLOW',
+          {
+            decision: decisionInput,
+            receipt,
+            declarations:
+              decisionInput === 'ACCEPT'
+                ? (policy.offer as { version: string }).version
+                : null,
+          },
+        );
+        await this.notify(
+          db,
+          auth.accountId,
+          applicationId,
+          'OFFER_RESPONSE_RECORDED',
+          'Your offer response is recorded. Sign in to view the next tasks.',
+          { applicationId },
+        );
+        return {
+          body: {
+            receipt: created.receipt,
+            decision: created.decision,
+            respondedAt: (created.respondedAt as Date).toISOString(),
+          },
+        };
+      },
     );
+    return result as OfferReceipt;
+  }
+
+  async onboarding(
+    auth: ActiveAuthority,
+    applicationId: string,
+  ): Promise<OnboardingView> {
+    const row = await this.apps.own(this.prisma, auth, applicationId);
+    const response = await this.prisma.applicationOfferResponse.findUnique({
+      where: { applicationId },
+    });
+    if (!response || response.decision !== 'ACCEPT') {
+      this.fail(
+        'ONBOARDING_NOT_AVAILABLE',
+        'Onboarding tasks appear after an accepted admission offer.',
+        404,
+      );
+    }
+    const tasks = await this.prisma.onboardingTask.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: 'asc' },
+    });
+    const required = tasks.filter((t) => t.required);
+    return {
+      applicationId: row.id,
+      requiredTotal: required.length,
+      requiredComplete: required.filter((t) => t.status === 'COMPLETED').length,
+      tasks: tasks.map((t) => ({
+        id: t.id,
+        taskKey: t.taskKey,
+        title: t.title,
+        owner: t.owner,
+        required: t.required,
+        status: t.status,
+        dueAt: t.dueAt ? (t.dueAt as Date).toISOString() : null,
+        completedAt: t.completedAt
+          ? (t.completedAt as Date).toISOString()
+          : null,
+      })),
+    };
+  }
+
+  async completeOnboardingTask(
+    auth: ActiveAuthority,
+    applicationId: string,
+    key: string,
+    version: number,
+    taskKey: string,
+  ): Promise<{ id: string; status: string }> {
+    const result = await this.apps.command(
+      auth,
+      key,
+      'CompleteOnboardingTask',
+      { applicationId, version, taskKey },
+      async (db) => {
+        const row = await this.apps.own(db, auth, applicationId);
+        const task = await db.onboardingTask.findFirst({
+          where: { applicationId, taskKey },
+        });
+        if (!task) this.fail('NOT_FOUND', 'Onboarding task not found.', 404);
+        if (task.owner !== 'APPLICANT') {
+          this.fail(
+            'TASK_NOT_APPLICANT',
+            'This task is completed by the responsible office, not here.',
+            403,
+          );
+        }
+        if (task.status === 'COMPLETED') {
+          return { body: { id: task.id, status: task.status } };
+        }
+        this.checkVersion(row, version);
+        const done = await db.onboardingTask.update({
+          where: { id: task.id },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
+        await this.event(db, applicationId, {
+          code: 'OnboardingTaskCompleted',
+          label: 'Onboarding task completed',
+          detail: task.title,
+          actorRole: 'APPLICANT',
+        });
+        await db.application.update({
+          where: { id: applicationId },
+          data: { version: { increment: 1 } },
+        });
+        await this.apps.audit(
+          db,
+          auth,
+          'OnboardingTaskCompleted',
+          applicationId,
+          key,
+          'ALLOW',
+          { taskKey: task.taskKey },
+        );
+        return { body: { id: done.id, status: done.status } };
+      },
+    );
+    return result as { id: string; status: string };
   }
 }

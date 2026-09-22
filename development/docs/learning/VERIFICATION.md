@@ -114,7 +114,9 @@ seed); production builds (`npm run build --workspace=apps/api` incl. committed
 prebuild, `npm run build --workspace=apps/web` — both exit 0); Playwright
 starts API dist on 3101 + web on 3100 with `PORT=3101`,
 `API_INTERNAL_URL=http://127.0.0.1:3101`, `DEMO_MODE=true`,
-`APPLICATION_SCANNER=demo-fixtures`. No shared database was reset.
+`APPLICATION_SCANNER=demo-fixtures`. No shared database was reset. Slices 3–6
+runs below used the same harness after migrating the browser DB with each new
+migration (P2022 otherwise) and rebuilding both apps for new routes/pages.
 
 | Spec | Current result | What it establishes |
 |---|---|---|
@@ -128,6 +130,31 @@ Fixes found through these runs (first two test-only, third app UX):
 2. `applicant-case` bare `getByRole("alert")` matched both the app ErrorSummary and Next.js `#__next-route-announcer__` (strict-mode violation). Fixed by scoping to `page.locator("main").getByRole("alert")` (4 sites); ErrorSummary renders inside `<main id="applicant-content">`.
 3. New ticket + ReplyForm never appeared after create without manual reload (`TicketsPage` is server-rendered). Fixed with `router.refresh()` in the shared `useTicketPost` submit (`ticket-forms.tsx`), matching the existing `workspace.tsx` pattern; also refreshes sent replies into view.
 4. `getByLabel("Reply").first()` resolved to the `<form aria-label="Reply to support ticket">` instead of the textbox. Fixed with `{ exact: true }`.
+
+## Slices 3–6 verification — 2026-09-21 (uncommitted worktree, pinned Node 24.21.0)
+
+API e2e on fresh `sis_ph3_review_docs` (migrate + seed; catalogue-first then
+rest): catalogue 12 + remaining 19 files **139 passed, 0 failed** — including
+`review-evidence` +1 regression (`summary-answered-counts`), new
+`review-recommendation` (8), new `review-decision` (11), new
+`review-acceptance` (14), and migrated `applications-case` (20, off sims).
+Typecheck exit 0, full lint warnings-only, unit 68/15, scan exit 0, scripts
+6/6. Browser full set on migrated `sis_browser_review_docs` with rebuilt
+apps: queue (claim/find/clarify/recommend/release) + case (timeline/decision/
+tickets/corrections/offer-accept/onboarding/withdraw) + applicant (2) = **4/4
+green**. `backup:test` still not run here (needs `psql` client + scratch
+rights re-check); manual screen-reader/WSL replay, remote CI, branch
+protection, and human walkthrough remain **not verified**.
+
+Slice 3–6 fixes found (all verified green after):
+
+1. Queue `summary()` counted every clarification/correction; now open-only like queue/approver views (regression test first: failed `expected 1 to be 0`, then 13/13).
+2. Browser queue spec claimed pool-first on a shared DB (cross-run DUPLICATE flake); now claims/opens its own submitted case by reference.
+3. Offer release form omitted the acceptance deadline (400); added CAT-date input.
+4. Onboarding progress went stale after completion (server-rendered header); moved the count into the client component with refetch.
+5. Leak assertion tripped on the new nav labels; narrowed to outcome wording.
+6. Full-suite reruns require a FRESH database: the break-glass audit assertion is order-fragile on dirty DBs (fixed deterministically with `orderBy occurredAt asc` — same assertion, no weakening); config-versions count is timing-sensitive under parallel load (pre-existing, green on fresh DBs).
+7. Handbook audit of the new slices found four conformance gaps, three fixed in this worktree: offer-accept acknowledgement page + acceptance declarations (Part 10 s4), condition owner/why fields (Part 10 s3, Design s6 s7), UI-DECISION-001 anatomy on the release form (authority/scope/package, consequences, exact declaration wording, conflict note). Recorded as open gaps: correction outcome routing (GAP-018), ticket categories + appeal route (GAP-019).
 
 Sign-in screenshots captured from the same production build (desktop + 390px, `/tmp/opencode/signin-desktop.png`, `signin-mobile.png`): demo applicant panel, labelled fields, no mobile overflow. Typecheck + web lint re-verified clean after the `ticket-forms.tsx` change.
 

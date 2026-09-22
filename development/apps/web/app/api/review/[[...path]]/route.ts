@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOriginMutation } from "../../../../lib/same-origin";
 
-// Same-origin proxy to the NestJS review API (TASK-PH3-001/002). The browser
+// Same-origin proxy to the NestJS review API (TASK-PH3-001/002/004). The browser
 // never talks to the API directly (no CORS), cookies stay httpOnly, and this
 // layer always sets the CSRF marker the API requires. Only staff review paths
 // are proxied; everything else is refused. Non-GET/POST methods are refused.
 const uuid = "[a-fA-F0-9-]{36}";
 const reads = new RegExp(
-  `^(queue|queue/${uuid}|${uuid}/evidence|${uuid}/findings)$`,
+  `^(queue|queue/${uuid}|${uuid}/evidence|${uuid}/findings|${uuid}/recommendations)$`,
 );
 const writes = new RegExp(
-  `^(${uuid}/(claim|release|findings|clarifications)|corrections/${uuid}/decide)$`,
+  `^(${uuid}/(claim|release|findings|clarifications|recommendations|decision/release|offer/extend)|corrections/${uuid}/decide)$`,
 );
 
 async function proxy(
@@ -46,11 +46,7 @@ async function proxy(
       } as RequestInit,
     );
     const outHeaders = new Headers({ "Cache-Control": "no-store" });
-    for (const key of [
-      "content-type",
-      "retry-after",
-      "referrer-policy",
-    ])
+    for (const key of ["content-type", "retry-after", "referrer-policy"])
       if (upstream.headers.has(key))
         outHeaders.set(key, upstream.headers.get(key)!);
     return new NextResponse(upstream.body, {

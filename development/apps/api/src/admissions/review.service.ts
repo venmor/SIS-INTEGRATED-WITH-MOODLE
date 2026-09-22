@@ -84,10 +84,7 @@ export class ReviewService {
     }
     // Approvers read evidence ahead of slice 5 but never mutate review
     // state here; every write path gates mode 'write' and denies them.
-    if (
-      mode === 'read' &&
-      actor.activeRole === 'ADMISSIONS_APPROVER'
-    ) {
+    if (mode === 'read' && actor.activeRole === 'ADMISSIONS_APPROVER') {
       const approver = await this.prisma.roleAssignment.findFirst({
         where: {
           ...live,
@@ -249,7 +246,8 @@ export class ReviewService {
         // Lost the claim race after the application-row lock: the partial
         // unique index admitted exactly one CLAIMED row.
         const target =
-          typeof payload === 'object' && payload !== null &&
+          typeof payload === 'object' &&
+          payload !== null &&
           'applicationId' in payload &&
           typeof (payload as { applicationId?: unknown }).applicationId ===
             'string'
@@ -267,21 +265,16 @@ export class ReviewService {
       }
       if (error instanceof HttpException) {
         const target =
-          typeof payload === 'object' && payload !== null &&
+          typeof payload === 'object' &&
+          payload !== null &&
           'applicationId' in payload &&
           typeof (payload as { applicationId?: unknown }).applicationId ===
             'string'
             ? (payload as { applicationId: string }).applicationId
             : 'review-queue';
-        await this.audit(
-          this.prisma,
-          actor,
-          action,
-          target,
-          key,
-          'DENY',
-          { status: error.getStatus() },
-        ).catch(() => {});
+        await this.audit(this.prisma, actor, action, target, key, 'DENY', {
+          status: error.getStatus(),
+        }).catch(() => {});
         throw error;
       }
       this.fail(
@@ -321,9 +314,13 @@ export class ReviewService {
     take = 50,
   ) {
     const { scopeType, scopeRef } = await this.gate(auth, 'read');
-    await this.audit(this.prisma, auth, 'ReviewQueueViewed', scope, randomUUID()).catch(
-      () => {},
-    );
+    await this.audit(
+      this.prisma,
+      auth,
+      'ReviewQueueViewed',
+      scope,
+      randomUUID(),
+    ).catch(() => {});
     // DB pre-filter keeps the candidate set small; the claim/scope filters
     // that Prisma cannot express run in memory over a bounded window, and
     // hasMore tells the UI when the window cut results off.
@@ -430,6 +427,7 @@ export class ReviewService {
             documents: { orderBy: { createdAt: 'asc' } },
             clarifications: { orderBy: { askedAt: 'desc' } },
             correctionRequests: { orderBy: { createdAt: 'desc' } },
+            recommendations: { orderBy: { version: 'desc' } },
             decision: true,
           },
         },
@@ -459,6 +457,7 @@ export class ReviewService {
         documents: { orderBy: { createdAt: 'asc' } },
         clarifications: { orderBy: { askedAt: 'desc' } },
         correctionRequests: { orderBy: { createdAt: 'desc' } },
+        recommendations: { orderBy: { version: 'desc' } },
         decision: true,
       },
     });
@@ -518,8 +517,9 @@ export class ReviewService {
       })),
       openClarifications: a.clarifications.filter((c) => c.status === 'OPEN')
         .length,
-      openCorrections: a.correctionRequests.filter((c) => c.status === 'PENDING')
-        .length,
+      openCorrections: a.correctionRequests.filter(
+        (c) => c.status === 'PENDING',
+      ).length,
       pendingCorrections: a.correctionRequests
         .filter((c) => c.status === 'PENDING')
         .map((c) => ({
@@ -529,6 +529,12 @@ export class ReviewService {
           reason: c.reason,
           createdAt: c.createdAt.toISOString(),
         })),
+      // Active recommendation only; history via the recommendations listing.
+      // Staff-only like findings: never projected to applicant views.
+      recommendation: (() => {
+        const active = a.recommendations.find((r) => r.status === 'ACTIVE');
+        return active ? this.toRecommendation(active) : null;
+      })(),
       // Presence only: outcome/message/conditions stay out until slice 5.
       hasDecision: !!a.decision?.releasedAt,
     };
@@ -538,9 +544,13 @@ export class ReviewService {
     const scope = await this.gate(auth, 'read');
     if (scope.readOnly) await this.approverView(this.prisma, id);
     else await this.assigned(this.prisma, auth, id, scope);
-    await this.audit(this.prisma, auth, 'ReviewFindingsViewed', id, randomUUID()).catch(
-      () => {},
-    );
+    await this.audit(
+      this.prisma,
+      auth,
+      'ReviewFindingsViewed',
+      id,
+      randomUUID(),
+    ).catch(() => {});
     const rows = await this.prisma.reviewFinding.findMany({
       where: { applicationId: id },
       orderBy: { createdAt: 'desc' },
@@ -563,7 +573,12 @@ export class ReviewService {
     applicationId: string,
     key: string,
     version: number,
-    finding: { kind: string; subject: string; detail: string; severity: string },
+    finding: {
+      kind: string;
+      subject: string;
+      detail: string;
+      severity: string;
+    },
   ): Promise<{ id: string; status: string }> {
     await this.gate(auth);
     const result = await this.command(
@@ -609,10 +624,18 @@ export class ReviewService {
             createdByAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'ReviewFindingRecorded', applicationId, key, 'ALLOW', {
-          findingId: created.id,
-          kind: finding.kind,
-        });
+        await this.audit(
+          db,
+          auth,
+          'ReviewFindingRecorded',
+          applicationId,
+          key,
+          'ALLOW',
+          {
+            findingId: created.id,
+            kind: finding.kind,
+          },
+        );
         return { body: { id: created.id, status: created.status } };
       },
     );
@@ -775,7 +798,8 @@ export class ReviewService {
         const correction = await db.applicationCorrectionRequest.findFirst({
           where: { id: correctionId },
         });
-        if (!correction) this.fail('NOT_FOUND', 'Correction request not found.', 404);
+        if (!correction)
+          this.fail('NOT_FOUND', 'Correction request not found.', 404);
         // Officer authority comes from the claim on the parent application.
         const scope = await this.gate(auth);
         await this.assigned(db, auth, correction.applicationId, scope);
@@ -797,11 +821,418 @@ export class ReviewService {
     return result as { id: string; status: string };
   }
 
+  private toRecommendation(row: {
+    id: string;
+    applicationId: string;
+    version: number;
+    eligibilityOutcome: string;
+    recommendation: string;
+    criteriaVersion: string;
+    criteria: unknown;
+    rationale: string;
+    status: string;
+    createdAt: Date;
+  }) {
+    return {
+      id: row.id,
+      applicationId: row.applicationId,
+      version: row.version,
+      eligibilityOutcome: row.eligibilityOutcome,
+      recommendation: row.recommendation,
+      criteriaVersion: row.criteriaVersion,
+      criteria: Array.isArray(row.criteria) ? (row.criteria as string[]) : [],
+      rationale: row.rationale,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  async listRecommendations(auth: ReviewerAuthority, id: string) {
+    const scope = await this.gate(auth, 'read');
+    if (scope.readOnly) await this.approverView(this.prisma, id);
+    else await this.assigned(this.prisma, auth, id, scope);
+    const rows = await this.prisma.reviewRecommendation.findMany({
+      where: { applicationId: id },
+      orderBy: { version: 'desc' },
+    });
+    return { items: rows.map((r) => this.toRecommendation(r)) };
+  }
+
+  async recordRecommendation(
+    auth: ReviewerAuthority,
+    applicationId: string,
+    key: string,
+    version: number,
+    input: {
+      eligibilityOutcome: string;
+      recommendation: string;
+      criteria?: string[];
+      rationale: string;
+      supersedesId?: string;
+    },
+  ): Promise<{ id: string; status: string; version: number }> {
+    await this.gate(auth);
+    const result = await this.command(
+      auth,
+      key,
+      'RecordApplicationRecommendation',
+      { applicationId, version, ...input },
+      async (db) => {
+        const scope = await this.gate(auth);
+        const assignment = await this.assigned(db, auth, applicationId, scope);
+        const row = assignment.application;
+        if (row.state !== 'Submitted') {
+          this.fail(
+            'NOT_SUBMITTED',
+            'Recommendations need a submitted application awaiting review.',
+          );
+        }
+        if (!input.rationale.trim()) {
+          this.fail(
+            'EMPTY_RATIONALE',
+            'Record why this recommendation follows from the evidence.',
+            400,
+          );
+        }
+        const allowed = policy.review.criteria as string[];
+        for (const criterion of input.criteria ?? []) {
+          if (!allowed.includes(criterion)) {
+            this.fail(
+              'UNKNOWN_CRITERION',
+              `Criterion ${criterion} is not part of ${policy.review.criteriaVersion}.`,
+              400,
+            );
+          }
+        }
+        const active = await db.reviewRecommendation.findFirst({
+          where: { applicationId, status: 'ACTIVE' },
+        });
+        if (active && !input.supersedesId) {
+          this.fail(
+            'DUPLICATE_TASK',
+            'An active recommendation already exists. Supersede it explicitly with its id for a new version.',
+            409,
+            { recommendationId: active.id },
+          );
+        }
+        if (input.supersedesId) {
+          if (!active || active.id !== input.supersedesId) {
+            this.fail(
+              'STALE_PACKAGE',
+              'The active recommendation changed since it was reviewed. Reload and supersede the current version.',
+              409,
+            );
+          }
+        }
+        this.checkVersion(row, version);
+        const nextVersion = active ? active.version + 1 : 1;
+        if (active) {
+          await db.reviewRecommendation.update({
+            where: { id: active.id },
+            data: { status: 'SUPERSEDED', decidedAt: new Date() },
+          });
+        }
+        const created = await db.reviewRecommendation.create({
+          data: {
+            applicationId,
+            version: nextVersion,
+            eligibilityOutcome: input.eligibilityOutcome,
+            recommendation: input.recommendation,
+            criteriaVersion: policy.review.criteriaVersion as string,
+            criteria:
+              input.criteria === undefined ? undefined : json(input.criteria),
+            rationale: input.rationale.trim(),
+            status: 'ACTIVE',
+            createdByAccountId: auth.accountId,
+          },
+        });
+        await this.event(db, applicationId, {
+          code: 'RecommendationRecorded',
+          label: 'Review recommendation recorded',
+        });
+        await this.bump(db, applicationId);
+        await this.audit(
+          db,
+          auth,
+          'ApplicationRecommendationRecorded',
+          applicationId,
+          key,
+          'ALLOW',
+          {
+            recommendationId: created.id,
+            version: nextVersion,
+            eligibilityOutcome: input.eligibilityOutcome,
+          },
+        );
+        return {
+          body: {
+            id: created.id,
+            status: created.status,
+            version: created.version,
+          },
+        };
+      },
+    );
+    return result as { id: string; status: string; version: number };
+  }
+
+  async releaseDecision(
+    auth: ReviewerAuthority,
+    applicationId: string,
+    key: string,
+    version: number,
+    input: {
+      outcome: string;
+      message: string;
+      acceptBy: string;
+      conditions: Array<{
+        text: string;
+        detail?: string;
+        owner: string;
+        deadline?: string;
+        blocksMatriculation?: boolean;
+      }>;
+    },
+  ): Promise<{ id: string; outcome: string; version: number }> {
+    // Approver-only gate runs before any record lookup, so denied roles
+    // learn nothing about the application.
+    const pre = await this.gate(auth, 'read');
+    if (!pre.readOnly || auth.activeRole !== 'ADMISSIONS_APPROVER') {
+      this.fail(
+        'FORBIDDEN',
+        'Decision release needs an admissions approver workspace.',
+        403,
+      );
+    }
+    const result = await this.command(
+      auth,
+      key,
+      'ReleaseAdmissionDecision',
+      { applicationId, version, ...input },
+      async (db) => {
+        const row = await this.approverView(db, applicationId);
+        if (!this.inScope(pre.scopeType, pre.scopeRef, row.offering.intake))
+          this.fail('NOT_FOUND', 'Review case not found.', 404);
+        if (row.state !== 'Submitted') {
+          this.fail(
+            'NOT_SUBMITTED',
+            'Decisions release only for submitted applications.',
+          );
+        }
+        const existing = await db.applicationDecision.findUnique({
+          where: { applicationId },
+        });
+        if (existing?.releasedAt) {
+          this.fail(
+            'ALREADY_RELEASED',
+            'A decision is already released for this application.',
+            409,
+            { decisionId: existing.id },
+          );
+        }
+        const pkg = await db.reviewRecommendation.findFirst({
+          where: { applicationId, status: 'ACTIVE' },
+        });
+        if (!pkg) {
+          this.fail(
+            'NO_RECOMMENDATION',
+            'Record a recommendation package before releasing a decision.',
+            409,
+          );
+        }
+        if (pkg.createdByAccountId === auth.accountId) {
+          this.fail(
+            'SELF_APPROVAL',
+            'The recommending officer cannot release this decision. A separate approver is required.',
+            403,
+          );
+        }
+        this.checkVersion(row, version);
+        const conditions = input.conditions.map((c) => ({
+          text: c.text.trim(),
+          detail: c.detail?.trim() ? c.detail.trim() : null,
+          owner: c.owner,
+          deadline: c.deadline ?? null,
+          blocksMatriculation: c.blocksMatriculation === true,
+        }));
+        const decision = await db.applicationDecision.create({
+          data: {
+            applicationId,
+            outcome: input.outcome,
+            message: input.message.trim(),
+            conditions: conditions as unknown as Prisma.InputJsonValue,
+            version: 1,
+            acceptBy: new Date(input.acceptBy),
+            decidedAt: new Date(),
+            releasedAt: new Date(),
+          },
+        });
+        const offered =
+          input.outcome === 'ADMIT' ||
+          input.outcome === 'ADMIT_WITH_CONDITIONS';
+        await this.event(db, applicationId, {
+          code: offered ? 'Offered' : 'DecisionReleased',
+          label: offered
+            ? 'Admission offer available'
+            : 'Admission decision available',
+          detail: 'Sign in to view the decision securely.',
+          visible: true,
+        });
+        await this.notify(
+          db,
+          row.accountId,
+          applicationId,
+          'DECISION_RELEASED',
+          'An admission decision is available for your application. Sign in to view it securely.',
+          { applicationId, decisionId: decision.id },
+        );
+        await this.bump(db, applicationId);
+        await this.audit(
+          db,
+          auth,
+          'AdmissionDecisionReleased',
+          applicationId,
+          key,
+          'ALLOW',
+          {
+            decisionId: decision.id,
+            outcome: input.outcome,
+            version: 1,
+            recommendationId: pkg.id,
+            criteriaVersion: pkg.criteriaVersion,
+          },
+        );
+        return {
+          body: {
+            id: decision.id,
+            outcome: decision.outcome,
+            version: decision.version,
+          },
+        };
+      },
+    );
+    return result as { id: string; outcome: string; version: number };
+  }
+
+  async extendOffer(
+    auth: ReviewerAuthority,
+    applicationId: string,
+    key: string,
+    version: number,
+    newDeadline: string,
+    reason: string,
+  ): Promise<{ applicationId: string; acceptBy: string }> {
+    const pre = await this.gate(auth, 'read');
+    if (!pre.readOnly || auth.activeRole !== 'ADMISSIONS_APPROVER') {
+      this.fail(
+        'FORBIDDEN',
+        'Offer extensions need an admissions approver workspace.',
+        403,
+      );
+    }
+    const result = await this.command(
+      auth,
+      key,
+      'ExtendAdmissionOffer',
+      { applicationId, version, newDeadline },
+      async (db) => {
+        const row = await this.approverView(db, applicationId);
+        if (!this.inScope(pre.scopeType, pre.scopeRef, row.offering.intake))
+          this.fail('NOT_FOUND', 'Review case not found.', 404);
+        const decision = await db.applicationDecision.findUnique({
+          where: { applicationId },
+        });
+        if (!decision || !decision.releasedAt) {
+          this.fail(
+            'NOTHING_TO_EXTEND',
+            'There is no released offer to extend.',
+            404,
+          );
+        }
+        if (
+          decision.outcome !== 'ADMIT' &&
+          decision.outcome !== 'ADMIT_WITH_CONDITIONS'
+        ) {
+          this.fail(
+            'OFFER_NOT_AVAILABLE',
+            'Only a released admission offer can be extended.',
+            404,
+          );
+        }
+        const answered = await db.applicationOfferResponse.findUnique({
+          where: { applicationId },
+        });
+        if (answered) {
+          this.fail(
+            'ALREADY_ANSWERED',
+            'This offer already has a recorded response.',
+            409,
+            { decision: answered.decision },
+          );
+        }
+        if (new Date(newDeadline).getTime() <= Date.now()) {
+          this.fail(
+            'INVALID_DEADLINE',
+            'The new deadline must be in the future.',
+            400,
+          );
+        }
+        if (!reason.trim()) {
+          this.fail(
+            'EMPTY_REASON',
+            'Record why the extension is authorized.',
+            400,
+          );
+        }
+        this.checkVersion(row, version);
+        const updated = await db.applicationDecision.update({
+          where: { applicationId },
+          data: { acceptBy: new Date(newDeadline) },
+        });
+        await this.event(db, applicationId, {
+          code: 'OfferExtended',
+          label: 'Offer deadline extended',
+          detail: 'The response deadline moved under an authorized extension.',
+          visible: true,
+        });
+        await this.notify(
+          db,
+          row.accountId,
+          applicationId,
+          'OFFER_EXTENDED',
+          'Update on your admission offer. Sign in to view it securely.',
+          { applicationId },
+        );
+        await this.bump(db, applicationId);
+        await this.audit(
+          db,
+          auth,
+          'AdmissionOfferExtended',
+          applicationId,
+          key,
+          'ALLOW',
+          { acceptBy: updated.acceptBy?.toISOString(), reason: reason.trim() },
+        );
+        return {
+          body: {
+            applicationId,
+            acceptBy: (updated.acceptBy as Date).toISOString(),
+          },
+        };
+      },
+    );
+    return result as { applicationId: string; acceptBy: string };
+  }
+
   async summary(auth: ReviewerAuthority, id: string) {
     const scope = await this.gate(auth, 'read');
-    await this.audit(this.prisma, auth, 'ReviewSummaryViewed', id, randomUUID()).catch(
-      () => {},
-    );
+    await this.audit(
+      this.prisma,
+      auth,
+      'ReviewSummaryViewed',
+      id,
+      randomUUID(),
+    ).catch(() => {});
     if (scope.readOnly) {
       const a = await this.approverView(this.prisma, id);
       return {
@@ -829,8 +1260,13 @@ export class ReviewService {
       version: a.version,
       claimedAt: assignment.claimedAt.toISOString(),
       submittedAt: a.submission ? a.submission.createdAt.toISOString() : null,
-      openClarifications: a.clarifications.length,
-      openCorrections: a.correctionRequests.length,
+      // Open-only like the queue and approver views: answered clarifications
+      // and decided corrections stay in history but leave these counts.
+      openClarifications: a.clarifications.filter((c) => c.status === 'OPEN')
+        .length,
+      openCorrections: a.correctionRequests.filter(
+        (c) => c.status === 'PENDING',
+      ).length,
       // Presence only: outcome/message/conditions stay out until slice 5.
       hasDecision: !!a.decision?.releasedAt,
     };

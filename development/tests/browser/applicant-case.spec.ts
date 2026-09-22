@@ -127,13 +127,16 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await expect(page.getByText("Application received").first()).toBeVisible();
   await noOverflow(page);
 
-  // Decision: neutral pending state, no outcome leaked.
+  // Decision: neutral pending state, no outcome leaked (nav labels excluded:
+  // only released-outcome wording counts as a leak).
   await page.goto(`${applicationUrl}/decision`);
   await expect(
     page.getByRole("heading", { name: "Admission decision" }),
   ).toBeVisible();
   await expect(page.getByText("No decision yet")).toBeVisible();
-  await expect(page.getByText(/offer/i)).toHaveCount(0);
+  await expect(
+    page.getByText(/offer available|waiting list|you have received/i),
+  ).toHaveCount(0);
   await noOverflow(page);
 
   // Seed one clarification + one decision directly (simulation endpoints are
@@ -203,15 +206,11 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await expect(
     page.getByRole("heading", { name: "Support tickets" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Open ticket", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Open ticket", exact: true }).click();
   await expect(page.locator("main").getByRole("alert")).toBeVisible();
   await page.getByLabel("Subject").fill("Upload question");
   await page.getByLabel("Message").fill("Which file goes where?");
-  await page
-    .getByRole("button", { name: "Open ticket", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Open ticket", exact: true }).click();
   await expect(page.getByText("Ticket opened")).toBeVisible();
   const replyBox = page.getByLabel("Reply", { exact: true });
   await replyBox.fill("Extra detail from browser.");
@@ -227,9 +226,16 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
     await prisma2.applicationDecision.create({
       data: {
         applicationId,
-        outcome: "OFFERED",
+        outcome: "ADMIT_WITH_CONDITIONS",
         message: "Offered a place with conditions (browser fixture).",
-        conditions: ["Provide certified documents."],
+        conditions: [
+          {
+            text: "Provide certified documents.",
+            deadline: null,
+            blocksMatriculation: false,
+          },
+        ],
+        acceptBy: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         releasedAt: new Date(),
       },
     });
@@ -240,9 +246,45 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   await expect(
     page.getByRole("heading", { name: "admission offer", exact: false }),
   ).toBeVisible();
+  await expect(page.getByText("Provide certified documents.")).toBeVisible();
+  await noOverflow(page);
+
+  // Offer view and accept journey: deliberate open, conditions, accept,
+  // then onboarding tasks with applicant completion.
+  await page.goto(`${applicationUrl}/offer`);
   await expect(
-    page.getByText("Provide certified documents."),
+    page.getByRole("heading", { name: "Admission offer", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Provide certified documents.")).toBeVisible();
+  await page.getByRole("button", { name: "Review and accept", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Accept this admission offer?" }),
+  ).toBeVisible();
+  for (const label of [
+    "I understand the offer terms and conditions.",
+    "I accept the offered programme and intake.",
+    "My information remains accurate to my knowledge.",
+    "I understand registration is a separate later process.",
+  ]) {
+    await page.getByLabel(label).check();
+  }
+  await page.getByRole("button", { name: "Accept offer", exact: true }).click();
+  await expect(page.getByText("Offer accepted.")).toBeVisible();
+  await noOverflow(page);
+  await page.goto(`${applicationUrl}/onboarding`);
+  await expect(
+    page.getByRole("heading", { name: "Onboarding tasks", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Confirm your preferred contact details"),
+  ).toBeVisible();
+  await expect(page.getByText("Verification in progress")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Mark complete", exact: true })
+    .first()
+    .click();
+  await expect(page.getByText("Task completed.")).toBeVisible();
+  await expect(page.getByText("1 of 3 required tasks")).toBeVisible();
   await noOverflow(page);
 
   // Notifications inbox lists case events.

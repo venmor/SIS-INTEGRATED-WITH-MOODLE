@@ -17,9 +17,8 @@ import { ApplicationCaseService } from './case.service.js';
 import {
   ClarificationRespondDto,
   CorrectionRequestDto,
-  SimClarificationDto,
-  SimCorrectionDecisionDto,
-  SimDecisionDto,
+  OfferResponseDto,
+  TaskCompleteDto,
   TicketDto,
   TicketReplyDto,
   WithdrawDto,
@@ -65,7 +64,56 @@ export class ApplicationCaseController {
     return this.cases.decision(r.auth, id);
   }
 
-  @Get(':id/clarifications') clarifications(    @Req() r: AuthRequest,
+  @Get(':id/offer') offer(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.cases.offer(r.auth, id);
+  }
+
+  @Post(':id/offer/response')
+  @UseGuards(CsrfGuard)
+  respondToOffer(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: OfferResponseDto,
+  ) {
+    return this.cases.respondToOffer(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      dto.decision,
+      dto.reason,
+      dto.declarations,
+    );
+  }
+
+  @Get(':id/onboarding') onboarding(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.cases.onboarding(r.auth, id);
+  }
+
+  @Post(':id/onboarding/tasks')
+  @UseGuards(CsrfGuard)
+  completeOnboardingTask(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TaskCompleteDto,
+  ) {
+    return this.cases.completeOnboardingTask(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      dto.taskKey,
+    );
+  }
+
+  @Get(':id/clarifications') clarifications(
+    @Req() r: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.cases.listClarifications(r.auth, id);
@@ -78,7 +126,8 @@ export class ApplicationCaseController {
     return this.cases.listCorrections(r.auth, id);
   }
 
-  @Get(':id/tickets') tickets(    @Req() r: AuthRequest,
+  @Get(':id/tickets') tickets(
+    @Req() r: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.cases.listTickets(r.auth, id);
@@ -169,56 +218,6 @@ export class ApplicationCaseController {
       dto.version,
       dto.confirmed,
       dto.reason,
-    );
-  }
-
-  @Post(':id/simulate-clarification')
-  @UseGuards(CsrfGuard)
-  simulateClarification(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SimClarificationDto,
-  ) {
-    return this.cases.simulateClarification(
-      r.auth,
-      id,
-      dto.idempotencyKey,
-      dto.question,
-      dto.deadlineDays,
-    );
-  }
-
-  @Post(':id/simulate-correction-decision')
-  @UseGuards(CsrfGuard)
-  simulateCorrectionDecision(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SimCorrectionDecisionDto,
-  ) {
-    return this.cases.simulateCorrectionDecision(
-      r.auth,
-      id,
-      dto.idempotencyKey,
-      dto.correctionId,
-      dto.approve,
-      dto.note,
-    );
-  }
-
-  @Post(':id/simulate-decision')
-  @UseGuards(CsrfGuard)
-  simulateDecision(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SimDecisionDto,
-  ) {
-    return this.cases.simulateDecision(
-      r.auth,
-      id,
-      dto.idempotencyKey,
-      dto.outcome,
-      dto.message,
-      dto.conditions ?? [],
     );
   }
 }

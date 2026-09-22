@@ -1,15 +1,18 @@
-# Phase 3 slices 1–2 — learning and implementation review
+# Phase 3 slices 1–6 — learning and implementation review
 
-Review date: 2026-09-21. Committed in `e44170a` on local `main` (“Implemented phase 2 slice 6 and phase 3 slice 1 and 2”); no pull
-request. Human learning and acceptance checks below remain pending.
+Review date: 2026-09-21. Slices 1–2 committed in `e44170a` on local `main`; slices 3–6 implemented in the uncommitted worktree (packets TASK-PH3-003..006, notes NOTE-PH3-003..006). No pull request. Human learning and acceptance checks below remain pending.
 
 A fictional admissions officer can now claim submitted applications from an
 assigned queue, compare declarations against document states, record
-immutable findings, raise scoped clarifications, and decide correction
-requests without rewriting the submitted snapshot. An approver role reads
-evidence read-only ahead of slice 5. This does not mark Phase 3 complete:
-slices 3–6 (recommendation package, real decision/offer, acceptance and
-onboarding handoff) plus sim-endpoint removal are still pending.
+immutable findings, raise scoped clarifications, record versioned
+recommendations, and — through a separate approver workspace — release
+versioned decisions with explicit outcomes, conditions, and deadlines. A
+fictional applicant can answer clarifications, view the released decision
+through a deliberate open, accept or decline an offer, complete applicant
+onboarding tasks, and request an authorized deadline extension. No student
+record is created anywhere in this phase. Simulation endpoints are deleted
+(GAP-017 implemented in code). This completes the Phase 3 slice plan:
+remaining work is human review, production gates, and Phase 4 conversion.
 
 ## What each slice delivers
 
@@ -17,14 +20,23 @@ onboarding handoff) plus sim-endpoint removal are still pending.
 |---|---|---|---|
 | 1 — queue | See my claimed cases and the claimable submitted pool, filter by state/action-needed, claim and release with version + idempotency | [review service](../../apps/api/src/admissions/review.service.ts), [review controller](../../apps/api/src/admissions/review.controller.ts), [queue page](../../apps/web/app/admin/admissions/queue/) | ReviewAssignment (single active claim via partial unique index); neutral 404s; VERSION_CONFLICT; IDEMPOTENCY_CONFLICT; ASSIGNMENT_CONFLICT |
 | 2 — comparison | Open one claimed case, read declarations beside state-only documents, record findings, raise clarifications, approve/decline corrections | [case page](../../apps/web/app/admin/admissions/case/%5Bid%5D/) | ReviewFinding (immutable, no update/delete path); snapshot byte-identical after findings + approval; unsafe files state-only |
+| 3 — clarification round-trip | Answered clarifications and decided corrections leave the open counts while history stays | [summary()](../../apps/api/src/admissions/review.service.ts) | Open-only counts in queue/summary/evidence; regression e2e |
+| 4 — recommendation | Record eligibility outcome + recommendation versions with rationale, supersede explicitly | [recommendation service](../../apps/api/src/admissions/review.service.ts), [case page recommendation section](../../apps/web/app/admin/admissions/case/%5Bid%5D/case.tsx) | ReviewRecommendation (one ACTIVE via partial unique index); DUPLICATE_TASK/STALE_PACKAGE; applicant no-leak |
+| 5 — decision and offer | Approver releases a versioned decision with outcome, conditions, deadline; sim endpoints deleted | [release](../../apps/api/src/admissions/review.service.ts), [decision view](../../apps/api/src/admissions/case.service.ts) | ApplicationDecision (explicit version); NO_RECOMMENDATION/SELF_APPROVAL/ALREADY_RELEASED; delivery-kept proof |
+| 6 — acceptance and onboarding | Applicant accepts/declines once, completes applicant tasks, requests extensions via approver | [offer pages](../../apps/web/app/applicant/%5Bid%5D/offer/page.tsx), [onboarding](../../apps/web/app/applicant/%5Bid%5D/onboarding/page.tsx) | ApplicationOfferResponse (write-once); OnboardingTask (owner split); no conversion proof |
 
-Controlling requirements: REQ-ADM-005/006, ACT-ADM-001, REQ-IAM-002/003/004,
+Controlling requirements: REQ-ADM-005/006/007/008, ACT-ADM-001/002, REQ-IAM-002/003/004,
 REQ-OPS-001/002/004. Packets: [TASK-PH3-001](../task-packets/TASK-PH3-001.md),
-[TASK-PH3-002](../task-packets/TASK-PH3-002.md). Open gates:
+[TASK-PH3-002](../task-packets/TASK-PH3-002.md),
+[TASK-PH3-003](../task-packets/TASK-PH3-003.md),
+[TASK-PH3-004](../task-packets/TASK-PH3-004.md),
+[TASK-PH3-005](../task-packets/TASK-PH3-005.md),
+[TASK-PH3-006](../task-packets/TASK-PH3-006.md). Open gates:
 [GAP-016](../gaps/GAP-016-staff-signal-inbox.md) (staff signals),
-[GAP-017](../gaps/GAP-017-sim-endpoint-removal.md) (sim removal),
+[GAP-008](../gaps/GAP-008-notification-delivery.md) (delivery worker),
 GAP-003/004/006/012 (registries — interim fictional roles and
-intake-string matching used instead).
+intake-string matching used instead). GAP-017 (sim removal) is implemented
+in code, pending human decision.
 
 ## Follow one claim from the screen to the database
 

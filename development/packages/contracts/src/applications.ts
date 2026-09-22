@@ -200,13 +200,29 @@ export interface CorrectionRequestView {
   createdAt: string;
   decidedAt: string | null;
 }
-export type DecisionOutcome = "OFFERED" | "NOT_OFFERED" | "WAITLISTED";
+export type DecisionOutcome =
+  | "ADMIT"
+  | "ADMIT_WITH_CONDITIONS"
+  | "WAITLIST"
+  | "REJECT"
+  | "REFER_TO_ALTERNATIVE_PROGRAMME"
+  | "REQUEST_FURTHER_REVIEW";
+/** Structured offer condition (slice 5): human-readable text plus an optional
+ * deadline and whether it blocks matriculation. Never generic "Conditional". */
+export interface DecisionCondition {
+  text: string;
+  detail: string | null;
+  owner: string;
+  deadline: string | null;
+  blocksMatriculation: boolean;
+}
 export interface DecisionView {
   applicationId: string;
   reference: string;
   outcome: DecisionOutcome;
   message: string;
-  conditions: string[];
+  conditions: DecisionCondition[];
+  acceptBy: string | null;
   decidedAt: string;
 }
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
@@ -302,6 +318,7 @@ export interface ReviewEvidenceView {
     reason: string;
     createdAt: string;
   }[];
+  recommendation: ReviewRecommendationView | null;
   hasDecision: boolean;
 }
 export interface ReviewFindingView {
@@ -312,4 +329,66 @@ export interface ReviewFindingView {
   severity: string;
   status: string;
   createdAt: string;
+}
+/** Phase 3 slice 4: eligibility and recommendation package. Staff-only; never
+ * projected to applicant timelines, notices, or decision pages. */
+export interface ReviewRecommendationView {
+  id: string;
+  applicationId: string;
+  version: number;
+  eligibilityOutcome: string;
+  recommendation: string;
+  criteriaVersion: string;
+  criteria: string[];
+  rationale: string;
+  status: string;
+  createdAt: string;
+}
+/** Phase 3 slice 6: offer and onboarding views. Deliberate authenticated
+ * opens only; notices never carry outcomes. No student record is created. */
+export interface OfferConditionView {
+  text: string;
+  detail: string | null;
+  owner: string;
+  deadline: string | null;
+  blocksMatriculation: boolean;
+}
+export interface ApplicantOfferView {
+  applicationId: string;
+  reference: string;
+  programmeName: string;
+  intake: string;
+  studyMode: string;
+  campus: string;
+  outcome: string;
+  message: string;
+  conditions: OfferConditionView[];
+  acceptBy: string | null;
+  decidedAt: string;
+  response: {
+    decision: string;
+    receipt: string;
+    respondedAt: string;
+  } | null;
+}
+export interface OnboardingTaskView {
+  id: string;
+  taskKey: string;
+  title: string;
+  owner: string;
+  required: boolean;
+  status: string;
+  dueAt: string | null;
+  completedAt: string | null;
+}
+export interface OnboardingView {
+  applicationId: string;
+  requiredTotal: number;
+  requiredComplete: number;
+  tasks: OnboardingTaskView[];
+}
+export interface OfferReceipt {
+  receipt: string;
+  decision: string;
+  respondedAt: string;
 }

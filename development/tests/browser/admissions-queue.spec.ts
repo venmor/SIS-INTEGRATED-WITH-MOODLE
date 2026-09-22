@@ -87,7 +87,12 @@ async function submitApplication(page: any, applicant: any) {
   await expect(
     page.getByRole("heading", { name: "Application submitted successfully" }),
   ).toBeVisible();
-  return applicationUrl;
+  // Capture our own reference so the officer claims this application, never
+  // a stale case from an earlier run sharing the browser database.
+  const referenceText =
+    (await page.getByText(/Reference: APP-/).textContent()) ?? "";
+  const reference = referenceText.replace("Reference:", "").trim();
+  return { applicationUrl, reference };
 }
 
 async function noOverflow(page: any) {
@@ -103,7 +108,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
 }) => {
   const applicant = await createApplicant();
   await page.setViewportSize({ width: 390, height: 844 });
-  await submitApplication(page, applicant);
+  const submitted = await submitApplication(page, applicant);
 
   // Sign out the applicant, sign in as the seeded demonstration officer.
   await page.goto("/applicant");
@@ -127,9 +132,10 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
     page.getByRole("heading", { name: "Admissions queue" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Claimable pool" }).click();
-  const claimButton = page
-    .getByRole("button", { name: /Claim case APP-/ })
-    .first();
+  const claimButton = page.getByRole("button", {
+    name: `Claim case ${submitted.reference}`,
+    exact: true,
+  });
   await expect(claimButton).toBeVisible();
   const caseRef =
     (await claimButton.getAttribute("aria-label")) ?? "claimed case";
@@ -142,12 +148,13 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   ).toBeVisible();
   await noOverflow(page);
 
-  // Open the case comparison workspace.
+  // Open the case comparison workspace (our own case, never pool-first).
   await page
-    .getByRole("link", { name: /Open case APP-/ })
-    .first()
+    .getByRole("link", { name: `Open case ${claimedRef}`, exact: true })
     .click();
-  await expect(page.getByRole("heading", { name: /Review case/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Review case/ }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Declarations vs documents" }),
   ).toBeVisible();
@@ -169,10 +176,54 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await page
     .getByLabel("Exact items needed")
     .fill("Provide a complete result statement.");
-  await page
-    .getByRole("button", { name: "Raise clarification" })
-    .click();
+  await page.getByRole("button", { name: "Raise clarification" }).click();
   await expect(page.getByText(/Clarification raised/)).toBeVisible();
+  await noOverflow(page);
+
+  // Record a recommendation package (slice 4): eligibility outcome plus
+  // rationale, then supersede visibility via the active package display.
+  await page.getByLabel("Eligibility outcome").selectOption("ELIGIBLE");
+  await page
+    .getByLabel("Recommendation", { exact: true })
+    .selectOption("FAVOURABLE");
+  await page.getByLabel("Rationale").fill("Meets the demo minimum.");
+  await page.getByRole("button", { name: "Record recommendation" }).click();
+  await expect(page.getByText("Recommendation recorded.")).toBeVisible();
+  await expect(page.getByText("Meets the demo minimum.")).toBeVisible();
+  await noOverflow(page);
+
+  // Release a decision as the separate approver (slice 5): sign out the
+  // officer, sign in as the seeded approver, open the same case directly,
+  // and release a conditional offer.
+  const caseId = submitted.applicationUrl.split("/").pop() as string;
+  await page.context().clearCookies();
+  await page.goto("/sign-in");
+  await page.getByLabel("Username", { exact: true }).fill("kasonde.a");
+  await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Kasonde");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await page.goto(`/admin/admissions/case/${caseId}`);
+  await expect(
+    page.getByRole("heading", { name: "Release decision" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Decision outcome")
+    .selectOption("ADMIT_WITH_CONDITIONS");
+  await page
+    .getByLabel("Authorized message")
+    .fill("Offered a place with conditions.");
+  await page
+    .getByLabel("Offer response deadline (CAT date)")
+    .fill("2027-01-15");
+  await page
+    .getByLabel("Text", { exact: true })
+    .first()
+    .fill("Provide certified documents.");
+  await page
+    .getByLabel(/I confirm that I have reviewed the stated evidence/)
+    .check();
+  await page.getByRole("button", { name: "Release decision" }).click();
+  await expect(page.getByText("Decision released.")).toBeVisible();
   await noOverflow(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });

@@ -18,6 +18,9 @@ import { ReviewService } from './review.service.js';
 import {
   ClaimReviewDto,
   CorrectionDecideDto,
+  ExtendOfferDto,
+  RecommendationDto,
+  ReleaseDecisionDto,
   ReleaseReviewDto,
   ReviewFindingDto,
   ReviewQueueQuery,
@@ -95,12 +98,18 @@ export class ReviewController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewFindingDto,
   ) {
-    return this.reviews.recordFinding(r.auth, id, dto.idempotencyKey, dto.version, {
-      kind: dto.kind,
-      subject: dto.subject,
-      detail: dto.detail,
-      severity: dto.severity,
-    });
+    return this.reviews.recordFinding(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      {
+        kind: dto.kind,
+        subject: dto.subject,
+        detail: dto.detail,
+        severity: dto.severity,
+      },
+    );
   }
 
   @Post(':id/clarifications')
@@ -133,6 +142,73 @@ export class ReviewController {
       dto.idempotencyKey,
       dto.approve,
       dto.note,
+    );
+  }
+
+  @Get(':id/recommendations') recommendations(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.reviews.listRecommendations(r.auth, id);
+  }
+
+  @Post(':id/recommendations')
+  @UseGuards(CsrfGuard)
+  recordRecommendation(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecommendationDto,
+  ) {
+    return this.reviews.recordRecommendation(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      {
+        eligibilityOutcome: dto.eligibilityOutcome,
+        recommendation: dto.recommendation,
+        criteria: dto.criteria,
+        rationale: dto.rationale,
+        supersedesId: dto.supersedesId,
+      },
+    );
+  }
+
+  @Post(':id/decision/release')
+  @UseGuards(CsrfGuard)
+  releaseDecision(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReleaseDecisionDto,
+  ) {
+    return this.reviews.releaseDecision(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      {
+        outcome: dto.outcome,
+        message: dto.message,
+        acceptBy: dto.acceptBy,
+        conditions: dto.conditions,
+      },
+    );
+  }
+
+  @Post(':id/offer/extend')
+  @UseGuards(CsrfGuard)
+  extendOffer(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ExtendOfferDto,
+  ) {
+    return this.reviews.extendOffer(
+      r.auth,
+      id,
+      dto.idempotencyKey,
+      dto.version,
+      dto.newDeadline,
+      dto.reason,
     );
   }
 }

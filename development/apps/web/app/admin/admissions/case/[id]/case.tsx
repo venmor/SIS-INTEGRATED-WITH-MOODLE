@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type {
-  ReviewEvidenceView,
-  ReviewFindingView,
-} from "@sis/contracts";
+import type { ReviewEvidenceView, ReviewFindingView } from "@sis/contracts";
 import { Empty, ErrorSummary, Notice } from "@sis/ui";
 import { formatLusaka } from "../../../../../lib/time";
 import styles from "../../../../page.module.css";
@@ -80,8 +77,7 @@ export function ReviewCase({
           cache: "no-store",
         }),
       ]);
-      if (evRes.ok)
-        setCurrent((await evRes.json()) as ReviewEvidenceView);
+      if (evRes.ok) setCurrent((await evRes.json()) as ReviewEvidenceView);
       if (fRes.ok) {
         const data = (await fRes.json()) as { items: ReviewFindingView[] };
         setFindings(data.items);
@@ -160,7 +156,10 @@ export function ReviewCase({
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
       {errors.length > 0 ? (
-        <ErrorSummary title="The review action did not complete" errors={errors} />
+        <ErrorSummary
+          title="The review action did not complete"
+          errors={errors}
+        />
       ) : null}
 
       <h2>Declarations vs documents</h2>
@@ -227,8 +226,7 @@ export function ReviewCase({
               <strong>
                 {f.kind} · {f.subject}
               </strong>{" "}
-              — {f.severity} · {f.status} ·{" "}
-              {formatLusaka(f.createdAt)}
+              — {f.severity} · {f.status} · {formatLusaka(f.createdAt)}
               <br />
               {f.detail}
             </li>
@@ -293,6 +291,323 @@ export function ReviewCase({
         <p>
           <button type="submit" disabled={pending}>
             {pending ? "Working…" : "Record finding"}
+          </button>
+        </p>
+      </form>
+
+      <h2>Eligibility and recommendation</h2>
+      <p className={styles.supporting}>
+        Record an eligibility outcome and a recommendation against the demo
+        criteria version. This never modifies applicant data and is never a
+        decision. A new version supersedes the active package; history is
+        preserved.
+      </p>
+      {current.recommendation ? (
+        <ul>
+          <li>
+            <strong>
+              {current.recommendation.eligibilityOutcome} ·{" "}
+              {current.recommendation.recommendation}
+            </strong>{" "}
+            — v{current.recommendation.version} ·{" "}
+            {current.recommendation.criteriaVersion} ·{" "}
+            {formatLusaka(current.recommendation.createdAt)}
+            <br />
+            Criteria:{" "}
+            {current.recommendation.criteria.length > 0
+              ? current.recommendation.criteria.join(", ")
+              : "none listed"}
+            <br />
+            {current.recommendation.rationale}
+          </li>
+        </ul>
+      ) : (
+        <Empty
+          caseVariant="nothing"
+          title="No recommendation yet"
+          message="Record the first recommendation package for this case."
+        />
+      )}
+      <form
+        aria-label="Record a recommendation"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          submit(
+            `/${current.applicationId}/recommendations`,
+            {
+              eligibilityOutcome: String(
+                data.get("eligibilityOutcome") ?? "UNDETERMINED",
+              ),
+              recommendation: String(
+                data.get("recommendation") ?? "NEEDS_INFORMATION",
+              ),
+              criteria: data.getAll("criteria").map(String),
+              rationale: String(data.get("rationale") ?? ""),
+              ...(current.recommendation
+                ? { supersedesId: current.recommendation.id }
+                : {}),
+            },
+            current.recommendation
+              ? "Recommendation superseded with a new version."
+              : "Recommendation recorded.",
+            e.currentTarget,
+          );
+        }}
+      >
+        <p>
+          <label htmlFor="rec-eligibility">Eligibility outcome</label>{" "}
+          <select
+            id="rec-eligibility"
+            name="eligibilityOutcome"
+            defaultValue="UNDETERMINED"
+          >
+            <option value="ELIGIBLE">Eligible</option>
+            <option value="NOT_ELIGIBLE">Not eligible</option>
+            <option value="UNDETERMINED">Undetermined</option>
+          </select>
+        </p>
+        <p>
+          <label htmlFor="rec-decision">Recommendation</label>{" "}
+          <select
+            id="rec-decision"
+            name="recommendation"
+            defaultValue="NEEDS_INFORMATION"
+          >
+            <option value="FAVOURABLE">Favourable</option>
+            <option value="UNFAVOURABLE">Unfavourable</option>
+            <option value="NEEDS_INFORMATION">Needs information</option>
+          </select>
+        </p>
+        <fieldset>
+          <legend>Demo criteria considered</legend>
+          {[
+            "COMPLETENESS",
+            "DECLARATION_MATCH",
+            "DOCUMENT_QUALITY",
+            "MINIMUM_ELIGIBILITY",
+          ].map((criterion) => (
+            <p key={criterion}>
+              <label htmlFor={`rec-criterion-${criterion}`}>
+                <input
+                  id={`rec-criterion-${criterion}`}
+                  name="criteria"
+                  type="checkbox"
+                  value={criterion}
+                />{" "}
+                {criterion}
+              </label>
+            </p>
+          ))}
+        </fieldset>
+        <p>
+          <label htmlFor="rec-rationale">Rationale</label>{" "}
+          <textarea
+            id="rec-rationale"
+            name="rationale"
+            rows={3}
+            maxLength={2000}
+            required
+          />
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending
+              ? "Working…"
+              : current.recommendation
+                ? "Supersede with new version"
+                : "Record recommendation"}
+          </button>
+        </p>
+      </form>
+
+      <h2>Release decision</h2>
+      <p className={styles.supporting}>
+        Authority: admissions approver workspace (decide-offer) · Scope:{" "}
+        {current.offering.intake} · Evidence package: {current.policyVersion} /{" "}
+        {current.requirementVersion}
+        {current.recommendation ? (
+          <>
+            {" "}
+            · Recommendation v{current.recommendation.version} (
+            {current.recommendation.criteriaVersion})
+          </>
+        ) : (
+          <> · No recommendation recorded yet — release will be refused</>
+        )}
+        . Separation of duties is enforced: the recommending officer cannot
+        release. A released decision takes effect immediately and is never
+        overwritten here.
+      </p>
+      {current.hasDecision ? (
+        <Notice
+          severity="info"
+          title="Decision released"
+          message="This case already has a released decision. It cannot be replaced from this screen."
+        />
+      ) : null}
+      <form
+        aria-label="Release a decision"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          const conditions: Array<Record<string, unknown>> = [];
+          for (const index of [1, 2]) {
+            const text = String(
+              data.get(`condition-${index}-text`) ?? "",
+            ).trim();
+            if (!text) continue;
+            const day = String(data.get(`condition-${index}-day`) ?? "");
+            const detail = String(
+              data.get(`condition-${index}-detail`) ?? "",
+            ).trim();
+            conditions.push({
+              text,
+              detail: detail ? detail : null,
+              owner: String(
+                data.get(`condition-${index}-owner`) ?? "APPLICANT",
+              ),
+              deadline: day
+                ? new Date(`${day}T17:00:00+02:00`).toISOString()
+                : null,
+              blocksMatriculation:
+                data.get(`condition-${index}-blocks`) === "yes",
+            });
+          }
+          submit(
+            `/${current.applicationId}/decision/release`,
+            {
+              outcome: String(data.get("outcome") ?? "REQUEST_FURTHER_REVIEW"),
+              message: String(data.get("decision-message") ?? ""),
+              acceptBy: (() => {
+                const day = String(data.get("accept-by-day") ?? "");
+                return day
+                  ? new Date(`${day}T17:00:00+02:00`).toISOString()
+                  : "";
+              })(),
+              conditions,
+            },
+            "Decision released.",
+            e.currentTarget,
+          );
+        }}
+      >
+        <p>
+          <label htmlFor="release-outcome">Decision outcome</label>{" "}
+          <select
+            id="release-outcome"
+            name="outcome"
+            defaultValue="REQUEST_FURTHER_REVIEW"
+          >
+            <option value="ADMIT">Admit</option>
+            <option value="ADMIT_WITH_CONDITIONS">Admit with conditions</option>
+            <option value="WAITLIST">Waitlist</option>
+            <option value="REJECT">Reject</option>
+            <option value="REFER_TO_ALTERNATIVE_PROGRAMME">
+              Refer to alternative programme
+            </option>
+            <option value="REQUEST_FURTHER_REVIEW">
+              Request further review
+            </option>
+          </select>
+        </p>
+        <p className={styles.supporting}>
+          Consequences: Admit opens an offer the applicant may accept; Admit
+          with conditions adds the conditions below; Waitlist and Refer keep the
+          applicant informed without a place; Reject closes this application;
+          Request further review returns it to the queue without deciding.
+        </p>
+        <p>
+          <label htmlFor="release-message">Authorized message</label>{" "}
+          <textarea
+            id="release-message"
+            name="decision-message"
+            rows={3}
+            maxLength={2000}
+            required
+          />
+        </p>
+        <p>
+          <label htmlFor="accept-by-day">
+            Offer response deadline (CAT date)
+          </label>{" "}
+          <input id="accept-by-day" name="accept-by-day" type="date" required />
+        </p>
+        {[1, 2].map((index) => (
+          <fieldset key={index}>
+            <legend>Condition {index} (optional)</legend>
+            <p>
+              <label htmlFor={`condition-${index}-text`}>Text</label>{" "}
+              <input
+                id={`condition-${index}-text`}
+                name={`condition-${index}-text`}
+                type="text"
+                maxLength={500}
+              />
+            </p>
+            <p>
+              <label htmlFor={`condition-${index}-detail`}>
+                Why it is required (optional)
+              </label>{" "}
+              <input
+                id={`condition-${index}-detail`}
+                name={`condition-${index}-detail`}
+                type="text"
+                maxLength={500}
+              />
+            </p>
+            <p>
+              <label htmlFor={`condition-${index}-owner`}>Responsible</label>{" "}
+              <select
+                id={`condition-${index}-owner`}
+                name={`condition-${index}-owner`}
+                defaultValue="APPLICANT"
+              >
+                <option value="APPLICANT">Applicant</option>
+                <option value="ADMISSIONS">Admissions</option>
+                <option value="FINANCE">Finance</option>
+                <option value="OTHER">Other office</option>
+              </select>
+            </p>
+            <p>
+              <label htmlFor={`condition-${index}-day`}>
+                Deadline (CAT date)
+              </label>{" "}
+              <input
+                id={`condition-${index}-day`}
+                name={`condition-${index}-day`}
+                type="date"
+              />
+            </p>
+            <p>
+              <label htmlFor={`condition-${index}-blocks`}>
+                <input
+                  id={`condition-${index}-blocks`}
+                  name={`condition-${index}-blocks`}
+                  type="checkbox"
+                  value="yes"
+                />{" "}
+                Blocks registration until met
+              </label>
+            </p>
+          </fieldset>
+        ))}
+        <p>
+          <label htmlFor="release-declaration">
+            <input
+              id="release-declaration"
+              name="release-declaration"
+              type="checkbox"
+              value="confirmed"
+              required
+            />{" "}
+            I confirm that I have reviewed the stated evidence and make this
+            decision within my assigned authority.
+          </label>
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending ? "Working…" : "Release decision"}
           </button>
         </p>
       </form>
