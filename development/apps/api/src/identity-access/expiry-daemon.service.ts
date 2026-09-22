@@ -195,7 +195,8 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
     try {
       // The transaction reports whether this tick won the claim, so losers
       // never inflate processedCount.
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(
+        async (tx) => {
         const claimed = await tx.roleAssignment.updateMany({
           where: { id: assignment.id, revokedAt: null },
           data: {
@@ -315,7 +316,9 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           });
         }
         return true;
-      });
+      },
+      { maxWait: 10000, timeout: 10000 },
+      );
     } catch (error) {
       this.logger.error(
         `Error revoking expired assignment ${assignment.id}`,
