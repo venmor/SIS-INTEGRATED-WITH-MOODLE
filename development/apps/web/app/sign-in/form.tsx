@@ -79,15 +79,18 @@ export function SignInForm({
       };
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
-        // Only local applicant/discovery routes survive authentication.
+        // Only local applicant/discovery/admin routes survive authentication.
+        const isStaffAccount = demoStaff?.some((s) => s.username === filledAccount);
         const target =
           returnTo &&
-          /^\/(applicant|discover)(\/|\?|$)/.test(returnTo) &&
+          /^\/(applicant|discover|admin)(\/|\?|$)/.test(returnTo) &&
           !/[\\\r\n]/.test(returnTo)
             ? returnTo
             : filledAccount && filledAccount === demoAccount?.username
               ? "/applicant"
-              : "/";
+              : isStaffAccount
+                ? "/admin/admissions/queue"
+                : "/";
         router.replace(target);
         router.refresh();
         return;
