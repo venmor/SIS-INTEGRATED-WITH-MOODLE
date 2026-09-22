@@ -280,7 +280,7 @@ test("slice-6 case pages: timeline, decision, tickets, corrections, withdraw", a
   ).toBeVisible();
   await expect(page.getByText("Verification in progress")).toBeVisible();
   await page
-    .getByRole("button", { name: "Mark complete", exact: true })
+    .getByRole("button", { name: /Mark task as complete/ })
     .first()
     .click();
   await expect(page.getByText("Task completed.")).toBeVisible();
