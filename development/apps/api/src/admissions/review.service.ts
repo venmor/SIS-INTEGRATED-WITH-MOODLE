@@ -1224,6 +1224,35 @@ export class ReviewService {
     return result as { applicationId: string; acceptBy: string };
   }
 
+  async caseHistory(auth: ReviewerAuthority, id: string) {
+    // Staff-only timeline (UI-TIMELINE-001): the assigned officer or a
+    // reader with approver scope sees every event, newest first, including
+    // staff-only rows the applicant never sees. Unknown and foreign ids
+    // stay neutral through the same gates as evidence.
+    const scope = await this.gate(auth, 'read');
+    if (scope.readOnly) await this.approverView(this.prisma, id);
+    else await this.assigned(this.prisma, auth, id, scope);
+    await this.audit(this.prisma, auth, 'ReviewHistoryViewed', id, randomUUID()).catch(
+      () => {},
+    );
+    const rows = await this.prisma.applicationStatusEvent.findMany({
+      where: { applicationId: id },
+      orderBy: { occurredAt: 'desc' },
+      take: 100,
+    });
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        label: r.label,
+        detail: r.detail,
+        actorRole: r.actorRole,
+        applicantVisible: r.applicantVisible,
+        occurredAt: r.occurredAt.toISOString(),
+      })),
+    };
+  }
+
   async summary(auth: ReviewerAuthority, id: string) {
     const scope = await this.gate(auth, 'read');
     await this.audit(

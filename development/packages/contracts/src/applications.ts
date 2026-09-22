@@ -330,6 +330,18 @@ export interface ReviewFindingView {
   status: string;
   createdAt: string;
 }
+/** Phase 3: staff case history (UI-TIMELINE-001). Reviewers see every event
+ * including staff-only rows, newest first; each row states who recorded it
+ * and whether the applicant can see it. */
+export interface ReviewTimelineEvent {
+  id: string;
+  code: string;
+  label: string;
+  detail: string | null;
+  actorRole: string;
+  applicantVisible: boolean;
+  occurredAt: string;
+}
 /** Phase 3 slice 4: eligibility and recommendation package. Staff-only; never
  * projected to applicant timelines, notices, or decision pages. */
 export interface ReviewRecommendationView {

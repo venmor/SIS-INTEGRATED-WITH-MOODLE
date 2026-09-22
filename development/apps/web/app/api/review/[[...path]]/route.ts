@@ -7,7 +7,7 @@ import { isSameOriginMutation } from "../../../../lib/same-origin";
 // are proxied; everything else is refused. Non-GET/POST methods are refused.
 const uuid = "[a-fA-F0-9-]{36}";
 const reads = new RegExp(
-  `^(queue|queue/${uuid}|${uuid}/evidence|${uuid}/findings|${uuid}/recommendations)$`,
+  `^(queue|queue/${uuid}|${uuid}/evidence|${uuid}/findings|${uuid}/recommendations|${uuid}/history)$`,
 );
 const writes = new RegExp(
   `^(${uuid}/(claim|release|findings|clarifications|recommendations|decision/release|offer/extend)|corrections/${uuid}/decide)$`,

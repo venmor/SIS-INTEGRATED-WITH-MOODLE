@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { ReviewEvidenceView, ReviewFindingView } from "@sis/contracts";
+import type {
+  ReviewEvidenceView,
+  ReviewFindingView,
+  ReviewTimelineEvent,
+} from "@sis/contracts";
 import { Empty, ErrorSummary, Notice } from "@sis/ui";
 import { formatLusaka } from "../../../../../lib/time";
 import styles from "../../../../page.module.css";
@@ -55,19 +59,22 @@ function asRecord(value: unknown): Record<string, string> {
 export function ReviewCase({
   evidence,
   initialFindings,
+  initialHistory,
 }: {
   evidence: ReviewEvidenceView;
   initialFindings: ReviewFindingView[];
+  initialHistory: ReviewTimelineEvent[];
 }) {
   const [current, setCurrent] = useState(evidence);
   const [findings, setFindings] = useState(initialFindings);
+  const [history, setHistory] = useState(initialHistory);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function refreshCase() {
     try {
-      const [evRes, fRes] = await Promise.all([
+      const [evRes, fRes, hRes] = await Promise.all([
         fetch(`/api/review/${current.applicationId}/evidence`, {
           credentials: "same-origin",
           cache: "no-store",
@@ -76,11 +83,20 @@ export function ReviewCase({
           credentials: "same-origin",
           cache: "no-store",
         }),
+        fetch(`/api/review/${current.applicationId}/history`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        }),
       ]);
-      if (evRes.ok) setCurrent((await evRes.json()) as ReviewEvidenceView);
+      if (evRes.ok)
+        setCurrent((await evRes.json()) as ReviewEvidenceView);
       if (fRes.ok) {
         const data = (await fRes.json()) as { items: ReviewFindingView[] };
         setFindings(data.items);
+      }
+      if (hRes.ok) {
+        const data = (await hRes.json()) as { items: ReviewTimelineEvent[] };
+        setHistory(data.items);
       }
     } catch {
       // Refresh is best-effort; the success notice already confirms the write.
@@ -161,6 +177,11 @@ export function ReviewCase({
           errors={errors}
         />
       ) : null}
+      <Notice
+        severity="info"
+        title="Restricted case file"
+        message="Assigned reviewers only. Every view and action here is audited; applicant-visible and internal content stay separate."
+      />
 
       <h2>Declarations vs documents</h2>
       <p className={styles.supporting}>
@@ -606,10 +627,23 @@ export function ReviewCase({
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button
+            type="submit"
+            disabled={pending || current.hasDecision}
+            title={
+              current.hasDecision
+                ? "Unavailable: a decision is already released for this case."
+                : undefined
+            }
+          >
             {pending ? "Working…" : "Release decision"}
           </button>
         </p>
+        {current.hasDecision ? (
+          <p className={styles.supporting}>
+            Release is unavailable because a decision is already released.
+          </p>
+        ) : null}
       </form>
 
       <h2>Ask for clarification</h2>
@@ -662,8 +696,36 @@ export function ReviewCase({
         </p>
       </form>
 
-      <h2>Pending corrections</h2>
-      {current.pendingCorrections.length === 0 ? (
+      <h2>Case history</h2>
+      <p className={styles.supporting}>
+        Newest first, including staff-only rows the applicant never sees.
+      </p>
+      {history.length === 0 ? (
+        <Empty
+          caseVariant="nothing"
+          title="No history yet"
+          message="Status events for this case will appear here."
+        />
+      ) : (
+        <ol>
+          {history.map((event) => (
+            <li key={event.id}>
+              <p>
+                <strong>{event.label}</strong> · {event.code}
+              </p>
+              <p className={styles.supporting}>
+                {formatLusaka(event.occurredAt)} · {event.actorRole} ·{" "}
+                {event.applicantVisible
+                  ? "Visible to applicant"
+                  : "Staff only"}
+              </p>
+              {event.detail ? <p>{event.detail}</p> : null}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <h2>Pending corrections</h2>      {current.pendingCorrections.length === 0 ? (
         <Empty
           caseVariant="nothing"
           title="No pending corrections"

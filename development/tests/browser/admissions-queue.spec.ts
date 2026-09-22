@@ -192,6 +192,13 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await expect(page.getByText("Meets the demo minimum.")).toBeVisible();
   await noOverflow(page);
 
+  // Staff case history lists every event with visibility markers.
+  await expect(
+    page.getByRole("heading", { name: "Case history" }),
+  ).toBeVisible();
+  await expect(page.getByText("Staff only").first()).toBeVisible();
+  await noOverflow(page);
+
   // Release a decision as the separate approver (slice 5): sign out the
   // officer, sign in as the seeded approver, open the same case directly,
   // and release a conditional offer.
@@ -224,6 +231,17 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
     .check();
   await page.getByRole("button", { name: "Release decision" }).click();
   await expect(page.getByText("Decision released.")).toBeVisible();
+  await noOverflow(page);
+  // Queue filters narrow the list without losing context.
+  await page.goto("/admin/admissions/queue");
+  await expect(
+    page.getByRole("form", { name: "Filter the queue" }),
+  ).toBeVisible();
+  await page.getByLabel("Only cases needing action").check();
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByText(/Showing \d+/)).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByText(/Showing \d+/)).toBeVisible();
   await noOverflow(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });

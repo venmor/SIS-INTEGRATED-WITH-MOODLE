@@ -108,6 +108,29 @@ test). Environment notes: Node 22 on this box vs pinned 24.21.0 (`nest`
 CLI unusable — direct `tsc` used), ripgrep absent (scan + 1 script test
 unrunnable), sign-in rate budget shared across repeated local runs.
 
+## Workspace UI hardening (2026-09-21, uncommitted worktree)
+
+A handbook audit of the admissions workspace (constitution, UI catalogue,
+permissions, recovery, acceptance tests) found the flows complete but several
+workspace surfaces thin. Closed in this worktree, all verified (typecheck,
+lint warnings-only, unit 68, targeted e2e 27, browser 4/4):
+
+- Queue cards use UI-STATUS-001 (`Status` component: state + reason +
+  updated + owner + next action) instead of bare state words.
+- Queue filter form (state select + action-needed toggle) wired to the
+  existing server filters; browser-covered.
+- New `GET /review/:id/history` (assigned officer or approver read, neutral
+  404s, audited) with a staff case-history section showing every event,
+  newest first, with staff-only markers; e2e-covered.
+- Release form disables with an explained reason once a decision exists.
+- Restricted-case-file notice on the review workspace (audited views,
+  applicant/internal separation).
+
+Still open by design (production scope, see gaps): search/sort/table views,
+loading skeletons and freshness labels, conflict/stale UI, staff inbox and
+delivery states (GAP-016/008/009), full document viewer, correction routing
+(GAP-018), ticket categories/appeal (GAP-019), registries (GAP-003/004/006/012).
+
 ## What you must not claim in a presentation
 
 Do not claim real admissions authority, real verification, offer issuance,

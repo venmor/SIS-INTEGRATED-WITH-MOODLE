@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ReviewQueueItem } from "@sis/contracts";
-import { Empty, ErrorSummary, Notice } from "@sis/ui";
+import { Empty, ErrorSummary, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
 import styles from "../../../page.module.css";
 
@@ -54,21 +54,39 @@ function CaseCard({
   onAction: (item: ReviewQueueItem) => void;
   pending: boolean;
 }) {
+  // UI-STATUS-001: never a bare state word. Wording stays within the
+  // applicant lifecycle states the demo produces.
+  const status =
+    item.state === "Submitted"
+      ? {
+          state: "Submitted — awaiting review",
+          reason: "Admissions has received this application.",
+          action: item.actionNeeded
+            ? "Open items need review: see clarifications and corrections."
+            : "No applicant action is waiting on this case.",
+        }
+      : {
+          state: `Application ${item.state.toLowerCase()}`,
+          reason: "This case left the review pool.",
+          action: "Open it for history only.",
+        };
+  const updatedAt = item.claimedAt ?? item.submittedAt;
   return (
     <li>
       <p>
-        <strong>{item.reference}</strong> — {item.state}
-        {item.actionNeeded ? " · Action needed" : ""}
+        <strong>{item.reference}</strong>
       </p>
+      <Status
+        severity={item.actionNeeded ? "attention" : "info"}
+        state={status.state}
+        reason={status.reason}
+        updated={updatedAt ? formatLusaka(updatedAt) : undefined}
+        owner={item.claimedAt ? "Claimed by you" : "Unclaimed in the pool"}
+        action={status.action}
+      />
       <p className={styles.supporting}>
-        Submitted{" "}
-        {item.submittedAt ? formatLusaka(item.submittedAt) : "date unavailable"}
-        {item.claimedAt ? ` · Claimed ${formatLusaka(item.claimedAt)}` : ""} ·
-        Version {item.version}
-      </p>
-      <p className={styles.supporting}>
-        Open clarifications: {item.openClarifications} · Open corrections:{" "}
-        {item.openCorrections}
+        Version {item.version} · Open clarifications:{" "}
+        {item.openClarifications} · Open corrections: {item.openCorrections}
       </p>
       <p>
         <button
@@ -105,18 +123,31 @@ export function AdmissionsQueue({
   const [mine, setMine] = useState(initialMine);
   const [pool, setPool] = useState(initialPool);
   const [hasMore, setHasMore] = useState(false);
+  const [stateFilter, setStateFilter] = useState("");
+  const [actionNeededOnly, setActionNeededOnly] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const rows = view === "mine" ? mine : pool;
 
+  function queryString(scope: "mine" | "pool"): string {
+    const params = new URLSearchParams({ scope });
+    // The pool is claimable submitted work by definition.
+    if (scope === "pool") params.set("state", "Submitted");
+    else if (stateFilter) params.set("state", stateFilter);
+    if (actionNeededOnly) params.set("actionNeeded", "true");
+    return params.toString();
+  }
+
   async function refresh() {
     setErrors([]);
     try {
       const [mineRes, poolRes] = await Promise.all([
-        fetch(`/api/review/queue?scope=mine`, { credentials: "same-origin" }),
-        fetch(`/api/review/queue?scope=pool&state=Submitted`, {
+        fetch(`/api/review/queue?${queryString("mine")}`, {
+          credentials: "same-origin",
+        }),
+        fetch(`/api/review/queue?${queryString("pool")}`, {
           credentials: "same-origin",
         }),
       ]);
@@ -192,6 +223,49 @@ export function AdmissionsQueue({
           Refresh queue
         </button>
       </div>
+      <form
+        aria-label="Filter the queue"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void refresh();
+        }}
+      >
+        <p>
+          <label htmlFor="queue-state">State</label>{" "}
+          <select
+            id="queue-state"
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+          >
+            <option value="">All states</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Withdrawn">Withdrawn</option>
+          </select>
+        </p>
+        <p>
+          <label htmlFor="queue-action-needed">
+            <input
+              id="queue-action-needed"
+              type="checkbox"
+              checked={actionNeededOnly}
+              onChange={(e) => setActionNeededOnly(e.target.checked)}
+            />{" "}
+            Only cases needing action
+          </label>
+        </p>
+        <p>
+          <button type="submit">Apply filters</button>{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setStateFilter("");
+              setActionNeededOnly(false);
+            }}
+          >
+            Clear filters
+          </button>
+        </p>
+      </form>
       <p className={styles.supporting} role="status">
         Showing {rows.length} {view === "mine" ? "claimed case" : "claimable case"}
         {rows.length === 1 ? "" : "s"}

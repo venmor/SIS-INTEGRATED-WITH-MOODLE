@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
-import type { ReviewEvidenceView, ReviewFindingView } from "@sis/contracts";
+import type {
+  ReviewEvidenceView,
+  ReviewFindingView,
+  ReviewTimelineEvent,
+} from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import styles from "../../../../page.module.css";
 import { ReviewCase } from "./case";
@@ -30,11 +34,12 @@ export default async function ReviewCasePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [evidence, findings] = await Promise.all([
+  const [evidence, findings, history] = await Promise.all([
     loadStaff<ReviewEvidenceView>(`/${id}/evidence`),
     loadStaff<{ items: ReviewFindingView[] }>(`/${id}/findings`),
+    loadStaff<{ items: ReviewTimelineEvent[] }>(`/${id}/history`),
   ]);
-  if (!evidence.ok || !findings.ok) {
+  if (!evidence.ok || !findings.ok || !history.ok) {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -62,7 +67,11 @@ export default async function ReviewCasePage({
           states. Findings record observations only — applicant data is never
           modified here.
         </p>
-        <ReviewCase evidence={evidence.data} initialFindings={findings.data.items} />
+        <ReviewCase
+          evidence={evidence.data}
+          initialFindings={findings.data.items}
+          initialHistory={history.data.items}
+        />
       </main>
     </div>
   );

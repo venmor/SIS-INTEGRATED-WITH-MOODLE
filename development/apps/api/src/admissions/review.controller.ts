@@ -91,6 +91,13 @@ export class ReviewController {
     return this.reviews.listFindings(r.auth, id);
   }
 
+  @Get(':id/history') history(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.reviews.caseHistory(r.auth, id);
+  }
+
   @Post(':id/findings')
   @UseGuards(CsrfGuard)
   recordFinding(

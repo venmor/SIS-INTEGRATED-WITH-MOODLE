@@ -628,4 +628,46 @@ describe('Phase 3 evidence and declaration comparison', () => {
       'IDEMPOTENCY_CONFLICT',
     );
   });
+
+  it('case-history: staff see every event newest-first, others get 404s', async () => {
+    const { id, version, cookie } = await claimedApp(officer);
+    await post(
+      `/${id}/findings`,
+      {
+        version,
+        kind: 'NOTE',
+        subject: 'History probe',
+        detail: 'Creates a staff-only event.',
+        severity: 'INFO',
+        idempotencyKey: key(),
+      },
+      officer,
+    ).expect(201);
+    const history = await get(`/${id}/history`, officer).expect(200);
+    const items = history.body as {
+      items: Array<{
+        code: string;
+        actorRole: string;
+        applicantVisible: boolean;
+        occurredAt: string;
+      }>;
+    };
+    expect(items.items.length).toBeGreaterThan(0);
+    // Newest first.
+    const times = items.items.map((e) => e.occurredAt);
+    expect([...times].sort().reverse()).toEqual(times);
+    // Staff-only rows are present for reviewers (claim event is staff-only).
+    expect(
+      items.items.some(
+        (e) => e.applicantVisible === false && e.actorRole === 'ADMISSIONS',
+      ),
+    ).toBe(true);
+    // Applicant and strangers stay out with neutral responses.
+    await appGet(`/${id}/history`, cookie).expect(404);
+    const officer2 = (
+      await user('ADMISSIONS_OFFICER', ['review-assigned'], 'INTAKE', '2026')
+    ).cookie;
+    await get(`/${id}/history`, officer2).expect(404);
+    await get(`/${randomUUID()}/history`, officer).expect(404);
+  });
 });
