@@ -15,6 +15,27 @@ export default async function SignInPage({
   const demoAccount = process.env.DEMO_MODE === "true"
     ? { username: "bwalya.m", password: "Seed-2026-Bwalya" }
     : undefined;
+  // Staff demo accounts follow the same rule: fictional seed credentials for
+  // the admissions demo path (officer claims/recommends, approver releases).
+  // Elevated (SYSADMIN) and unrelated-role seeds stay unadvertised.
+  const demoStaff =
+    process.env.DEMO_MODE === "true"
+      ? [
+          {
+            role: "Admissions officer",
+            username: "temwani.r",
+            password: "Seed-2026-Temwani",
+            blurb:
+              "Claims cases from the queue, records findings and recommendations.",
+          },
+          {
+            role: "Admissions approver",
+            username: "kasonde.a",
+            password: "Seed-2026-Kasonde",
+            blurb: "Releases decisions separately from the recommendation.",
+          },
+        ]
+      : undefined;
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -24,7 +45,11 @@ export default async function SignInPage({
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Sign in</h1>
         <p className={styles.lede}>Use your SIS username and password.</p>
-        <SignInForm returnTo={returnTo} demoAccount={demoAccount} />
+        <SignInForm
+          returnTo={returnTo}
+          demoAccount={demoAccount}
+          demoStaff={demoStaff}
+        />
       </main>
     </div>
   );

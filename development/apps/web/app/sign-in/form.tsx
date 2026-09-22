@@ -20,26 +20,38 @@ interface FieldError {
 export function SignInForm({
   returnTo,
   demoAccount,
+  demoStaff,
 }: {
   returnTo?: string;
   demoAccount?: { username: string; password: string };
+  demoStaff?: Array<{
+    role: string;
+    username: string;
+    password: string;
+    blurb: string;
+  }>;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
-  const [demoDetailsFilled, setDemoDetailsFilled] = useState(false);
+  const [filledAccount, setFilledAccount] = useState<string | null>(null);
 
-  function fillDemoDetails() {
-    if (!demoAccount || pending) return;
+  function fillDetails(account: { username: string; password: string }) {
+    if (pending) return;
     const username = formRef.current?.elements.namedItem("username");
     const password = formRef.current?.elements.namedItem("password");
     if (!(username instanceof HTMLInputElement) || !(password instanceof HTMLInputElement)) return;
-    username.value = demoAccount.username;
-    password.value = demoAccount.password;
+    username.value = account.username;
+    password.value = account.password;
     setErrors([]);
-    setDemoDetailsFilled(true);
+    setFilledAccount(account.username);
     username.focus();
+  }
+
+  function fillDemoDetails() {
+    if (!demoAccount) return;
+    fillDetails(demoAccount);
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -73,7 +85,7 @@ export function SignInForm({
           /^\/(applicant|discover)(\/|\?|$)/.test(returnTo) &&
           !/[\\\r\n]/.test(returnTo)
             ? returnTo
-            : demoDetailsFilled && data.get("username") === demoAccount?.username
+            : filledAccount && filledAccount === demoAccount?.username
               ? "/applicant"
               : "/";
         router.replace(target);
@@ -129,8 +141,38 @@ export function SignInForm({
             Personal account registration is not available in this demo.
           </p>
           <p role="status" className={signInStyles.demoStatus}>
-            {demoDetailsFilled ? "Demo details filled. Select Sign in to continue." : "Fill the details, then select Sign in."}
+            {filledAccount ? "Demo details filled. Select Sign in to continue." : "Fill the details, then select Sign in."}
           </p>
+        </section>
+      ) : null}
+      {demoStaff && demoStaff.length > 0 ? (
+        <section className={signInStyles.demoPanel} aria-labelledby="demo-staff-heading">
+          <p className={signInStyles.demoLabel}>Fictional staff demo</p>
+          <h2 id="demo-staff-heading">Try the admissions workspaces</h2>
+          <p>
+            Each role signs in to its own workspace. Enter fictional
+            information only.
+          </p>
+          {demoStaff.map((staff) => (
+            <div key={staff.username}>
+              <h3>
+                {staff.role}: <code>{staff.username}</code>
+              </h3>
+              <p>{staff.blurb}</p>
+              <dl className={signInStyles.credentials}>
+                <div><dt>Username</dt><dd><code>{staff.username}</code></dd></div>
+                <div><dt>Password</dt><dd><code>{staff.password}</code></dd></div>
+              </dl>
+              <ActionButton
+                type="button"
+                kind="secondary"
+                onClick={() => fillDetails(staff)}
+                disabled={pending}
+              >
+                Fill {staff.role.toLowerCase()} details
+              </ActionButton>
+            </div>
+          ))}
         </section>
       ) : null}
       {errors.length > 0 ? (
