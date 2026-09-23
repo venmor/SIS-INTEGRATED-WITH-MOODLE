@@ -44,3 +44,10 @@ Task 7 diagnostic: the timeline helper still reaches Review with submission disa
 
 
 Task 7 root cause confirmed in CI run 35835025757: the review was ready (4/4 required sections complete; "Ready to submit"), but `locator.count()` returned 0 before streamed declaration controls rendered, so the helper skipped all declaration checks. The disabled Continue button was correct product behavior. Fix: wait for exactly three declaration checkboxes before checking them; remove diagnostic logging. Cost if wrong: if the approved demo policy changes declaration count, this test must change with the policy fixture.
+
+
+Task 7: complete — CI run 35835543979 passed the complete verification pipeline, including all 13 browser tests. Visual evidence artifact: 10739131981 (desktop discovery, 390px discovery, applicant empty home plus browser report/test-results).
+
+Final review: self-review (no subagent tool available). Reviewed the full public/applicant modernization against the approved spec and Review Focus. No Critical or Important findings. Verified: no gradients/glass effects in changed core surfaces; no horizontal overflow in tested critical mobile flows; draft/submitted states remain distinct; document and submission blockers are text-first; loading skeletons are aria-hidden with concise status announcements; API/auth/submission semantics remain unchanged.
+
+Final: Ruling: true pixel-baseline regression remains deferred to the dedicated visual-quality plan because this environment cannot bootstrap/inspect binary Playwright snapshots — current CI captures screenshot evidence and structural assertions — cost if wrong: visual drift can be detected manually from artifacts but not automatically pixel-compared in this slice.
