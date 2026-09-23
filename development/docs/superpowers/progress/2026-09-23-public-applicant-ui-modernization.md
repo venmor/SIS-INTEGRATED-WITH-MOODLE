@@ -10,3 +10,6 @@ User constraint: UI copy is brief and direct; hierarchy and labels carry meaning
 
 Ruling: CI is the only executable environment available. Batch Tasks 1–6 semantic tests into one RED commit, confirm each expected failure in the Playwright step, then implement the six production slices. This preserves test-first ordering while avoiding six full pre-browser CI pipelines. Cost if wrong: a later test could mask an earlier failure; inspect the browser log for every named test before GREEN work.
 Baseline: CI run 35812935749 passed source scan, lint, unit tests, migrations, both API e2e groups, production build, typecheck and browser tests.
+
+RED run 35813252843: Tasks 1–5 failed for the intended missing UI contracts. Task 6 failed in test setup because Review remained blocked before document safety completion.
+Task 6 test ruling: wait for the existing document preview state before opening Review, matching the established applicant browser journey. Cost if wrong: test may still fail before reaching the timeline assertion.
