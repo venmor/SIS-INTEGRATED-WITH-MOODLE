@@ -18,3 +18,6 @@ Corrected RED run 35813699371: all six semantic contracts failed for the intende
 
 Task 3 Ruling: the next-step summary names the next section but does not duplicate the section link. The canonical action remains in the application step list. Reason: the duplicate same-destination link created ambiguous accessible navigation and broke existing keyboard/browser journeys. Cost if wrong: the user reads the summary, then activates the clearly visible step link immediately below.
 Browser GREEN attempt 35814324223: five new contracts passed. Existing applicant/admissions journeys and the submitted-status helper failed because the duplicate next-step link made "Personal details" non-unique.
+
+Browser GREEN attempt 35814760301: all six new handbook-facing tests passed after the canonical-link fix. Three existing journeys still failed because the document modernization removed the per-file status text they rely on and users need ("file name · Checking file safety").
+Task 4 Ruling: keep both the requirement-level status and the file-version status. The requirement status answers whether evidence exists; the file row answers what is happening to that specific upload. Cost if wrong: slight status repetition, preferable to losing file-level processing visibility.
