@@ -10,7 +10,7 @@ export default function RecoveryPage() {
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Recover account access</h1>
         <p className={styles.lede}>
-          Enter your username. The reply is always the same whether the account exists or not.
+          Enter your registered username to receive recovery instructions.
         </p>
         <RecoveryForm />
       </main>

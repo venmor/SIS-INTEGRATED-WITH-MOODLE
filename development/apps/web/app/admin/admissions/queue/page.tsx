@@ -60,9 +60,7 @@ export default async function AdmissionsQueuePage() {
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Admissions queue</h1>
         <p className={styles.lede}>
-          Demonstration reviewer workspace: only cases claimed by you plus the
-          claimable submitted pool. Applicant records are never modified from
-          this queue.
+          Review assigned application cases and claim submitted applications ready for assessment.
         </p>
         <AdmissionsQueue initialMine={mine.items} initialPool={pool.items} />
       </main>
