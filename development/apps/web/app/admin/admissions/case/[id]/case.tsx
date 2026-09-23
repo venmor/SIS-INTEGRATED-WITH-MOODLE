@@ -795,87 +795,108 @@ export function ReviewCase({
         </section>
       ) : null}
 
-      <h2>Case history</h2>
-      <p className={styles.supporting}>
-        Newest first, including staff-only rows the applicant never sees.
-      </p>
-      {history.length === 0 ? (
-        <Empty
-          caseVariant="nothing"
-          title="No history yet"
-          message="Status events for this case will appear here."
-        />
-      ) : (
-        <ol>
-          {history.map((event) => (
-            <li key={event.id}>
-              <p>
-                <strong>{event.label}</strong> · {event.code}
-              </p>
-              <p className={styles.supporting}>
-                {formatLusaka(event.occurredAt)} · {event.actorRole} ·{" "}
-                {event.applicantVisible
-                  ? "Visible to applicant"
-                  : "Staff only"}
-              </p>
-              {event.detail ? <p>{event.detail}</p> : null}
-            </li>
-          ))}
-        </ol>
-      )}
+      <section
+        className={caseStyles.historyRegion}
+        aria-labelledby="case-history-heading"
+      >
+        <h2 id="case-history-heading">Case history</h2>
+        {history.length === 0 ? (
+          <Empty
+            caseVariant="nothing"
+            title="No history yet"
+            message="No case events recorded."
+          />
+        ) : (
+          <ol className={caseStyles.timeline}>
+            {history.map((event) => (
+              <li key={event.id}>
+                <div className={caseStyles.timelineMarker} aria-hidden="true" />
+                <div className={caseStyles.timelineBody}>
+                  <div className={caseStyles.timelineHeading}>
+                    <strong>{event.label}</strong>
+                    <span className={caseStyles.eventCode}>{event.code}</span>
+                  </div>
+                  <p className={caseStyles.timelineMeta}>
+                    {formatLusaka(event.occurredAt)} · {event.actorRole} ·{" "}
+                    {event.applicantVisible
+                      ? "Visible to applicant"
+                      : "Staff only"}
+                  </p>
+                  {event.detail ? <p>{event.detail}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
 
-      <h2>Pending corrections</h2>      {current.pendingCorrections.length === 0 ? (
-        <Empty
-          caseVariant="nothing"
-          title="No pending corrections"
-          message="Applicant correction requests awaiting a decision appear here."
-        />
-      ) : (
-        <ul>
-          {current.pendingCorrections.map((c) => (
-            <li key={c.id}>
-              <strong>
-                {c.section} · {c.field}
-              </strong>{" "}
-              — requested {formatLusaka(c.createdAt)}
-              <br />
-              {c.reason}
-              <form
-                aria-label={`Decide correction ${c.section} ${c.field}`}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  decide(c.id, true, e.currentTarget);
-                }}
-              >
-                <p>
-                  <label htmlFor={`note-${c.id}`}>Decision note</label>{" "}
-                  <input
-                    id={`note-${c.id}`}
-                    name={`note-${c.id}`}
-                    type="text"
-                    maxLength={500}
-                  />
-                </p>
-                <p>
-                  <button type="submit" disabled={pending}>
-                    {pending ? "Working…" : "Approve"}
-                  </button>{" "}
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={(e) => {
-                      const form = e.currentTarget.closest("form");
-                      if (form) decide(c.id, false, form as HTMLFormElement);
+      {isReviewer ? (
+        <section
+          className={caseStyles.correctionsRegion}
+          aria-labelledby="pending-corrections-heading"
+        >
+          <h2 id="pending-corrections-heading">Pending corrections</h2>
+          {current.pendingCorrections.length === 0 ? (
+            <Empty
+              caseVariant="nothing"
+              title="No pending corrections"
+              message="No correction requests need review."
+            />
+          ) : (
+            <ul className={caseStyles.correctionList}>
+              {current.pendingCorrections.map((correction) => (
+                <li key={correction.id}>
+                  <div className={caseStyles.correctionHeading}>
+                    <strong>
+                      {fieldLabel(correction.section)} · {fieldLabel(correction.field)}
+                    </strong>
+                    <span>{formatLusaka(correction.createdAt)}</span>
+                  </div>
+                  <p>{correction.reason}</p>
+                  <form
+                    aria-label={`Decide correction ${correction.section} ${correction.field}`}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      decide(correction.id, true, event.currentTarget);
                     }}
                   >
-                    {pending ? "Working…" : "Decline"}
-                  </button>
-                </p>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
+                    <p>
+                      <label htmlFor={`note-${correction.id}`}>Decision note</label>
+                      <input
+                        id={`note-${correction.id}`}
+                        name={`note-${correction.id}`}
+                        type="text"
+                        maxLength={500}
+                      />
+                    </p>
+                    <div className={caseStyles.correctionActions}>
+                      <button type="submit" disabled={pending}>
+                        {pending ? "Working…" : "Approve correction"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={(event) => {
+                          const form = event.currentTarget.closest("form");
+                          if (form)
+                            decide(
+                              correction.id,
+                              false,
+                              form as HTMLFormElement,
+                            );
+                        }}
+                      >
+                        {pending ? "Working…" : "Decline correction"}
+                      </button>
+                    </div>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
     </div>
   );
 }
