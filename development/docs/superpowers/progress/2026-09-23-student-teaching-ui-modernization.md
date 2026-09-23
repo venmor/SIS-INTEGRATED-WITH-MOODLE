@@ -12,3 +12,7 @@ Ruling: batch Tasks 1–5 semantic contracts into one serial Playwright suite. T
 
 
 Task 1 RED: CI run 35863529775 passed all non-browser gates, then the serial preview suite failed at missing `Design preview` status on `/design-preview`; Tasks 2–5 were skipped as intended.
+
+
+Task 1: complete — CI run 35864161238 passed the preview-boundary contract after `55f671a`; all non-browser gates remained green. The serial suite then failed at Task 2 because `Student portal · January 2027 · 202700123` was absent.
+Task 2 RED: run 35864161238 failed at the missing Student Home context line; Tasks 3–5 were skipped as intended.

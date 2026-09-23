@@ -134,3 +134,191 @@
     padding-right: 0;
   }
 }
+
+
+.workspace {
+  width: min(72rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-10)) var(--space-12);
+}
+
+.workspaceHeader {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.workspaceContext {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.workspaceHeader h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.45rem);
+  letter-spacing: -0.035em;
+}
+
+.workspaceHeader > p:last-child {
+  max-width: 46rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.workspaceSection {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.workspaceSection > h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.primaryStatus {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(15rem, 0.8fr);
+  gap: var(--space-6);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.statusCopy {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.statusCopy strong {
+  font-size: 1.1rem;
+}
+
+.statusCopy p,
+.statusFacts dt,
+.taskMeta,
+.holdMeta,
+.periodFacts dt,
+.periodFacts dd {
+  font-size: var(--font-supporting);
+}
+
+.statusCopy p,
+.statusFacts dt,
+.taskMeta,
+.holdMeta,
+.periodFacts dt {
+  color: var(--text-secondary);
+}
+
+.statusFacts,
+.periodFacts {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.statusFacts div,
+.periodFacts div {
+  display: grid;
+  gap: 2px;
+}
+
+.statusFacts dd,
+.periodFacts dd {
+  margin: 0;
+  font-weight: 650;
+}
+
+.inlineLink {
+  width: fit-content;
+  font-weight: 650;
+  color: var(--green-700);
+  text-underline-offset: 0.2em;
+}
+
+.taskList,
+.holdList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.taskList li,
+.holdList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.taskMain,
+.holdMain {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.taskState,
+.holdState {
+  white-space: nowrap;
+  font-size: var(--font-supporting);
+  font-weight: 700;
+}
+
+.taskState[data-tone="action"] {
+  color: var(--green-700);
+}
+
+.taskState[data-tone="waiting"],
+.holdState {
+  color: var(--text-secondary);
+}
+
+.periodFacts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.periodFacts div {
+  min-width: 0;
+  padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.periodFacts dd {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .workspace {
+    gap: var(--space-6);
+    padding-top: var(--space-6);
+  }
+
+  .primaryStatus,
+  .taskList li,
+  .holdList li {
+    grid-template-columns: 1fr;
+  }
+
+  .taskState,
+  .holdState {
+    white-space: normal;
+  }
+
+  .periodFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .periodFacts div {
+    padding-right: 0;
+  }
+}
