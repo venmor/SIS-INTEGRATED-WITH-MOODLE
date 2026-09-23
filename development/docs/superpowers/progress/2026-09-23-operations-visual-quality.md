@@ -23,3 +23,6 @@ Task 2 RED: the same run then failed because the `Reconciliation case` heading w
 
 Task 2: complete — CI run 35875031754 passed the reconciliation contract at 390px, including explicit SIS authority and zero live buttons. All non-browser gates remained green.
 Task 3 RED: the same run then failed because the `Event delivery` heading was absent on `/design-preview/operations/event`.
+
+
+Task 3 selector ruling: CI run 35875724013 rendered the event page, but `Delivery failed · destination timeout` correctly appears in both current delivery facts and the audit timeline. Scope the assertion to the `Delivery` region; retain the repeated audit evidence. Cost if wrong: the contract becomes structure-aware, matching the current-state behavior it intends to verify.

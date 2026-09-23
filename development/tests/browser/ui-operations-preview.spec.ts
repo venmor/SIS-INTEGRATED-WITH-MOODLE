@@ -66,8 +66,9 @@ test.describe.serial("operations experience preview", () => {
       page.getByRole("heading", { name: "Event delivery" }),
     ).toBeVisible();
     await expect(page.getByText("RegistrationCompleted")).toBeVisible();
+    const delivery = page.getByRole("region", { name: "Delivery" });
     await expect(
-      page.getByText("Delivery failed · destination timeout"),
+      delivery.getByText("Delivery failed · destination timeout"),
     ).toBeVisible();
     await expect(page.getByText("Idempotency reference")).toBeVisible();
     await expect(
