@@ -322,3 +322,76 @@
     padding-right: 0;
   }
 }
+
+
+.readinessList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.readinessList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, auto) minmax(9rem, auto);
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.readinessItem {
+  min-width: 0;
+  font-weight: 650;
+}
+
+.readinessOwner,
+.readinessState {
+  font-size: var(--font-supporting);
+}
+
+.readinessOwner {
+  color: var(--text-secondary);
+}
+
+.readinessState {
+  font-weight: 700;
+  text-align: right;
+}
+
+.readinessState[data-state="Ready"] {
+  color: var(--green-700);
+}
+
+.readinessState[data-state="Action required"] {
+  color: var(--text-primary);
+}
+
+.readinessState[data-state="Awaiting institution"],
+.readinessState[data-state="Blocked"] {
+  color: var(--text-secondary);
+}
+
+.readinessNote {
+  max-width: 48rem;
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+  .readinessList li {
+    grid-template-columns: 1fr auto;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .readinessOwner {
+    grid-column: 1;
+  }
+
+  .readinessState {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}

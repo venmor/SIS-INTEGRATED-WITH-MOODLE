@@ -16,3 +16,7 @@ Task 1 RED: CI run 35863529775 passed all non-browser gates, then the serial pre
 
 Task 1: complete — CI run 35864161238 passed the preview-boundary contract after `55f671a`; all non-browser gates remained green. The serial suite then failed at Task 2 because `Student portal · January 2027 · 202700123` was absent.
 Task 2 RED: run 35864161238 failed at the missing Student Home context line; Tasks 3–5 were skipped as intended.
+
+
+Task 2: complete — CI run 35864818047 passed the Student Home contract at 390px, including the required section order, SIS registration state, Moodle learning-access state and overflow check. All pre-browser gates remained green.
+Task 3 RED: run 35864818047 then failed because the `Registration readiness` heading was absent; Tasks 4–5 were skipped as intended.
