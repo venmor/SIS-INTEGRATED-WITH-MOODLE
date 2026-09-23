@@ -29,3 +29,6 @@ Task 3 selector ruling: CI run 35875724013 rendered the event page, but `Deliver
 
 
 Task 3 selector ruling 2: CI run 35876412152 rendered the event page and current delivery state, but `Idempotency reference` also appears in the audit sentence about retry reuse. Scope the field-label assertion to the `Delivery` region with exact text; retain audit wording. Cost if wrong: the contract is tied to the intended current-facts region, which is the behavior under test.
+
+
+Ruling: Tasks 4 and 5 are test-only additions with no production dependency between them. Batch their files into one atomic commit to reduce duplicate full-CI runs and input-stream instability. Cost if wrong: one commit contains two independent verification surfaces, but failures remain attributable by separate Playwright test files and names.
