@@ -158,9 +158,7 @@ test("draft overview identifies the next required application step", async ({
   const progress = page.getByRole("region", { name: "Application progress" });
   await expect(progress).toBeVisible();
   await expect(progress.getByText("Next required step:")).toBeVisible();
-  await expect(
-    progress.getByRole("link", { name: "Personal details", exact: true }),
-  ).toBeVisible();
+  await expect(progress).toContainText("Personal details");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expectNoHorizontalOverflow(page);

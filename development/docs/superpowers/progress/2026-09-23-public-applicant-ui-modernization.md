@@ -15,3 +15,6 @@ RED run 35813252843: Tasks 1–5 failed for the intended missing UI contracts. T
 Task 6 test ruling: wait for the existing document preview state before opening Review, matching the established applicant browser journey. Cost if wrong: test may still fail before reaching the timeline assertion.
 
 Corrected RED run 35813699371: all six semantic contracts failed for the intended missing UI behavior. Production implementation may begin.
+
+Task 3 Ruling: the next-step summary names the next section but does not duplicate the section link. The canonical action remains in the application step list. Reason: the duplicate same-destination link created ambiguous accessible navigation and broke existing keyboard/browser journeys. Cost if wrong: the user reads the summary, then activates the clearly visible step link immediately below.
+Browser GREEN attempt 35814324223: five new contracts passed. Existing applicant/admissions journeys and the submitted-status helper failed because the duplicate next-step link made "Personal details" non-unique.

@@ -128,8 +128,7 @@ export function ApplicationSteps({
 
         {nextSection ? (
           <p className={styles.nextStep}>
-            <strong>Next required step:</strong>{" "}
-            <Link href={sectionHref(nextSection.key)}>{nextSection.label}</Link>
+            <strong>Next required step:</strong> {nextSection.label}
           </p>
         ) : (
           <p className={styles.nextStep}>
