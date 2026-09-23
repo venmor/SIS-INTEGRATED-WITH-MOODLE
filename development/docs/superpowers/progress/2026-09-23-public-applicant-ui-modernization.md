@@ -38,3 +38,6 @@ Task 7 Ruling: this execution environment cannot clone the repository or generat
 Task 7 debug: CI run 35833573337 reached the browser suite with all prior gates green, then failed two new helper tests.
 Root cause 1: the timeline helper navigated away immediately after section-save clicks, before the async save status confirmed; the existing green applicant journeys wait for "All changes saved". Fix: add the same save-confirmation waits. Cost if wrong: the helper could still leave a section before persistence finishes.
 Root cause 2: the empty-home capture navigated to /applicant immediately after clicking Sign in; the session redirect had not completed and /applicant redirected back to sign-in. Fix: wait until the URL has left /sign-in, then open /applicant. Cost if wrong: a future sign-in flow that intentionally remains on /sign-in would need a different readiness signal.
+
+
+Task 7 diagnostic: the timeline helper still reaches Review with submission disabled after matching existing save waits. Add a fail-fast enabled assertion and print the visible review state/blockers when disabled. This is evidence gathering only; no product behavior changes.

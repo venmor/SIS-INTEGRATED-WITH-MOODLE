@@ -101,9 +101,16 @@ async function submitBasicApplication(
   for (let index = 0; index < (await declarations.count()); index += 1) {
     await declarations.nth(index).check();
   }
-  await page
-    .getByRole("button", { name: "Continue to submission confirmation" })
-    .click();
+  const continueButton = page.getByRole("button", {
+    name: "Continue to submission confirmation",
+  });
+  if (await continueButton.isDisabled()) {
+    console.log(
+      "REVIEW_DIAGNOSTIC\n" + (await page.locator("main").innerText()),
+    );
+  }
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
   await page
     .getByRole("button", { name: "Submit application", exact: true })
     .click();
