@@ -15,6 +15,8 @@
 - The controlling product sources are `15-APPROVED-DESIGN-EVIDENCE`, `03-USER-EXPERIENCE-BLUEPRINTS`, `02-INSTITUTIONAL-AND-SYSTEM-DESIGN`, then `04-UI-UX-DESIGN-SYSTEM`.
 - This is not a SaaS-dashboard redesign.
 - No gradients, glassmorphism, oversized hero banners, decorative metric cards, random illustrations, unexplained charts, floating assistants, icon-only critical actions, or generic AI-dashboard patterns.
+- UI copy must be short, direct and plain-language. Structure should communicate first; do not narrate obvious interactions or turn routine screens into guidance notebooks.
+- Longer explanation is reserved for safety-critical consequences, uncertainty, recovery, policy detail or Help.
 - Every major screen must make context, current state, required action, working area, next state, evidence/history and help understandable.
 - Loading, empty, stale, validation, permission denied, conflict and recovery are real states, not afterthoughts.
 - Skeletons may be added ahead of the original implementation phase, but they may not imply false completion.
