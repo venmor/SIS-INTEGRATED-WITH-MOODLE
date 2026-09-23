@@ -184,6 +184,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   // rationale, then supersede visibility via the active package display.
   await page.getByLabel("Eligibility outcome").selectOption("ELIGIBLE");
   await page
+    .getByRole("form", { name: "Record a recommendation" })
     .getByLabel("Recommendation", { exact: true })
     .selectOption("FAVOURABLE");
   await page.getByLabel("Rationale").fill("Meets the demo minimum.");
