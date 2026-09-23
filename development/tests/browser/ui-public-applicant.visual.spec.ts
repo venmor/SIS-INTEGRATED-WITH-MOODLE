@@ -64,6 +64,7 @@ test("applicant empty home visual evidence", async ({ page }) => {
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
   await page.goto("/applicant");
 
   await expect(

@@ -33,3 +33,8 @@ Task 6: complete — corrected timeline contract RED in run 35813699371; GREEN i
 Full verification run 35815108402: source scan, lint, unit tests, database migrations, both API e2e groups, production build, typecheck and complete browser suite all passed.
 
 Task 7 Ruling: this execution environment cannot clone the repository or generate/read binary Playwright snapshot baselines. Replace first-slice pixel baselines with deterministic CI screenshot evidence plus responsive structural assertions, uploaded through the existing `browser-evidence` artifact. Keep true `toHaveScreenshot` baseline regression in the dedicated visual-quality plan where snapshots can be bootstrapped and inspected. Cost if wrong: this slice detects semantic/responsive regressions but not pixel-level drift.
+
+
+Task 7 debug: CI run 35833573337 reached the browser suite with all prior gates green, then failed two new helper tests.
+Root cause 1: the timeline helper navigated away immediately after section-save clicks, before the async save status confirmed; the existing green applicant journeys wait for "All changes saved". Fix: add the same save-confirmation waits. Cost if wrong: the helper could still leave a section before persistence finishes.
+Root cause 2: the empty-home capture navigated to /applicant immediately after clicking Sign in; the session redirect had not completed and /applicant redirected back to sign-in. Fix: wait until the URL has left /sign-in, then open /applicant. Cost if wrong: a future sign-in flow that intentionally remains on /sign-in would need a different readiness signal.

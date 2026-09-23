@@ -53,11 +53,13 @@ async function submitBasicApplication(
   await page
     .getByRole("button", { name: "Save and continue", exact: true })
     .click();
+  await expect(page.getByRole("status")).toContainText("All changes saved");
 
   await page.getByLabel("Reminder channel").selectOption("PORTAL");
   await page
     .getByRole("button", { name: "Save and continue", exact: true })
     .click();
+  await expect(page.getByRole("status")).toContainText("All changes saved");
 
   await page.getByRole("link", { name: /Qualifications and results/ }).click();
   await page
@@ -76,6 +78,7 @@ async function submitBasicApplication(
   await page
     .getByRole("button", { name: "Save and continue", exact: true })
     .click();
+  await expect(page.getByRole("status")).toContainText("All changes saved");
 
   await page.getByRole("link", { name: /Supporting documents/ }).click();
   await page
