@@ -100,7 +100,12 @@ test.describe.serial("student and teaching experience previews", () => {
         name: "CSC 4792 — Data Mining and Warehousing",
       }),
     ).toBeVisible();
-    await expect(page.getByText("4 TG groups")).toBeVisible();
+    const courseRecord = page
+      .getByRole("heading", {
+        name: "CSC 4792 — Data Mining and Warehousing",
+      })
+      .locator("..");
+    await expect(courseRecord.getByText("4 TG groups")).toBeVisible();
     await expect(page.getByText("Dashboard")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
   });
