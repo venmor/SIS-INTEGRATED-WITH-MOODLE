@@ -235,9 +235,9 @@ export function ReviewCase({
             owner="Admissions"
             action={
               current.hasDecision
-                ? "Decision released."
+                ? "No further review action."
                 : current.recommendation
-                  ? "Recommendation recorded."
+                  ? "Awaiting decision."
                   : "Review evidence."
             }
           />
