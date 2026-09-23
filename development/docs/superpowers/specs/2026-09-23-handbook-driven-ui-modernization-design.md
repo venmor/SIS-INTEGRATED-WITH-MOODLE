@@ -57,6 +57,8 @@ The visual language must be:
 - Modern but not trendy
 - Professional and pleasant to work in for long sessions
 - Clear before decorative
+- Interface structure should carry meaning before explanatory prose
+- UI copy is short, direct and plain-language; obvious interactions are not narrated
 - Human-centred
 - Consistent across applicant, student, staff and operations workspaces
 - Dense enough for staff work without becoming crowded
@@ -281,6 +283,14 @@ Use:
 - selective soft elevation only when a surface genuinely floats above another
 
 Avoid placing every section inside a card.
+
+### UI copy discipline
+
+- Prefer labels, hierarchy, status text and placement over explanatory paragraphs.
+- Use the shortest wording that preserves safety and meaning.
+- Do not narrate obvious interface behavior.
+- Long guidance belongs in Help, policy detail, or exceptional recovery states—not routine screens.
+- Safety-critical consequences, uncertainty and irreversible actions may use extra explanation when needed.
 
 Use cards only where they represent genuinely separate:
 - applications
