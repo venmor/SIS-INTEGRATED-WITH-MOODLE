@@ -70,7 +70,9 @@ test.describe.serial("operations experience preview", () => {
     await expect(
       delivery.getByText("Delivery failed · destination timeout"),
     ).toBeVisible();
-    await expect(page.getByText("Idempotency reference")).toBeVisible();
+    await expect(
+      delivery.getByText("Idempotency reference", { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByText(
         "Resend the same event after confirming destination state.",

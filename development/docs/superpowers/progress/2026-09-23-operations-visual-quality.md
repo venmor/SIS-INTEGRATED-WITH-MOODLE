@@ -26,3 +26,6 @@ Task 3 RED: the same run then failed because the `Event delivery` heading was ab
 
 
 Task 3 selector ruling: CI run 35875724013 rendered the event page, but `Delivery failed · destination timeout` correctly appears in both current delivery facts and the audit timeline. Scope the assertion to the `Delivery` region; retain the repeated audit evidence. Cost if wrong: the contract becomes structure-aware, matching the current-state behavior it intends to verify.
+
+
+Task 3 selector ruling 2: CI run 35876412152 rendered the event page and current delivery state, but `Idempotency reference` also appears in the audit sentence about retry reuse. Scope the field-label assertion to the `Delivery` region with exact text; retain audit wording. Cost if wrong: the contract is tied to the intended current-facts region, which is the behavior under test.
