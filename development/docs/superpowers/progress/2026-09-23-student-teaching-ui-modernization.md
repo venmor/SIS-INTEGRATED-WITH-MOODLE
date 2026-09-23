@@ -34,3 +34,6 @@ Task 4 selector ruling: run 35866678337 confirmed the course heading selector bu
 
 Task 4: complete — CI run 35867174426 passed the teaching-home contract at 390px after scoping repeated course/TG-group text to the current-course record.
 Task 5 RED: the same run then failed because the course workspace context `CSC 4792 · January 2027 · Lecturer · Course-wide` was absent. This confirms the course preview is the next missing behavior.
+
+
+Task 6 ruling: Task 5's full CI run is long-running at the browser stage. Add the Task 6 screenshot-evidence test while that run remains active, but make no further production changes and do not mark Task 5 complete until its original semantic run is green. Cost if wrong: the evidence commit may start a second CI run before Task 5's run finishes; no product behavior is changed by this ruling.
