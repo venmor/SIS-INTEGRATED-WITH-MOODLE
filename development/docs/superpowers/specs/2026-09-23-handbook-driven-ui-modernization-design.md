@@ -78,6 +78,19 @@ The visual language must avoid:
 - Artificial “AI app” phrasing
 - Animation whose only purpose is decoration
 
+## 3.1 Microcopy and explanation
+
+The interface should communicate through structure before explanation.
+
+Rules:
+- Prefer short labels and status text over explanatory paragraphs.
+- Do not repeat what the screen already makes obvious.
+- Helper text appears only when the user needs context, consequence, recovery or a non-obvious rule.
+- Keep routine guidance to one short sentence where possible.
+- Use direct verbs: Continue, Review, Upload, Submit, Retry, Open, Accept.
+- Avoid notebook-style prose, long instructional blocks and policy narration in the main workflow.
+- Put detailed policy/help behind contextual help or a secondary surface when it is genuinely needed.
+
 ## 4. Core modernization idea
 
 The modernization is not a collection of prettier components. It is a consistent **stage model**.
