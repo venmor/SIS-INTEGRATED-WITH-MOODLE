@@ -15,3 +15,7 @@ Task 1 RED: CI run 35872897586 passed every non-browser gate, then failed at the
 
 
 Task 1 selector ruling: CI run 35873634290 rendered the Operations home, but `getByText("Moodle enrolment sync")` was ambiguous because the phrase correctly appears in both the Needs attention queue and the incident record. Scope the assertion to the `Needs attention` region; retain the repeated operational context. Cost if wrong: the contract becomes structure-aware, matching the behavior it intends to verify.
+
+
+Task 1: complete — CI run 35874320568 passed the Operations-home contract at 390px after the scoped queue assertion. All non-browser gates remained green.
+Task 2 RED: the same run then failed because the `Reconciliation case` heading was absent on `/design-preview/operations/reconciliation`; Task 3 was skipped as intended.
