@@ -9,6 +9,7 @@ import type {
 import { Empty, ErrorSummary, Notice } from "@sis/ui";
 import { formatLusaka } from "../../../../../lib/time";
 import styles from "../../../../page.module.css";
+import caseStyles from "./case.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -167,7 +168,7 @@ export function ReviewCase({
   const qualifications = asRecord(current.qualifications);
 
   return (
-    <div id="review-case">
+    <div id="review-case" className={caseStyles.case}>
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
