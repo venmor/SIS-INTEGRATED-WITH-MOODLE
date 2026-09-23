@@ -58,10 +58,10 @@ function CaseRow({
     item.state === "Submitted"
       ? {
           state: "Submitted — awaiting review",
-          reason: "Admissions has received this application.",
+          reason: "Application received.",
           action: item.actionNeeded
-            ? "Open items need review: see clarifications and corrections."
-            : "No applicant action is waiting on this case.",
+            ? "Clarification or correction open."
+            : "No applicant action.",
         }
       : {
           state: `Application ${item.state.toLowerCase()}`,
@@ -134,28 +134,35 @@ export function AdmissionsQueue({
   const [hasMore, setHasMore] = useState(false);
   const [stateFilter, setStateFilter] = useState("");
   const [actionNeededOnly, setActionNeededOnly] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({
+    state: "",
+    actionNeeded: false,
+  });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const rows = view === "mine" ? mine : pool;
 
-  function queryString(scope: "mine" | "pool"): string {
+  function queryString(
+    scope: "mine" | "pool",
+    filters = appliedFilters,
+  ): string {
     const params = new URLSearchParams({ scope });
     if (scope === "pool") params.set("state", "Submitted");
-    else if (stateFilter) params.set("state", stateFilter);
-    if (actionNeededOnly) params.set("actionNeeded", "true");
+    else if (filters.state) params.set("state", filters.state);
+    if (filters.actionNeeded) params.set("actionNeeded", "true");
     return params.toString();
   }
 
-  async function refresh() {
+  async function refresh(filters = appliedFilters) {
     setErrors([]);
     try {
       const [mineRes, poolRes] = await Promise.all([
-        fetch(`/api/review/queue?${queryString("mine")}`, {
+        fetch(`/api/review/queue?${queryString("mine", filters)}`, {
           credentials: "same-origin",
         }),
-        fetch(`/api/review/queue?${queryString("pool")}`, {
+        fetch(`/api/review/queue?${queryString("pool", filters)}`, {
           credentials: "same-origin",
         }),
       ]);
@@ -178,6 +185,14 @@ export function AdmissionsQueue({
     } catch (error) {
       setErrors([{ fieldId: "queue-view", message: errorText(error) }]);
     }
+  }
+
+  async function applyFilters(state: string, actionNeeded: boolean) {
+    const next = { state, actionNeeded };
+    setStateFilter(state);
+    setActionNeededOnly(actionNeeded);
+    setAppliedFilters(next);
+    await refresh(next);
   }
 
   async function act(item: ReviewQueueItem, action: "claim" | "release") {
@@ -245,7 +260,7 @@ export function AdmissionsQueue({
         aria-label="Filter the queue"
         onSubmit={(event) => {
           event.preventDefault();
-          void refresh();
+          void applyFilters(stateFilter, actionNeededOnly);
         }}
       >
         <div className={styles.filterField}>
@@ -276,24 +291,47 @@ export function AdmissionsQueue({
           <button type="submit">Apply filters</button>
           <button
             type="button"
-            onClick={() => {
-              setStateFilter("");
-              setActionNeededOnly(false);
-            }}
+            onClick={() => void applyFilters("", false)}
           >
             Clear filters
           </button>
         </div>
       </form>
 
+      {appliedFilters.state || appliedFilters.actionNeeded ? (
+        <div
+          className={styles.activeFilters}
+          role="region"
+          aria-label="Active filters"
+        >
+          <span className={styles.filterLabel}>Filters</span>
+          {appliedFilters.state ? (
+            <button
+              type="button"
+              className={styles.filterChip}
+              onClick={() =>
+                void applyFilters("", appliedFilters.actionNeeded)
+              }
+            >
+              State: {appliedFilters.state} <span aria-hidden="true">×</span>
+            </button>
+          ) : null}
+          {appliedFilters.actionNeeded ? (
+            <button
+              type="button"
+              className={styles.filterChip}
+              onClick={() => void applyFilters(appliedFilters.state, false)}
+            >
+              Action needed <span aria-hidden="true">×</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <p className={styles.summary} role="status">
-        Showing {rows.length}{" "}
-        {view === "mine" ? "claimed case" : "claimable case"}
+        {rows.length} {view === "mine" ? "assigned" : "claimable"} case
         {rows.length === 1 ? "" : "s"}
-        {hasMore
-          ? " (more available — claim or release to narrow the list)"
-          : ""}
-        .
+        {hasMore ? " · More available" : ""}
       </p>
 
       {rows.length === 0 ? (
@@ -302,8 +340,8 @@ export function AdmissionsQueue({
           title={view === "mine" ? "No claimed cases" : "Pool is empty"}
           message={
             view === "mine"
-              ? "Claim a submitted case from the pool to begin reviewing."
-              : "No submitted applications are waiting for review."
+              ? "Claim a case from the pool."
+              : "No submitted cases."
           }
         />
       ) : (
