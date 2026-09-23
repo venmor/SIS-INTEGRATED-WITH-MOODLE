@@ -47,6 +47,9 @@ test.describe.serial("handbook admissions workspace contracts", () => {
     await page
       .getByRole("button", { name: "Start application", exact: true })
       .click();
+    await expect(
+      page.getByRole("heading", { name: "Application overview" }),
+    ).toBeVisible();
 
     applicationUrl = page.url();
     applicationId = applicationUrl.split("/").pop() as string;
