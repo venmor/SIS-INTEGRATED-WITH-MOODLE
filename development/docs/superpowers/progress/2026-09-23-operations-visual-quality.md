@@ -12,3 +12,6 @@ Ruling: batch Tasks 1–3 semantic contracts into one serial Playwright suite. E
 
 
 Task 1 RED: CI run 35872897586 passed every non-browser gate, then failed at the first Operations contract because `Integration Support workspace · Production environment` was absent on `/design-preview/operations`. Tasks 2–3 were skipped as intended.
+
+
+Task 1 selector ruling: CI run 35873634290 rendered the Operations home, but `getByText("Moodle enrolment sync")` was ambiguous because the phrase correctly appears in both the Needs attention queue and the incident record. Scope the assertion to the `Needs attention` region; retain the repeated operational context. Cost if wrong: the contract becomes structure-aware, matching the behavior it intends to verify.

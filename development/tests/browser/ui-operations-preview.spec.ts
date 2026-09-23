@@ -27,7 +27,8 @@ test.describe.serial("operations experience preview", () => {
     await expect(
       page.getByRole("heading", { name: "Reconciliation cases" }),
     ).toBeVisible();
-    await expect(page.getByText("Moodle enrolment sync")).toBeVisible();
+    const needsAttention = page.getByRole("region", { name: "Needs attention" });
+    await expect(needsAttention.getByText("Moodle enrolment sync")).toBeVisible();
     await expect(page.getByText("Dashboard")).toHaveCount(0);
     await expect(page.getByRole("button")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
