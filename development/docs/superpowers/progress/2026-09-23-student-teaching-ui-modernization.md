@@ -24,3 +24,6 @@ Task 3 RED: run 35864818047 then failed because the `Registration readiness` hea
 
 Task 3: complete — CI run 35865437090 passed the read-only Registration Readiness contract at 390px, including owner/state labels, zero buttons and overflow check. All pre-browser gates remained green.
 Task 4 RED: run 35865437090 then failed because the Teaching Workspace context line was absent; Task 5 was skipped as intended.
+
+
+Task 4 ruling: run 35866042685 reached the Teaching Home contract but `getByText("CSC 4792")` was ambiguous because the same course code correctly appears in the urgent action, course heading and recent work. Keep the repeated course context and scope the contract to the course heading. Cost if wrong: the contract becomes slightly more structure-specific, but it still tests the handbook's current-course record.

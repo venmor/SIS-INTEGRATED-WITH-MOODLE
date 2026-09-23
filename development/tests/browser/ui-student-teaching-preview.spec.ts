@@ -95,7 +95,11 @@ test.describe.serial("student and teaching experience previews", () => {
     await expect(
       page.getByRole("heading", { name: "Current courses" }),
     ).toBeVisible();
-    await expect(page.getByText("CSC 4792")).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "CSC 4792 — Data Mining and Warehousing",
+      }),
+    ).toBeVisible();
     await expect(page.getByText("4 TG groups")).toBeVisible();
     await expect(page.getByText("Dashboard")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
