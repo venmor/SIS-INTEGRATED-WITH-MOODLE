@@ -102,7 +102,7 @@ export const operationsPreview = {
       state: "Check provider",
       detail: "4 callbacks awaiting confirmation",
       age: "11 minutes",
-      href: "/design-preview/operations/event",
+      href: null,
     },
   ],
   reconciliation: [

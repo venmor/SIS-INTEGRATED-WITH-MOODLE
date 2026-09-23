@@ -36,3 +36,7 @@ Ruling: Tasks 4 and 5 are test-only additions with no production dependency betw
 
 Final review: self-review (no subagent tool).
 Final finding (Important): the `Qualification verification` attention item currently links to the Moodle `RegistrationCompleted` event detail, so a reasonable operator following that preview item sees an unrelated record. Add a RED contract that the provider item has no event-detail link unless a matching preview exists.
+
+
+Final fix RED: CI run 35878208033 passed source scan, lint, unit tests, migrations/seed, both API e2e groups, production build and typecheck, then failed the new browser contract because the `Qualification verification` record still had one link to the unrelated Moodle event preview.
+Final: fixed unrelated provider event link — `operations preview is queue-first and keeps authority explicit` observed RED (expected 0 provider links, received 1); provider record now has no event-detail href while the Moodle event retains its matching preview link. Full-suite GREEN required on the next head before closure.

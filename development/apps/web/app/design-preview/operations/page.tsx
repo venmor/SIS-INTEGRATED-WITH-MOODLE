@@ -23,9 +23,11 @@ export default function OperationsPreviewPage() {
               <div className={styles.opsRecord}>
                 <strong>{item.title}</strong>
                 <span className={styles.opsMeta}>{item.detail}</span>
-                <Link className={styles.opsAction} href={item.href}>
-                  Review event
-                </Link>
+                {item.href ? (
+                  <Link className={styles.opsAction} href={item.href}>
+                    Review event
+                  </Link>
+                ) : null}
               </div>
               <div>
                 <div className={styles.opsState}>{item.state}</div>
