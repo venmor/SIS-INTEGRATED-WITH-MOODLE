@@ -1,9 +1,9 @@
 .empty {
+  width: 100%;
   border: 1px dashed var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
-  padding: var(--space-6) var(--space-4);
-  max-width: 40rem;
+  padding: var(--space-6);
   text-align: left;
 }
 
@@ -16,6 +16,7 @@
 
 .message {
   margin-top: var(--space-2);
+  max-width: 48rem;
   font-size: var(--font-body);
   line-height: var(--line-body);
   color: var(--text-secondary);
@@ -24,7 +25,7 @@
 .action {
   margin-top: var(--space-4);
   font-size: var(--font-body);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .action a {
