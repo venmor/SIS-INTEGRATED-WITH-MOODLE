@@ -594,3 +594,95 @@
     align-items: start;
   }
 }
+
+
+.opsList,
+.healthList,
+.reconciliationList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.opsList li,
+.healthList li,
+.reconciliationList li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.opsRecord {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.opsMeta,
+.opsAge,
+.healthMeta,
+.reconciliationMeta,
+.incidentMeta {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.opsState,
+.healthState,
+.reconciliationState {
+  font-size: var(--font-supporting);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.healthIdentity {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.opsAction {
+  width: fit-content;
+  margin-top: var(--space-2);
+  color: var(--green-700);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+  text-underline-offset: 0.2em;
+}
+
+.incidentRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.incidentRow > div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+@media (max-width: 700px) {
+  .opsList li,
+  .healthList li,
+  .reconciliationList li,
+  .incidentRow {
+    grid-template-columns: 1fr;
+  }
+
+  .opsState,
+  .healthState,
+  .reconciliationState {
+    text-align: left;
+    white-space: normal;
+  }
+}

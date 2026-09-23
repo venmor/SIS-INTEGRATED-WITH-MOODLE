@@ -65,3 +65,59 @@ export const teachingPreview = {
     lastSync: "14:32 CAT",
   },
 } as const;
+
+
+export const operationsPreview = {
+  environment: "Production environment",
+  health: [
+    {
+      integration: "Moodle",
+      state: "Degraded",
+      lastSuccess: "14:02 CAT",
+      detail: "27 delayed enrolment events",
+    },
+    {
+      integration: "Notifications",
+      state: "Healthy",
+      lastSuccess: "14:31 CAT",
+      detail: "No delayed deliveries",
+    },
+    {
+      integration: "Qualification verification",
+      state: "Unknown",
+      lastSuccess: "13:48 CAT",
+      detail: "Health check unavailable",
+    },
+  ],
+  attention: [
+    {
+      title: "Moodle enrolment sync",
+      state: "Needs attention",
+      detail: "27 events delayed",
+      age: "18 minutes",
+      href: "/design-preview/operations/event",
+    },
+    {
+      title: "Qualification verification",
+      state: "Check provider",
+      detail: "4 callbacks awaiting confirmation",
+      age: "11 minutes",
+      href: "/design-preview/operations/event",
+    },
+  ],
+  reconciliation: [
+    {
+      title: "Registered student missing from Moodle",
+      sourceRef: "STU-202700123 · CSC 4792",
+      state: "Open",
+      lastConfirmed: "14:02 CAT",
+      href: "/design-preview/operations/reconciliation",
+    },
+  ],
+  incident: {
+    reference: "INC-2027-004",
+    title: "Moodle enrolment sync delayed",
+    state: "Investigating",
+    impact: "Learning access delayed; SIS registration unaffected",
+  },
+} as const;

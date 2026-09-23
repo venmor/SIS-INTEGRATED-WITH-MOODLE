@@ -9,3 +9,6 @@ Ruling: connector-only repository access prevents creation of a local worktree o
 Pre-flight: Task 1 produces static Operations data consumed by Tasks 2–3; field names in the plan are consistent. Task 4 consumes the routes created by Tasks 1–3. Task 5 reads all modernized routes and does not mutate shared interfaces.
 
 Ruling: batch Tasks 1–3 semantic contracts into one serial Playwright suite. Each implementation should expose the next RED in order while reducing duplicate full-CI runs. Cost if wrong: a later failure remains masked until earlier contracts are green, which is intentional and reviewed per run.
+
+
+Task 1 RED: CI run 35872897586 passed every non-browser gate, then failed at the first Operations contract because `Integration Support workspace · Production environment` was absent on `/design-preview/operations`. Tasks 2–3 were skipped as intended.
