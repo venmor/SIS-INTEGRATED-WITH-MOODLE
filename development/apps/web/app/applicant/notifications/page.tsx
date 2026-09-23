@@ -13,8 +13,7 @@ export default async function NotificationsPage() {
     <>
       <h1>Notifications</h1>
       <p>
-        Decisions, clarification requests and deadline reminders appear here.
-        Email or SMS messages never carry outcomes; sign in to read them.
+        Official decisions, clarification requests, and deadline reminders appear in your portal inbox.
       </p>
       <NotificationsList initial={r.data.items} />
     </>

@@ -152,7 +152,7 @@ export function GrantForm() {
         {denied ? <DeniedPanel message={denied.message} reference={denied.reference} /> : null}
         {emptyNotice ? <Notice severity="info" title="No matching account" message={emptyNotice} /> : null}
         {errors.length > 0 ? <ErrorSummary title="We could not find the account." errors={errors} /> : null}
-        <Field id="username" label="Username" help="Exact account username — there is no browsing." autoComplete="username" inputProps={{ type: "text", required: true, maxLength: 64 }} />
+        <Field id="username" label="Username" help="Exact account username." autoComplete="username" inputProps={{ type: "text", required: true, maxLength: 64 }} />
         <div className={styles.actions}>
           <ActionButton kind="primary" pending={resolvePending} loadingText="Finding account…">
             Find account
@@ -176,11 +176,11 @@ export function GrantForm() {
       <Field id="scopeRef" label="Scope reference" help="Scope reference, for example SWE101-2026S1." inputProps={{ type: "text", required: true, maxLength: 128 }} />
       <Field id="startsAt" label="Effective start" help="First day the assignment may be used." inputProps={{ type: "date", required: true }} />
       <Field id="endsAt" label="Effective end" help="Leave empty for no end date." inputProps={{ type: "date", required: false }} />
-      <Field id="appointmentRef" label="Appointment reference" help="Evidence reference — required, never optional." inputProps={{ type: "text", required: true, maxLength: 128 }} />
-      <Field id="authoritySource" label="Authority source" help="Who authorizes this assignment." inputProps={{ type: "text", required: true, maxLength: 128 }} />
+      <Field id="appointmentRef" label="Appointment reference" help="Evidence reference for formal authorization." inputProps={{ type: "text", required: true, maxLength: 128 }} />
+      <Field id="authoritySource" label="Authority source" help="Authorizing body or officer." inputProps={{ type: "text", required: true, maxLength: 128 }} />
       <Field id="capabilities" label="Capabilities" help="Comma-separated approved capabilities." inputProps={{ type: "text", required: false, maxLength: 512 }} />
       <Field id="employmentType" label="Employment type" help="For example PERMANENT or ACTING." inputProps={{ type: "text", required: false, maxLength: 32 }} />
-      <Field id="approverId" label="Approver account ID" help="Authorizing approver — required, never the grantee." inputProps={{ type: "text", required: true, maxLength: 36 }} />
+      <Field id="approverId" label="Approver account ID" help="Authorizing approver account ID." inputProps={{ type: "text", required: true, maxLength: 36 }} />
       <Field id="reason" label="Reason" help="Why this assignment exists." inputProps={{ type: "text", required: true, maxLength: 512 }} />
       <div className={styles.actions}>
         <ActionButton kind="primary" pending={grantPending} loadingText="Creating assignment…">

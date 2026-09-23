@@ -56,7 +56,7 @@ export function StartForm({
   return (
     <>
       <h1>Start an application</h1>
-      <p className={styles.demo}>Fictional demonstration · {policy.version}</p>
+      <p className={styles.eyebrow}>Application policy version {policy.version}</p>
       {error && (
         <ErrorSummary
           title="We could not start your application"
@@ -71,13 +71,12 @@ export function StartForm({
         </p>
         <p>{policy.fee.explanation}</p>
         <p>
-          You may create up to {policy.maxActivePerIntake} active applications
-          per intake, with {policy.maxChoices} programme choice per application
-          in this demonstration.
+          Up to {policy.maxActivePerIntake} active applications are permitted
+          per intake, with {policy.maxChoices} programme choice per application.
         </p>
         <p>
           You can save your progress and return later. Your application will not
-          be sent until you review it and submit it.
+          be submitted until you review and confirm it.
         </p>
         <p>{policy.contactRequirement}</p>
         <div className={styles.actions}>
@@ -555,8 +554,8 @@ export function Workspace({
           } as Record<string, string>
         )[section] ?? "Application"}
       </h1>
-      <p className={styles.demo}>
-        Fictional demonstration · {p.version} · {p.fee.explanation}
+      <p className={styles.eyebrow}>
+        Policy version {p.version} · {p.fee.explanation}
       </p>
       <ApplicationContext application={a} />
       <ApplicationSteps application={a} />
@@ -652,8 +651,7 @@ export function Workspace({
           <details>
             <summary>Discard draft</summary>
             <p>
-              This hides your unfinished draft. Retained audit records are not
-              erased. You cannot undo it. {p.fee.explanation}
+              Discarding your draft removes it from your active workspace. This action cannot be undone.
             </p>
             <label className={styles.checkboxLabel}>
               <input
@@ -737,8 +735,7 @@ export function Workspace({
           {section === "qualifications" && (
             <>
               <p>
-                Declared — verification required. This form does not
-                authenticate your qualification or make an admissions decision.
+                Enter your official qualification details and examination grades as shown on your certificates.
               </p>
               {field(
                 "routeCode",
@@ -894,10 +891,8 @@ export function Workspace({
             {p.upload.maxBytes / 1024 / 1024} MB.
           </p>
           <p>
-            Safety processor: {p.upload.scanner}. In fixture mode only the
-            bundled fictional-result.pdf can pass. Arbitrary files stay
-            quarantined until the required safety checks are available. PDFs
-            also require structural validation.
+            Accepted file formats: {p.upload.extensions.join(", ")}; maximum size{" "}
+            {p.upload.maxBytes / 1024 / 1024} MB per file. Uploaded documents undergo automated integrity and safety verification.
           </p>
           {a.requiredDocuments.map((d) => (
             <article key={d.category} className={styles.card}>

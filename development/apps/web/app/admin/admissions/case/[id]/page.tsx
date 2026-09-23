@@ -63,9 +63,7 @@ export default async function ReviewCasePage({
           Review case {evidence.data.reference}
         </h1>
         <p className={styles.lede}>
-          Demonstration comparison workspace: declarations beside document
-          states. Findings record observations only — applicant data is never
-          modified here.
+          Assess application evidence, record findings, and submit formal recommendations.
         </p>
         <ReviewCase
           evidence={evidence.data}
