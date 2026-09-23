@@ -20,3 +20,7 @@ Task 2 RED: run 35864161238 failed at the missing Student Home context line; Tas
 
 Task 2: complete — CI run 35864818047 passed the Student Home contract at 390px, including the required section order, SIS registration state, Moodle learning-access state and overflow check. All pre-browser gates remained green.
 Task 3 RED: run 35864818047 then failed because the `Registration readiness` heading was absent; Tasks 4–5 were skipped as intended.
+
+
+Task 3: complete — CI run 35865437090 passed the read-only Registration Readiness contract at 390px, including owner/state labels, zero buttons and overflow check. All pre-browser gates remained green.
+Task 4 RED: run 35865437090 then failed because the Teaching Workspace context line was absent; Task 5 was skipped as intended.
