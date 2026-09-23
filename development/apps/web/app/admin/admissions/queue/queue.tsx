@@ -329,7 +329,7 @@ export function AdmissionsQueue({
       ) : null}
 
       <p className={styles.summary} role="status">
-        {rows.length} {view === "mine" ? "assigned" : "claimable"} case
+        Showing {rows.length} {view === "mine" ? "assigned" : "claimable"} case
         {rows.length === 1 ? "" : "s"}
         {hasMore ? " · More available" : ""}
       </p>
