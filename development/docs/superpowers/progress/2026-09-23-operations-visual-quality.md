@@ -32,3 +32,7 @@ Task 3 selector ruling 2: CI run 35876412152 rendered the event page and current
 
 
 Ruling: Tasks 4 and 5 are test-only additions with no production dependency between them. Batch their files into one atomic commit to reduce duplicate full-CI runs and input-stream instability. Cost if wrong: one commit contains two independent verification surfaces, but failures remain attributable by separate Playwright test files and names.
+
+
+Final review: self-review (no subagent tool).
+Final finding (Important): the `Qualification verification` attention item currently links to the Moodle `RegistrationCompleted` event detail, so a reasonable operator following that preview item sees an unrelated record. Add a RED contract that the provider item has no event-detail link unless a matching preview exists.
