@@ -1,0 +1,11 @@
+# Native execution ledger — plan: development/docs/superpowers/plans/2026-09-23-operations-visual-quality.md
+
+Execution branch: `ui-modernization`
+
+Baseline: approved plan commit `6e14966`.
+
+Ruling: connector-only repository access prevents creation of a local worktree or `.superpowers/sdd` scratch workspace. Continue on the existing isolated `ui-modernization` branch, store execution state in this repository ledger, and use GitHub CI as the executable RED→GREEN environment. Cost if wrong: less local isolation, mitigated by branch isolation, atomic commits and full CI gates.
+
+Pre-flight: Task 1 produces static Operations data consumed by Tasks 2–3; field names in the plan are consistent. Task 4 consumes the routes created by Tasks 1–3. Task 5 reads all modernized routes and does not mutate shared interfaces.
+
+Ruling: batch Tasks 1–3 semantic contracts into one serial Playwright suite. Each implementation should expose the next RED in order while reducing duplicate full-CI runs. Cost if wrong: a later failure remains masked until earlier contracts are green, which is intentional and reviewed per run.
