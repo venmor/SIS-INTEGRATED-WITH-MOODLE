@@ -41,3 +41,6 @@ Root cause 2: the empty-home capture navigated to /applicant immediately after c
 
 
 Task 7 diagnostic: the timeline helper still reaches Review with submission disabled after matching existing save waits. Add a fail-fast enabled assertion and print the visible review state/blockers when disabled. This is evidence gathering only; no product behavior changes.
+
+
+Task 7 root cause confirmed in CI run 35835025757: the review was ready (4/4 required sections complete; "Ready to submit"), but `locator.count()` returned 0 before streamed declaration controls rendered, so the helper skipped all declaration checks. The disabled Continue button was correct product behavior. Fix: wait for exactly three declaration checkboxes before checking them; remove diagnostic logging. Cost if wrong: if the approved demo policy changes declaration count, this test must change with the policy fixture.

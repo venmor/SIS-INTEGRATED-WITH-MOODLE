@@ -98,17 +98,13 @@ async function submitBasicApplication(
 
   await page.goto(`${applicationUrl}/review`);
   const declarations = page.getByRole("checkbox");
-  for (let index = 0; index < (await declarations.count()); index += 1) {
+  await expect(declarations).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
     await declarations.nth(index).check();
   }
   const continueButton = page.getByRole("button", {
     name: "Continue to submission confirmation",
   });
-  if (await continueButton.isDisabled()) {
-    console.log(
-      "REVIEW_DIAGNOSTIC\n" + (await page.locator("main").innerText()),
-    );
-  }
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
   await page
