@@ -16,9 +16,8 @@ function statusFor(application: ApplicationView) {
     return {
       severity: "info" as const,
       state: "Application submitted",
-      reason:
-        "Admissions has received this application. The submitted version is read-only.",
-      action: "Open the status timeline to see what is happening and whether you need to act.",
+      reason: "Admissions received it.",
+      action: "View status and timeline.",
     };
   }
 
@@ -26,9 +25,8 @@ function statusFor(application: ApplicationView) {
     return {
       severity: "neutral" as const,
       state: "Application withdrawn",
-      reason:
-        "This application is no longer active. Its history remains available for your records.",
-      action: "Open the application to review its final status and history.",
+      reason: "No longer active.",
+      action: "View history.",
     };
   }
 
@@ -37,12 +35,9 @@ function statusFor(application: ApplicationView) {
     state: remaining > 0 ? "Draft — action required" : "Draft ready for review",
     reason:
       remaining > 0
-        ? `${remaining} required section${remaining === 1 ? "" : "s"} still need attention before submission.`
-        : "All required sections are complete, but the application has not been submitted.",
-    action:
-      remaining > 0
-        ? "Continue the earliest incomplete section."
-        : "Review the application carefully before formal submission.",
+        ? `${remaining} required section${remaining === 1 ? "" : "s"} need attention.`
+        : "Required sections complete.",
+    action: remaining > 0 ? "Continue application." : "Review and submit.",
   };
 }
 
@@ -56,14 +51,16 @@ export default async function Home() {
     return <ApplicationUnavailable message={result.message} />;
   }
 
+  const activeDraft =
+    result.data.items.find(
+      (item) => item.state !== "Submitted" && item.state !== "Withdrawn",
+    ) ?? null;
+
   return (
     <>
       <p className={styles.eyebrow}>Applicant workspace</p>
       <h1>Application home</h1>
-      <p className={styles.lede}>
-        Continue unfinished work, see what needs attention, and track submitted
-        applications from one place.
-      </p>
+      <p className={styles.lede}>Continue applications and track updates.</p>
 
       <div className={styles.actions}>
         <Link className={styles.buttonLink} href="/discover">
@@ -73,11 +70,36 @@ export default async function Home() {
         <Link href="/applicant/help">Get help</Link>
       </div>
 
+      {activeDraft ? (
+        <section
+          className={styles.requiredAction}
+          aria-labelledby="required-action-heading"
+        >
+          <div>
+            <p className={styles.eyebrow}>Next step</p>
+            <h2 id="required-action-heading">Required action</h2>
+            <p>
+              {activeDraft.offering.programmeName} · {activeDraft.offering.intake}
+            </p>
+            <p className={styles.muted}>
+              {activeDraft.completeCount} of {activeDraft.requiredCount} required
+              sections complete
+            </p>
+          </div>
+          <Link
+            className={styles.buttonLink}
+            href={`/applicant/${activeDraft.id}`}
+          >
+            Continue application
+          </Link>
+        </section>
+      ) : null}
+
       {!result.data.items.length ? (
         <Empty
           caseVariant="action"
           title="No applications yet"
-          message="Choose a published programme to review its requirements and start an application."
+          message="Choose a programme to start."
           action={{ label: "Find a programme", href: "/discover" }}
         />
       ) : (

@@ -19,12 +19,8 @@ interface ProgrammeCardProps {
 }
 
 /**
- * DISC-CARD-001 — Programme search-result card (packet-local, TASK-PH2-001).
- * Server component. One offering per card: official facts, availability in
- * words, deadline, requirement summary, View action and a compare-tray
- * action that swaps to "Added to comparison" once selected (Part 2 §7).
- * Link names always include the programme name for screen readers.
- * Full contract: packages/ui/README.md.
+ * DISC-CARD-001 — Programme search-result record.
+ * Factual catalogue information with explicit view and compare actions.
  */
 export function ProgrammeCard({
   name,
@@ -60,9 +56,12 @@ export function ProgrammeCard({
         <p className={styles.meta}>{requirementSummary}</p>
       ) : null}
       {statusNote ? <p className={styles.note}>{statusNote}</p> : null}
-      <p className={styles.actions}>
+      <div className={styles.actions}>
+        <a className={styles.primaryAction} href={viewHref}>
+          View programme
+        </a>
         <a
-          className={styles.action}
+          className={styles.secondaryAction}
           href={compareHref}
           aria-label={
             compareSelected
@@ -72,7 +71,7 @@ export function ProgrammeCard({
         >
           {compareSelected ? "Added to comparison" : "Compare"}
         </a>
-      </p>
+      </div>
     </article>
   );
 }

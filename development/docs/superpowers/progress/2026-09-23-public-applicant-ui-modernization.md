@@ -13,3 +13,5 @@ Baseline: CI run 35812935749 passed source scan, lint, unit tests, migrations, b
 
 RED run 35813252843: Tasks 1–5 failed for the intended missing UI contracts. Task 6 failed in test setup because Review remained blocked before document safety completion.
 Task 6 test ruling: wait for the existing document preview state before opening Review, matching the established applicant browser journey. Cost if wrong: test may still fail before reaching the timeline assertion.
+
+Corrected RED run 35813699371: all six semantic contracts failed for the intended missing UI behavior. Production implementation may begin.

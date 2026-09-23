@@ -37,12 +37,9 @@ export function ApplicationContext({
         {application.version}
       </p>
       {application.editable ? (
-        <p>
-          Your application is a draft until you review it and select{" "}
-          <strong>Submit application</strong>. Admissions cannot assess a draft.
-        </p>
+        <p>Draft — not submitted.</p>
       ) : (
-        <p>{application.lockReason ?? "This application is read-only."}</p>
+        <p>{application.lockReason ?? "Read-only."}</p>
       )}
     </section>
   );
@@ -99,33 +96,52 @@ export function ApplicationSteps({
 }: {
   application: ApplicationView;
 }) {
+  const completedStates = new Set([
+    "COMPLETE",
+    "Complete",
+    "NOT_REQUIRED",
+    "NotRequired",
+  ]);
+  const nextSection = application.sections.find(
+    (section) => !completedStates.has(section.state),
+  );
+  const sectionHref = (key: string) =>
+    applicationPath(
+      application.id,
+      key === "documents" ? "documents" : key === "review" ? "review" : key,
+    );
+
   return (
     <nav aria-label="Application sections">
-      <div className={styles.progressHeader}>
-        <p>
-          {application.completeCount} of {application.requiredCount} required
-          sections complete
-        </p>
-        <progress
-          value={application.completeCount}
-          max={Math.max(application.requiredCount, 1)}
-          aria-label="Application completion"
-        />
-      </div>
+      <section className={styles.progressPanel} aria-label="Application progress">
+        <div className={styles.progressHeader}>
+          <p>
+            {application.completeCount} of {application.requiredCount} required
+            sections complete
+          </p>
+          <progress
+            value={application.completeCount}
+            max={Math.max(application.requiredCount, 1)}
+            aria-label="Application completion"
+          />
+        </div>
+
+        {nextSection ? (
+          <p className={styles.nextStep}>
+            <strong>Next required step:</strong>{" "}
+            <Link href={sectionHref(nextSection.key)}>{nextSection.label}</Link>
+          </p>
+        ) : (
+          <p className={styles.nextStep}>
+            <strong>Next:</strong> Review and submit.
+          </p>
+        )}
+      </section>
 
       <ol className={`${styles.steps} ${styles.applicationSteps}`}>
         {application.sections.map((section) => (
           <li key={section.key} data-state={section.state}>
-            <Link
-              href={applicationPath(
-                application.id,
-                section.key === "documents"
-                  ? "documents"
-                  : section.key === "review"
-                    ? "review"
-                    : section.key,
-              )}
-            >
+            <Link href={sectionHref(section.key)}>
               {section.label}
               <span>{section.state.replaceAll("_", " ")}</span>
             </Link>
