@@ -40,3 +40,18 @@ Final finding (Important): the `Qualification verification` attention item curre
 
 Final fix RED: CI run 35878208033 passed source scan, lint, unit tests, migrations/seed, both API e2e groups, production build and typecheck, then failed the new browser contract because the `Qualification verification` record still had one link to the unrelated Moodle event preview.
 Final: fixed unrelated provider event link — `operations preview is queue-first and keeps authority explicit` observed RED (expected 0 provider links, received 1); provider record now has no event-detail href while the Moodle event retains its matching preview link. Full-suite GREEN required on the next head before closure.
+
+
+Task 3: complete — CI run 35877158237 passed the Operations home, reconciliation, and event-recovery semantic contracts together with the full repository suite. Event delivery keeps retry/idempotency information read-only and exposes no live retry control.
+
+Tasks 4–5: complete — combined QA commit `426728b` added Operations screenshot evidence and the cross-workspace 390px/anti-gradient/live-navigation quality gate. CI run 35877552879 passed before final review.
+
+Final review: self-review (no subagent tool). Source-boundary review found no API fetch, server action, form, mutation button, gradient, glass/blur, dashboard/KPI language, or `roster` terminology anywhere under `app/design-preview/**`. Operations changes are isolated to preview routes/data/styles, tests, plans and progress documentation.
+
+Final: fixed Important finding — the Qualification verification queue item linked to an unrelated Moodle RegistrationCompleted event preview. Test commit `b3baf99` observed RED in CI run 35878208033 (expected 0 provider links, received 1). `65d8260` removed only that unrelated provider link while preserving the matching Moodle event link.
+
+Final verification: CI run 35878944749 on `65d8260315fd9a26430a6f347cb293c9186333c4` passed source scan/script tests, lint, 68 unit tests, migrations/seed, 148 primary API e2e tests, 19 applications/config e2e tests, production build, typecheck, and all 30 browser tests. Browser evidence artifact: 10759104032.
+
+Final review result: no unresolved Critical or Important findings. No deferred Minor findings.
+
+Vercel note: both `sis-moodle` and `sis-moodle-api` report `build-rate-limit` on the final code head. This is Vercel platform throttling, not a repository build regression; the same head passed the repository production build and full CI in run 35878944749.
