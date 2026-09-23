@@ -37,3 +37,12 @@ Task 5 RED: the same run then failed because the course workspace context `CSC 4
 
 
 Task 6 ruling: Task 5's full CI run is long-running at the browser stage. Add the Task 6 screenshot-evidence test while that run remains active, but make no further production changes and do not mark Task 5 complete until its original semantic run is green. Cost if wrong: the evidence commit may start a second CI run before Task 5's run finishes; no product behavior is changed by this ruling.
+
+
+Task 5: complete — CI run 35871431079 passed the course-workspace contract at 390px after `db5ae82`. The page keeps SIS class-list facts separate from Moodle synchronization, uses TG-group terminology, and preserves the preview boundary.
+
+Task 6: complete — `a69c127` added deterministic screenshot evidence for student home (1440/390), registration readiness (390), teaching home (1440/390), and course workspace (1440/390). CI run 35871842950 passed source scan, script tests, lint, 68 unit tests, migrations/seed, both API e2e groups, production build, typecheck, the complete browser suite, and evidence upload. Browser evidence artifact: 10755098543.
+
+Final review: self-review (no subagent tool). The preview route family contains no `fetch()`, server actions, forms, mutation buttons, gradients, glass/blur effects, dashboard/KPI language, or `roster` terminology. The live home does not link to preview routes. Preview metadata is `noindex, nofollow`, every page carries `Design preview · No live records or actions.`, student section order follows the handbook, and SIS registration/class-list facts remain visibly separate from Moodle state. No Critical or Important findings.
+
+Vercel note: both projects report `build-rate-limit` for the final evidence commit. This is platform throttling, not a repository build failure; the same head passed the repository production build and full CI in run 35871842950.
