@@ -1,13 +1,7 @@
 .skeleton {
   display: block;
   max-width: 100%;
-  background: linear-gradient(
-    90deg,
-    var(--gray-100) 0%,
-    var(--gray-200) 48%,
-    var(--gray-100) 100%
-  );
-  background-size: 200% 100%;
+  background: var(--gray-200);
 }
 
 .sm {
@@ -60,25 +54,10 @@
   min-width: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .skeleton {
-    animation: skeleton-shift 1.8s ease-in-out infinite;
-  }
-}
-
 @media (max-width: 640px) {
   .queueRow {
     grid-template-columns: 1fr;
     align-items: start;
     padding: var(--space-4);
-  }
-}
-
-@keyframes skeleton-shift {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
   }
 }

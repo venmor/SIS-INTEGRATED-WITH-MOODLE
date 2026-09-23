@@ -80,9 +80,10 @@ export function ApplicationCaseNav({
     ["tickets", "Support tickets"],
     ["withdraw", "Withdraw application"],
   ];
+
   return (
     <nav aria-label="Submitted application">
-      <ul className={styles.steps}>
+      <ul className={`${styles.steps} ${styles.caseNav}`}>
         {items.map(([key, label]) => (
           <li key={key}>
             <Link href={applicationPath(applicationId, key)}>{label}</Link>
@@ -100,13 +101,21 @@ export function ApplicationSteps({
 }) {
   return (
     <nav aria-label="Application sections">
-      <p>
-        {application.completeCount} of {application.requiredCount} required
-        sections complete
-      </p>
-      <ol className={styles.steps}>
+      <div className={styles.progressHeader}>
+        <p>
+          {application.completeCount} of {application.requiredCount} required
+          sections complete
+        </p>
+        <progress
+          value={application.completeCount}
+          max={Math.max(application.requiredCount, 1)}
+          aria-label="Application completion"
+        />
+      </div>
+
+      <ol className={`${styles.steps} ${styles.applicationSteps}`}>
         {application.sections.map((section) => (
-          <li key={section.key}>
+          <li key={section.key} data-state={section.state}>
             <Link
               href={applicationPath(
                 application.id,
