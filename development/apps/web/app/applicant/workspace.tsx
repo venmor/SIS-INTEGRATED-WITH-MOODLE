@@ -913,7 +913,7 @@ export function Workspace({
                 {files.map((item) => (
                   <div key={item.id} className={styles.documentVersion}>
                     <p>
-                      {item.fileName} · version {item.version}
+                      {item.fileName} · {item.statusLabel} · version {item.version}
                     </p>
                     {item.canPreview && (
                       <a
