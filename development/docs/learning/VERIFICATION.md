@@ -166,3 +166,43 @@ Vercel was not forcing it — reproduced locally with Playwright
 (`packages/ui/src/tokens.css`, `apps/web/app/globals.css` now
 `color-scheme: light`); a dark-OS screenshot after rebuild renders the approved
 light palette. Web build exit 0. Uncommitted pending review.
+
+## Phase 4 slice 6 (2026-09-23, `sis_ph4_changes_test` + `sis_browser_review_docs`)
+
+Course changes + waitlist: typecheck 0, web lint clean, API build + web
+build exit 0. `registration-changes.e2e-spec.ts` **15/15 green** on a fresh
+DB (add/duplicate, required-drop advice refusal, unknown course, approve-add
+with roster growth + version bump + outbox event, approve-drop with timetable
+exclusion and no deletes, decline preservation, late-window routing,
+versioned history, waitlist ordering/expiry/full/decline, denials,
+neutrals). Regressions green on the same DB: `course-plan` +
+`registration-submit` **28/28**, `student-conversion` + `student-portal` +
+`registration-readiness` **27/27**. Browser `student-portal.spec.ts` with the
+new changes leg (request BUS111 addition, join BUS112 waitlist, both visible
+in history) **1/1 green** after `migrate deploy` on the browser DB. Unit
+(`apps/api`) + `test:scripts` + repo `lint` green. Fixes found (all verified
+green after): missing `Course` opposite relations + stale Prisma client
+(regenerated), missing `KeyDto` import, timetable ENROLLED filter, expiry
+write moved out of the rolling-back command transaction, ordering-based
+waitlist assertion, `router.refresh()` in change forms. `backup:test`,
+manual screen-reader/WSL replay, remote CI, and human walkthrough remain
+**not verified**. Uncommitted pending review.
+
+## Phase 5 slices 1–6 (2026-09-23, fresh `sis_ph5_final_test` + `sis_browser_review_docs`)
+
+Finance simulation and clearance, simulator-only. Typecheck 0, web lint
+clean (1 pre-existing warning cleared), API + web builds exit 0. API e2e
+**68/68 green**: assessment 8, statement 8, payments 11, callbacks 12,
+clearance 9, governance 20 — covering duplicate/delayed/reversed/
+mismatched callbacks, connection-loss-after-initiation (uncertain state),
+money rounding/allocation invariants (integer minor units), finance
+scope/threshold/SoD denials (incl. dual-hat same-account refusal), and
+restore/reconciliation convergence (redelivery returns stored outcome).
+Phase-4 registration specs **53/53** unaffected (real clearance writer
+feeds the gate). Browser `student-portal` (invoice → pay → uncertain →
+dispatch → receipt → CLEARED → reversal → HELD) and new
+`finance-workspace` (queue → escalate → sponsorship) green. Unit
+(`apps/api`) + `test:scripts` + repo `lint` green. New gaps: GAP-020
+(finance step-up auth). `backup:test`, manual screen-reader/WSL replay,
+remote CI, Vercel route check, and human walkthrough remain
+**not verified**. Uncommitted pending review.

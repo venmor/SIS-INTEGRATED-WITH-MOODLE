@@ -47,3 +47,5 @@ export type {
   RequirementRule,
 } from "./catalogue.js";
 export type * from "./applications.js";
+export type * from "./records.js";
+export type * from "./finance.js";

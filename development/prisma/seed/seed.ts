@@ -231,6 +231,119 @@ const SEED: SeedAccount[] = [
       },
     ],
   },
+  // Phase 4 slice 2 demonstration records staff (TASK-PH4-002). Fictional
+  // intake-scoped conversion capability. Not UNZA policy.
+  {
+    username: "mwansa.k",
+    personName: "Mwansa K.",
+    email: "mwansa.k@demo.invalid",
+    phone: "+260950000008",
+    password: "Seed-2026-Mwansa",
+    roles: [
+      {
+        role: "RECORDS_OFFICER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "REG-2026-101",
+        authoritySource: "Registry intake (demonstration)",
+        capabilities: ["convert-student"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration records officer",
+      },
+    ],
+  },
+  // UI walkthrough applicants (demo journeys seeded via scripts/demo-journey).
+  // Fictional accounts only; daka.c stops at Submitted (officer queue demo),
+  // phiri.n runs the full journey to a registered student. Not UNZA policy.
+  {
+    username: "daka.c",
+    personName: "Daka C.",
+    email: "daka.c@demo.invalid",
+    phone: "+260950000009",
+    password: "Seed-2026-Daka",
+    roles: [
+      {
+        role: "APP",
+        scopeType: "APPLICATION",
+        scopeRef: "DEMO-JOURNEY-A",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-201",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["apply"],
+        employmentType: null,
+        reason: "Demonstration applicant (queue fixture)",
+      },
+    ],
+  },
+  // Phase 5 demonstration finance staff (TASK-PH5-001/006). Fictional
+  // finance-scoped capabilities: assessment + reconciliation for the
+  // officer, threshold approvals for the approver. Not UNZA policy.
+  {
+    username: "phiri.n",
+    personName: "Phiri N.",
+    email: "phiri.n@demo.invalid",
+    phone: "+260950000010",
+    password: "Seed-2026-Phiri",
+    roles: [
+      {
+        role: "APP",
+        scopeType: "APPLICATION",
+        scopeRef: "DEMO-JOURNEY-B",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-202",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["apply"],
+        employmentType: null,
+        reason: "Demonstration applicant (full journey)",
+      },
+    ],
+  },
+  {
+    username: "kabwe.f",
+    personName: "Kabwe F.",
+    email: "kabwe.f@demo.invalid",
+    phone: "+260950000011",
+    password: "Seed-2026-Kabwe",
+    roles: [
+      {
+        role: "FINANCE_OFFICER",
+        scopeType: "FINANCE",
+        scopeRef: "GLOBAL",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "FIN-2026-101",
+        authoritySource: "Student Finance (demonstration)",
+        capabilities: ["assess-charges", "reconcile-case", "record-sponsorship"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration finance officer",
+      },
+    ],
+  },
+  {
+    username: "mulenga.g",
+    personName: "Mulenga G.",
+    email: "mulenga.g@demo.invalid",
+    phone: "+260950000012",
+    password: "Seed-2026-Mulenga",
+    roles: [
+      {
+        role: "FINANCE_APPROVER",
+        scopeType: "FINANCE",
+        scopeRef: "GLOBAL",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "FIN-2026-102",
+        authoritySource: "Student Finance (demonstration)",
+        capabilities: ["approve-adjustment"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration finance approver",
+      },
+    ],
+  },
 ];
 
 async function ensureAccount(
@@ -688,8 +801,120 @@ async function ensureCatalogue(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  // Identity administrator first so later grants reference a granter/approver.
+// Phase 4 slice 1 demonstration academic periods (TASK-PH4-001). One open
+// current period plus one closed fixture for denial paths. Idempotent.
+async function ensureStudentDemo(): Promise<void> {
+  const programmes = await prisma.programme.findMany({ select: { id: true } });
+  for (const programme of programmes) {
+    await prisma.curriculumVersion.upsert({
+      where: {
+        programmeId_version: {
+          programmeId: programme.id,
+          version: 1,
+        },
+      },
+      update: {},
+      create: {
+        programmeId: programme.id,
+        version: 1,
+        status: 'PUBLISHED',
+        effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+        rules: {},
+      },
+    });
+  }
+  for (const period of [
+    {
+      code: '2026S1',
+      registrationOpen: new Date('2026-01-05T00:00:00Z'),
+      registrationClose: new Date('2027-12-31T00:00:00Z'),
+      addDropClose: new Date('2027-12-31T00:00:00Z'),
+      status: 'OPEN',
+    },
+    {
+      code: '2025S2',
+      registrationOpen: new Date('2025-06-01T00:00:00Z'),
+      registrationClose: new Date('2025-12-01T00:00:00Z'),
+      addDropClose: new Date('2025-12-01T00:00:00Z'),
+      status: 'CLOSED',
+    },
+  ]) {
+    await prisma.academicPeriod.upsert({
+      where: { code: period.code },
+      update: {},
+      create: period,
+    });
+  }
+  // Phase 4 slice 4 demonstration courses (TASK-PH4-004). Fictional Y1
+  // set for the SWE curriculum: required halves, one S2 course behind a
+  // prerequisite, one extended activity, electives including a zero-capacity
+  // fixture for the capacity-denial path. Idempotent.
+  const swe = await prisma.programme.findUnique({ where: { code: 'SWE' } });
+  if (swe) {
+    const curriculum = await prisma.curriculumVersion.findUniqueOrThrow({
+      where: { programmeId_version: { programmeId: swe.id, version: 1 } },
+    });
+    const courses = [
+      { code: 'SWE111', title: 'Programming Fundamentals', credits: 15, courseType: 'half', semester: 'S1', capacity: 200, required: true },
+      { code: 'MTH111', title: 'Discrete Mathematics', credits: 15, courseType: 'half', semester: 'S1', required: true, capacity: 200 },
+      { code: 'ENG111', title: 'Communication Skills', credits: 15, courseType: 'half', semester: 'S1', required: true, capacity: 300 },
+      { code: 'SWE121', title: 'Data Structures', credits: 15, courseType: 'half', semester: 'S2', required: true, capacity: 200, requires: ['SWE111'] },
+      { code: 'SWE150', title: 'Computing Practice', credits: 30, courseType: 'extended', semester: 'YEAR', required: true, capacity: 200 },
+      { code: 'BUS111', title: 'Business Basics', credits: 15, courseType: 'half', semester: 'S1', required: false, capacity: 50 },
+      { code: 'BUS112', title: 'Entrepreneurship (closed fixture)', credits: 15, courseType: 'half', semester: 'S1', required: false, capacity: 0 },
+    ];
+    const byCode: Record<string, string> = {};
+    for (const course of courses) {
+      const row = await prisma.course.upsert({
+        where: { code: course.code },
+        update: {},
+        create: {
+          code: course.code,
+          title: course.title,
+          credits: course.credits,
+          courseType: course.courseType,
+          semester: course.semester,
+          capacity: course.capacity,
+        },
+      });
+      byCode[course.code] = row.id;
+      await prisma.curriculumCourse.upsert({
+        where: {
+          curriculumId_courseId: {
+            curriculumId: curriculum.id,
+            courseId: row.id,
+          },
+        },
+        update: {},
+        create: {
+          curriculumId: curriculum.id,
+          courseId: row.id,
+          required: course.required,
+          semester: course.semester,
+        },
+      });
+    }
+    for (const course of courses) {
+      for (const prerequisite of course.requires ?? []) {
+        await prisma.coursePrerequisite.upsert({
+          where: {
+            courseId_requiresCourseId: {
+              courseId: byCode[course.code],
+              requiresCourseId: byCode[prerequisite],
+            },
+          },
+          update: {},
+          create: {
+            courseId: byCode[course.code],
+            requiresCourseId: byCode[prerequisite],
+          },
+        });
+      }
+    }
+  }
+}
+
+async function main(): Promise<void> {  // Identity administrator first so later grants reference a granter/approver.
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
   await ensureAccount(admin, null);
   const granter = await prisma.account.findUniqueOrThrow({
@@ -700,16 +925,19 @@ async function main(): Promise<void> {
   }
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
+  await ensureStudentDemo();
   // Explicit fictional verified-contact fixture; never infer verification for real users.
   if (process.env.DEMO_MODE === "true") {
-    const applicant = await prisma.account.findUnique({
-      where: { username: "bwalya.m" },
-    });
-    if (applicant)
-      await prisma.person.update({
-        where: { id: applicant.personId },
-        data: { emailVerifiedAt: new Date("2026-09-19T00:00:00Z") },
+    for (const username of ["bwalya.m", "daka.c", "phiri.n"]) {
+      const applicant = await prisma.account.findUnique({
+        where: { username },
       });
+      if (applicant)
+        await prisma.person.update({
+          where: { id: applicant.personId },
+          data: { emailVerifiedAt: new Date("2026-09-19T00:00:00Z") },
+        });
+    }
   }
   const counts = {
     persons: await prisma.person.count(),

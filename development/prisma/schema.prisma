@@ -24,6 +24,14 @@ model Person {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   accounts        Account[]
+  // Phase 4 slice 2: duplicate-identity handling. A person merged into
+  // another keeps its row (history preserved); duplicateOfPersonId points at
+  // the surviving record. Status ACTIVE by default.
+  status             String  @default("ACTIVE")
+  duplicateOfPersonId String?
+  duplicateOf        Person?  @relation("PersonDuplicate", fields: [duplicateOfPersonId], references: [id], onDelete: Restrict)
+  duplicates         Person[] @relation("PersonDuplicate")
+  student            Student?
 }
 
 model Account {
@@ -333,6 +341,7 @@ model ProgrammeOffering {
   // Closed/unavailable explanation shown verbatim-safe (packet copy).
   statusNote  String?
   applications Application[]
+  attempts ProgrammeAttempt[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -646,4 +655,501 @@ model OnboardingTask {
   createdAt DateTime @default(now())
   @@unique([applicationId, taskKey])
   @@index([applicationId, status])
+}
+
+// Phase 4 slice 2: student conversion (records module). A Student links one
+// surviving Person to one human-readable student number; programme attempts
+// track each admission on a published curriculum version. Conversion is
+// idempotent and never auto-merges people (see IdentityMatchCandidate).
+model Student {
+  id String @id @default(uuid())
+  personId String @unique
+  person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+  studentNumber String @unique
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  attempts ProgrammeAttempt[]
+  corrections StudentCorrectionRequest[]
+  holds Hold[]
+  clearances FinanceClearance[]
+  financeAccount FinanceAccount?
+  @@index([status, createdAt])
+}
+
+// Phase 4 slice 2: human identity-resolution queue. A candidate pairs the
+// applicant's person with a possibly-matching existing person; records
+// officers resolve (link or keep separate) with reason + audit. Rows are
+// history and are never deleted.
+model IdentityMatchCandidate {
+  id String @id @default(uuid())
+  applicationId String
+  personId String
+  candidatePersonId String
+  reason String
+  status String @default("PENDING")
+  decidedByAccountId String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([applicationId, personId, candidatePersonId])
+  @@index([status, createdAt])
+  @@index([applicationId, status])
+}
+
+// Phase 4 slice 2: one programme attempt per admission. Status follows the
+// Design Section 3 lifecycle (ADMITTED on conversion; later slices advance
+// it). curriculumVersionId pins the published curriculum version.
+model ProgrammeAttempt {
+  id String @id @default(uuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  applicationId String @unique
+  offeringId String
+  offering ProgrammeOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  intake String
+  curriculumVersionId String?
+  curriculumVersion CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id], onDelete: Restrict)
+  status String @default("ADMITTED")
+  createdAt DateTime @default(now())
+  @@index([studentId, status])
+}
+
+// Phase 4 slice 2: versioned curriculum. Only PUBLISHED versions receive new
+// students; published rows are never edited in place (supersede instead).
+model CurriculumVersion {
+  id String @id @default(uuid())
+  programmeId String
+  version Int
+  status String @default("PUBLISHED")
+  effectiveFrom DateTime?
+  rules Json?
+  createdAt DateTime @default(now())
+  attempts ProgrammeAttempt[]
+  courses CurriculumCourse[]
+  @@unique([programmeId, version])
+  @@index([programmeId, status])
+}
+
+// Phase 4 slice 1: academic periods and student correction requests. Periods
+// bound registration windows; corrections preserve old values with version
+// history and never silently overwrite the person record.
+model AcademicPeriod {
+  id String @id @default(uuid())
+  code String @unique
+  registrationOpen DateTime?
+  registrationClose DateTime?
+  addDropClose DateTime?
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  invoices FinanceInvoice[]
+  sponsorships FinanceSponsorship[]
+  adjustments FinanceAdjustment[]
+  arrangements FinanceArrangement[]
+  @@index([status, code])
+}
+
+model StudentCorrectionRequest {
+  id String @id @default(uuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  field String
+  requestedValue String
+  reason String
+  status String @default("PENDING")
+  decidedByAccountId String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([studentId, status])
+}
+
+// Phase 4 slice 3: holds and finance clearance reads. Holds block with an
+// owning office and reason; clearance rows are written by Phase 5 (finance
+// ledger) and read here as status + expiry only. Demo fixtures may insert
+// clearance rows in tests; the Phase 5 writer replaces fixtures.
+model Hold {
+  id String @id @default(uuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  holdType String
+  effect String
+  reason String
+  office String
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  releasedAt DateTime?
+  @@index([studentId, status])
+}
+
+model FinanceClearance {
+  id String @id @default(uuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  periodId String
+  status String @default("NOT_ASSESSED")
+  policyVersion String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([studentId, periodId])
+  @@index([studentId, status])
+}
+
+// Phase 5 slice 1: versioned fee assessment (TASK-PH5-001). One account
+// per student; invoices group immutable posted charge lines per period.
+// Money is integer minor units + currency, never floating point. Posted
+// lines are never edited; later slices add reversals as new rows.
+model FinanceAccount {
+  id String @id @default(uuid())
+  studentId String @unique
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  invoices FinanceInvoice[]
+  paymentRequests FinancePaymentRequest[]
+  paymentTransactions FinancePaymentTransaction[]
+  reconciliationCases FinanceReconciliationCase[]
+  allocations FinanceAllocation[]
+  sponsorships FinanceSponsorship[]
+  adjustments FinanceAdjustment[]
+  arrangements FinanceArrangement[]
+}
+
+model FinanceInvoice {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  reference String @unique
+  policyVersion String
+  status String @default("ISSUED")
+  dueAt DateTime?
+  createdAt DateTime @default(now())
+  lines FinanceChargeLine[]
+  paymentRequests FinancePaymentRequest[]
+  @@unique([accountId, periodId])
+  @@index([accountId, status])
+}
+
+model FinanceChargeLine {
+  id String @id @default(uuid())
+  invoiceId String
+  invoice FinanceInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  code String
+  description String
+  courseId String?
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  amountMinor Int
+  currency String @default("ZMW")
+  feeRule String
+  policyVersion String
+  inputs Json?
+  status String @default("POSTED")
+  createdAt DateTime @default(now())
+  allocations FinanceAllocation[]
+  @@index([invoiceId, status])
+}
+
+// Phase 5 slice 3: payment initiation and simulator staging (TASK-PH5-003).
+// Requests are student-initiated with idempotency references; uncertain
+// requests block re-initiation ("do not pay again"). Simulator transactions
+// are staged provider evidence, never confirmation (slice 4 confirms).
+model FinancePaymentRequest {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  invoiceId String
+  invoice FinanceInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  reference String @unique
+  amountMinor Int
+  currency String @default("ZMW")
+  method String
+  status String @default("AWAITING_CONFIRMATION")
+  idempotencyKey String @unique
+  simulatorScenario String?
+  payerReference String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transactions FinancePaymentTransaction[]
+  @@index([accountId, status])
+  @@index([invoiceId, status])
+}
+
+model FinancePaymentTransaction {
+  id String @id @default(uuid())
+  requestId String?
+  request FinancePaymentRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  provider String
+  providerRef String @unique
+  amountMinor Int
+  currency String @default("ZMW")
+  channel String
+  status String @default("STAGED")
+  signatureValid Boolean?
+  evidence Json?
+  createdAt DateTime @default(now())
+  allocations FinanceAllocation[]
+  @@index([accountId, status])
+}
+
+// Phase 5 slice 4: callbacks and reconciliation cases (TASK-PH5-004).
+// Callbacks are normalized once (nonce-tracked); mismatches and unknown
+// references open cases instead of moving money. Cases preserve source
+// evidence; resolution arrives in slice 6 and never deletes originals.
+model FinanceCallback {
+  id String @id @default(uuid())
+  provider String
+  providerRef String
+  nonce String
+  status String
+  receivedAt DateTime @default(now())
+  @@unique([provider, nonce])
+  @@index([provider, providerRef])
+}
+
+model FinanceReconciliationCase {
+  id String @id @default(uuid())
+  accountId String?
+  account FinanceAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  requestId String?
+  kind String
+  status String @default("OPEN")
+  providerRef String?
+  detail Json?
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  @@index([status, createdAt])
+  @@index([accountId, status])
+}
+
+// Phase 5 slice 5: allocation and clearance (TASK-PH5-005). Allocations
+// link posted payments to charge lines under the policy version; the
+// balance always recomputes from posted lines minus allocations. Sponsorship
+// rows are written by slice 6 officers; the clearance calculator already
+// consumes confirmed coverage (promise is never cash).
+model FinanceAllocation {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  paymentTransactionId String
+  paymentTransaction FinancePaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Restrict)
+  chargeLineId String
+  chargeLine FinanceChargeLine @relation(fields: [chargeLineId], references: [id], onDelete: Restrict)
+  amountMinor Int
+  policyVersion String
+  createdAt DateTime @default(now())
+  @@unique([paymentTransactionId, chargeLineId])
+  @@index([chargeLineId])
+  @@index([accountId])
+}
+
+
+// Phase 5 slice 6: finance governance (TASK-PH5-006). Adjustments follow
+// request → threshold approval with maker/checker separation; approved
+// credits post compensating charge lines, never edits. Arrangements are
+// student-requested, approver-decided clearance entitlements.
+model FinanceAdjustment {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  kind String
+  amountMinor Int
+  currency String @default("ZMW")
+  reason String
+  evidenceNote String?
+  status String @default("REQUESTED")
+  policyVersion String
+  requesterAccountId String
+  deciderAccountId String?
+  decidedAt DateTime?
+  payoutReference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, status])
+}
+
+model FinanceArrangement {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  terms String
+  reason String
+  status String @default("REQUESTED")
+  policyVersion String
+  requesterAccountId String
+  deciderAccountId String?
+  decidedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, status])
+}
+
+model FinanceSponsorship {
+  id String @id @default(uuid())
+  accountId String
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  sponsorName String
+  categories String[]
+  coverageType String
+  coverageValue Int
+  status String @default("DRAFT")
+  version Int @default(1)
+  evidenceNote String?
+  effectiveFrom DateTime?
+  effectiveTo DateTime?
+  decidedByAccountId String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, status])
+}
+
+// Phase 4 slice 4: courses and draft course plans. Courses carry type,
+// credits, semester and capacity; prerequisites are explicit pairs; curriculum
+// rows bind courses to a published version as required or elective. Plans
+// are drafts (never official); validation is computed, never stored as a
+// verdict. Course codes are never reused for unrelated courses.
+model Course {
+  id String @id @default(uuid())
+  code String @unique
+  title String
+  credits Int
+  courseType String
+  semester String?
+  capacity Int
+  createdAt DateTime @default(now())
+  prerequisites CoursePrerequisite[] @relation("CourseRequires")
+  requiredBy CoursePrerequisite[] @relation("PrerequisiteFor")
+  curriculumLinks CurriculumCourse[]
+  planItems CoursePlanItem[]
+  registrations CourseRegistration[]
+  amendments RegistrationAmendment[]
+  waitlistEntries WaitlistEntry[]
+  financeCharges FinanceChargeLine[]
+  @@index([courseType, semester])
+}
+
+model CoursePrerequisite {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation("CourseRequires", fields: [courseId], references: [id], onDelete: Restrict)
+  requiresCourseId String
+  requires Course @relation("PrerequisiteFor", fields: [requiresCourseId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([courseId, requiresCourseId])
+}
+
+model CurriculumCourse {
+  id String @id @default(uuid())
+  curriculumId String
+  curriculum CurriculumVersion @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  required Boolean @default(true)
+  semester String?
+  createdAt DateTime @default(now())
+  @@unique([curriculumId, courseId])
+  @@index([curriculumId, required])
+}
+
+model CoursePlan {
+  id String @id @default(uuid())
+  attemptId String
+  periodId String
+  status String @default("DRAFT")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items CoursePlanItem[]
+  @@unique([attemptId, periodId])
+  @@index([attemptId, status])
+}
+
+model CoursePlanItem {
+  id String @id @default(uuid())
+  planId String
+  plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  status String @default("PLANNED")
+  createdAt DateTime @default(now())
+  @@unique([planId, courseId])
+  @@index([planId, status])
+}
+
+// Phase 4 slice 5: formal registration. One row per attempt+period with an
+// immutable JSON snapshot and a human-readable receipt. The snapshot is
+// write-once; every later change is a RegistrationAmendment (slice 6).
+// Roster rows record enrolled courses; Moodle delivery runs off the outbox
+// event and never reverses the confirmed registration.
+model InstitutionalRegistration {
+  id String @id @default(uuid())
+  attemptId String
+  periodId String
+  version Int @default(1)
+  status String @default("REGISTERED")
+  snapshot Json
+  receipt String @unique
+  declarations Json?
+  createdAt DateTime @default(now())
+  roster CourseRegistration[]
+  registrationAmendments RegistrationAmendment[]
+  @@unique([attemptId, periodId])
+  @@index([attemptId, status])
+}
+
+model CourseRegistration {
+  id String @id @default(uuid())
+  registrationId String
+  registration InstitutionalRegistration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  status String @default("ENROLLED")
+  createdAt DateTime @default(now())
+  @@unique([registrationId, courseId])
+  @@index([registrationId, status])
+}
+
+// Phase 4 slice 6: registration amendments and waitlist. Snapshots stay
+// immutable; every change is a versioned amendment row with reason, evidence
+// note, authority and impact. Roster rows flip status, never delete.
+// Waitlist entries expire per policy and revalidate fully on accept.
+model RegistrationAmendment {
+  id String @id @default(uuid())
+  registrationId String
+  registration InstitutionalRegistration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  version Int
+  kind String
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  reason String
+  evidenceNote String?
+  status String @default("PENDING")
+  decidedByAccountId String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([registrationId, status])
+}
+
+model WaitlistEntry {
+  id String @id @default(uuid())
+  attemptId String
+  periodId String
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  position Int
+  status String @default("WAITING")
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([attemptId, periodId, courseId])
+  @@index([courseId, status])
 }

@@ -6,3 +6,5 @@ export { AUTH_MESSAGES } from "./messages.js";
 export type { MessageTemplate, AuthMessageKey } from "./messages.js";
 export * from "./configuration.js";
 export { APPLICATION_DEMO_V1 } from "./applications.js";
+export { STUDENT_DEMO_V1 } from "./students.js";
+export { FINANCE_DEMO_V1 } from "./finance.js";

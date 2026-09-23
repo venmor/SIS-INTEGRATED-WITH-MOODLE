@@ -34,6 +34,20 @@ export default async function SignInPage({
             password: "Seed-2026-Kasonde",
             blurb: "Releases decisions separately from the recommendation.",
           },
+          {
+            role: "Finance officer",
+            username: "kabwe.f",
+            password: "Seed-2026-Kabwe",
+            blurb:
+              "Assesses charges, reconciles cases, records sponsorships and cash.",
+          },
+          {
+            role: "Finance approver",
+            username: "mulenga.g",
+            password: "Seed-2026-Mulenga",
+            blurb:
+              "Decides adjustments, refunds and payment arrangements.",
+          },
         ]
       : undefined;
   return (
