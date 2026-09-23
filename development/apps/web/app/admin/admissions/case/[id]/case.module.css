@@ -199,3 +199,144 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+.evidenceReview {
+  display: grid;
+  gap: var(--space-6);
+  padding-top: var(--space-2);
+}
+
+.sectionHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: end;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+
+.sectionEyebrow,
+.sectionMeta,
+.emptyLine {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.sectionEyebrow {
+  margin-bottom: var(--space-1);
+  font-weight: 650;
+}
+
+.sectionMeta {
+  white-space: nowrap;
+}
+
+.evidenceGroup {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.evidenceGroup h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.evidenceFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.evidenceFacts div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.8fr) minmax(0, 1.4fr);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidenceFacts dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.evidenceFacts dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-supporting);
+  white-space: pre-wrap;
+}
+
+.documentList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.documentList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.documentList li > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.documentList li > div:first-child span {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.documentState {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+@media (max-width: 700px) {
+  .sectionHeading {
+    display: grid;
+    align-items: start;
+  }
+
+  .sectionMeta {
+    white-space: normal;
+  }
+
+  .evidenceFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceFacts div {
+    grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1.4fr);
+    padding-right: 0;
+  }
+
+  .documentList li {
+    grid-template-columns: 1fr;
+  }
+
+  .documentState {
+    justify-content: flex-start;
+  }
+}

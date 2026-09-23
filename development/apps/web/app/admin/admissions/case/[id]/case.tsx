@@ -57,6 +57,39 @@ function asRecord(value: unknown): Record<string, string> {
   return out;
 }
 
+function fieldLabel(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function EvidenceFacts({
+  label,
+  values,
+}: {
+  label: string;
+  values: Record<string, string>;
+}) {
+  return (
+    <section className={caseStyles.evidenceGroup} aria-labelledby={`evidence-${label.toLowerCase()}`}>
+      <h3 id={`evidence-${label.toLowerCase()}`}>{label}</h3>
+      {Object.keys(values).length === 0 ? (
+        <p className={caseStyles.emptyLine}>No submitted information.</p>
+      ) : (
+        <dl className={caseStyles.evidenceFacts}>
+          {Object.entries(values).map(([key, value]) => (
+            <div key={key}>
+              <dt>{fieldLabel(key)}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
+
 export function ReviewCase({
   evidence,
   initialFindings,
@@ -231,55 +264,48 @@ export function ReviewCase({
         message="Assigned staff only. Access is audited."
       />
 
-      <h2>Declarations vs documents</h2>
-      <p className={styles.supporting}>
-        {current.offering.programmeName} ({current.offering.programmeCode}) ·{" "}
-        {current.offering.intake} · State {current.state} · Version{" "}
-        {current.version}
-      </p>
-      <h3>Declared personal</h3>
-      <ul>
-        {Object.entries(declared).map(([k, v]) => (
-          <li key={k}>
-            {k}: {v}
-          </li>
-        ))}
-      </ul>
-      <h3>Declared contact</h3>
-      <ul>
-        {Object.entries(contact).map(([k, v]) => (
-          <li key={k}>
-            {k}: {v}
-          </li>
-        ))}
-      </ul>
-      <h3>Declared qualifications</h3>
-      <ul>
-        {Object.entries(qualifications).map(([k, v]) => (
-          <li key={k}>
-            {k}: {v}
-          </li>
-        ))}
-      </ul>
+      <section className={caseStyles.evidenceReview} aria-labelledby="evidence-review-heading">
+        <div className={caseStyles.sectionHeading}>
+          <div>
+            <p className={caseStyles.sectionEyebrow}>Submitted application</p>
+            <h2 id="evidence-review-heading">Evidence review</h2>
+          </div>
+          <p className={caseStyles.sectionMeta}>
+            Version {current.version} · {current.requirementVersion}
+          </p>
+        </div>
 
-      <h3>Documents (state only — bytes never render here)</h3>
-      {current.documents.length === 0 ? (
-        <Empty
-          caseVariant="nothing"
-          title="No documents"
-          message="No evidence files are attached to this application."
-        />
-      ) : (
-        <ul>
-          {current.documents.map((d) => (
-            <li key={d.id}>
-              <strong>{d.fileName}</strong> · {d.category} · {d.status} · v
-              {d.version}
-              {d.canPreview ? "" : " · preview unavailable in this state"}
-            </li>
-          ))}
-        </ul>
-      )}
+        <EvidenceFacts label="Personal" values={declared} />
+        <EvidenceFacts label="Contact" values={contact} />
+        <EvidenceFacts label="Qualifications" values={qualifications} />
+
+        <section className={caseStyles.evidenceGroup} aria-labelledby="evidence-documents">
+          <h3 id="evidence-documents">Documents</h3>
+          {current.documents.length === 0 ? (
+            <Empty
+              caseVariant="nothing"
+              title="No documents"
+              message="No evidence files are attached."
+            />
+          ) : (
+            <ul className={caseStyles.documentList}>
+              {current.documents.map((document) => (
+                <li key={document.id}>
+                  <div>
+                    <strong>{document.fileName}</strong>
+                    <span>{document.category}</span>
+                  </div>
+                  <div className={caseStyles.documentState}>
+                    <span>{document.status}</span>
+                    <span>v{document.version}</span>
+                    {!document.canPreview ? <span>Preview unavailable</span> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </section>
 
       <h2>Review findings</h2>
       {findings.length === 0 ? (
