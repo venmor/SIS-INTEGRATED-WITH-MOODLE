@@ -200,6 +200,7 @@ test.describe.serial("handbook admissions workspace contracts", () => {
 
     await page.getByLabel("Eligibility outcome").selectOption("ELIGIBLE");
     await page
+      .getByRole("form", { name: "Record a recommendation" })
       .getByLabel("Recommendation", { exact: true })
       .selectOption("FAVOURABLE");
     await page.getByLabel("Rationale").fill("Evidence meets demo criteria.");
