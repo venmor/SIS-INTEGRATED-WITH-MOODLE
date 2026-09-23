@@ -1,9 +1,6 @@
+import { Skeleton, SkeletonCard } from "@sis/ui";
 import styles from "../page.module.css";
 
-// Suspense fallback for client-side discovery transitions (Part 2 §3.3:
-// stable skeleton cards + "Searching programmes" announced to screen
-// readers). Initial loads are server-rendered; this covers in-app
-// navigation between filter/compare/wizard states.
 export default function DiscoverLoading() {
   return (
     <div className={styles.page}>
@@ -13,6 +10,18 @@ export default function DiscoverLoading() {
         <p className={styles.lede} role="status">
           Searching programmes…
         </p>
+        <Skeleton width="100%" height="4.75rem" radius="md" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))",
+            gap: "16px",
+          }}
+        >
+          <SkeletonCard lines={4} />
+          <SkeletonCard lines={4} />
+          <SkeletonCard lines={4} />
+        </div>
       </main>
     </div>
   );

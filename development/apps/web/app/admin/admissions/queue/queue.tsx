@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ReviewQueueItem } from "@sis/contracts";
 import { Empty, ErrorSummary, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
-import styles from "../../../page.module.css";
+import styles from "./queue.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -43,7 +43,7 @@ function errorText(error: unknown): string {
   return "We could not confirm the result. Check the queue state before retrying.";
 }
 
-function CaseCard({
+function CaseRow({
   item,
   action,
   onAction,
@@ -54,41 +54,50 @@ function CaseCard({
   onAction: (item: ReviewQueueItem) => void;
   pending: boolean;
 }) {
-  // UI-STATUS-001: never a bare state word. Wording stays within the
-  // applicant lifecycle states the demo produces.
   const status =
     item.state === "Submitted"
       ? {
           state: "Submitted — awaiting review",
-          reason: "Admissions has received this application.",
+          reason: "Application received.",
           action: item.actionNeeded
-            ? "Open items need review: see clarifications and corrections."
-            : "No applicant action is waiting on this case.",
+            ? "Clarification or correction open."
+            : "No applicant action.",
         }
       : {
           state: `Application ${item.state.toLowerCase()}`,
           reason: "This case left the review pool.",
           action: "Open it for history only.",
         };
+
   const updatedAt = item.claimedAt ?? item.submittedAt;
+
   return (
-    <li>
-      <p>
+    <li className={styles.caseRow}>
+      <div className={styles.reference}>
         <strong>{item.reference}</strong>
-      </p>
-      <Status
-        severity={item.actionNeeded ? "attention" : "info"}
-        state={status.state}
-        reason={status.reason}
-        updated={updatedAt ? formatLusaka(updatedAt) : undefined}
-        owner={item.claimedAt ? "Claimed by you" : "Unclaimed in the pool"}
-        action={status.action}
-      />
-      <p className={styles.supporting}>
-        Version {item.version} · Open clarifications:{" "}
-        {item.openClarifications} · Open corrections: {item.openCorrections}
-      </p>
-      <p>
+        <span className={styles.meta}>
+          Version {item.version}
+          <br />
+          {item.claimedAt ? "Claimed by you" : "Unclaimed in the pool"}
+        </span>
+      </div>
+
+      <div>
+        <Status
+          severity={item.actionNeeded ? "attention" : "info"}
+          state={status.state}
+          reason={status.reason}
+          updated={updatedAt ? formatLusaka(updatedAt) : undefined}
+          owner={item.claimedAt ? "Admissions review" : "Admissions pool"}
+          action={status.action}
+        />
+        <p className={styles.meta}>
+          Open clarifications: {item.openClarifications} · Open corrections:{" "}
+          {item.openCorrections}
+        </p>
+      </div>
+
+      <div className={styles.rowActions}>
         <button
           type="button"
           disabled={pending}
@@ -100,14 +109,14 @@ function CaseCard({
             : action === "claim"
               ? "Claim case"
               : "Release case"}
-        </button>{" "}
+        </button>
         <a
           href={`/admin/admissions/case/${item.applicationId}`}
           aria-label={`Open case ${item.reference}`}
         >
           Open case
         </a>
-      </p>
+      </div>
     </li>
   );
 }
@@ -125,34 +134,41 @@ export function AdmissionsQueue({
   const [hasMore, setHasMore] = useState(false);
   const [stateFilter, setStateFilter] = useState("");
   const [actionNeededOnly, setActionNeededOnly] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({
+    state: "",
+    actionNeeded: false,
+  });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const rows = view === "mine" ? mine : pool;
 
-  function queryString(scope: "mine" | "pool"): string {
+  function queryString(
+    scope: "mine" | "pool",
+    filters = appliedFilters,
+  ): string {
     const params = new URLSearchParams({ scope });
-    // The pool is claimable submitted work by definition.
     if (scope === "pool") params.set("state", "Submitted");
-    else if (stateFilter) params.set("state", stateFilter);
-    if (actionNeededOnly) params.set("actionNeeded", "true");
+    else if (filters.state) params.set("state", filters.state);
+    if (filters.actionNeeded) params.set("actionNeeded", "true");
     return params.toString();
   }
 
-  async function refresh() {
+  async function refresh(filters = appliedFilters) {
     setErrors([]);
     try {
       const [mineRes, poolRes] = await Promise.all([
-        fetch(`/api/review/queue?${queryString("mine")}`, {
+        fetch(`/api/review/queue?${queryString("mine", filters)}`, {
           credentials: "same-origin",
         }),
-        fetch(`/api/review/queue?${queryString("pool")}`, {
+        fetch(`/api/review/queue?${queryString("pool", filters)}`, {
           credentials: "same-origin",
         }),
       ]);
-      if (!mineRes.ok || !poolRes.ok)
+      if (!mineRes.ok || !poolRes.ok) {
         throw new Error("The queue could not be refreshed.");
+      }
       const mineData = (await mineRes.json()) as {
         items: ReviewQueueItem[];
         hasMore: boolean;
@@ -171,14 +187,21 @@ export function AdmissionsQueue({
     }
   }
 
+  async function applyFilters(state: string, actionNeeded: boolean) {
+    const next = { state, actionNeeded };
+    setStateFilter(state);
+    setActionNeededOnly(actionNeeded);
+    setAppliedFilters(next);
+    await refresh(next);
+  }
+
   async function act(item: ReviewQueueItem, action: "claim" | "release") {
     if (pendingId) return;
     setPendingId(item.applicationId);
     setErrors([]);
     setNotice(null);
-    // Fresh key per attempt: reusing a key across different items or after
-    // a failure would surface IDEMPOTENCY_CONFLICT instead of acting.
     const attemptKey = crypto.randomUUID();
+
     try {
       await postReview(`/${item.applicationId}/${action}`, {
         version: item.version,
@@ -198,97 +221,139 @@ export function AdmissionsQueue({
   }
 
   return (
-    <section aria-label="Admissions review queue">
+    <section className={styles.queue} aria-label="Admissions review queue">
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
+
       {errors.length > 0 ? (
-        <ErrorSummary title="The queue action did not complete" errors={errors} />
+        <ErrorSummary
+          title="The queue action did not complete"
+          errors={errors}
+        />
       ) : null}
-      <div className={styles.actions} role="group" aria-label="Queue view">
+
+      <div className={styles.viewBar} role="group" aria-label="Queue view">
         {(["mine", "pool"] as const).map((option) => (
           <button
+            className={styles.viewButton}
             key={option}
             type="button"
             id="queue-view"
             aria-pressed={view === option}
-            onClick={() => {
-              setView(option);
-            }}
+            onClick={() => setView(option)}
           >
             {option === "mine" ? "My cases" : "Claimable pool"}
           </button>
         ))}
-        <button type="button" onClick={refresh}>
+        <button
+          className={styles.refreshButton}
+          type="button"
+          onClick={() => void refresh()}
+        >
           Refresh queue
         </button>
       </div>
+
       <form
+        className={styles.filterPanel}
         aria-label="Filter the queue"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void refresh();
+        onSubmit={(event) => {
+          event.preventDefault();
+          void applyFilters(stateFilter, actionNeededOnly);
         }}
       >
-        <p>
-          <label htmlFor="queue-state">State</label>{" "}
+        <div className={styles.filterField}>
+          <label htmlFor="queue-state">State</label>
           <select
+            className={styles.select}
             id="queue-state"
             value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
+            onChange={(event) => setStateFilter(event.target.value)}
           >
             <option value="">All states</option>
             <option value="Submitted">Submitted</option>
             <option value="Withdrawn">Withdrawn</option>
           </select>
-        </p>
-        <p>
-          <label htmlFor="queue-action-needed">
-            <input
-              id="queue-action-needed"
-              type="checkbox"
-              checked={actionNeededOnly}
-              onChange={(e) => setActionNeededOnly(e.target.checked)}
-            />{" "}
-            Only cases needing action
-          </label>
-        </p>
-        <p>
-          <button type="submit">Apply filters</button>{" "}
+        </div>
+
+        <label className={styles.checkLabel} htmlFor="queue-action-needed">
+          <input
+            id="queue-action-needed"
+            type="checkbox"
+            checked={actionNeededOnly}
+            onChange={(event) => setActionNeededOnly(event.target.checked)}
+          />
+          Only cases needing action
+        </label>
+
+        <div className={styles.filterActions}>
+          <button type="submit">Apply filters</button>
           <button
             type="button"
-            onClick={() => {
-              setStateFilter("");
-              setActionNeededOnly(false);
-            }}
+            onClick={() => void applyFilters("", false)}
           >
             Clear filters
           </button>
-        </p>
+        </div>
       </form>
-      <p className={styles.supporting} role="status">
-        Showing {rows.length} {view === "mine" ? "claimed case" : "claimable case"}
+
+      {appliedFilters.state || appliedFilters.actionNeeded ? (
+        <div
+          className={styles.activeFilters}
+          role="region"
+          aria-label="Active filters"
+        >
+          <span className={styles.filterLabel}>Filters</span>
+          {appliedFilters.state ? (
+            <button
+              type="button"
+              className={styles.filterChip}
+              onClick={() =>
+                void applyFilters("", appliedFilters.actionNeeded)
+              }
+            >
+              State: {appliedFilters.state} <span aria-hidden="true">×</span>
+            </button>
+          ) : null}
+          {appliedFilters.actionNeeded ? (
+            <button
+              type="button"
+              className={styles.filterChip}
+              onClick={() => void applyFilters(appliedFilters.state, false)}
+            >
+              Action needed <span aria-hidden="true">×</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <p className={styles.summary} role="status">
+        Showing {rows.length} {view === "mine" ? "assigned" : "claimable"} case
         {rows.length === 1 ? "" : "s"}
-        {hasMore ? " (more available — claim or release to narrow the list)" : ""}.
+        {hasMore ? " · More available" : ""}
       </p>
+
       {rows.length === 0 ? (
         <Empty
           caseVariant="nothing"
           title={view === "mine" ? "No claimed cases" : "Pool is empty"}
           message={
             view === "mine"
-              ? "Claim a submitted case from the pool to begin reviewing."
-              : "No submitted applications are waiting for review."
+              ? "Claim a case from the pool."
+              : "No submitted cases."
           }
         />
       ) : (
-        <ul>
+        <ul className={styles.list}>
           {rows.map((item) => (
-            <CaseCard
+            <CaseRow
               key={item.applicationId}
               item={item}
               action={view === "mine" ? "release" : "claim"}
-              onAction={(it) => act(it, view === "mine" ? "release" : "claim")}
+              onAction={(caseItem) =>
+                act(caseItem, view === "mine" ? "release" : "claim")
+              }
               pending={pendingId === item.applicationId}
             />
           ))}

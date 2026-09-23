@@ -156,7 +156,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
     page.getByRole("heading", { name: /Review case/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Declarations vs documents" }),
+    page.getByRole("heading", { name: "Evidence review" }),
   ).toBeVisible();
   await expect(page.getByText("fictional-result.pdf")).toBeVisible();
   await noOverflow(page);
@@ -184,6 +184,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   // rationale, then supersede visibility via the active package display.
   await page.getByLabel("Eligibility outcome").selectOption("ELIGIBLE");
   await page
+    .getByRole("form", { name: "Record a recommendation" })
     .getByLabel("Recommendation", { exact: true })
     .selectOption("FAVOURABLE");
   await page.getByLabel("Rationale").fill("Meets the demo minimum.");

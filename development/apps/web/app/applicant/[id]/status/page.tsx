@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ApplicantTimeline } from "@sis/contracts";
+import { Status } from "@sis/ui";
 import { loadApplicant } from "../../server";
 import { ApplicationUnavailable, ApplicationCaseNav } from "../../chrome";
 import { formatLusaka } from "../../../../lib/time";
@@ -21,19 +22,38 @@ export default async function StatusPage({
     `/applicant/${id}/status`,
   );
   if (!r.data) return <ApplicationUnavailable message={r.message} />;
+
   const timeline = r.data;
+  const currentLabel =
+    STATE_LABELS[timeline.state] ?? `Application ${timeline.state}`;
+  const latestEvent = timeline.events.at(-1) ?? null;
+
   return (
     <>
       <p className={styles.eyebrow}>Application {timeline.reference}</p>
-      <h1>
-        {STATE_LABELS[timeline.state] ?? `Application ${timeline.state}`}
-      </h1>
+      <h1>{currentLabel}</h1>
+      <Status
+        severity={timeline.state === "Withdrawn" ? "neutral" : "info"}
+        state={currentLabel}
+        reason={
+          timeline.state === "Withdrawn"
+            ? "This application was withdrawn."
+            : "Admissions received your application."
+        }
+        updated={
+          latestEvent ? formatLusaka(latestEvent.occurredAt) : undefined
+        }
+        owner={timeline.state === "Withdrawn" ? undefined : "Admissions"}
+        action="Check the timeline for updates."
+      />
+
+      <h2>Application timeline</h2>
       {timeline.events.length === 0 ? (
-        <p>No timeline events yet. Submitted applications record here.</p>
+        <p>No updates yet.</p>
       ) : (
-        <ol>
+        <ol className={styles.timeline}>
           {timeline.events.map((event) => (
-            <li key={event.id} className={styles.card}>
+            <li key={event.id}>
               <p>
                 <strong>{event.label}</strong>
               </p>
@@ -45,6 +65,7 @@ export default async function StatusPage({
           ))}
         </ol>
       )}
+
       <p>
         <Link href={`/applicant/${timeline.applicationId}`}>
           Return to application

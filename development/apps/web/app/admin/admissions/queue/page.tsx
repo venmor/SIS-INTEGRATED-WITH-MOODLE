@@ -59,9 +59,7 @@ export default async function AdmissionsQueuePage() {
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Admissions queue</h1>
-        <p className={styles.lede}>
-          Review assigned application cases and claim submitted applications ready for assessment.
-        </p>
+        <p className={styles.lede}>Review assigned cases and claim new work.</p>
         <AdmissionsQueue initialMine={mine.items} initialPool={pool.items} />
       </main>
     </div>
