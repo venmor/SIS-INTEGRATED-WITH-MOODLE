@@ -19,3 +19,7 @@ Task 1 selector ruling: CI run 35873634290 rendered the Operations home, but `ge
 
 Task 1: complete — CI run 35874320568 passed the Operations-home contract at 390px after the scoped queue assertion. All non-browser gates remained green.
 Task 2 RED: the same run then failed because the `Reconciliation case` heading was absent on `/design-preview/operations/reconciliation`; Task 3 was skipped as intended.
+
+
+Task 2: complete — CI run 35875031754 passed the reconciliation contract at 390px, including explicit SIS authority and zero live buttons. All non-browser gates remained green.
+Task 3 RED: the same run then failed because the `Event delivery` heading was absent on `/design-preview/operations/event`.
