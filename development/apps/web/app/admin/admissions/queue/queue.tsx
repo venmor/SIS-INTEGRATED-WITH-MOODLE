@@ -249,7 +249,7 @@ export function AdmissionsQueue({
         <button
           className={styles.refreshButton}
           type="button"
-          onClick={refresh}
+          onClick={() => void refresh()}
         >
           Refresh queue
         </button>
