@@ -30,3 +30,7 @@ Task 4 ruling: run 35866042685 reached the Teaching Home contract but `getByText
 
 
 Task 4 selector ruling: run 35866678337 confirmed the course heading selector but `4 TG groups` was also intentionally repeated in the integration notice. Scope that assertion to the current-course record; do not remove useful synchronization context. Cost if wrong: the contract is more tightly bound to the current-course grouping, which is the behavior it intends to verify.
+
+
+Task 4: complete — CI run 35867174426 passed the teaching-home contract at 390px after scoping repeated course/TG-group text to the current-course record.
+Task 5 RED: the same run then failed because the course workspace context `CSC 4792 · January 2027 · Lecturer · Course-wide` was absent. This confirms the course preview is the next missing behavior.

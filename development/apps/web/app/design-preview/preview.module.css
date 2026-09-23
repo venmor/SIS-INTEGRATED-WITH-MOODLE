@@ -501,3 +501,96 @@
     text-align: left;
   }
 }
+
+
+.courseNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.courseNav span {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.courseStatusFacts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.courseStatusFacts div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.courseStatusFacts dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.courseStatusFacts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-body);
+  font-weight: 650;
+}
+
+.integrationHeading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.integrationHeading h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.integrationHeading > strong {
+  font-size: var(--font-supporting);
+}
+
+.sectionEyebrow {
+  margin-bottom: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.nextRow {
+  margin: 0;
+  padding-top: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.nextRow strong {
+  color: var(--text-primary);
+}
+
+@media (max-width: 700px) {
+  .courseStatusFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .courseStatusFacts div {
+    padding-right: 0;
+  }
+
+  .integrationHeading {
+    display: grid;
+    align-items: start;
+  }
+}
