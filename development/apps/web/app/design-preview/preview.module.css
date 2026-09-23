@@ -1,0 +1,136 @@
+.previewShell {
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.previewHeader {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) clamp(var(--space-4), 4vw, var(--space-10));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.previewNotice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--font-supporting);
+}
+
+.previewNotice strong {
+  color: var(--text-primary);
+}
+
+.previewNotice span {
+  color: var(--text-secondary);
+}
+
+.previewNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.previewNav a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.previewNav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.previewMain {
+  width: min(72rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12) clamp(var(--space-4), 4vw, var(--space-10));
+}
+
+.previewIntro {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 48rem;
+}
+
+.previewIntro h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.5rem);
+  letter-spacing: -0.035em;
+}
+
+.previewIntro > p:last-child {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.previewContext {
+  width: fit-content;
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.previewChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.previewChoices a {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-5) var(--space-5) 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.previewChoices a:nth-child(odd) {
+  padding-right: var(--space-8);
+}
+
+.previewChoices strong {
+  font-size: 1.05rem;
+}
+
+.previewChoices span {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .previewHeader {
+    position: static;
+    display: grid;
+    align-items: start;
+  }
+
+  .previewMain {
+    padding-top: var(--space-8);
+  }
+
+  .previewChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .previewChoices a,
+  .previewChoices a:nth-child(odd) {
+    padding-right: 0;
+  }
+}
