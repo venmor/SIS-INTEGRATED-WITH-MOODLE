@@ -6,7 +6,7 @@ import type {
   ReviewFindingView,
   ReviewTimelineEvent,
 } from "@sis/contracts";
-import { Empty, ErrorSummary, Notice } from "@sis/ui";
+import { Empty, ErrorSummary, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../../../../../lib/time";
 import styles from "../../../../page.module.css";
 import caseStyles from "./case.module.css";
@@ -178,10 +178,57 @@ export function ReviewCase({
           errors={errors}
         />
       ) : null}
+      <section className={caseStyles.caseSummary} aria-label="Case summary">
+        <div className={caseStyles.summaryHeading}>
+          <div>
+            <p className={caseStyles.reference}>{current.reference}</p>
+            <h2>{current.offering.programmeName}</h2>
+            <p className={caseStyles.summaryMeta}>
+              {current.offering.programmeCode} · {current.offering.intake}
+            </p>
+          </div>
+          <Status
+            severity={
+              current.openClarifications > 0 || current.openCorrections > 0
+                ? "attention"
+                : "info"
+            }
+            state={current.state}
+            reason={
+              current.openClarifications > 0 || current.openCorrections > 0
+                ? `${current.openClarifications} clarification · ${current.openCorrections} correction`
+                : "No open applicant requests."
+            }
+            owner="Admissions"
+            action={
+              current.hasDecision
+                ? "Decision released."
+                : current.recommendation
+                  ? "Recommendation recorded."
+                  : "Review evidence."
+            }
+          />
+        </div>
+        <dl className={caseStyles.summaryFacts}>
+          <div>
+            <dt>Version</dt>
+            <dd>{current.version}</dd>
+          </div>
+          <div>
+            <dt>Policy</dt>
+            <dd>{current.policyVersion}</dd>
+          </div>
+          <div>
+            <dt>Requirements</dt>
+            <dd>{current.requirementVersion}</dd>
+          </div>
+        </dl>
+      </section>
+
       <Notice
         severity="info"
         title="Restricted case file"
-        message="Assigned reviewers only. Every view and action here is audited; applicant-visible and internal content stay separate."
+        message="Assigned staff only. Access is audited."
       />
 
       <h2>Declarations vs documents</h2>

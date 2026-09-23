@@ -62,9 +62,7 @@ export default async function ReviewCasePage({
         <h1 className={styles.title}>
           Review case {evidence.data.reference}
         </h1>
-        <p className={styles.lede}>
-          Assess application evidence, record findings, and submit formal recommendations.
-        </p>
+        <p className={styles.lede}>Review evidence and record the case outcome.</p>
         <ReviewCase
           evidence={evidence.data}
           initialFindings={findings.data.items}
