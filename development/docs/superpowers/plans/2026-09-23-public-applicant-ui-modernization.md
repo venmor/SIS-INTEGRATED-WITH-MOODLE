@@ -25,6 +25,9 @@
 - No horizontal scrolling in critical applicant workflows.
 - WCAG 2.2 AA expectations from the handbook remain binding.
 - Existing code on `ui-modernization` predates this plan. Treat it as the starting baseline; characterize it and only require RED→GREEN for new behavior introduced by this plan.
+- UI copy must be brief and direct. Structure, labels and status should carry meaning before helper prose.
+- Do not repeat obvious information. Routine helper text should normally be one short sentence or less.
+- Long policy/guidance text belongs in contextual help, not the primary workflow.
 
 ## Program Decomposition
 
@@ -706,15 +709,15 @@ At the beginning of the `section === "review"` block, before the summary section
   state={review.ready ? "Ready to submit" : "Not ready to submit"}
   reason={
     review.ready
-      ? "All required application checks are complete for this draft."
+      ? "All required items are complete."
       : `${a.blockers.length} required item${a.blockers.length === 1 ? "" : "s"} need attention before formal submission.`
   }
   updated={`Draft last saved ${formatLusaka(a.updatedAt)}`}
   owner="Applicant"
   action={
     review.ready
-      ? "Review the information and declarations below before continuing."
-      : "Resolve the linked items below. Your saved draft remains available."
+      ? "Review the details below."
+      : "Fix the items below."
   }
 />
 ```
@@ -858,8 +861,8 @@ Render:
   state={currentLabel}
   reason={
     timeline.state === "Withdrawn"
-      ? "This application is no longer active. Its history remains available."
-      : "Admissions has received the submitted application. The timeline below records applicant-visible progress."
+      ? "This application was withdrawn."
+      : "Admissions received your application."
   }
   updated={
     latestEvent
@@ -867,7 +870,7 @@ Render:
       : undefined
   }
   owner={timeline.state === "Withdrawn" ? "Applicant / Admissions" : "Admissions"}
-  action="Review the timeline below for changes and any required action."
+  action="Check the timeline for updates."
 />
 
 <h2>Application timeline</h2>
