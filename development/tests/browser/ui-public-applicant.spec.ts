@@ -89,6 +89,9 @@ async function submitBasicApplication(
   await page
     .getByRole("button", { name: "Check file safety", exact: true })
     .click();
+  await expect(
+    page.getByRole("link", { name: "Preview fictional-result.pdf" }),
+  ).toBeVisible();
 
   await page.goto(`${applicationUrl}/review`);
   const declarations = page.getByRole("checkbox");
