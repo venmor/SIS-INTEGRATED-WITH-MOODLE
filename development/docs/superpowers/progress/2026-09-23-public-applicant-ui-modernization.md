@@ -21,3 +21,15 @@ Browser GREEN attempt 35814324223: five new contracts passed. Existing applicant
 
 Browser GREEN attempt 35814760301: all six new handbook-facing tests passed after the canonical-link fix. Three existing journeys still failed because the document modernization removed the per-file status text they rely on and users need ("file name · Checking file safety").
 Task 4 Ruling: keep both the requirement-level status and the file-version status. The requirement status answers whether evidence exists; the file row answers what is happening to that specific upload. Cost if wrong: slight status repetition, preferable to losing file-level processing visibility.
+
+
+Task 1: complete — programme result action contract RED in run 35813699371; GREEN in run 35814760301 and retained in full green run 35815108402.
+Task 2: complete — applicant required-action contract RED in run 35813699371; GREEN in run 35814760301 and retained in full green run 35815108402.
+Task 3: complete — next-step contract RED in run 35813699371; canonical-link ruling applied; GREEN in run 35814760301 and retained in full green run 35815108402.
+Task 4: complete — document-state contract RED in run 35813699371; file-level status regression fixed; full browser suite GREEN in run 35815108402.
+Task 5: complete — submission-readiness contract RED in run 35813699371; GREEN in run 35814760301 and retained in full green run 35815108402.
+Task 6: complete — corrected timeline contract RED in run 35813699371; GREEN in run 35814760301 and retained in full green run 35815108402.
+
+Full verification run 35815108402: source scan, lint, unit tests, database migrations, both API e2e groups, production build, typecheck and complete browser suite all passed.
+
+Task 7 Ruling: this execution environment cannot clone the repository or generate/read binary Playwright snapshot baselines. Replace first-slice pixel baselines with deterministic CI screenshot evidence plus responsive structural assertions, uploaded through the existing `browser-evidence` artifact. Keep true `toHaveScreenshot` baseline regression in the dedicated visual-quality plan where snapshots can be bootstrapped and inspected. Cost if wrong: this slice detects semantic/responsive regressions but not pixel-level drift.
