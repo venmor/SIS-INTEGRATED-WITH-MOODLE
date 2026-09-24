@@ -19,6 +19,11 @@ if (process.env.ALLOW_DEMO_SEED !== "true") {
 }
 
 import { createRequire } from "node:module";
+import {
+  DEMO_PERIOD,
+  DEMO_POLICY_VERSION,
+  DEMO_SCENARIOS,
+} from "./demo-scenarios.ts";
 
 // Both client and hasher ship as CommonJS — load via require for reliable
 // ESM interop under Node type stripping (named ESM imports fail here).
@@ -304,6 +309,27 @@ const SEED: SeedAccount[] = [
   },
   // Phase 6 demonstration academic and integration staff
   // (TASK-PH6-000/001/004). Fictional scoped capabilities. Not UNZA policy.
+  {
+    username: "lombe.a",
+    personName: "Lombe A.",
+    email: "lombe.a@demo.invalid",
+    phone: "+260950000016",
+    password: "Seed-2026-Lombe",
+    roles: [
+      {
+        role: "APP",
+        scopeType: "APPLICATION",
+        scopeRef: "DEMO-OFFER",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ADM-2026-203",
+        authoritySource: "Admissions intake (demonstration)",
+        capabilities: ["apply"],
+        employmentType: null,
+        reason: "Demonstration applicant (released offer fixture)",
+      },
+    ],
+  },
   {
     username: "mwila.t",
     personName: "Mwila T.",
