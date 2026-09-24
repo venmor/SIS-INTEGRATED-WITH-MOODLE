@@ -31,7 +31,7 @@ try {
   const account = async (username) =>
     db.account.findUnique({
       where: { username },
-      include: { assignments: true },
+      include: { roles: true },
     });
 
   for (const [label, username, role] of [
@@ -42,7 +42,7 @@ try {
   ]) {
     const row = await account(username);
     check(
-      !!row?.assignments.some((a) => a.role === role && a.revokedAt == null),
+      !!row?.roles.some((a) => a.role === role && a.revokedAt == null),
       label,
       `expected active ${role} assignment for ${username}`,
     );
