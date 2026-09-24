@@ -1311,6 +1311,43 @@ export class IntegrationService {
 
   async listEnrolments(auth: IntegrationAuthority) {
     await this.moodleAdmin(auth, 'sync-moodle');
+    const adapter = this.adapter();
+    if (adapter.backend === 'live') {
+      const mappings = await this.prisma.moodleMapping.findMany({
+        where: {
+          kind: 'SHELL',
+          sisType: 'OFFERING',
+          status: 'ACTIVE',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      const items: Array<{
+        id: string;
+        shellId: string;
+        studentNumber: string;
+        role: string;
+        status: 'ACTIVE' | 'SUSPENDED';
+      }> = [];
+      for (const mapping of mappings) {
+        if (!/^\d+$/.test(mapping.moodleId)) continue;
+        const enrolments = await adapter.listActualEnrolments({
+          id: mapping.moodleId,
+          ref: mapping.moodleId,
+        });
+        for (const enrolment of enrolments) {
+          items.push({
+            id: `live:${mapping.moodleId}:${enrolment.key}`,
+            shellId: mapping.moodleId,
+            studentNumber: enrolment.key,
+            role: enrolment.role,
+            status: enrolment.status,
+          });
+        }
+      }
+      return { items };
+    }
+
     const rows = await this.prisma.simStudentEnrolment.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
