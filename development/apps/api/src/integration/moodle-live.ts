@@ -352,16 +352,21 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     if (userId === null) {
       throw new MoodleApiError(false, 'Moodle user missing for staff.');
     }
-    const enrolled = await this.call<Array<{ id: number }>>(
-      'core_enrol_get_enrolled_users',
-      { courseid: courseId },
-    );
-    if (enrolled.some((u) => u.id === userId)) return 'EXISTS';
+    const expectedRoleId = this.roleId(input.moodleRole);
+    const enrolled = await this.call<
+      Array<{ id: number; roles?: Array<{ roleid?: number }> }>
+    >('core_enrol_get_enrolled_users', { courseid: courseId });
+    const current = enrolled.find((user) => user.id === userId);
+    if (
+      current?.roles?.some((role) => role.roleid === expectedRoleId)
+    ) {
+      return 'EXISTS';
+    }
     this.assertWritesEnabled();
     await this.call('enrol_manual_enrol_users', {
       enrolments: [
         {
-          roleid: this.roleId(input.moodleRole),
+          roleid: expectedRoleId,
           userid: userId,
           courseid: courseId,
         },
@@ -400,13 +405,24 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       await this.studentIdnumber(input.studentId),
     );
     if (userId === null) return 'ABSENT';
+
+    const memberships = await this.call<
+      Array<{ groupid: number; userids: number[] }>
+    >('core_group_get_group_members', { groupids: [group.id] });
+    const alreadyMember =
+      memberships.find((membership) => membership.groupid === group.id)
+        ?.userids.includes(userId) ?? false;
+
     if (input.remove) {
+      if (!alreadyMember) return 'ABSENT';
       this.assertWritesEnabled();
       await this.call('core_group_delete_group_members', {
         members: [{ groupid: group.id, userid: userId }],
       });
       return 'SUSPENDED';
     }
+    if (alreadyMember) return 'EXISTS';
+
     this.assertWritesEnabled();
     await this.call('core_group_add_group_members', {
       members: [{ groupid: group.id, userid: userId }],
