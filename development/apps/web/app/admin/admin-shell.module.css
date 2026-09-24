@@ -126,7 +126,7 @@
     min-height: 2.75rem;
   }
 
-  .menu:not([open]) .nav {
+  .menu:not([open]) .navWrap {
     display: none;
   }
 
@@ -140,4 +140,9 @@
   .account {
     margin-top: 0;
   }
+}
+
+
+.navWrap {
+  min-width: 0;
 }

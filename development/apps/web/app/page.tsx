@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { SECURITY_V1 } from "@sis/config";
 import { ContextBar, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 import { ExpiryBanner } from "./expiry-banner";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { WorkspaceNav } from "./workspace-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -128,63 +128,8 @@ export default async function Home() {
           workspaces={me.workspaces}
           activeId={active?.assignmentId ?? null}
         />
+        {active ? <WorkspaceNav role={active.role} /> : null}
         <div className={styles.actions}>
-          {active?.role === "APPLICANT" ? (
-            <Link className={styles.primary} href="/applicant">
-              Applicant portal
-            </Link>
-          ) : null}
-          {active?.role === "STUDENT" ? (
-            <Link className={styles.primary} href="/student">
-              Student portal
-            </Link>
-          ) : null}
-          {active?.role === "ADMISSIONS_OFFICER" ? (
-            <Link className={styles.primary} href="/admin/admissions/queue">
-              Admissions queue
-            </Link>
-          ) : null}
-          {active?.role === "RECORDS_OFFICER" ? (
-            <Link className={styles.primary} href="/admin/records/duplicates">
-              Identity review queue
-            </Link>
-          ) : null}
-          {active?.role === "MOODLE_ADMIN" ? (
-            <Link className={styles.primary} href="/admin/moodle">
-              Moodle administration
-            </Link>
-          ) : null}
-          {active?.role === "INTEGRATION_SUPPORT" ? (
-            <Link className={styles.primary} href="/admin/integration">
-              Integration support
-            </Link>
-          ) : null}
-          {active?.role === "COORDINATOR" ? (
-            <Link className={styles.primary} href="/admin/teaching/groups">
-              Tutorial groups
-            </Link>
-          ) : null}
-          {active?.role === "FINANCE_OFFICER" ||
-          active?.role === "FINANCE_APPROVER" ? (
-            <Link className={styles.primary} href="/admin/finance">
-              Finance workspace
-            </Link>
-          ) : null}
-          {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
-            <a className={styles.primary} href="/admin/grants">
-              Role assignments
-            </a>
-          ) : null}
-          {active ? (
-            <Link className={styles.primary} href="/admin/reviews">
-              Access reviews
-            </Link>
-          ) : null}
-          {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
-            <Link className={styles.primary} href="/admin/audit">
-              Audit trail
-            </Link>
-          ) : null}
           <a className={styles.primary} href="/sign-in">
             Switch account
           </a>

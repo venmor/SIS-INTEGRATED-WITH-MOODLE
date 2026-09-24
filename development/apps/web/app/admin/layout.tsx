@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { ContextBar } from "@sis/ui";
 import styles from "./admin-shell.module.css";
+import { WorkspaceNav } from "../workspace-nav";
 
 interface Me {
   account: {
@@ -52,54 +53,6 @@ export default async function AdminLayout({
   const active = me?.activeWorkspace ?? null;
   const role = active?.role;
 
-  const items: Array<{ href: string; label: string; show: boolean }> = [
-    {
-      href: "/admin/admissions/queue",
-      label: "Admissions queue",
-      show: role === "ADMISSIONS_OFFICER",
-    },
-    {
-      href: "/admin/records/duplicates",
-      label: "Identity review queue",
-      show: role === "RECORDS_OFFICER",
-    },
-    {
-      href: "/admin/finance",
-      label: "Finance workspace",
-      show: role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER",
-    },
-    {
-      href: "/admin/teaching/groups",
-      label: "Tutorial groups",
-      show: role === "COORDINATOR",
-    },
-    {
-      href: "/admin/moodle",
-      label: "Moodle administration",
-      show: role === "MOODLE_ADMIN",
-    },
-    {
-      href: "/admin/integration",
-      label: "Integration support",
-      show: role === "INTEGRATION_SUPPORT",
-    },
-    {
-      href: "/admin/reviews",
-      label: "Access reviews",
-      show: role === "SYSADMIN",
-    },
-    {
-      href: "/admin/grants",
-      label: "Role assignments",
-      show: role === "SYSADMIN",
-    },
-    {
-      href: "/admin/audit",
-      label: "Audit trail",
-      show: role === "SYSADMIN",
-    },
-  ];
-
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Staff workspace navigation">
@@ -127,16 +80,9 @@ export default async function AdminLayout({
           <summary className={styles.menuToggle}>
             Workspace sections
           </summary>
-          <nav className={styles.nav} aria-label="Workspace sections">
-            <Link href="/">Workspace home</Link>
-            {items
-              .filter((item) => item.show)
-              .map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-          </nav>
+          <div className={styles.navWrap}>
+            <WorkspaceNav role={role} variant="sidebar" />
+          </div>
         </details>
 
         <div className={styles.account}>

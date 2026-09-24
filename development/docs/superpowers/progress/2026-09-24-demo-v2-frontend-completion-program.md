@@ -15,3 +15,8 @@ Pre-flight: Task 8 preview maturity labels are consumed by Task 9 quality scans;
 Task 1 baseline finding: PR CI run 36015717485 failed before Playwright because the Phase-6 baseline API e2e suite is already red: 30 failures across finance governance/callback/clearance, integration reconciliation/sync and review queue, mostly returning 503; PostgreSQL also reported duplicate `ExpiryWarning_open_key`. This is unrelated to the navigation-only branch diff and matches the red current-main CI pattern.
 
 Task 1 Ruling: add a parallel `ui-contracts` CI job that provisions an isolated database, builds the app and runs only this programme's browser contract. Keep the existing full `verify` job unchanged so baseline failures remain visible. Cost if wrong: CI uses extra minutes, but UI RED→GREEN evidence no longer depends on unrelated Phase-6 API-suite instability.
+
+
+Task 1 RED: isolated `ui-contracts` job in CI run 36016459340 built and seeded successfully, then `ui-workspace-navigation.spec.ts` failed exactly because `getByRole("navigation", { name: "Workspace navigation" })` found no element on the signed-in student home; later serial cases were skipped.
+
+Task 1 Ruling: add `student/layout.tsx` even though the plan listed only student CSS. Current student pages are fragments with no shared route layout, so a persistent navigation cannot exist across `/student/**` otherwise. Cost if wrong: one additional `/auth/me` read per student route render; no student domain mutation or authorization rule changes.
