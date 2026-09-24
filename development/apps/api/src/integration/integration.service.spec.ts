@@ -126,6 +126,46 @@ describe('IntegrationService read-only live mode', () => {
   });
 });
 
+describe('IntegrationService delivery lease', () => {
+  it('returns stale DELIVERING claims to PENDING before scanning due work', async () => {
+    const oldUrl = process.env.MOODLE_API_URL;
+    const oldToken = process.env.MOODLE_API_TOKEN;
+    delete process.env.MOODLE_API_URL;
+    delete process.env.MOODLE_API_TOKEN;
+
+    const prisma = {
+      integrationDeliveryAttempt: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      outboxEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const service = new IntegrationService(prisma as never);
+    const internals = service as unknown as {
+      deliveryPaused: () => Promise<boolean>;
+    };
+    internals.deliveryPaused = vi.fn().mockResolvedValue(false);
+
+    try {
+      await expect(service.runWorker()).resolves.toEqual({
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+      });
+      expect(prisma.integrationDeliveryAttempt.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ state: 'DELIVERING' }),
+          data: expect.objectContaining({ state: 'PENDING' }),
+        }),
+      );
+    } finally {
+      process.env.MOODLE_API_URL = oldUrl;
+      process.env.MOODLE_API_TOKEN = oldToken;
+    }
+  });
+});
+
 describe('IntegrationService delivery boundary', () => {
   it('performs provider delivery outside Prisma interactive transactions', async () => {
     const h = harness();
