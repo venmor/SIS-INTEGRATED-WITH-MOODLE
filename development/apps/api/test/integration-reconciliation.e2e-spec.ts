@@ -38,7 +38,15 @@ describe('Phase 6 reconciliation and closure', () => {
   }
 
   async function worker() {
-    await intPost('/worker/run', {}, admin).expect(201);
+    // The full CI suite shares one isolated database across spec files, so
+    // earlier scenarios may leave more than one 25-row worker batch queued.
+    // Drain due work before asserting this spec's newly-created enrolment.
+    for (let pass = 0; pass < 20; pass += 1) {
+      const res = await intPost('/worker/run', {}, admin).expect(201);
+      const { processed } = res.body as { processed: number };
+      if (processed === 0) return;
+    }
+    throw new Error('Integration worker backlog did not drain in 20 passes.');
   }
 
   beforeAll(async () => {
