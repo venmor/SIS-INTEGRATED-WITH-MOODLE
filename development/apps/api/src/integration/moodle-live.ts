@@ -1,11 +1,12 @@
 import { MOODLE_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
-import type {
-  ActualEnrolment,
-  ActualGroupMember,
-  MoodleAdapter,
-  MoodleBackend,
-  ShellHandle,
+import {
+  liveWritesEnabled,
+  type ActualEnrolment,
+  type ActualGroupMember,
+  type MoodleAdapter,
+  type MoodleBackend,
+  type ShellHandle,
 } from './moodle-adapter.js';
 import type { Prisma } from '@prisma/client';
 
@@ -48,10 +49,6 @@ function roleIds(): Record<string, number> {
   } catch {
     return {};
   }
-}
-
-function liveWritesEnabled(): boolean {
-  return (process.env.MOODLE_LIVE_WRITES ?? '').trim().toLowerCase() === 'true';
 }
 
 function appendFormValue(
