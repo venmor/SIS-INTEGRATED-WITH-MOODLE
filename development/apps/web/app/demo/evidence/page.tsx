@@ -45,7 +45,7 @@ export default function DemoEvidencePage() {
         </p>
         <p className={styles.links}>
           <Link href="/admin/audit">Audit log</Link>
-          <Link href="/admin/access">Access review</Link>
+          <Link href="/admin/reviews">Access reviews</Link>
         </p>
         <p>
           Authorization denial evidence: open a staff route using a persona
