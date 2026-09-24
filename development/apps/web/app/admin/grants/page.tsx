@@ -6,26 +6,33 @@ import { GrantForm } from "./form";
 
 export const dynamic = "force-dynamic";
 
-async function activeRole(): Promise<string | null> {
+async function grantAccess(): Promise<"allowed" | "denied" | "unavailable"> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) return null;
+  if (!sid) return "denied";
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/auth/me`, {
-      headers: { cookie: `sid=${sid}` },
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { activeWorkspace: { role: string } | null };
-    return body.activeWorkspace?.role ?? null;
+    if (res.status === 401 || res.status === 403) return "denied";
+    if (!res.ok) return "unavailable";
+    const body = (await res.json()) as {
+      activeWorkspace: { role: string } | null;
+    };
+    const role = body.activeWorkspace?.role ?? null;
+    return role !== null && SECURITY_V1.grantorRoles.includes(role)
+      ? "allowed"
+      : "denied";
   } catch {
-    return null;
+    return "unavailable";
   }
 }
 
 export default async function GrantsPage() {
-  const role = await activeRole();
-  const allowed = role !== null && SECURITY_V1.grantorRoles.includes(role);
+  const access = await grantAccess();
+  const allowed = access === "allowed";
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -41,9 +48,21 @@ export default async function GrantsPage() {
         ) : (
           <Notice
             severity="warning"
-            title="Restricted area"
-            message="Role assignment needs an administrator workspace. Switch to one, or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={
+              access === "denied"
+                ? "Role assignment authority unavailable"
+                : "Role assignment service temporarily unavailable"
+            }
+            message={
+              access === "denied"
+                ? "Role assignment needs an administrator workspace."
+                : "The identity service could not confirm your grant authority. No assignment has been changed; restore connectivity, then retry."
+            }
+            action={
+              access === "denied"
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry role assignments", href: "/admin/grants" }
+            }
           />
         )}
       </main>
