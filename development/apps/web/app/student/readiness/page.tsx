@@ -2,9 +2,9 @@ import type { ReadinessView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import { Icon, Notice, StatusChip } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
-import styles from "../../applicant/applicant.module.css";
+import styles from "../student.module.css";
 
 async function loadReadiness(
   query: string,
@@ -74,26 +74,57 @@ export default async function ReadinessPage({
   };
   return (
     <>
-      <p className={styles.eyebrow}>Registration readiness · {board.period}</p>
-      <h1>Registration readiness</h1>
+      <p className={styles.meta}>Registration readiness · {board.period}</p>
+      <div className={styles.sectionHeading}>
+        <Icon name="readiness" size={22} />
+        <h1>Registration readiness</h1>
+      </div>
       <Notice
         severity={banner.severity}
         title={banner.title}
-        message={`Assessed ${formatLusaka(board.assessedAt)}. Open regulation boundaries route to academic decisions: ${board.pendingRegulations.join(", ")}.`}
+        message={`Assessed ${formatLusaka(board.assessedAt)}.`}
       />
-      <ul>
+      <ul className={styles.readinessList} aria-label="Readiness conditions">
         {board.conditions.map((condition) => (
-          <li key={condition.key}>
-            <p>
-              <strong>{condition.label}</strong> — {condition.status}
-            </p>
-            <p className={styles.muted}>
-              Owner: {condition.owner} · {condition.detail}
-            </p>
-            <p>{condition.next}</p>
+          <li className={styles.readinessItem} key={condition.key}>
+            <div className={styles.readinessTop}>
+              <strong>{condition.label}</strong>
+              <StatusChip
+                tone={
+                  condition.status === "SATISFIED"
+                    ? "success"
+                    : condition.status === "BLOCKED"
+                      ? "attention"
+                      : "info"
+                }
+              >
+                {condition.status}
+              </StatusChip>
+            </div>
+            <dl className={styles.readinessMeta}>
+              <div>
+                <dt>Owner</dt>
+                <dd>{condition.owner}</dd>
+              </div>
+              <div>
+                <dt>Current state</dt>
+                <dd>{condition.detail}</dd>
+              </div>
+              <div>
+                <dt>Next step</dt>
+                <dd>{condition.next}</dd>
+              </div>
+            </dl>
           </li>
         ))}
       </ul>
+      {board.pendingRegulations.length > 0 ? (
+        <Notice
+          severity="info"
+          title="Academic review"
+          message={`Open regulation boundaries: ${board.pendingRegulations.join(", ")}.`}
+        />
+      ) : null}
     </>
   );
 }
