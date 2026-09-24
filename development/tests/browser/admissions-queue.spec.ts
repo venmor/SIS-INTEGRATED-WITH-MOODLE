@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
-import { createApplicant } from "./fixtures";
+import {
+  createAdmissionsApprover,
+  createAdmissionsOfficer,
+  createApplicant,
+} from "./fixtures";
 
 async function submitApplication(page: any, applicant: any) {
   await page.goto("/discover");
@@ -110,12 +114,13 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await page.setViewportSize({ width: 390, height: 844 });
   const submitted = await submitApplication(page, applicant);
 
-  // Sign out the applicant, sign in as the seeded demonstration officer.
+  // Sign out the applicant, sign in as an isolated admissions officer.
+  const officer = await createAdmissionsOfficer();
   await page.goto("/applicant");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/sign-in/);
-  await page.getByLabel("Username", { exact: true }).fill("temwani.r");
-  await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Temwani");
+  await page.getByLabel("Username", { exact: true }).fill(officer.username);
+  await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   // Wait for the sign-in round-trip: the form replaces to home on success.
   await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
@@ -124,7 +129,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   ).toBeVisible();
   // Officer landing offers the queue directly.
   await expect(
-    page.getByRole("link", { name: "Admissions queue" }),
+    page.getByRole("link", { name: "Admissions", exact: true }),
   ).toBeVisible();
 
   await page.goto("/admin/admissions/queue");
@@ -201,13 +206,14 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await noOverflow(page);
 
   // Release a decision as the separate approver (slice 5): sign out the
-  // officer, sign in as the seeded approver, open the same case directly,
+  // officer, sign in as an isolated approver, open the same case directly,
   // and release a conditional offer.
   const caseId = submitted.applicationUrl.split("/").pop() as string;
+  const approver = await createAdmissionsApprover();
   await page.context().clearCookies();
   await page.goto("/sign-in");
-  await page.getByLabel("Username", { exact: true }).fill("kasonde.a");
-  await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Kasonde");
+  await page.getByLabel("Username", { exact: true }).fill(approver.username);
+  await page.getByLabel("Password", { exact: true }).fill(approver.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
   await page.goto(`/admin/admissions/case/${caseId}`);
