@@ -342,6 +342,58 @@ describe('IntegrationService live reconciliation safety', () => {
       ],
     });
     expect(prisma.simShell.findMany).not.toHaveBeenCalled();
+
+  it('reads enrolments from live Moodle instead of simulator rows in live mode', async () => {
+    const prisma = {
+      moodleMapping: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'mapping-1',
+            sisId: 'offering-1:2026S1',
+            moodleId: '42',
+            status: 'ACTIVE',
+          },
+        ]),
+      },
+      simStudentEnrolment: { findMany: vi.fn() },
+    };
+    const service = new IntegrationService(prisma as never);
+    const internals = service as unknown as {
+      moodleAdmin: () => Promise<void>;
+      adapter: () => {
+        backend: 'live';
+        listActualEnrolments: () => Promise<
+          Array<{ key: string; role: string; status: 'ACTIVE' | 'SUSPENDED' }>
+        >;
+      };
+    };
+    internals.moodleAdmin = vi.fn().mockResolvedValue(undefined);
+    internals.adapter = vi.fn().mockReturnValue({
+      backend: 'live',
+      listActualEnrolments: vi.fn().mockResolvedValue([
+        { key: 'STU-1', role: 'Student', status: 'ACTIVE' },
+      ]),
+    });
+
+    await expect(
+      service.listEnrolments({
+        accountId: 'account-1',
+        assignmentId: 'assignment-1',
+        activeRole: 'MOODLE_ADMIN',
+      } as never),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: 'live:42:STU-1',
+          shellId: '42',
+          studentNumber: 'STU-1',
+          role: 'Student',
+          status: 'ACTIVE',
+        },
+      ],
+    });
+    expect(prisma.simStudentEnrolment.findMany).not.toHaveBeenCalled();
+  });
   });
 });
 
