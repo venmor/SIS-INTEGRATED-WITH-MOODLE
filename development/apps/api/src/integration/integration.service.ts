@@ -1561,9 +1561,36 @@ export class IntegrationService {
                         orderBy: { occurredAt: 'desc' },
                       });
                 if (source) {
+                  // A consumed outbox event is immutable delivery evidence.
+                  // Reconciliation repair must enqueue a fresh event; adding a
+                  // PENDING attempt to an already-delivered event is inert
+                  // because deliverOutbox correctly treats it as a duplicate.
+                  const sourcePayload = (source.payload ?? {}) as Record<
+                    string,
+                    unknown
+                  >;
+                  const {
+                    eventId: _eventId,
+                    eventType,
+                    correlationId: _correlationId,
+                    idempotencyKey: _idempotencyKey,
+                    payloadVersion: _payloadVersion,
+                    deliveryStatus: _deliveryStatus,
+                    retryPolicy: _retryPolicy,
+                    ...domainPayload
+                  } = sourcePayload;
+                  const repairEventId = await queueMoodleEvent(this.prisma, {
+                    aggregate: source.aggregate,
+                    aggregateId: source.aggregateId,
+                    type: source.type,
+                    eventType:
+                      typeof eventType === 'string' ? eventType : source.type,
+                    payload: domainPayload,
+                    key: randomUUID(),
+                  });
                   await this.prisma.integrationDeliveryAttempt.create({
                     data: {
-                      outboxId: source.id,
+                      outboxId: repairEventId,
                       state: 'PENDING',
                       attempt: 0,
                     },
