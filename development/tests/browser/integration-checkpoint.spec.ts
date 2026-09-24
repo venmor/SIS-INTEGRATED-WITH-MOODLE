@@ -62,10 +62,11 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
   }
   const dead = await api("GET", "/api/integration/dead-letters", supportA);
   expect(dead.status).toBe(200);
-  expect((dead.body as { items: unknown[] }).items.length).toBeGreaterThanOrEqual(1);
-  const attemptId = (
-    dead.body as { items: Array<{ id: string }> }
-  ).items[0].id;
+  const ownDeadLetter = (
+    dead.body as { items: Array<{ id: string; outboxId: string }> }
+  ).items.find((item) => item.outboxId === student.outboxId);
+  expect(ownDeadLetter).toBeDefined();
+  const attemptId = ownDeadLetter!.id;
 
   // Approved replay by a second officer, then recovery and delivery.
   const requested = await api("POST", "/api/integration/replays", supportA, {
