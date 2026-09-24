@@ -61,6 +61,39 @@ function harness() {
   };
 }
 
+describe('IntegrationService live configuration', () => {
+  it('returns a readable failed validation for half-configured live mode', async () => {
+    const oldUrl = process.env.MOODLE_API_URL;
+    const oldToken = process.env.MOODLE_API_TOKEN;
+    process.env.MOODLE_API_URL = 'https://moodle.example.test';
+    delete process.env.MOODLE_API_TOKEN;
+
+    const service = new IntegrationService({} as never);
+    const internals = service as unknown as {
+      opsRole: () => Promise<string>;
+    };
+    internals.opsRole = vi.fn().mockResolvedValue('MOODLE_ADMIN');
+
+    try {
+      await expect(
+        service.validateConnection({
+          accountId: 'account-1',
+          assignmentId: 'assignment-1',
+          activeRole: 'MOODLE_ADMIN',
+        } as never),
+      ).resolves.toMatchObject({
+        backend: 'live',
+        ok: false,
+        version: null,
+        detail: expect.stringMatching(/incomplete/i),
+      });
+    } finally {
+      process.env.MOODLE_API_URL = oldUrl;
+      process.env.MOODLE_API_TOKEN = oldToken;
+    }
+  });
+});
+
 describe('IntegrationService delivery boundary', () => {
   it('performs provider delivery outside Prisma interactive transactions', async () => {
     const h = harness();
