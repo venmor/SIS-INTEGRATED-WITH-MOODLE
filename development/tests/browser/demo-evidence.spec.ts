@@ -16,6 +16,9 @@ test.describe("Demo evidence and fallback pack", () => {
       "/admin/audit",
     );
     await expect(
+      page.getByRole("link", { name: /Access reviews/i }),
+    ).toHaveAttribute("href", "/admin/reviews");
+    await expect(
       page.getByRole("link", { name: /Integration recovery/i }),
     ).toHaveAttribute("href", "/admin/integration");
     await expect(page.getByText(/authorization denial/i)).toBeVisible();
