@@ -38,6 +38,7 @@ function workspaceLabel(role: string | undefined) {
   if (role === "RECORDS_OFFICER") return "Records workspace";
   if (role === "FINANCE_OFFICER") return "Finance workspace";
   if (role === "FINANCE_APPROVER") return "Finance approval workspace";
+  if (role === "COORDINATOR") return "Teaching workspace";
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
