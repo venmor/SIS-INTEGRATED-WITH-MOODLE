@@ -2,7 +2,7 @@ import type { AmendmentView, WaitlistView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import { Notice, PageHeader } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
 import { ChangeForms } from "./forms";
 import styles from "../../applicant/applicant.module.css";
@@ -52,14 +52,16 @@ export default async function ChangesPage() {
     return <StudentUnavailable message={amendments.message || waitlist.message} />;
   return (
     <>
-      <p className={styles.eyebrow}>Course changes</p>
-      <h1>Course changes</h1>
-      <p className={styles.muted}>
-        Required courses cannot be dropped here — request academic advice
-        through a support ticket. Registry checks prerequisites, capacity,
-        load and timetable compatibility before approval. Approved changes
-        update your finance account. Class meeting times are not yet published.
-      </p>
+      <PageHeader
+        eyebrow="Course changes"
+        title="Course changes"
+        lede="Registry checks prerequisites, capacity, load and timetable compatibility before approval. Approved changes update the finance account."
+      />
+      <Notice
+        severity="info"
+        title="Required courses"
+        message="Required courses cannot be dropped here. Use the academic support route for advice or an exception request."
+      />
       <ChangeForms />
       <h2>Change history</h2>
       {amendments.data.items.length === 0 ? (
