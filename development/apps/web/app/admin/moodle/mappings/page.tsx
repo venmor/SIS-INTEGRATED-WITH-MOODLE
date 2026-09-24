@@ -4,6 +4,7 @@ import type { ConnectionView, MappingView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { MappingForms } from "./forms";
 import { ConnectionValidate } from "./validate";
+import { moodleBackendLabel } from "../../integration/backend-label";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,8 @@ export default async function MappingsPage() {
         </main>
       </div>
     );
+  const backendLabel = moodleBackendLabel(health.data.backend);
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -66,7 +69,7 @@ export default async function MappingsPage() {
           <Notice
             severity={health.data.status === "HEALTHY" ? "success" : "warning"}
             title={`Connection ${health.data.status}`}
-            message={`Provider ${health.data.provider} · Backend ${(health.data as { backend?: string }).backend ?? "simulator"}. Health reports state only; credential values are never shown here.`}
+            message={`${backendLabel}${health.data.version ? ` · version ${health.data.version}` : ""}. Health reports state only; credential values are never shown here.`}
           />
           <ConnectionValidate />
           <p>
