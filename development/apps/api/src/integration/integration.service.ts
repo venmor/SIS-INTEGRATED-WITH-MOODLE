@@ -5,6 +5,7 @@ import { MOODLE_DEMO_V1 as policy } from '@sis/config';
 import { SimulatorError, type SimScenario } from './moodle-simulator.js';
 import { ensureSimShell } from './moodle-simulator.js';
 import {
+  liveWritesEnabled,
   MoodleConfigurationError,
   selectBackend,
   type MoodleAdapter,
@@ -1062,6 +1063,12 @@ export class IntegrationService {
     retried: number;
     dead: number;
   }> {
+    // Live connection validation is deliberately read-only until the
+    // operator explicitly enables writes. The background worker must not
+    // claim queued events during that proving phase.
+    if (selectBackend() === 'live' && !liveWritesEnabled()) {
+      return { processed: 0, delivered: 0, retried: 0, dead: 0 };
+    }
     if (await this.deliveryPaused()) {
       return { processed: 0, delivered: 0, retried: 0, dead: 0 };
     }
@@ -2243,6 +2250,13 @@ export class IntegrationService {
       throw new HttpException(
         { message: 'This integration workspace is unavailable.' },
         403,
+      );
+    }
+    if (selectBackend() === 'live' && !liveWritesEnabled()) {
+      this.fail(
+        'LIVE_WRITES_DISABLED',
+        'Live Moodle is connected in read-only mode. Enable writes only after the proving checklist is complete.',
+        409,
       );
     }
     return this.runWorker();
