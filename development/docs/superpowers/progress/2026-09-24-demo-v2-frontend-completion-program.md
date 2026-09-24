@@ -73,3 +73,24 @@ Final review: self-review (no subagent tool). Important findings fixed in this p
 - Student arrangement API failures were presented as an empty list; failures now preserve uncertainty and recovery wording.
 
 Verification note: these newest review fixes have browser/unit contracts wired into root CI and `demo:rehearse`, but connector-authored commits still require a fresh runner before the programme can be called verified green.
+
+
+Completion-contract regression review (2026-09-24, continued):
+- Historical full verify run `36017087297` reported 30 failures across six E2E files (339 tests passed). The failed run environment did **not** define `FIN_SIM_SECRET`.
+- All failures in `finance-callbacks.e2e-spec.ts`, `finance-clearance.e2e-spec.ts`, and the seven failures in `finance-governance.e2e-spec.ts` failed at simulator/callback operations with HTTP 503. `FinanceService.simulatorSecret()` returns `503 SIMULATOR_UNCONFIGURED` exactly when `FIN_SIM_SECRET` is absent. The current root CI now supplies `FIN_SIM_SECRET: demo-fixtures-secret` to both `verify` and `ui-contracts`.
+- The historical review-queue failures depended on finding a newly-created application inside a capped shared-database pool. Current tests prove release by re-claiming the exact case and use a larger bounded state-filter window instead of assuming first-page placement.
+- The historical integration sync duplicate failure asserted that a second global worker pass processed zero rows, which is invalid in a shared suite with unrelated backlog. Current test asserts the target student's simulator row is unchanged and unique.
+- The historical reconciliation failures came from one-batch/global assertions under shared backlog. Current reconciliation helper drains due worker batches (bounded at 20 passes), and mismatch/clean assertions are scoped to the target student/case.
+- PostgreSQL logged a losing `ExpiryWarning_open_key` insert during the old full suite. The current expiry daemon catches concurrent warning-creation races and treats the winner's warning as authoritative; the log entry alone is not an uncaught test failure.
+
+Additional final-review fixes in this pass:
+- Added full 390px/1440px route evidence for Records Officer and SYSADMIN using isolated browser personas that match seeded authority.
+- Added honest signed-in landing state for recognized IAM-only roles (e.g. LEC) that intentionally have no authoritative Phase-6 operational screen rather than inventing fake navigation.
+- Distinguished access denial from temporary service uncertainty across Moodle administration, mappings, maintenance, Finance workspace/queues, Records identity review, access reviews, role grants, audit evidence and access-review detail.
+- Made Finance maker/checker navigation and controls role-aware end-to-end and added a dedicated FINANCE_APPROVER persona.
+- Corrected the Demo Control Centre, runbook and readiness matrix from nonexistent `/applications` to the real `/applicant` route; PR patch scan showed no remaining `/applications` references.
+- Added stale/unknown Moodle connection-status evidence and warning presentation; only confirmed checks render success.
+- Added coordinator shell label `Teaching workspace` and role-specific reconciliation return navigation.
+- Tightened accessibility evidence wording to exactly match tested navigation and representative live controls.
+
+Readiness ruling: implementation/review causes behind the historical red baseline are addressed or explicitly accounted for, but the completion contract still requires a **fresh full runner**. Do not mark Phase 1–6 regressions, current browser contracts, build, lint or Demo V2 as verified green until current-head CI executes successfully.
