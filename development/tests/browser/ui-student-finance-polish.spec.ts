@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   assessStudentCharges,
   createCoordinator,
+  createFinanceApprover,
   createFinanceOfficer,
   createStudent,
 } from "./fixtures";
@@ -174,4 +175,60 @@ test("cashier controls stay hidden outside the active Finance Officer workspace"
   await expect(page.getByText("Cashier access unavailable")).toBeVisible();
   await expect(page.getByRole("form", { name: "Record cash intake" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Record intake" })).toHaveCount(0);
+});
+
+
+test("finance officer sees maker controls but not approver decisions", async ({
+  page,
+}) => {
+  const officer = await createFinanceOfficer();
+  await signIn(page, officer.username, officer.password);
+
+  await page.goto("/admin/finance/adjustments");
+  await expect(
+    page.getByRole("form", { name: "Request finance adjustment" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("form", { name: "Decide finance adjustment" }),
+  ).toHaveCount(0);
+
+  await page.goto("/admin/finance/arrangements");
+  await expect(
+    page.getByRole("form", { name: "Decide payment arrangement" }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Separate approval")).toBeVisible();
+});
+
+test("finance approver lands on decision queues without officer-only controls", async ({
+  page,
+}) => {
+  const approver = await createFinanceApprover();
+  await signIn(page, approver.username, approver.password);
+
+  await page.goto("/admin/finance");
+  const queue = page.getByRole("region", { name: "Finance work queue" });
+  await expect(
+    queue.getByRole("link", { name: "Adjustments and refunds" }),
+  ).toBeVisible();
+  await expect(
+    queue.getByRole("link", { name: "Payment arrangements" }),
+  ).toBeVisible();
+  await expect(
+    queue.getByRole("link", { name: "Reconciliation queue" }),
+  ).toHaveCount(0);
+  await expect(queue.getByRole("link", { name: "Sponsorships" })).toHaveCount(0);
+  await expect(queue.getByRole("link", { name: "Cashier intake" })).toHaveCount(0);
+
+  await page.goto("/admin/finance/adjustments");
+  await expect(
+    page.getByRole("form", { name: "Request finance adjustment" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("form", { name: "Decide finance adjustment" }),
+  ).toBeVisible();
+
+  await page.goto("/admin/finance/arrangements");
+  await expect(
+    page.getByRole("form", { name: "Decide payment arrangement" }),
+  ).toBeVisible();
 });
