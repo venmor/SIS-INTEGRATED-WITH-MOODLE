@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
+  createAdmissionsOfficer,
   createApplicant,
   createCoordinator,
   createFinanceOfficer,
@@ -134,7 +135,8 @@ test.describe.serial("authenticated route matrix", () => {
     await assertRouteAtRequiredWidths(page, "/applicant");
 
     await page.context().clearCookies();
-    await signIn(page, "temwani.r", "Seed-2026-Temwani");
+    const admissions = await createAdmissionsOfficer();
+    await signIn(page, admissions.username, admissions.password);
     await assertRouteAtRequiredWidths(page, "/admin/admissions/queue");
 
     await page.context().clearCookies();
