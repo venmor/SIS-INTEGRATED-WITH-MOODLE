@@ -10,3 +10,8 @@ Pre-flight: Task 1 produces a shared role-aware workspace navigation model consu
 Pre-flight: Tasks 4–5 share deterministic demo scenario identifiers; Task 4 must define stable references before Task 5 consumes them.
 Pre-flight: Task 6 preview routes are consumed by Tasks 9–10 quality/rehearsal checks; preview/live boundary from the modernization spec remains authoritative.
 Pre-flight: Task 8 preview maturity labels are consumed by Task 9 quality scans; no conflict found.
+
+
+Task 1 baseline finding: PR CI run 36015717485 failed before Playwright because the Phase-6 baseline API e2e suite is already red: 30 failures across finance governance/callback/clearance, integration reconciliation/sync and review queue, mostly returning 503; PostgreSQL also reported duplicate `ExpiryWarning_open_key`. This is unrelated to the navigation-only branch diff and matches the red current-main CI pattern.
+
+Task 1 Ruling: add a parallel `ui-contracts` CI job that provisions an isolated database, builds the app and runs only this programme's browser contract. Keep the existing full `verify` job unchanged so baseline failures remain visible. Cost if wrong: CI uses extra minutes, but UI RED→GREEN evidence no longer depends on unrelated Phase-6 API-suite instability.
