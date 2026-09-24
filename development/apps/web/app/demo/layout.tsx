@@ -21,6 +21,7 @@ export default function DemoLayout({
         <nav aria-label="Demo navigation">
           <Link href="/demo">Control centre</Link>
           <Link href="/demo/stories">Story notes</Link>
+          <Link href="/demo/evidence">Evidence</Link>
           <Link href="/">Application</Link>
         </nav>
       </header>
