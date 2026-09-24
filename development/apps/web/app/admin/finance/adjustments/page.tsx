@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { AdjustmentView } from "@sis/contracts";
 import { DataTable, Money, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { AdjustmentForms } from "./forms";
-import { loadFinanceWorkspaceRole } from "../finance-role";
+import { loadFinanceWorkspaceState } from "../finance-role";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -29,25 +29,40 @@ async function loadStaff<T>(
 // Adjustments and refunds: officers request, approvers decide (never the
 // same person). Approved credits post compensating lines.
 export default async function AdjustmentsPage() {
-  const [role, list] = await Promise.all([
-    loadFinanceWorkspaceRole(),
+  const [workspace, list] = await Promise.all([
+    loadFinanceWorkspaceState(),
     loadStaff<{ items: AdjustmentView[] }>("/adjustments"),
   ]);
-  if (!role || !list.ok)
+  if (workspace.kind !== "ok" || !list.ok) {
+    const denied =
+      workspace.kind === "denied" ||
+      (!list.ok && (list.status === 401 || list.status === 403));
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.context}>Student Information System</p>
-          <h1 className={styles.title}>Adjustments and refunds</h1>
+          <PageHeader
+            eyebrow="Student Information System"
+            title="Adjustments and refunds"
+          />
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs finance authority. Sign in with a finance role or ask an administrator."
-            action={{ label: "Finance workspace", href: "/admin/finance" }}
+            title={denied ? "Finance access unavailable" : "Finance data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs finance authority."
+                : "The system could not confirm the adjustment queue. Keep the current references and retry when connectivity is restored."
+            }
+            action={
+              denied
+                ? { label: "Finance workspace", href: "/admin/finance" }
+                : { label: "Retry adjustments", href: "/admin/finance/adjustments" }
+            }
           />
         </main>
       </div>
     );
+  }
+  const role = workspace.role;
   return (
     <div className={styles.page}>
       <main className={styles.main}>
