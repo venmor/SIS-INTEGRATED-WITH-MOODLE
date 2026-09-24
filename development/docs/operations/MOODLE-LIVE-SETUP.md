@@ -162,8 +162,10 @@ Expected result:
 - detail states that live writes are disabled.
 
 At this stage do **not** run provisioning, the delivery worker,
-reconciliation repair, enrolment sync or group sync against the real
-site.
+enrolment sync or group sync against the real site. Reconciliation may
+be run for observation: while `MOODLE_LIVE_WRITES=false` it is
+report-only and opens governed drift cases instead of queueing repair
+events.
 
 If only URL or token is configured, SIS reports configuration failure;
 it does not quietly present the simulator as healthy.
@@ -199,6 +201,13 @@ Recommended proving order:
 5. rerun the same events to confirm idempotency,
 6. run reconciliation and confirm no drift,
 7. test removal/suspension behavior.
+
+A group-scoped Tutor quiz assignment is deliberately refused by the
+live adapter for now. The supported Moodle enrolment web service assigns
+roles at course scope; SIS will not silently broaden a tutorial-group
+scope into course-wide quiz authority. Use a course-wide proving staff
+assignment until an explicitly governed group-scope implementation is
+added.
 
 The adapter keeps provider HTTP calls outside Prisma interactive
 transactions and sends permanent Moodle/configuration failures to
