@@ -163,9 +163,8 @@ test("student portal: home, contact update, correction request", async ({
   await page.goto("/student/finance");
   await expect(page.getByRole("heading", { name: "Receipts" })).toBeVisible();
   await expect(page.getByText(/Receipt PAY-/)).toBeVisible();
-  await expect(
-    page.getByText("Financial clearance complete"),
-  ).toBeVisible();
+  const clearedSummary = page.getByRole("region", { name: "Finance summary" });
+  await expect(clearedSummary).toContainText("Financial clearance complete");
   await expect(
     page.getByText("Registration is not blocked by finance."),
   ).toBeVisible();
