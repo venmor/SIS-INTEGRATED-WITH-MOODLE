@@ -5,7 +5,9 @@ import {
   createFinanceOfficer,
   createIntegrationSupport,
   createMoodleAdmin,
+  createRecordsOfficer,
   createStudent,
+  createSystemAdmin,
 } from "./fixtures";
 
 async function assertNoOverflow(page: Page) {
@@ -141,9 +143,21 @@ test.describe.serial("authenticated route matrix", () => {
     await assertRouteAtRequiredWidths(page, "/student");
 
     await page.context().clearCookies();
+    const records = await createRecordsOfficer();
+    await signIn(page, records.username, records.password);
+    await assertRouteAtRequiredWidths(page, "/admin/records/duplicates");
+
+    await page.context().clearCookies();
     const finance = await createFinanceOfficer();
     await signIn(page, finance.username, finance.password);
     await assertRouteAtRequiredWidths(page, "/admin/finance");
+
+    await page.context().clearCookies();
+    const admin = await createSystemAdmin();
+    await signIn(page, admin.username, admin.password);
+    await assertRouteAtRequiredWidths(page, "/admin/reviews");
+    await assertRouteAtRequiredWidths(page, "/admin/grants");
+    await assertRouteAtRequiredWidths(page, "/admin/audit");
 
     await page.context().clearCookies();
     const coordinator = await createCoordinator();
