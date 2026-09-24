@@ -342,6 +342,7 @@ describe('IntegrationService live reconciliation safety', () => {
       ],
     });
     expect(prisma.simShell.findMany).not.toHaveBeenCalled();
+  });
 
   it('reads enrolments from live Moodle instead of simulator rows in live mode', async () => {
     const prisma = {
@@ -393,7 +394,6 @@ describe('IntegrationService live reconciliation safety', () => {
       ],
     });
     expect(prisma.simStudentEnrolment.findMany).not.toHaveBeenCalled();
-  });
   });
 });
 
