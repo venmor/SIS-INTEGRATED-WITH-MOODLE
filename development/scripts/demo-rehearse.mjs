@@ -73,10 +73,14 @@ async function main() {
   run(command("npx"), [
     "playwright",
     "test",
+    "tests/browser/ui-workspace-navigation.spec.ts",
+    "tests/browser/ui-student-finance-polish.spec.ts",
+    "tests/browser/ui-phase6-operations-polish.spec.ts",
     "tests/browser/demo-control.spec.ts",
     "tests/browser/demo-evidence.spec.ts",
     "tests/browser/design-preview-assessment.spec.ts",
     "tests/browser/design-preview-v2.spec.ts",
+    "tests/browser/ui-modernization-quality.spec.ts",
   ]);
 
   console.log("\n3/3 Story readiness");
