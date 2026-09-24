@@ -92,7 +92,7 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
     page.getByRole("heading", { name: "Integration support" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Event-delivery queue" }),
+    page.getByRole("region", { name: "Deliveries and reconciliation" }),
   ).toBeVisible();
 
   // Incidents open and close with recovery evidence (support-only).
