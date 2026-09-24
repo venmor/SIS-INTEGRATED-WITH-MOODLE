@@ -1534,8 +1534,8 @@ async function ensureDemoStoryPack(): Promise<void> {
           payload: {
             eventId,
             eventType: "zm.sis.registration.course-enrolled.v1",
-            correlationId: \`DEMO-\${marker}\`,
-            idempotencyKey: \`DEMO-\${marker}\`,
+            correlationId: `DEMO-${marker}`,
+            idempotencyKey: `DEMO-${marker}`,
             payloadVersion: 1,
             deliveryStatus: "QUEUED",
             retryPolicy: "MOODLE-DEMO-v1",
@@ -1615,7 +1615,7 @@ async function ensureDemoStoryPack(): Promise<void> {
     },
     update: {},
     create: {
-      shellRef: \`SWE-\${period.code}-DEMO\`,
+      shellRef: `SWE-${period.code}-DEMO`,
       offeringId: offering.id,
       periodId: period.id,
       status: "ACTIVE",
