@@ -27,6 +27,16 @@ const databasePresent = required("DATABASE_URL");
 required("API_INTERNAL_URL");
 required("APPLICATION_SCANNER", (value) => value === "demo-fixtures");
 required("FIN_SIM_SECRET");
+const simulatorOnly =
+  !(process.env.MOODLE_API_URL ?? "").trim() &&
+  !(process.env.MOODLE_API_TOKEN ?? "").trim();
+record(
+  simulatorOnly,
+  "Moodle demo backend is simulator-only",
+  simulatorOnly
+    ? ""
+    : "Unset MOODLE_API_URL and MOODLE_API_TOKEN before running the deterministic demo story pack.",
+);
 
 if (databasePresent) {
   try {
@@ -77,8 +87,16 @@ if (databasePresent) {
       );
     }
 
-    const [draft, submitted, offer, cleared, held, replay, mismatch, group] =
-      await Promise.all([
+    const [
+      draft,
+      submitted,
+      offer,
+      cleared,
+      held,
+      deliveries,
+      mismatch,
+      group,
+    ] = await Promise.all([
         db.application.findUnique({
           where: {
             reference: DEMO_SCENARIOS.applicants.draft.applicationReference,
@@ -105,7 +123,9 @@ if (databasePresent) {
           where: { studentNumber: DEMO_SCENARIOS.students.held.studentNumber },
           include: { holds: { where: { status: "ACTIVE" } } },
         }),
-        db.replayDecision.findFirst({ where: { status: "PENDING" } }),
+        db.integrationDeliveryAttempt.findMany({
+          include: { outbox: true },
+        }),
         db.reconciliationCase.findFirst({
           where: {
             kind: DEMO_SCENARIOS.integration.reconciliationKind,
@@ -146,7 +166,36 @@ if (databasePresent) {
       "story record: finance hold",
       "Run npm run demo:reset.",
     );
-    record(Boolean(replay), "story record: pending replay", "Run npm run demo:reset.");
+    const delayed = deliveries.find(
+      (row) =>
+        row.state === "PENDING" &&
+        row.nextRunAt != null &&
+        row.outbox.payload?.demoMarker ===
+          DEMO_SCENARIOS.integration.delayedMarker,
+    );
+    record(
+      Boolean(delayed),
+      "story record: delayed Moodle delivery",
+      "Run npm run demo:reset.",
+    );
+
+    const dead = deliveries.find(
+      (row) =>
+        row.state === "DEAD_LETTER" &&
+        row.outbox.payload?.demoMarker ===
+          DEMO_SCENARIOS.integration.deadLetterMarker,
+    );
+    const replay = dead
+      ? await db.replayDecision.findFirst({
+          where: { attemptId: dead.id, status: "PENDING" },
+        })
+      : null;
+    record(
+      Boolean(dead && replay),
+      "story record: dead-letter with pending replay",
+      "Run npm run demo:reset.",
+    );
+
     record(
       Boolean(mismatch),
       "story record: reconciliation mismatch",
