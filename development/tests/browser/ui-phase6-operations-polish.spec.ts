@@ -200,6 +200,7 @@ test.describe.serial("Phase 6 operations presentation", () => {
     await signIn(page, coordinator.username, coordinator.password);
     await page.goto("/admin/teaching/groups");
 
+    await expect(page.getByText("Teaching workspace", { exact: true })).toBeVisible();
     const context = page.getByRole("status", {
       name: /Active workspace: COORDINATOR workspace/,
     });
