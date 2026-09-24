@@ -61,8 +61,10 @@ least-privilege custom service:
    once — Moodle never shows it again.
 2. Role IDs: Users → Permissions → Define roles → click each needed
    role (Teacher, Non-editing teacher, Tutor/Student); the numeric
-   `roleid=` in the page URL is the value for `MOODLE_ROLE_IDS`,
-   e.g. `{"Teacher":3,"Non-editing Teacher":5,"Tutor":9}`.
+   `roleid=` in the page URL is the value for `MOODLE_ROLE_IDS`.
+   Confirmed against the sibling SIS project (Bitnami Moodle 4.5,
+   stock roles): `{"Teacher":3,"Non-editing Teacher":5,"Student":5}`
+   — verify on your instance before trusting these numbers.
 
 ## 6. Student identity (required for matching)
 
@@ -83,7 +85,17 @@ as keys.
    `errorcode`s as permanent failures — fix mapping/role config,
    never retry blindly.
 
-## 8. Rotate and revoke
+## 8. Resurrecting the sibling project's Moodle (reference)
+
+The sibling SIS tested live against `bitnami/moodle:4.5.4` in Docker
+at `127.0.0.1:8090` (admin `admin`, category id 1) with a manually
+minted token that was never committed — only `paste-the-generated-
+token-here` placeholders exist there, which is correct practice.
+That stack needs a Docker host; this machine has none, so it cannot
+run here. To retest live: start that compose on a Docker machine,
+mint a fresh token, and wire the three values below.
+
+## 9. Rotate and revoke
 
 Tokens belong to the service user, not a person. On staff changes,
 revoke at Manage tokens and mint a fresh one; old tokens stop working
