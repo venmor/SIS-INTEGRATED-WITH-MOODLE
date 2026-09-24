@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SIS integrated with Moodle \u2014 identity, programme discovery and applicant self-service",
+  "description": "SIS integrated with Moodle — identity, programme discovery and applicant self-service",
   "engines": {
     "node": "24.21.0",
     "npm": ">=11"
@@ -20,6 +20,9 @@
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspace=@sis/config && npm run build --workspace=web --workspace=api",
     "demo:reset": "node scripts/demo-reset.mjs",
+    "db:start": "node scripts/local-db.mjs start",
+    "db:stop": "node scripts/local-db.mjs stop",
+    "db:status": "node scripts/local-db.mjs status",
     "backup:test": "node scripts/backup-test.mjs",
     "postinstall": "node scripts/with-env.mjs prisma generate",
     "test:scripts": "node --test scripts/*.test.mjs",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "7.10.0"
   },
   "license": "UNLICENSED",
@@ -40,5 +44,8 @@
     "@prisma/client": "7.10.0",
     "argon2": "0.45.1",
     "pg": "8.23.0"
+  },
+  "allowScripts": {
+    "@embedded-postgres/linux-x64@18.4.0-beta.17": true
   }
 }
