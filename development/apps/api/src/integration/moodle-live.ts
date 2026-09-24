@@ -257,9 +257,19 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     const existing = await this.courseIdByShortname(input.shellRef);
     if (existing !== null) return { id: String(existing), created: false };
     this.assertWritesEnabled();
-    const categoryId = Number(process.env.MOODLE_CATEGORY_ID ?? '1');
+    const categoryRaw = (process.env.MOODLE_CATEGORY_ID ?? '').trim();
+    if (categoryRaw === '') {
+      throw new MoodleApiError(
+        false,
+        'MOODLE_CATEGORY_ID is required before live Moodle course creation.',
+      );
+    }
+    const categoryId = Number(categoryRaw);
     if (!Number.isInteger(categoryId) || categoryId <= 0) {
-      throw new MoodleApiError(false, 'MOODLE_CATEGORY_ID must be a positive integer.');
+      throw new MoodleApiError(
+        false,
+        'MOODLE_CATEGORY_ID must be a positive integer.',
+      );
     }
     const created = await this.call<Array<{ id: number }>>(
       'core_course_create_courses',
@@ -350,8 +360,19 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     scenario: string;
   }): Promise<'CREATED' | 'EXISTS'> {
     void input.db;
-    void input.quizScope;
     void input.scenario;
+    const scopedGroups =
+      typeof input.quizScope === 'object' &&
+      input.quizScope !== null &&
+      Array.isArray((input.quizScope as { groupIds?: unknown }).groupIds)
+        ? (input.quizScope as { groupIds: unknown[] }).groupIds
+        : [];
+    if (scopedGroups.length > 0) {
+      throw new MoodleApiError(
+        false,
+        'Group-scoped Moodle staff authority is not supported by the live adapter; refusing to broaden it to the whole course.',
+      );
+    }
     const courseId = Number(input.shell.id);
     const userId = await this.userIdByIdnumber(
       await this.staffIdnumber(input.accountId),
@@ -464,18 +485,17 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       Array<{
         id: number;
         idnumber?: string;
-        roles?: Array<{ shortname?: string }>;
+        roles?: Array<{ roleid?: number; shortname?: string }>;
       }>
     >('core_enrol_get_enrolled_users', { courseid: courseId });
+    const studentRoleId = this.roleId('Student');
 
     return enrolled
       .filter(
         (user) =>
           typeof user.idnumber === 'string' &&
           user.idnumber !== '' &&
-          (user.roles ?? []).some(
-            (role) => (role.shortname ?? '').toLowerCase() === 'student',
-          ),
+          (user.roles ?? []).some((role) => role.roleid === studentRoleId),
       )
       .map((user) => ({
         key: user.idnumber as string,
