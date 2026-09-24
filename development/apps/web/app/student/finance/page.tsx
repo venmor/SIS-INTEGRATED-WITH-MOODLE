@@ -10,6 +10,7 @@ import { StudentUnavailable } from "../chrome";
 import {
   Card,
   DataTable,
+  Icon,
   Money,
   Notice,
   PageHeader,
@@ -84,7 +85,7 @@ export default async function FinancePage() {
         <PageHeader
           eyebrow="Finance and clearance"
           title="Finance and clearance"
-          lede="Your charges, payments and clearance for the period, with what to do next."
+          lede="Charges, payments and registration clearance for this period."
         />
         <Notice
           severity="info"
@@ -104,6 +105,35 @@ export default async function FinancePage() {
         title="Finance and clearance"
         lede="Your charges, payments and clearance for the period, with what to do next."
       />
+      <section className={styles.summary} aria-label="Finance summary">
+        <div className={styles.summaryHeading}>
+          <Icon name="wallet" size={20} />
+          <h2>Finance summary</h2>
+        </div>
+        <dl className={styles.summaryFacts}>
+          <div>
+            <dt>Outstanding</dt>
+            <dd>
+              <Money
+                currency={account.data.currency}
+                amountMinor={account.data.outstandingMinor}
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Clearance</dt>
+            <dd>{account.data.clearanceWording}</dd>
+          </div>
+          <div>
+            <dt>Sponsorship</dt>
+            <dd>{account.data.sponsorship}</dd>
+          </div>
+          <div>
+            <dt>Last confirmed</dt>
+            <dd>{formatLusaka(account.data.refreshedAt)}</dd>
+          </div>
+        </dl>
+      </section>
       <Notice
         severity={account.data.blocksRegistration ? "warning" : "success"}
         title={account.data.clearanceWording}
