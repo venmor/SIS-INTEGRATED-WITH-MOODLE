@@ -89,7 +89,12 @@ export function AdjustmentForms({
       form.reset();
       router.refresh();
     } catch (error) {
-      setErrors([{ fieldId: "adjust-kind", message: failure(error) }]);
+      setErrors([
+        {
+          fieldId: kind === "request" ? "adjust-kind" : "decide-id",
+          message: failure(error),
+        },
+      ]);
     } finally {
       setPending(false);
     }
