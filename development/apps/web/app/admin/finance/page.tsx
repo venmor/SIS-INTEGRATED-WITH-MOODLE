@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Icon, Notice, PageHeader, StatusChip } from "@sis/ui";
+import { loadFinanceWorkspaceRole } from "./finance-role";
 import styles from "./finance-workspace.module.css";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +34,8 @@ interface WorkItem {
 }
 
 export default async function FinanceWorkspacePage() {
-  const [cases, adjustments, arrangements] = await Promise.all([
-    loadStaff<{ items: unknown[] }>("/cases"),
-    loadStaff<{ items: unknown[] }>("/adjustments"),
-    loadStaff<{ items: unknown[] }>("/arrangements"),
-  ]);
-
-  if (!cases.ok || !adjustments.ok || !arrangements.ok)
+  const role = await loadFinanceWorkspaceRole();
+  if (!role)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -54,22 +50,40 @@ export default async function FinanceWorkspacePage() {
       </div>
     );
 
-  const work: WorkItem[] = [
-    {
-      href: "/admin/finance/cases",
-      title: "Reconciliation queue",
-      icon: "reconciliation",
-      count: cases.data.items.length,
-      state: "Open cases",
-      body: "Uncertain, duplicate and mismatch payments waiting for review.",
-    },
+  const [adjustments, arrangements, cases] = await Promise.all([
+    loadStaff<{ items: unknown[] }>("/adjustments"),
+    loadStaff<{ items: unknown[] }>("/arrangements"),
+    role === "FINANCE_OFFICER"
+      ? loadStaff<{ items: unknown[] }>("/cases")
+      : Promise.resolve({ ok: true as const, data: { items: [] as unknown[] } }),
+  ]);
+
+  if (!cases.ok || !adjustments.ok || !arrangements.ok)
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <PageHeader eyebrow="Student Information System" title="Finance workspace" />
+          <Notice
+            severity="warning"
+            title="Workspace unavailable"
+            message="Finance data is temporarily unavailable. Keep the current reference and retry when the service recovers."
+            action={{ label: "Back home", href: "/" }}
+          />
+        </main>
+      </div>
+    );
+
+  const shared: WorkItem[] = [
     {
       href: "/admin/finance/adjustments",
       title: "Adjustments and refunds",
       icon: "receipt",
       count: adjustments.data.items.length,
       state: "Awaiting decision",
-      body: "Maker/checker decisions for credits, waivers and refunds.",
+      body:
+        role === "FINANCE_APPROVER"
+          ? "Approve or decline governed credits, waivers and refunds."
+          : "Create governed credit, waiver and refund requests for separate approval.",
     },
     {
       href: "/admin/finance/arrangements",
@@ -77,25 +91,43 @@ export default async function FinanceWorkspacePage() {
       icon: "finance",
       count: arrangements.data.items.length,
       state: "Awaiting decision",
-      body: "Student arrangement requests with terms and reasons.",
-    },
-    {
-      href: "/admin/finance/sponsorships",
-      title: "Sponsorships",
-      icon: "identity",
-      count: null,
-      state: "Manage coverage",
-      body: "Sponsor coverage and supporting evidence.",
-    },
-    {
-      href: "/admin/finance/cashier",
-      title: "Cashier intake",
-      icon: "receipt",
-      count: null,
-      state: "Record payment",
-      body: "Reported bank and cash payments awaiting confirmation.",
+      body:
+        role === "FINANCE_APPROVER"
+          ? "Approve or decline student arrangement requests."
+          : "Review student arrangement requests before the approver decision.",
     },
   ];
+
+  const work: WorkItem[] =
+    role === "FINANCE_OFFICER"
+      ? [
+          {
+            href: "/admin/finance/cases",
+            title: "Reconciliation queue",
+            icon: "reconciliation",
+            count: cases.data.items.length,
+            state: "Open cases",
+            body: "Uncertain, duplicate and mismatch payments waiting for review.",
+          },
+          ...shared,
+          {
+            href: "/admin/finance/sponsorships",
+            title: "Sponsorships",
+            icon: "identity",
+            count: null,
+            state: "Manage coverage",
+            body: "Sponsor coverage and supporting evidence.",
+          },
+          {
+            href: "/admin/finance/cashier",
+            title: "Cashier intake",
+            icon: "receipt",
+            count: null,
+            state: "Record payment",
+            body: "Reported bank and cash payments awaiting confirmation.",
+          },
+        ]
+      : shared;
 
   return (
     <div className={styles.page}>
