@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
 import { ReconForms } from "./forms";
+import { moodleBackendLabel } from "../backend-label";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -44,11 +45,12 @@ interface ReconRun {
 // Expected-vs-actual reconciliation: SIS truth against simulator
 // projections. Safe diffs repair by requeue; the rest open governed cases.
 export default async function ReconciliationPage() {
-  const [runs, cases] = await Promise.all([
+  const [health, runs, cases] = await Promise.all([
+    loadStaff<{ backend?: string }>("/health"),
     loadStaff<{ items: ReconRun[] }>("/reconciliation/runs"),
     loadStaff<{ items: ReconCase[] }>("/reconciliation/cases"),
   ]);
-  if (!runs.ok || !cases.ok)
+  if (!health.ok || !runs.ok || !cases.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -63,6 +65,8 @@ export default async function ReconciliationPage() {
         </main>
       </div>
     );
+
+  const backendLabel = moodleBackendLabel(health.data.backend);
 
   return (
     <div className={styles.page}>
@@ -81,8 +85,8 @@ export default async function ReconciliationPage() {
           <h2>Expected and actual state</h2>
           <p>
             SIS registration and teaching records define expected state.
-            Moodle simulator rows are destination evidence. Reconciliation may
-            safely requeue delivery, but it never rewrites SIS truth to match a
+            {backendLabel} is destination evidence. Reconciliation may safely
+            requeue delivery, but it never rewrites SIS truth to match a
             destination discrepancy.
           </p>
         </section>
