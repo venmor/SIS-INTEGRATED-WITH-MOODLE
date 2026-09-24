@@ -31,7 +31,7 @@ Use a clean browser profile. Keep credentials in operator notes, not on the pres
 
 **Story 1 — Admissions → Student → Finance → Registration → Moodle**
 
-1. Start at `/applications` with the seeded released-offer applicant checkpoint.
+1. Start at `/applicant` with the seeded released-offer applicant checkpoint.
 2. Use the seeded registered student checkpoint for `/student`, `/student/finance` and registration evidence.
 3. Show that Moodle access is a governed projection of the SIS registration state.
 
