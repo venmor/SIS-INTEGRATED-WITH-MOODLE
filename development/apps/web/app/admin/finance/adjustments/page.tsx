@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { AdjustmentView } from "@sis/contracts";
 import { DataTable, Money, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { AdjustmentForms } from "./forms";
+import { loadFinanceWorkspaceRole } from "../finance-role";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,11 @@ async function loadStaff<T>(
 // Adjustments and refunds: officers request, approvers decide (never the
 // same person). Approved credits post compensating lines.
 export default async function AdjustmentsPage() {
-  const list = await loadStaff<{ items: AdjustmentView[] }>("/adjustments");
-  if (!list.ok)
+  const [role, list] = await Promise.all([
+    loadFinanceWorkspaceRole(),
+    loadStaff<{ items: AdjustmentView[] }>("/adjustments"),
+  ]);
+  if (!role || !list.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -55,7 +59,7 @@ export default async function AdjustmentsPage() {
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
-        <AdjustmentForms />
+        <AdjustmentForms role={role} />
         <h2>Awaiting decision</h2>
         <DataTable
           hideTitle
