@@ -24,6 +24,26 @@ async function loadStaff<T>(
     return { ok: false, status: 503 };
   }
 }
+ 
+async function loadActiveRole(): Promise<string | null> {
+  const sid = (await cookies()).get("sid")?.value;
+  if (!sid) return null;
+  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
+  try {
+    const response = await fetch(`${api}/auth/me`, {
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) return null;
+    const me = (await response.json()) as {
+      activeWorkspace?: { role?: string } | null;
+    };
+    return me.activeWorkspace?.role ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface ReconCase {
   id: string;
@@ -45,12 +65,13 @@ interface ReconRun {
 // Expected-vs-actual reconciliation: SIS truth against simulator
 // projections. Safe diffs repair by requeue; the rest open governed cases.
 export default async function ReconciliationPage() {
-  const [health, runs, cases] = await Promise.all([
+  const [role, health, runs, cases] = await Promise.all([
+    loadActiveRole(),
     loadStaff<{ backend?: string }>("/health"),
     loadStaff<{ items: ReconRun[] }>("/reconciliation/runs"),
     loadStaff<{ items: ReconCase[] }>("/reconciliation/cases"),
   ]);
-  if (!health.ok || !runs.ok || !cases.ok)
+  if (!role || !health.ok || !runs.ok || !cases.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -74,8 +95,11 @@ export default async function ReconciliationPage() {
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Reconciliation</h1>
         <p>
-          <Link href="/admin/integration">Integration support</Link> ·{" "}
-          <Link href="/admin/moodle">Moodle administration</Link>
+          {role === "MOODLE_ADMIN" ? (
+            <Link href="/admin/moodle">Moodle administration</Link>
+          ) : (
+            <Link href="/admin/integration">Integration support</Link>
+          )}
         </p>
 
         <section
