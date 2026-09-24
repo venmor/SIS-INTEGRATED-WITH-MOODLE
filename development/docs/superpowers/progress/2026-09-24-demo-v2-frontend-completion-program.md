@@ -51,3 +51,25 @@ Task 10: implemented — guarded `demo:rehearse`, rehearsal safety tests and `do
 Moodle live-adapter reconciliation (2026-09-24): implementation hardening is in progress on this branch after bringing the new `main` live adapter across. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
 
 Verification note: the latest connector-authored head has no fresh GitHub Actions run, and both Vercel contexts are currently blocked by the account build-rate limit rather than a reported compile/test failure. Do not mark the live-adapter hardening verified green until a fresh API/unit/e2e/build runner completes.
+
+
+Task 2 implementation follow-up (2026-09-24): expanded the student/finance readiness contract to every live student route and the representative finance operations routes at 390px and 1440px. Remaining legacy page frames were aligned to the shared `PageHeader` grammar. Student payment-arrangement outages now render an explicit unavailable/recovery state instead of an empty-success state.
+
+Task 2 role-boundary review: added a dedicated FINANCE_APPROVER browser persona and made the Finance landing page role-aware. FINANCE_OFFICER now sees reconciliation, maker adjustment controls, sponsorship and cashier work; FINANCE_APPROVER sees only adjustment/arrangement decision queues. Cashier controls require the active FINANCE_OFFICER workspace before rendering. Adjustment and arrangement forms now respect maker/checker separation in the UI while backend capability/SOD checks remain authoritative.
+
+Task 7 follow-up: presentation evidence now includes a browser contract that simulates a temporary Moodle connection-validation outage, proves the action is retryable, and recovers to the read-only live state without invoking a mutation endpoint.
+
+Task 9 follow-up: keyboard contracts now reach live student course-selection controls and the live Moodle connection check with visible focus. The required-width matrix covers all live student routes plus representative finance operations routes. Phase-7 release remains intentionally non-interactive because preview routes must not imply authoritative mutations.
+
+Task 10 follow-up: `demo:rehearse` now includes workspace navigation, complete student/finance polish, Phase-6 operations, recovery evidence, assessment/V2 previews and cross-workspace quality contracts. `demo:doctor` now verifies the exact delayed-delivery marker, exact dead-letter marker with its pending replay, reconciliation mismatch, and refuses live Moodle credentials for deterministic rehearsal.
+
+Final review: self-review (no subagent tool). Important findings fixed in this pass:
+- Demo Story 1 and runbook pointed at nonexistent `/applications`; corrected to the real `/applicant` workspace and pinned in browser contracts.
+- Live-capable Moodle/Integration screens hard-coded simulator/provider wording; backend identity is now explicit (`Live Moodle` vs `Moodle simulator`) across Moodle home, mappings, Integration Support and reconciliation.
+- Reconciliation exposed cross-workspace back-links irrespective of active role; return navigation is now role-specific for MOODLE_ADMIN vs INTEGRATION_SUPPORT.
+- Finance Approver could land on an officer-only reconciliation fetch and receive Workspace unavailable; landing queues are now role-aware.
+- Finance maker/checker controls were rendered to both roles; adjustment/arrangement controls are now role-scoped.
+- Cashier controls were visible before UI authority confirmation; controls now require the active FINANCE_OFFICER workspace.
+- Student arrangement API failures were presented as an empty list; failures now preserve uncertainty and recovery wording.
+
+Verification note: these newest review fixes have browser/unit contracts wired into root CI and `demo:rehearse`, but connector-authored commits still require a fresh runner before the programme can be called verified green.
