@@ -149,6 +149,12 @@ export default async function Home() {
               Identity review queue
             </Link>
           ) : null}
+          {active?.role === "FINANCE_OFFICER" ||
+          active?.role === "FINANCE_APPROVER" ? (
+            <Link className={styles.primary} href="/admin/finance">
+              Finance workspace
+            </Link>
+          ) : null}
           {active && SECURITY_V1.grantorRoles.includes(active.role) ? (
             <a className={styles.primary} href="/admin/grants">
               Role assignments

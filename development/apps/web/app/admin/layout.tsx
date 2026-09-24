@@ -34,6 +34,9 @@ async function loadMe(): Promise<Me | null> {
 function workspaceLabel(role: string | undefined) {
   if (role === "ADMISSIONS_OFFICER") return "Admissions workspace";
   if (role === "ADMISSIONS_APPROVER") return "Admissions approval workspace";
+  if (role === "RECORDS_OFFICER") return "Records workspace";
+  if (role === "FINANCE_OFFICER") return "Finance workspace";
+  if (role === "FINANCE_APPROVER") return "Finance approval workspace";
   if (role === "SYSADMIN") return "System administration";
   return "Staff workspace";
 }
@@ -52,6 +55,16 @@ export default async function AdminLayout({
       href: "/admin/admissions/queue",
       label: "Admissions queue",
       show: role === "ADMISSIONS_OFFICER",
+    },
+    {
+      href: "/admin/records/duplicates",
+      label: "Identity review queue",
+      show: role === "RECORDS_OFFICER",
+    },
+    {
+      href: "/admin/finance",
+      label: "Finance workspace",
+      show: role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER",
     },
     {
       href: "/admin/reviews",
