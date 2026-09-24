@@ -44,7 +44,13 @@ function failure(error: unknown): string {
 // Adjustment workspace: officers request with reason and evidence;
 // approvers decide elsewhere-in-role (maker/checker). Approved credits
 // post compensating lines; refunds record payout references.
-export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
+export function AdjustmentForms({
+  attemptId,
+  role,
+}: {
+  attemptId?: string;
+  role: "FINANCE_OFFICER" | "FINANCE_APPROVER";
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -97,6 +103,7 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
       {errors.length > 0 ? (
         <ErrorSummary title="The adjustment was not recorded" errors={errors} />
       ) : null}
+      {role === "FINANCE_OFFICER" ? (
       <form
         aria-label="Request finance adjustment"
         onSubmit={(e) => {
@@ -139,6 +146,9 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
           </button>
         </p>
       </form>
+      ) : null}
+      {role === "FINANCE_APPROVER" ? (
+        <>
       <h2>Decide adjustment (approver only)</h2>
       <form
         aria-label="Decide finance adjustment"
@@ -175,6 +185,8 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
           </button>
         </p>
       </form>
+        </>
+      ) : null}
     </>
   );
 }
