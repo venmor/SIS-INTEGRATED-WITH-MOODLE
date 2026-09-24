@@ -104,8 +104,9 @@ export default async function IntegrationPage() {
             <ul>
               {dead.data.items.length > 0 ? (
                 <li>
-                  {dead.data.items.length} dead letter or manual-review delivery
-                  {dead.data.items.length === 1 ? "" : "ies"} need triage.
+                  {dead.data.items.length} dead-letter or manual-review{" "}
+                  {dead.data.items.length === 1 ? "delivery" : "deliveries"} need
+                  triage.
                 </li>
               ) : null}
               {pendingReplays.length > 0 ? (
