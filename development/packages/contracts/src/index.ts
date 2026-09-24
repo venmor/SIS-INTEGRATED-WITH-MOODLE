@@ -49,3 +49,5 @@ export type {
 export type * from "./applications.js";
 export type * from "./records.js";
 export type * from "./finance.js";
+export type * from "./teaching.js";
+export type * from "./integration.js";

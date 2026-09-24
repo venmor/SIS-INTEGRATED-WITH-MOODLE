@@ -149,6 +149,21 @@ export default async function Home() {
               Identity review queue
             </Link>
           ) : null}
+          {active?.role === "MOODLE_ADMIN" ? (
+            <Link className={styles.primary} href="/admin/moodle">
+              Moodle administration
+            </Link>
+          ) : null}
+          {active?.role === "INTEGRATION_SUPPORT" ? (
+            <Link className={styles.primary} href="/admin/integration">
+              Integration support
+            </Link>
+          ) : null}
+          {active?.role === "COORDINATOR" ? (
+            <Link className={styles.primary} href="/admin/teaching/groups">
+              Tutorial groups
+            </Link>
+          ) : null}
           {active?.role === "FINANCE_OFFICER" ||
           active?.role === "FINANCE_APPROVER" ? (
             <Link className={styles.primary} href="/admin/finance">

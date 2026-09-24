@@ -5,6 +5,7 @@ import { APPLICATION_DEMO_V1 as applications } from '@sis/config';
 import { STUDENT_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import { FinanceService } from '../finance/finance.service.js';
+import { IntegrationService } from '../integration/integration.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
@@ -48,7 +49,11 @@ export interface ReadinessAssessment {
 // information, never inferred outcomes.
 @Injectable()
 export class RegistrationService {
-  constructor(private readonly prisma: PrismaService, private readonly finance: FinanceService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly finance: FinanceService,
+    private readonly integration: IntegrationService,
+  ) {}
 
   private fail(
     code: string,
@@ -1129,12 +1134,25 @@ export class RegistrationService {
             data: { status: 'ACTIVE' },
           });
         }
+        // Phase 6 slice 2 envelope (TASK-PH6-002): every enrolment
+        // event carries source event ID, correlation, idempotency,
+        // payload version, delivery status, retry policy and
+        // reconciliation refs. The legacy `type` stays for readers.
+        const enrolEventId = randomUUID();
         await db.outboxEvent.create({
           data: {
+            id: enrolEventId,
             aggregate: 'InstitutionalRegistration',
             aggregateId: registration.id,
             type: 'MoodleEnrolmentQueued',
             payload: json({
+              eventId: enrolEventId,
+              eventType: 'zm.sis.registration.course-enrolled.v1',
+              correlationId: key,
+              idempotencyKey: key,
+              payloadVersion: 1,
+              deliveryStatus: 'QUEUED',
+              retryPolicy: 'MOODLE-DEMO-v1',
               registrationId: registration.id,
               attemptId: attempt.id,
               period: period.code,
@@ -1214,6 +1232,33 @@ export class RegistrationService {
       orderBy: { occurredAt: 'desc' },
     });
     const synced = outbox?.deliveredAt != null;
+    // Phase 6 slice 3 delivery states (TASK-PH6-003): dead-lettered
+    // handoffs read Delayed, manual-review handoffs read Failed.
+    // Registration stays valid in every non-synced state.
+    let moodle = synced
+      ? {
+          state: 'Synced',
+          detail: 'Enrolment handoff confirmed by the worker.',
+        }
+      : {
+          state: 'Queued',
+          detail:
+            'Enrolment is queued for handoff. Registration stays valid meanwhile.',
+        };
+    if (!synced && outbox) {
+      const flags = await this.integration.deliveryFlags([outbox.id]);
+      if (flags.manual) {
+        moodle = {
+          state: 'Failed',
+          detail: 'Moodle access needs support; registration remains valid.',
+        };
+      } else if (flags.deadLetter) {
+        moodle = {
+          state: 'Delayed',
+          detail: 'Registration is complete; Moodle access is delayed.',
+        };
+      }
+    }
     const amendments = await this.prisma.registrationAmendment.findMany({
       where: { registrationId: registration.id },
       orderBy: { version: 'asc' },
@@ -1222,16 +1267,7 @@ export class RegistrationService {
     return {
       registration: this.receiptView(registration, period.code),
       amendments: amendments.map((r) => this.amendmentView(r)),
-      moodle: synced
-        ? {
-            state: 'Synced',
-            detail: 'Enrolment handoff confirmed by the worker.',
-          }
-        : {
-            state: 'Queued',
-            detail:
-              'Enrolment is queued for handoff. Registration stays valid meanwhile.',
-          },
+      moodle,
     };
   }
 
@@ -1625,8 +1661,10 @@ export class RegistrationService {
             where: { id: amendment.registrationId },
             data: { version: { increment: 1 } },
           });
+          const changeEventId = randomUUID();
           await db.outboxEvent.create({
             data: {
+              id: changeEventId,
               aggregate: 'InstitutionalRegistration',
               aggregateId: amendment.registrationId,
               type:
@@ -1634,6 +1672,16 @@ export class RegistrationService {
                   ? 'MoodleCourseAdded'
                   : 'MoodleCourseRemoved',
               payload: json({
+                eventId: changeEventId,
+                eventType:
+                  amendment.kind === 'ADD'
+                    ? 'zm.sis.registration.course-added.v1'
+                    : 'zm.sis.registration.course-removed.v1',
+                correlationId: key,
+                idempotencyKey: key,
+                payloadVersion: 1,
+                deliveryStatus: 'QUEUED',
+                retryPolicy: 'MOODLE-DEMO-v1',
                 registrationId: amendment.registrationId,
                 courseCode: amendment.course.code,
                 amendmentVersion: nextVersion,
@@ -1866,18 +1914,28 @@ export class RegistrationService {
             status: 'ENROLLED',
           },
         });
-        await db.institutionalRegistration.update({
+        const bumped = await db.institutionalRegistration.update({
           where: { id: registration.id },
           data: { version: { increment: 1 } },
         });
+        const waitlistEventId = randomUUID();
         await db.outboxEvent.create({
           data: {
+            id: waitlistEventId,
             aggregate: 'InstitutionalRegistration',
             aggregateId: registration.id,
             type: 'MoodleCourseAdded',
             payload: json({
+              eventId: waitlistEventId,
+              eventType: 'zm.sis.registration.course-added.v1',
+              correlationId: key,
+              idempotencyKey: key,
+              payloadVersion: 1,
+              deliveryStatus: 'QUEUED',
+              retryPolicy: 'MOODLE-DEMO-v1',
               registrationId: registration.id,
               courseCode: entry.course.code,
+              amendmentVersion: bumped.version,
             }),
           },
         });

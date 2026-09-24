@@ -85,6 +85,11 @@ test("student portal: home, contact update, correction request", async ({
   await expect(page.getByText(/Receipt: REG-/)).toBeVisible();
   await noOverflow(page);
 
+  // Moodle handoff is queued: registration stays valid while sync pends.
+  await page.goto("/student/register");
+  await expect(page.getByText(/Moodle handoff: Queued/)).toBeVisible();
+  await noOverflow(page);
+
   // Course changes: request an addition, join a waitlist, see history.
   await page.goto("/student/changes");
   await expect(

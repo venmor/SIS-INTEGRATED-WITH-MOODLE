@@ -9,6 +9,8 @@ import { CatalogueModule } from './catalogue/catalogue.module.js';
 import { RecordsModule } from './records/records.module.js';
 import { RegistrationModule } from './registration/registration.module.js';
 import { FinanceModule } from './finance/finance.module.js';
+import { TeachingModule } from './teaching/teaching.module.js';
+import { IntegrationModule } from './integration/integration.module.js';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { FinanceModule } from './finance/finance.module.js';
     RecordsModule,
     RegistrationModule,
     FinanceModule,
+    TeachingModule,
+    IntegrationModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

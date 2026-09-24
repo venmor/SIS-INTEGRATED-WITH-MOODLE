@@ -42,6 +42,27 @@ export default async function SignInPage({
               "Assesses charges, reconciles cases, records sponsorships and cash.",
           },
           {
+            role: "Moodle administrator",
+            username: "mumba.s",
+            password: "Seed-2026-Mumba",
+            blurb:
+              "Manages Moodle mappings, shells and synchronization.",
+          },
+          {
+            role: "Integration support",
+            username: "kunda.b",
+            password: "Seed-2026-Kunda",
+            blurb:
+              "Retries deliveries, replays dead letters, reconciles drift.",
+          },
+          {
+            role: "Programme coordinator",
+            username: "mwila.t",
+            password: "Seed-2026-Mwila",
+            blurb:
+              "Manages tutorial groups, allocations and teaching assignments.",
+          },
+          {
             role: "Finance approver",
             username: "mulenga.g",
             password: "Seed-2026-Mulenga",

@@ -234,3 +234,21 @@ The new revisions preserve terms from this migration forward. A previously
 deleted allocation cannot be reconstructed. Real timetable checks remain
 GAP-021; finance step-up remains GAP-020. Human review, remote CI and any
 production deployment are not verified by this local run.
+
+## Phase 6 slices 0–6 (2026-09-24, fresh `sis_ph6_final_test` + `sis_browser_review_docs`)
+
+Moodle integration and recovery, simulator-only. Typecheck 0, web lint
+clean, API + web builds exit 0. API e2e **80/80 sequential on one
+shared DB**: teaching 15, mapping 12, envelope 7, sync 13, ops 8,
+replay 12, reconciliation 13 — covering the roadmap proof set
+(outage, duplicate/out-of-order, bad mapping, role-limited replay,
+drift), TEST-E2E-REG-001/OPS-011 shapes, TEST-REC-001/004/005/006/008
+shapes, and SoD denials incl. dual-hat refusal. Multi-file parallel
+runs are order-fragile on shared DBs (global simulator mode +
+maintenance windows); suites run sequentially, and recon assertions
+are student-scoped. Phase-4/5 regressions **88/88** unaffected.
+Browser **6/6**: portal (incl. Queued handoff), finance workspace,
+teaching, mappings, ops workspaces, full checkpoint. Unit + scripts +
+repo lint green. New gaps: GAP-021 (TG timetable). `backup:test`,
+manual screen-reader/WSL replay, remote CI, Vercel route check, and
+human walkthrough remain **not verified**. Uncommitted pending review.

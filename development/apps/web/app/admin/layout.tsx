@@ -37,6 +37,8 @@ function workspaceLabel(role: string | undefined) {
   if (role === "RECORDS_OFFICER") return "Records workspace";
   if (role === "FINANCE_OFFICER") return "Finance workspace";
   if (role === "FINANCE_APPROVER") return "Finance approval workspace";
+  if (role === "MOODLE_ADMIN") return "Moodle administration";
+  if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
   return "Staff workspace";
 }
@@ -65,6 +67,21 @@ export default async function AdminLayout({
       href: "/admin/finance",
       label: "Finance workspace",
       show: role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER",
+    },
+    {
+      href: "/admin/teaching/groups",
+      label: "Tutorial groups",
+      show: role === "COORDINATOR",
+    },
+    {
+      href: "/admin/moodle",
+      label: "Moodle administration",
+      show: role === "MOODLE_ADMIN",
+    },
+    {
+      href: "/admin/integration",
+      label: "Integration support",
+      show: role === "INTEGRATION_SUPPORT",
     },
     {
       href: "/admin/reviews",
