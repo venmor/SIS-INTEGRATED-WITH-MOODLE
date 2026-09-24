@@ -30,6 +30,8 @@ export default function PreviewLayout({
           <Link href="/design-preview">Overview</Link>
           <Link href="/design-preview/student">Student</Link>
           <Link href="/design-preview/teaching">Teaching</Link>
+          <Link href="/design-preview/assessment">Assessment</Link>
+          <Link href="/design-preview/student/results">Results</Link>
           <Link href="/design-preview/operations">Operations</Link>
         </nav>
       </header>
