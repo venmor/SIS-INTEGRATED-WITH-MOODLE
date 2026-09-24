@@ -30,7 +30,10 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 // Simulator answers locally; live performs a real version call.
 // Secrets never leave the server either way.
 export function ConnectionValidate() {
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    message: string;
+    severity: "success" | "warning";
+  } | null>(null);
   const [pending, setPending] = useState(false);
 
   async function validate() {
@@ -44,13 +47,16 @@ export function ConnectionValidate() {
         version?: string | null;
         detail?: string;
       };
-      setResult(
-        `${out.backend === "live" ? "Live" : "Simulator"}: ${out.detail ?? ""}${out.version ? ` (version ${out.version})` : ""}`,
-      );
+      setResult({
+        severity: out.ok === true ? "success" : "warning",
+        message: `${out.backend === "live" ? "Live" : "Simulator"}: ${out.detail ?? ""}${out.version ? ` (version ${out.version})` : ""}`,
+      });
     } catch (error) {
-      setResult(
-        error instanceof Error ? error.message : "Validation did not complete.",
-      );
+      setResult({
+        severity: "warning",
+        message:
+          error instanceof Error ? error.message : "Validation did not complete.",
+      });
     } finally {
       setPending(false);
     }
@@ -64,7 +70,15 @@ export function ConnectionValidate() {
         </button>
       </p>
       {result ? (
-        <Notice severity="info" title="Connection check" message={result} />
+        <Notice
+          severity={result.severity}
+          title={
+            result.severity === "success"
+              ? "Connection confirmed"
+              : "Connection needs attention"
+          }
+          message={result.message}
+        />
       ) : null}
     </>
   );
