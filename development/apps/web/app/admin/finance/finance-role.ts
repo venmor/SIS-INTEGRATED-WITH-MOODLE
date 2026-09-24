@@ -4,9 +4,14 @@ export type FinanceWorkspaceRole =
   | "FINANCE_OFFICER"
   | "FINANCE_APPROVER";
 
-export async function loadFinanceWorkspaceRole(): Promise<FinanceWorkspaceRole | null> {
+export type FinanceWorkspaceState =
+  | { kind: "ok"; role: FinanceWorkspaceRole }
+  | { kind: "denied" }
+  | { kind: "unavailable" };
+
+export async function loadFinanceWorkspaceState(): Promise<FinanceWorkspaceState> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) return null;
+  if (!sid) return { kind: "denied" };
 
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
@@ -15,15 +20,20 @@ export async function loadFinanceWorkspaceRole(): Promise<FinanceWorkspaceRole |
       cache: "no-store",
       signal: AbortSignal.timeout(10000),
     });
-    if (!response.ok) return null;
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "denied" };
+    }
+    if (!response.ok) return { kind: "unavailable" };
+
     const me = (await response.json()) as {
       activeWorkspace?: { role?: string } | null;
     };
     const role = me.activeWorkspace?.role;
-    return role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER"
-      ? role
-      : null;
+    if (role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER") {
+      return { kind: "ok", role };
+    }
+    return { kind: "denied" };
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
 }
