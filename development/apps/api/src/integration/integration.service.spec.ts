@@ -126,6 +126,225 @@ describe('IntegrationService read-only live mode', () => {
   });
 });
 
+describe('IntegrationService live reconciliation safety', () => {
+  it('reports live drift without queueing repair work while live writes are disabled', async () => {
+    const oldWrites = process.env.MOODLE_LIVE_WRITES;
+    process.env.MOODLE_LIVE_WRITES = 'false';
+
+    const prisma = {
+      reconciliationRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      moodleMapping: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'mapping-1',
+            sisId: 'offering-1:2026S1',
+            moodleId: '42',
+          },
+        ]),
+      },
+      programmeAttempt: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'attempt-1', studentId: 'student-1' },
+        ]),
+      },
+      courseRegistration: {
+        findMany: vi.fn().mockResolvedValue([
+          { registration: { attemptId: 'attempt-1' } },
+        ]),
+      },
+      student: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'student-1', studentNumber: 'STU-1' },
+        ]),
+      },
+      institutionalRegistration: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'registration-1' }),
+      },
+      integrationDeliveryAttempt: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+      },
+      outboxEvent: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'outbox-1',
+          aggregate: 'InstitutionalRegistration',
+          aggregateId: 'registration-1',
+          type: 'MoodleEnrolmentQueued',
+          payload: { eventType: 'zm.sis.registration.enrolment-queued.v1' },
+        }),
+        create: vi.fn(),
+      },
+      tGAllocation: { findMany: vi.fn().mockResolvedValue([]) },
+      reconciliationCase: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'case-1' }),
+      },
+      auditEvent: { create: vi.fn().mockResolvedValue({}) },
+    };
+
+    const service = new IntegrationService(prisma as never);
+    const internals = service as unknown as {
+      opsRole: () => Promise<string>;
+      adapter: () => {
+        backend: 'live';
+        listActualEnrolments: () => Promise<unknown[]>;
+        listActualGroupMembers: () => Promise<unknown[]>;
+      };
+    };
+    internals.opsRole = vi.fn().mockResolvedValue('MOODLE_ADMIN');
+    internals.adapter = vi.fn().mockReturnValue({
+      backend: 'live',
+      listActualEnrolments: vi.fn().mockResolvedValue([]),
+      listActualGroupMembers: vi.fn().mockResolvedValue([]),
+    });
+
+    try {
+      await expect(
+        service.runReconciliation({
+          accountId: 'account-1',
+          assignmentId: 'assignment-1',
+          activeRole: 'MOODLE_ADMIN',
+        } as never),
+      ).resolves.toMatchObject({
+        diffs: 1,
+        repaired: 0,
+        cases: 1,
+      });
+      expect(prisma.outboxEvent.create).not.toHaveBeenCalled();
+      expect(prisma.integrationDeliveryAttempt.create).not.toHaveBeenCalled();
+      expect(prisma.reconciliationCase.create).toHaveBeenCalled();
+    } finally {
+      process.env.MOODLE_LIVE_WRITES = oldWrites;
+    }
+  });
+
+  it('stores the resolved live Moodle course id in the active shell mapping', async () => {
+    const mapping = {
+      id: 'mapping-1',
+      kind: 'SHELL',
+      sisType: 'OFFERING',
+      sisId: 'offering-1:2026S1',
+      moodleId: 'SIM-SH-SWE-2026S1',
+      status: 'ACTIVE',
+    };
+    const db = {
+      programmeOffering: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'offering-1',
+          intake: '2026S1',
+          programme: { code: 'SWE' },
+        }),
+      },
+      academicPeriod: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'period-1',
+          code: '2026S1',
+        }),
+      },
+      moodleMapping: {
+        findFirst: vi.fn().mockResolvedValue(mapping),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue({ ...mapping, moodleId: '42' }),
+      },
+    };
+    const service = new IntegrationService({} as never);
+    const internals = service as unknown as {
+      adapter: () => {
+        backend: 'live';
+        ensureShell: () => Promise<{ id: string; created: boolean }>;
+      };
+      shellFor: (
+        tx: unknown,
+        offeringId: string,
+        periodCode: string,
+      ) => Promise<{ id: string; ref: string }>;
+    };
+    internals.adapter = vi.fn().mockReturnValue({
+      backend: 'live',
+      ensureShell: vi.fn().mockResolvedValue({ id: '42', created: false }),
+    });
+
+    await expect(
+      internals.shellFor(db, 'offering-1', '2026S1'),
+    ).resolves.toEqual({
+      id: '42',
+      ref: 'SIM-SH-SWE-2026S1',
+    });
+    expect(db.moodleMapping.update).toHaveBeenCalledWith({
+      where: { id: 'mapping-1' },
+      data: { moodleId: '42' },
+    });
+  });
+
+  it('reads shell counts from the live adapter instead of simulator tables in live mode', async () => {
+    const prisma = {
+      moodleMapping: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'mapping-1',
+            sisId: 'offering-1:2026S1',
+            moodleId: '42',
+            status: 'ACTIVE',
+          },
+        ]),
+      },
+      programmeOffering: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'offering-1',
+            intake: '2026S1',
+            programme: { code: 'SWE' },
+          },
+        ]),
+      },
+      simShell: { findMany: vi.fn() },
+    };
+    const service = new IntegrationService(prisma as never);
+    const internals = service as unknown as {
+      moodleAdmin: () => Promise<void>;
+      adapter: () => {
+        backend: 'live';
+        listActualEnrolments: () => Promise<Array<{ status: string }>>;
+        listActualGroupMembers: () => Promise<Array<{ status: string }>>;
+      };
+    };
+    internals.moodleAdmin = vi.fn().mockResolvedValue(undefined);
+    internals.adapter = vi.fn().mockReturnValue({
+      backend: 'live',
+      listActualEnrolments: vi.fn().mockResolvedValue([
+        { key: 'STU-1', role: 'Student', status: 'ACTIVE' },
+        { key: 'STU-2', role: 'Student', status: 'ACTIVE' },
+      ]),
+      listActualGroupMembers: vi.fn().mockResolvedValue([
+        { groupKey: 'Tutorial A', studentKey: 'STU-1', status: 'ACTIVE' },
+      ]),
+    });
+
+    await expect(
+      service.listShells({
+        accountId: 'account-1',
+        assignmentId: 'assignment-1',
+        activeRole: 'MOODLE_ADMIN',
+      } as never),
+    ).resolves.toEqual({
+      items: [
+        {
+          shellRef: 'SIM-SH-SWE-2026S1',
+          offeringId: 'offering-1',
+          periodId: '2026S1',
+          status: 'ACTIVE',
+          activeEnrolments: 2,
+          activeGroupMembers: 1,
+        },
+      ],
+    });
+    expect(prisma.simShell.findMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('IntegrationService delivery lease', () => {
   it('returns stale DELIVERING claims to PENDING before scanning due work', async () => {
     const oldUrl = process.env.MOODLE_API_URL;
