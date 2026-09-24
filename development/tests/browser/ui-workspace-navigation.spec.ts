@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  createAdmissionsOfficer,
   createFinanceApprover,
   createFinanceOfficer,
   createIntegrationSupport,
@@ -103,7 +104,8 @@ test.describe.serial("role-aware workspace navigation", () => {
   });
 
   test("admissions navigation remains role-scoped", async ({ page }) => {
-    await signIn(page, "temwani.r", "Seed-2026-Temwani");
+    const officer = await createAdmissionsOfficer();
+    await signIn(page, officer.username, officer.password);
 
     const nav = page.getByRole("navigation", { name: "Workspace navigation" });
     await expect(nav.getByRole("link", { name: "Admissions" })).toBeVisible();
