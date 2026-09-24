@@ -1615,7 +1615,7 @@ async function ensureDemoStoryPack(): Promise<void> {
     },
     update: {},
     create: {
-      shellRef: `SWE-${period.code}-DEMO`,
+      shellRef: `SIM-SH-${offering.programme.code}-${offering.intake}`,
       offeringId: offering.id,
       periodId: period.id,
       status: "ACTIVE",
