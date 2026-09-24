@@ -162,9 +162,8 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       this.config.restPath,
       this.config.baseUrl + '/',
     );
-    // Token travels as a request parameter per Moodle REST convention;
-    // it is never written to logs, audit metadata, or the database.
-    url.searchParams.set(live.tokenParam, this.config.token);
+    // Keep the credential out of the request URL so reverse-proxy and APM
+    // access logs do not capture it. Moodle REST merges GET + POST params.
     for (const [k, v] of Object.entries(live.formatParam)) {
       url.searchParams.set(k, v);
     }
@@ -174,6 +173,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     let res: Response;
     try {
       const form = moodleForm(params);
+      form.set(live.tokenParam, this.config.token);
       res = await fetch(url, {
         method: 'POST',
         headers: {
