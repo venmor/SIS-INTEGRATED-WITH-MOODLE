@@ -45,7 +45,11 @@ export default async function MoodleAdminPage() {
     }>("/shells"),
     loadStaff<{ items: DeliveryItem[] }>("/deliveries"),
   ]);
-  if (!health.ok || !shells.ok || !deliveries.ok)
+  if (!health.ok || !shells.ok || !deliveries.ok) {
+    const failures = [health, shells, deliveries].filter((item) => !item.ok);
+    const denied = failures.some(
+      (item) => !item.ok && (item.status === 401 || item.status === 403),
+    );
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -53,13 +57,22 @@ export default async function MoodleAdminPage() {
           <h1 className={styles.title}>Moodle administration</h1>
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs Moodle administration authority. Sign in with a Moodle role or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={denied ? "Moodle access unavailable" : "Moodle data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs Moodle administration authority. Sign in with a Moodle role or ask an administrator."
+                : "The integration service could not load Moodle operational data. SIS records remain authoritative; restore connectivity, then retry this workspace."
+            }
+            action={
+              denied
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry Moodle administration", href: "/admin/moodle" }
+            }
           />
         </main>
       </div>
     );
+  }
 
   const backendLabel = moodleBackendLabel(health.data.backend);
   const attention = deliveries.data.items.filter((item) =>
