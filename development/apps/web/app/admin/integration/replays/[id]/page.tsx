@@ -32,7 +32,7 @@ interface ReplayItem {
   createdAt: string;
 }
 
-// UI-DECISION-001 replay decision: frozen evidence package, reason and
+// UI-DECISION-001 replay decision: frozen evidence, consequence and
 // declaration. The signatory sees exactly the version they sign.
 export default async function ReplayDecidePage({
   params,
@@ -41,9 +41,7 @@ export default async function ReplayDecidePage({
 }) {
   const { id } = await params;
   const list = await loadStaff<{ items: ReplayItem[] }>("/replays");
-  const item = list.ok
-    ? list.data.items.find((r) => r.id === id)
-    : undefined;
+  const item = list.ok ? list.data.items.find((r) => r.id === id) : undefined;
   if (!item)
     return (
       <div className={styles.page}>
@@ -59,32 +57,50 @@ export default async function ReplayDecidePage({
         </main>
       </div>
     );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>
-          Replay decision · {item.status}
-        </h1>
+        <h1 className={styles.title}>Replay decision · {item.status}</h1>
         <p>
           <Link href="/admin/integration">Integration support</Link>
         </p>
+
+        <section className={styles.section} aria-label="Replay consequence">
+          <h2>Replay consequence</h2>
+          <p>
+            An approved replay is idempotent: it retries delivery with the
+            preserved correlation evidence and must not create a second
+            destination record.
+          </p>
+          <p>
+            Four-eyes control applies. A second officer must decide the replay;
+            the requester cannot approve their own request. Approval resets
+            delivery work only and does not edit the SIS source record.
+          </p>
+        </section>
+
         <Notice
           severity="info"
           title="Frozen evidence package"
-          message="This replay preserves correlation and idempotency. It will not create a second enrolment or record change if the destination already processed it. The evidence below is the exact version you sign."
+          message="The evidence below is the exact version attached to this decision. Review it before signing."
         />
-        <h2>Evidence</h2>
-        <pre>{JSON.stringify(item.evidence, null, 2)}</pre>
+
+        <section className={styles.section} aria-label="Replay evidence">
+          <h2>Evidence</h2>
+          <pre>{JSON.stringify(item.evidence, null, 2)}</pre>
+        </section>
+
         {item.status === "PENDING" ? (
-          <>
+          <section className={styles.section} aria-label="Sign replay decision">
             <h2>Sign the decision</h2>
             <p>
-              I confirm that I have reviewed the stated evidence and make
-              this decision within my assigned authority.
+              I confirm that I have reviewed the stated evidence and make this
+              decision within my assigned authority.
             </p>
             <ReplayDecideForm replayId={item.id} />
-          </>
+          </section>
         ) : null}
       </main>
     </div>
