@@ -139,35 +139,28 @@ try {
     "held student registration/active financial hold missing",
   );
 
-  const delayed = await db.integrationDeliveryAttempt.findFirst({
-    where: {
-      outbox: {
-        payload: {
-          path: ["demoMarker"],
-          equals: DEMO_SCENARIOS.integration.delayedMarker,
-        },
-      },
-      state: "PENDING",
-    },
+  const deliveryRows = await db.integrationDeliveryAttempt.findMany({
     include: { outbox: true },
   });
+  const delayed = deliveryRows.find(
+    (row) =>
+      row.state === "PENDING" &&
+      row.nextRunAt != null &&
+      row.outbox.payload?.demoMarker ===
+        DEMO_SCENARIOS.integration.delayedMarker,
+  );
   check(
-    !!delayed && !!delayed.nextRunAt,
+    !!delayed,
     "Moodle delayed delivery",
     "future pending Moodle delivery missing",
   );
 
-  const dead = await db.integrationDeliveryAttempt.findFirst({
-    where: {
-      outbox: {
-        payload: {
-          path: ["demoMarker"],
-          equals: DEMO_SCENARIOS.integration.deadLetterMarker,
-        },
-      },
-      state: "DEAD_LETTER",
-    },
-  });
+  const dead = deliveryRows.find(
+    (row) =>
+      row.state === "DEAD_LETTER" &&
+      row.outbox.payload?.demoMarker ===
+        DEMO_SCENARIOS.integration.deadLetterMarker,
+  );
   const replay = dead
     ? await db.replayDecision.findFirst({
         where: { attemptId: dead.id, status: "PENDING" },
