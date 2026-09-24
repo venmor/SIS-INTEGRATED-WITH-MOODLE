@@ -77,7 +77,7 @@ export default function DemoEvidencePage() {
         <h2 id="a11y-heading">Accessibility evidence checklist</h2>
         <ul className={styles.checklist}>
           <li>390px and 1440px critical-route checks have no horizontal overflow.</li>
-          <li>Keyboard focus remains visible on navigation, filters and actions.</li>
+          <li>Keyboard focus contracts cover navigation and representative live form/action controls.</li>
           <li>Status and authority are written in text; colour is never the only signal.</li>
           <li>Critical icon actions retain an accessible text label.</li>
         </ul>
