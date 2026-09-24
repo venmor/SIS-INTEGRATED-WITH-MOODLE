@@ -235,10 +235,10 @@ test("reconciliation return path follows the active operations role", async ({
   await signIn(page, support.username, support.password);
   await page.goto("/admin/integration/reconciliation");
   await expect(
-    page.getByRole("link", { name: "Integration support" }),
+    page.getByRole("link", { name: "Integration support", exact: true }),
   ).toHaveAttribute("href", "/admin/integration");
   await expect(
-    page.getByRole("link", { name: "Moodle administration" }),
+    page.getByRole("link", { name: "Moodle administration", exact: true }),
   ).toHaveCount(0);
 
   await page.context().clearCookies();
