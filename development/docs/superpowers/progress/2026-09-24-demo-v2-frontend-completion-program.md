@@ -20,3 +20,8 @@ Task 1 Ruling: add a parallel `ui-contracts` CI job that provisions an isolated 
 Task 1 RED: isolated `ui-contracts` job in CI run 36016459340 built and seeded successfully, then `ui-workspace-navigation.spec.ts` failed exactly because `getByRole("navigation", { name: "Workspace navigation" })` found no element on the signed-in student home; later serial cases were skipped.
 
 Task 1 Ruling: add `student/layout.tsx` even though the plan listed only student CSS. Current student pages are fragments with no shared route layout, so a persistent navigation cannot exist across `/student/**` otherwise. Cost if wrong: one additional `/auth/me` read per student route render; no student domain mutation or authorization rule changes.
+
+
+Task 1: complete — isolated UI job in CI run 36017087297 passed build, migration/seed and all four `ui-workspace-navigation.spec.ts` contracts on `0c0fdc7`. The full `verify` job remains independently affected by the recorded Phase-6 baseline API e2e failures.
+
+Task 2 RED contract: student home must order `Required action → Registration → Finance → Courses and changes`; readiness conditions must expose owner and next step structurally; student finance must expose a labelled Finance summary; finance staff home must expose a labelled work queue rather than dashboard-card composition.
