@@ -45,30 +45,59 @@ export default async function TeachingGroupsPage() {
         </main>
       </div>
     );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Tutorial groups</h1>
+        <p className={styles.lede}>
+          Manage group capacity, tutor ownership and student allocation inside
+          your active programme scope.
+        </p>
         <p>
           <Link href="/">Workspace home</Link>
         </p>
-        {list.data.items.length === 0 ? (
-          <p>No tutorial groups yet.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.name} · {item.status}
-                </strong>{" "}
-                — {item.allocated}/{item.capacity} allocated · {item.programme}{" "}
-                {item.intake} · ID {item.id}
-              </li>
-            ))}
-          </ul>
-        )}
-        <GroupForms />
+
+        <section
+          className={styles.section}
+          aria-label="Tutorial group authority"
+        >
+          <h2>Tutorial group authority</h2>
+          <p>
+            SIS owns tutorial-group activation, capacity and allocation.
+            Moodle mirrors active SIS groups; changes made here do not make
+            Moodle the source record.
+          </p>
+          <p className={styles.supporting}>
+            Your active coordinator role and programme scope are shown in the
+            workspace context beside this page.
+          </p>
+        </section>
+
+        <section className={styles.section} aria-label="Tutorial groups">
+          <h2>Groups</h2>
+          {list.data.items.length === 0 ? (
+            <p>No tutorial groups yet.</p>
+          ) : (
+            <ul>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.name} · {item.status}
+                  </strong>{" "}
+                  — {item.allocated}/{item.capacity} allocated · {item.programme}{" "}
+                  {item.intake} · ID {item.id}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.section} aria-label="Tutorial group actions">
+          <h2>Group actions</h2>
+          <GroupForms />
+        </section>
       </main>
     </div>
   );
