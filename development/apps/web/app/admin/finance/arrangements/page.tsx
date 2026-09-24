@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ArrangementView } from "@sis/contracts";
 import { Notice, PageHeader } from "@sis/ui";
 import { ArrangementDecide } from "./forms";
-import { loadFinanceWorkspaceRole } from "../finance-role";
+import { loadFinanceWorkspaceState } from "../finance-role";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +29,14 @@ async function loadStaff<T>(
 // Payment arrangements: student requests, approver decides. Approval
 // grants a time-boxed clearance entitlement, not a vague note.
 export default async function ArrangementsPage() {
-  const [role, list] = await Promise.all([
-    loadFinanceWorkspaceRole(),
+  const [workspace, list] = await Promise.all([
+    loadFinanceWorkspaceState(),
     loadStaff<{ items: ArrangementView[] }>("/arrangements"),
   ]);
-  if (!role || !list.ok)
+  if (workspace.kind !== "ok" || !list.ok) {
+    const denied =
+      workspace.kind === "denied" ||
+      (!list.ok && (list.status === 401 || list.status === 403));
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -43,13 +46,23 @@ export default async function ArrangementsPage() {
           />
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs finance authority. Sign in with a finance role or ask an administrator."
-            action={{ label: "Finance workspace", href: "/admin/finance" }}
+            title={denied ? "Finance access unavailable" : "Finance data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs finance authority."
+                : "The system could not confirm the arrangement queue. Keep the current references and retry when connectivity is restored."
+            }
+            action={
+              denied
+                ? { label: "Finance workspace", href: "/admin/finance" }
+                : { label: "Retry arrangements", href: "/admin/finance/arrangements" }
+            }
           />
         </main>
       </div>
     );
+  }
+  const role = workspace.role;
   return (
     <div className={styles.page}>
       <main className={styles.main}>
