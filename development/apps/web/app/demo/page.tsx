@@ -5,8 +5,8 @@ const STORIES = [
   {
     title: "1 · Applicant to registered student",
     persona: "Lombe A. (offer checkpoint) · Phiri N. (registered checkpoint)",
-    route: "/applications",
-    href: "/applications",
+    route: "/applicant",
+    href: "/applicant",
     objective:
       "Show a released admission offer, then the live student finance, registration and Moodle handoff states.",
     fallback:
