@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ConnectionView, MappingView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { MappingForms } from "./forms";
+import { ConnectionValidate } from "./validate";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,6 @@ export default async function MappingsPage() {
         </main>
       </div>
     );
-
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -66,8 +66,9 @@ export default async function MappingsPage() {
           <Notice
             severity={health.data.status === "HEALTHY" ? "success" : "warning"}
             title={`Connection ${health.data.status}`}
-            message={`Provider ${health.data.provider}. Health reports state only; credential values are never shown here.`}
+            message={`Provider ${health.data.provider} · Backend ${(health.data as { backend?: string }).backend ?? "simulator"}. Health reports state only; credential values are never shown here.`}
           />
+          <ConnectionValidate />
           <p>
             SIS identifiers remain the source side of each mapping. Activation
             changes how governed sync resolves a Moodle destination; it does
