@@ -224,12 +224,16 @@ export class LiveMoodleAdapter implements MoodleAdapter {
   }
 
   private async courseIdByShortname(shortname: string): Promise<number | null> {
-    const found = await this.call<Array<{ id: number }>>(
-      'core_course_get_courses_by_field',
-      { field: 'shortname', value: shortname },
-    );
-    const courses = Array.isArray(found) ? found : (found as { courses?: Array<{ id: number }> }).courses ?? [];
-    return courses.length > 0 ? courses[0].id : null;
+    const found = await this.call<
+      | Array<{ id: number; shortname?: string }>
+      | { courses?: Array<{ id: number; shortname?: string }> }
+    >('core_course_get_courses_by_field', {
+      field: 'shortname',
+      value: shortname,
+    });
+    const courses = Array.isArray(found) ? found : found.courses ?? [];
+    const exact = courses.find((course) => course.shortname === shortname);
+    return exact?.id ?? null;
   }
 
   private async userIdByIdnumber(idnumber: string): Promise<number | null> {
