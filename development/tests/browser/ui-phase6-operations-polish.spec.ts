@@ -61,7 +61,7 @@ async function seedOperationalEvidence() {
     });
     const replay = await db.replayDecision.create({
       data: {
-        scope: `ATTEMPT:${attempt.id}`,
+        scope: "attempt",
         attemptId: attempt.id,
         evidence: {
           sourceTruth: "SIS registration remains registered",
@@ -191,8 +191,10 @@ test.describe.serial("Phase 6 operations presentation", () => {
     await signIn(page, coordinator.username, coordinator.password);
     await page.goto("/admin/teaching/groups");
 
-    await expect(page.getByText("COORDINATOR", { exact: true })).toBeVisible();
-    await expect(page.getByText(/PROGRAMME.*SWE/)).toBeVisible();
+    const context = page.getByRole("status", {
+      name: /Active workspace: COORDINATOR workspace/,
+    });
+    await expect(context).toContainText("PROGRAMME:SWE");
     const authority = page.getByRole("region", {
       name: "Tutorial group authority",
     });
