@@ -33,3 +33,64 @@
 .receipts p {
   margin: 0 0 var(--space-1);
 }
+
+
+.summary {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.summaryHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.summaryHeading svg {
+  color: var(--text-secondary);
+}
+
+.summaryHeading h2 {
+  margin: 0;
+  font-size: var(--font-section);
+}
+
+.summaryFacts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.summaryFacts div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  padding-right: var(--space-4);
+}
+
+.summaryFacts dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.summaryFacts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 700px) {
+  .summaryFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 430px) {
+  .summaryFacts {
+    grid-template-columns: 1fr;
+  }
+}
