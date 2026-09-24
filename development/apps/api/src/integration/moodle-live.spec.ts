@@ -63,6 +63,7 @@ async function listen(server: Server): Promise<string> {
 
 describe('LiveMoodleAdapter contract', () => {
   const oldWrites = process.env.MOODLE_LIVE_WRITES;
+  const oldCategory = process.env.MOODLE_CATEGORY_ID;
 
   beforeEach(() => {
     delete process.env.MOODLE_LIVE_WRITES;
@@ -70,6 +71,7 @@ describe('LiveMoodleAdapter contract', () => {
 
   afterEach(() => {
     process.env.MOODLE_LIVE_WRITES = oldWrites;
+    process.env.MOODLE_CATEGORY_ID = oldCategory;
   });
 
   it('uses Moodle form encoding without placing the token in the request URL', async () => {
@@ -146,6 +148,7 @@ describe('LiveMoodleAdapter contract', () => {
 
   it('flattens nested Moodle parameters using bracket notation', async () => {
     process.env.MOODLE_LIVE_WRITES = 'true';
+    process.env.MOODLE_CATEGORY_ID = '1';
     const { server, calls } = stub((seen) => {
       if (seen.wsfunction === 'core_course_get_courses_by_field')
         return { status: 200, json: { courses: [] } };
@@ -183,6 +186,41 @@ describe('LiveMoodleAdapter contract', () => {
       expect(create?.form.get('courses[0][shortname]')).toBe('SWE-2026S1');
       expect(create?.form.get('courses[0][categoryid]')).toBe('1');
       expect(create?.form.get('courses[0][visible]')).toBe('0');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('requires an explicitly configured course category before live shell creation', async () => {
+    process.env.MOODLE_LIVE_WRITES = 'true';
+    delete process.env.MOODLE_CATEGORY_ID;
+    const { server, calls } = stub((seen) => {
+      if (seen.wsfunction === 'core_course_get_courses_by_field')
+        return { status: 200, json: { courses: [] } };
+      if (seen.wsfunction === 'core_course_create_courses')
+        return { status: 200, json: [{ id: 42 }] };
+      return { status: 400, json: { exception: 'unexpected' } };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prismaDouble(), {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.ensureShell({
+          db: {} as never,
+          shellRef: 'SWE-2026S1',
+          offeringId: 'o',
+          periodId: 'p',
+        }),
+      ).rejects.toThrow(/MOODLE_CATEGORY_ID.*required/i);
+      expect(
+        calls.some((call) => call.wsfunction === 'core_course_create_courses'),
+      ).toBe(false);
     } finally {
       server.close();
     }
@@ -285,6 +323,45 @@ describe('LiveMoodleAdapter contract', () => {
               id: 88,
               idnumber: 'staff-mutinta.l',
               roles: [{ shortname: 'editingteacher' }],
+            },
+          ],
+        };
+      }
+      return { status: 400, json: { exception: 'unexpected' } };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prismaDouble(), {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.listActualEnrolments({ id: '7', ref: 'SWE-2026S1' }),
+      ).resolves.toEqual([
+        {
+          key: 'STU-DEMO-0001',
+          role: 'Student',
+          status: 'ACTIVE',
+        },
+      ]);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('uses the configured Student role id for reconciliation even when the Moodle shortname is custom', async () => {
+    const { server } = stub((seen) => {
+      if (seen.wsfunction === 'core_enrol_get_enrolled_users') {
+        return {
+          status: 200,
+          json: [
+            {
+              id: 77,
+              idnumber: 'STU-DEMO-0001',
+              roles: [{ roleid: 5, shortname: 'learner' }],
             },
           ],
         };
@@ -417,6 +494,51 @@ describe('LiveMoodleAdapter contract', () => {
       );
       expect(enrol?.form.get('enrolments[0][roleid]')).toBe('5');
       expect(enrol?.form.get('enrolments[0][userid]')).toBe('77');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('refuses to broaden a group-scoped tutor quiz role to the whole Moodle course', async () => {
+    process.env.MOODLE_LIVE_WRITES = 'true';
+    const prisma = prismaDouble() as unknown as {
+      account: { findUnique: ReturnType<typeof vi.fn> };
+    };
+    prisma.account.findUnique.mockResolvedValue({ username: 'tutor.one' });
+    const { server, calls } = stub((seen) => {
+      if (seen.wsfunction === 'core_user_get_users')
+        return { status: 200, json: { users: [{ id: 88 }] } };
+      if (seen.wsfunction === 'core_enrol_get_enrolled_users')
+        return { status: 200, json: [] };
+      if (seen.wsfunction === 'enrol_manual_enrol_users')
+        return { status: 200, json: null };
+      return { status: 400, json: { exception: 'unexpected' } };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prisma as never, {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.applyStaffRole({
+          db: {} as never,
+          shell: { id: '7', ref: 'SWE-2026S1' },
+          accountId: 'staff-row-id',
+          moodleRole: 'Non-editing Teacher',
+          quizScope: { groupIds: ['tg-1'] },
+          scenario: 'SUCCESS',
+        }),
+      ).rejects.toMatchObject({
+        retryable: false,
+        message: expect.stringMatching(/group-scoped.*not supported/i),
+      });
+      expect(
+        calls.some((call) => call.wsfunction === 'enrol_manual_enrol_users'),
+      ).toBe(false);
     } finally {
       server.close();
     }
