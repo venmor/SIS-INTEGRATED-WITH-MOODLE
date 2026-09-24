@@ -33,4 +33,20 @@ export const MOODLE_DEMO_V1 = {
     "MAINTENANCE",
     "UNKNOWN",
   ],
+  // Live-adapter connection (TASK-MOODLE-LIVE). The simulator stays the
+  // default: live calls happen only when an explicit base URL and token
+  // are configured. The token lives in env only, never in config rows,
+  // logs, or the database. Real instance/version/auth remain open
+  // production decisions; until they close, this stays inert.
+  live: {
+    // Set MOODLE_API_URL (e.g. https://moodle.example.edu) to arm live.
+    // Empty means simulator-only, always.
+    urlEnvVar: "MOODLE_API_URL",
+    tokenEnvVar: "MOODLE_API_TOKEN",
+    timeoutMs: 15000,
+    // Moodle External Services REST endpoint layout.
+    restPath: "/webservice/rest/server.php",
+    tokenParam: "wstoken",
+    formatParam: { moodlewsrestformat: "json" },
+  },
 } as const;
