@@ -5,7 +5,9 @@ import {
   createIntegrationSupport,
   createLecturerWorkspaceUser,
   createMoodleAdmin,
+  createRecordsOfficer,
   createStudent,
+  createSystemAdmin,
 } from "./fixtures";
 
 async function signIn(
@@ -124,4 +126,29 @@ test("recognized IAM roles without a Phase-6 operational screen get an honest la
     page.getByRole("navigation", { name: "Workspace navigation" }),
   ).toHaveCount(0);
   await expect(page.getByText(/does not expose an authoritative operational screen/i)).toBeVisible();
+});
+
+
+test("records and system administration navigation remain scope-correct", async ({
+  page,
+}) => {
+  const records = await createRecordsOfficer();
+  await signIn(page, records.username, records.password);
+
+  let nav = page.getByRole("navigation", { name: "Workspace navigation" });
+  await expect(
+    nav.getByRole("link", { name: "Identity review" }),
+  ).toHaveAttribute("href", "/admin/records/duplicates");
+  await expect(nav.getByRole("link", { name: "Finance workspace" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Access reviews" })).toHaveCount(0);
+
+  await page.context().clearCookies();
+  const admin = await createSystemAdmin();
+  await signIn(page, admin.username, admin.password);
+  nav = page.getByRole("navigation", { name: "Workspace navigation" });
+  await expect(nav.getByRole("link", { name: "Access reviews" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Role assignments" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Audit trail" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Admissions" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Moodle" })).toHaveCount(0);
 });
