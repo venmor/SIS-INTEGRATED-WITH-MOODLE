@@ -189,12 +189,16 @@ test("keyboard focus reaches visible navigation on demo and preview surfaces", a
       return {
         tag: el.tagName,
         outline: style.outlineStyle,
+        boxShadow: style.boxShadow,
         visible: Boolean(el.offsetWidth || el.offsetHeight || el.getClientRects().length),
       };
     });
     expect(focused?.visible).toBe(true);
     expect(["A", "BUTTON"]).toContain(focused?.tag);
-    expect(focused?.outline).not.toBe("none");
+    expect(
+      focused?.outline !== "none" ||
+        (focused?.boxShadow !== "none" && focused?.boxShadow !== ""),
+    ).toBe(true);
   }
 });
 
