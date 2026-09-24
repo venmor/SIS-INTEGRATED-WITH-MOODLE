@@ -5,9 +5,8 @@ import type {
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import { Notice, PageHeader } from "@sis/ui";
 import { RegisterForm } from "./form";
-import styles from "../../applicant/applicant.module.css";
 
 async function loadRegistration<T>(
   path: string,
@@ -52,17 +51,20 @@ export default async function RegisterPage() {
   if (!plan.data)
     return (
       <>
-        <p className={styles.eyebrow}>Formal registration</p>
-        <h1>Review registration</h1>
+        <PageHeader
+          eyebrow="Formal registration"
+          title="Review registration"
+        />
         <StudentUnavailable message={plan.message} />
       </>
     );
   return (
     <>
-      <p className={styles.eyebrow}>
-        Formal registration · {plan.data.period}
-      </p>
-      <h1>Review registration</h1>
+      <PageHeader
+        eyebrow={`Formal registration · ${plan.data.period}`}
+        title="Review registration"
+        lede="Review the validated course plan and declarations before one formal submission."
+      />
       {status.data?.registration ? (
         <>
           <Notice
