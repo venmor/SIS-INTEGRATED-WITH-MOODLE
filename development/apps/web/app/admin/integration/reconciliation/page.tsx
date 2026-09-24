@@ -41,9 +41,8 @@ interface ReconRun {
   startedAt: string;
 }
 
-// Expected-vs-actual reconciliation: SIS roster against simulator
-// projections. Safe diffs repair by requeue; the rest open governed
-// cases. Closure needs delivery confirmation or a linked domain action.
+// Expected-vs-actual reconciliation: SIS truth against simulator
+// projections. Safe diffs repair by requeue; the rest open governed cases.
 export default async function ReconciliationPage() {
   const [runs, cases] = await Promise.all([
     loadStaff<{ items: ReconRun[] }>("/reconciliation/runs"),
@@ -64,6 +63,7 @@ export default async function ReconciliationPage() {
         </main>
       </div>
     );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -73,39 +73,62 @@ export default async function ReconciliationPage() {
           <Link href="/admin/integration">Integration support</Link> ·{" "}
           <Link href="/admin/moodle">Moodle administration</Link>
         </p>
-        <ReconForms />
-        <h2>Runs</h2>
-        {runs.data.items.length === 0 ? (
-          <p>No reconciliation runs yet.</p>
-        ) : (
-          <ul>
-            {runs.data.items.map((run) => (
-              <li key={run.id}>
-                <strong>
-                  {run.scope} · {run.status}
-                </strong>{" "}
-                — diffs {run.summary?.diffs ?? 0}, repaired{" "}
-                {run.summary?.repaired ?? 0}, cases {run.summary?.cases ?? 0}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2>Cases</h2>
-        {cases.data.items.length === 0 ? (
-          <p>No reconciliation cases. Differences open governed cases here.</p>
-        ) : (
-          <ul>
-            {cases.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.kind} · {item.status}
-                </strong>{" "}
-                · ID {item.id}
-                {item.resolution ? ` — ${item.resolution}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
+
+        <section
+          className={styles.section}
+          aria-label="Reconciliation authority"
+        >
+          <h2>Expected and actual state</h2>
+          <p>
+            SIS registration and teaching records define expected state.
+            Moodle simulator rows are destination evidence. Reconciliation may
+            safely requeue delivery, but it never rewrites SIS truth to match a
+            destination discrepancy.
+          </p>
+        </section>
+
+        <section className={styles.section} aria-label="Run reconciliation">
+          <h2>Run reconciliation</h2>
+          <ReconForms />
+        </section>
+
+        <section className={styles.section} aria-label="Reconciliation runs">
+          <h2>Runs</h2>
+          {runs.data.items.length === 0 ? (
+            <p>No reconciliation runs yet.</p>
+          ) : (
+            <ul>
+              {runs.data.items.map((run) => (
+                <li key={run.id}>
+                  <strong>
+                    {run.scope} · {run.status}
+                  </strong>{" "}
+                  — diffs {run.summary?.diffs ?? 0}, repaired{" "}
+                  {run.summary?.repaired ?? 0}, cases {run.summary?.cases ?? 0}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.section} aria-label="Reconciliation cases">
+          <h2>Cases</h2>
+          {cases.data.items.length === 0 ? (
+            <p>No reconciliation cases. Differences open governed cases here.</p>
+          ) : (
+            <ul>
+              {cases.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.kind} · {item.status}
+                  </strong>{" "}
+                  · ID {item.id}
+                  {item.resolution ? ` — ${item.resolution}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </div>
   );
