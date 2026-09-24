@@ -815,7 +815,9 @@ export class IntegrationService {
       };
     });
 
-    if ('outcome' in claimed) return { outcome: claimed.outcome };
+    if ('outcome' in claimed && typeof claimed.outcome === 'string') {
+      return { outcome: claimed.outcome };
+    }
 
     try {
       // Provider I/O must never hold a Prisma interactive transaction open.
