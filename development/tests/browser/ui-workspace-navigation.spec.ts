@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  createFinanceApprover,
   createFinanceOfficer,
   createIntegrationSupport,
   createMoodleAdmin,
@@ -55,11 +56,24 @@ test.describe.serial("role-aware workspace navigation", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("finance officer navigation exposes finance only", async ({ page }) => {
+  test("finance officer and approver navigation expose only finance", async ({
+    page,
+  }) => {
     const officer = await createFinanceOfficer();
     await signIn(page, officer.username, officer.password);
 
-    const nav = page.getByRole("navigation", { name: "Workspace navigation" });
+    let nav = page.getByRole("navigation", { name: "Workspace navigation" });
+    await expect(
+      nav.getByRole("link", { name: "Finance workspace" }),
+    ).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Admissions" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Moodle" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Integration" })).toHaveCount(0);
+
+    await page.context().clearCookies();
+    const approver = await createFinanceApprover();
+    await signIn(page, approver.username, approver.password);
+    nav = page.getByRole("navigation", { name: "Workspace navigation" });
     await expect(
       nav.getByRole("link", { name: "Finance workspace" }),
     ).toBeVisible();
