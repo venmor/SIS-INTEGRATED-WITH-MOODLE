@@ -5,6 +5,7 @@ import { MOODLE_DEMO_V1 as policy } from '@sis/config';
 import { SimulatorError, type SimScenario } from './moodle-simulator.js';
 import { ensureSimShell } from './moodle-simulator.js';
 import {
+  MoodleConfigurationError,
   selectBackend,
   type MoodleAdapter,
   type ShellHandle,
@@ -227,7 +228,22 @@ export class IntegrationService {
     }
     const connection = await this.ensureConnection(this.prisma);
     const inMaintenance = await this.maintenanceActive(this.prisma);
-    const backend = selectBackend();
+    let backend: 'simulator' | 'live';
+    try {
+      backend = selectBackend();
+    } catch (error) {
+      if (error instanceof MoodleConfigurationError) {
+        return {
+          provider: connection.provider,
+          backend: 'live',
+          version: null,
+          status: 'Failing',
+          detail: error.message,
+          lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
+        };
+      }
+      throw error;
+    }
     // Live health performs a real version call; simulator answers locally.
     // Either way the response carries state, never secret values.
     let version: string | null = null;
@@ -2083,13 +2099,25 @@ export class IntegrationService {
 
   async validateConnection(auth: IntegrationAuthority) {
     await this.opsRole(auth);
-    const checked = await this.adapter().validateConnection();
-    return {
-      backend: checked.backend,
-      ok: checked.ok,
-      version: checked.version,
-      detail: checked.detail,
-    };
+    try {
+      const checked = await this.adapter().validateConnection();
+      return {
+        backend: checked.backend,
+        ok: checked.ok,
+        version: checked.version,
+        detail: checked.detail,
+      };
+    } catch (error) {
+      if (error instanceof MoodleConfigurationError) {
+        return {
+          backend: 'live' as const,
+          ok: false,
+          version: null,
+          detail: error.message,
+        };
+      }
+      throw error;
+    }
   }
 
   async deliveryPaused(): Promise<boolean> {
