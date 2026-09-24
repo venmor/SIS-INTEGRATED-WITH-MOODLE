@@ -1,0 +1,208 @@
+.shell {
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-3) clamp(var(--space-4), 4vw, var(--space-10));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.banner > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.banner strong {
+  font-size: var(--font-supporting);
+}
+
+.banner span {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.banner nav,
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  align-items: center;
+}
+
+.banner a,
+.links a,
+.sectionHeading a {
+  color: var(--text-primary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+  text-underline-offset: 0.2em;
+}
+
+.main {
+  width: min(72rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-10) clamp(var(--space-4), 4vw, var(--space-10)) var(--space-12);
+}
+
+.intro {
+  max-width: 48rem;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.intro h1,
+.section h2,
+.story h3 {
+  margin: 0;
+}
+
+.intro h1 {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  letter-spacing: -0.035em;
+}
+
+.intro > p:last-child,
+.section > p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.section h2 {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.storyList {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.story {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.storyTop {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.storyTop strong {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.story dl,
+.readiness {
+  margin: 0;
+  display: grid;
+}
+
+.story dl div,
+.readiness div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.25fr) minmax(0, 0.75fr);
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.story dt,
+.readiness dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  font-weight: 650;
+}
+
+.story dd,
+.readiness dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.checklist {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-3);
+  line-height: 1.55;
+}
+
+.checklist code {
+  overflow-wrap: anywhere;
+}
+
+.readiness {
+  border-bottom: 1px solid var(--border);
+}
+
+.readiness dd {
+  font-weight: 650;
+}
+
+.previewBoundary {
+  width: fit-content;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  color: var(--text-primary) !important;
+  font-size: var(--font-supporting);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .banner {
+    position: static;
+    display: grid;
+    align-items: start;
+  }
+
+  .main {
+    gap: var(--space-8);
+    padding-top: var(--space-8);
+  }
+
+  .story dl div,
+  .readiness div {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}
