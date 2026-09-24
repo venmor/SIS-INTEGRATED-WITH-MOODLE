@@ -100,6 +100,50 @@ describe('LiveMoodleAdapter contract', () => {
     }
   });
 
+  it('matches a wrapped course lookup by exact shortname instead of taking the first row', async () => {
+    const { server, calls } = stub((seen) => {
+      if (seen.wsfunction === 'core_course_get_courses_by_field') {
+        return {
+          status: 200,
+          json: {
+            courses: [
+              { id: 1, shortname: 'SITE-FRONT-PAGE' },
+              { id: 42, shortname: 'SWE-2026S1' },
+            ],
+            warnings: [],
+          },
+        };
+      }
+      return { status: 400, json: { exception: 'unexpected' } };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prismaDouble(), {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.ensureShell({
+          db: {} as never,
+          shellRef: 'SWE-2026S1',
+          offeringId: 'o',
+          periodId: 'p',
+        }),
+      ).resolves.toEqual({ id: '42', created: false });
+
+      expect(
+        calls.some(
+          (call) => call.wsfunction === 'core_course_create_courses',
+        ),
+      ).toBe(false);
+    } finally {
+      server.close();
+    }
+  });
+
   it('flattens nested Moodle parameters using bracket notation', async () => {
     process.env.MOODLE_LIVE_WRITES = 'true';
     const { server, calls } = stub((seen) => {
