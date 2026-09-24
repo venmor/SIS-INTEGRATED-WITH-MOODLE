@@ -1,7 +1,7 @@
-/** Fictional Moodle integration demonstration policy. Not UNZA policy.
- * Phase 6 slices 1–6 (TASK-PH6-001..006): simulator-only Moodle
- * integration. Real instance/version/auth/API scope are open production
- * decisions; nothing here connects anywhere real. */
+/** Moodle integration policy. The deterministic simulator remains the
+ * default for demos and CI. The live External Services adapter is engaged
+ * only by explicit environment configuration and is read-only until live
+ * writes are separately enabled. */
 export const MOODLE_DEMO_V1 = {
   version: "MOODLE-DEMO-v1",
   demo: true,
@@ -34,15 +34,14 @@ export const MOODLE_DEMO_V1 = {
     "UNKNOWN",
   ],
   // Live-adapter connection (TASK-MOODLE-LIVE). The simulator stays the
-  // default: live calls happen only when an explicit base URL and token
-  // are configured. The token lives in env only, never in config rows,
-  // logs, or the database. Real instance/version/auth remain open
-  // production decisions; until they close, this stays inert.
+  // default when URL + token are both absent. Partial live configuration is
+  // rejected. The token lives in env only and is never persisted by SIS.
   live: {
-    // Set MOODLE_API_URL (e.g. https://moodle.example.edu) to arm live.
-    // Empty means simulator-only, always.
+    // URL + token together enable live reads/connection validation.
     urlEnvVar: "MOODLE_API_URL",
     tokenEnvVar: "MOODLE_API_TOKEN",
+    writesEnvVar: "MOODLE_LIVE_WRITES",
+    categoryIdEnvVar: "MOODLE_CATEGORY_ID",
     timeoutMs: 15000,
     // Moodle External Services REST endpoint layout.
     restPath: "/webservice/rest/server.php",
