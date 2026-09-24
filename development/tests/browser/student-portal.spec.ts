@@ -26,7 +26,7 @@ test("student portal: home, contact update, correction request", async ({
   ).toBeVisible();
   await page.goto("/student");
   await expect(
-    page.getByRole("heading", { name: "Welcome to the student portal" }),
+    page.getByRole("heading", { name: "Student home", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(student.studentNumber)).toBeVisible();
   await expect(page.getByText("BSc Software Engineering")).toBeVisible();
