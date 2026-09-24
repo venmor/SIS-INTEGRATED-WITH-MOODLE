@@ -47,35 +47,56 @@ export default async function MappingsPage() {
         </main>
       </div>
     );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Moodle mappings</h1>
-        <p>
-          <Link href="/">Workspace home</Link>
+        <p className={styles.lede}>
+          Map SIS identifiers to Moodle destinations with versioned,
+          four-eyes activation.
         </p>
-        <Notice
-          severity={health.data.status === "HEALTHY" ? "success" : "warning"}
-          title={`Connection ${health.data.status}`}
-          message={`Provider ${health.data.provider}. Health reports state only; credential values are never shown here.`}
-        />
-        <h2>Registry</h2>
-        {list.data.items.length === 0 ? (
-          <p>No mappings yet.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.kind} · {item.status} · v{item.version}
-                </strong>{" "}
-                — {item.sisType} {item.sisId} ↔ {item.moodleId}
-              </li>
-            ))}
-          </ul>
-        )}
-        <MappingForms />
+        <p>
+          <Link href="/admin/moodle">Moodle administration</Link>
+        </p>
+
+        <section className={styles.section} aria-label="Mapping authority">
+          <h2>Mapping authority</h2>
+          <Notice
+            severity={health.data.status === "HEALTHY" ? "success" : "warning"}
+            title={`Connection ${health.data.status}`}
+            message={`Provider ${health.data.provider}. Health reports state only; credential values are never shown here.`}
+          />
+          <p>
+            SIS identifiers remain the source side of each mapping. Activation
+            changes how governed sync resolves a Moodle destination; it does
+            not rewrite the originating SIS record.
+          </p>
+        </section>
+
+        <section className={styles.section} aria-label="Mapping registry">
+          <h2>Registry</h2>
+          {list.data.items.length === 0 ? (
+            <p>No mappings yet.</p>
+          ) : (
+            <ul>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.kind} · {item.status} · v{item.version}
+                  </strong>{" "}
+                  — {item.sisType} {item.sisId} ↔ {item.moodleId}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.section} aria-label="Mapping actions">
+          <h2>Mapping actions</h2>
+          <MappingForms />
+        </section>
       </main>
     </div>
   );
