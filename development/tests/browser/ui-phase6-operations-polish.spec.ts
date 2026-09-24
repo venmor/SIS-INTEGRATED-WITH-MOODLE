@@ -246,10 +246,10 @@ test("reconciliation return path follows the active operations role", async ({
   await signIn(page, moodle.username, moodle.password);
   await page.goto("/admin/integration/reconciliation");
   await expect(
-    page.getByRole("link", { name: "Moodle administration" }),
+    page.getByRole("link", { name: "Moodle administration", exact: true }),
   ).toHaveAttribute("href", "/admin/moodle");
   await expect(
-    page.getByRole("link", { name: "Integration support" }),
+    page.getByRole("link", { name: "Integration support", exact: true }),
   ).toHaveCount(0);
 });
 
