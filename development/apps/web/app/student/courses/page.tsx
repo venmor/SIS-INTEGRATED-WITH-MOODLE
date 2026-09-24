@@ -2,9 +2,8 @@ import type { CoursePlanView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import { Notice, PageHeader } from "@sis/ui";
 import { PlanBoard } from "./board";
-import styles from "../../applicant/applicant.module.css";
 
 async function loadPlan(): Promise<{
   data: CoursePlanView | null;
@@ -48,13 +47,11 @@ export default async function CoursesPage() {
   const board = r.data;
   return (
     <>
-      <p className={styles.eyebrow}>Course selection · {board.period}</p>
-      <h1>Plan your courses</h1>
-      <p className={styles.muted}>
-        Required courses, new courses and electives are listed separately.
-        Unavailable courses name their reason. Saving keeps a draft; submit
-        happens at formal registration.
-      </p>
+      <PageHeader
+        eyebrow={`Course selection · ${board.period}`}
+        title="Plan your courses"
+        lede="Required, new and elective courses are separated. Saving keeps a draft; formal registration is a separate submission."
+      />
       {board.status !== "NONE" ? (
         <Notice
           severity="info"
