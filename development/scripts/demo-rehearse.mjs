@@ -21,7 +21,23 @@ export function validateRehearsalEnvironment(env) {
       errors.push("DATABASE_URL must be a valid URL.");
     }
   }
-  if (!env.API_INTERNAL_URL) errors.push("API_INTERNAL_URL is required.");
+  if (!env.API_INTERNAL_URL) {
+    errors.push("API_INTERNAL_URL is required.");
+  } else {
+    try {
+      const parsed = new URL(env.API_INTERNAL_URL);
+      if (!["localhost", "127.0.0.1", "::1"].includes(parsed.hostname)) {
+        errors.push("Rehearsal requires a local API target.");
+      }
+    } catch {
+      errors.push("API_INTERNAL_URL must be a valid URL.");
+    }
+  }
+  if (env.MOODLE_API_URL || env.MOODLE_API_TOKEN) {
+    errors.push(
+      "Rehearsal is simulator-only; unset MOODLE_API_URL and MOODLE_API_TOKEN.",
+    );
+  }
   return errors;
 }
 
