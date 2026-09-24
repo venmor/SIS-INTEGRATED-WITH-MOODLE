@@ -55,13 +55,13 @@ export default async function IntegrationPage() {
     loadStaff<{ items: QueueItem[] }>("/replays"),
     loadStaff<{ items: QueueItem[] }>("/incidents"),
   ]);
-  if (
-    !health.ok ||
-    !queue.ok ||
-    !dead.ok ||
-    !replays.ok ||
-    !incidents.ok
-  )
+  const failed = [health, queue, dead, replays, incidents].filter(
+    (result) => !result.ok,
+  );
+  if (failed.length > 0) {
+    const denied = failed.some(
+      (result) => !result.ok && (result.status === 401 || result.status === 403),
+    );
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -69,13 +69,22 @@ export default async function IntegrationPage() {
           <h1 className={styles.title}>Integration support</h1>
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs integration support authority. Sign in with an integration role or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={denied ? "Integration access unavailable" : "Integration data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs integration support authority. Sign in with an integration role or ask an administrator."
+                : "The integration service could not be reached. Keep the current reference, do not repeat a destructive action, restore connectivity, then retry this page."
+            }
+            action={
+              denied
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry workspace", href: "/admin/integration" }
+            }
           />
         </main>
       </div>
     );
+  }
 
   const pendingReplays = replays.data.items.filter(
     (item) => item.status === "PENDING",
