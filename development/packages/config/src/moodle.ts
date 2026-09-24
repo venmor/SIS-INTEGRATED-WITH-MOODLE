@@ -19,6 +19,9 @@ export const MOODLE_DEMO_V1 = {
     intervalSeconds: 20,
     maxAttempts: 5,
     baseDelaySeconds: 10,
+    // A provider request times out at 15s; 60s leaves ample margin while
+    // allowing a crashed process claim to be recovered automatically.
+    claimLeaseSeconds: 60,
   },
   // SIS→Moodle role map (Blueprint 12 teaching-role table, demo subset).
   roleMap: {
