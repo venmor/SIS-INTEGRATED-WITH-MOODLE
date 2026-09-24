@@ -1,12 +1,17 @@
 import type { ArrangementView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@sis/ui";
+import { StudentUnavailable } from "../../chrome";
 import { ArrangementForm } from "./forms";
 import styles from "../../../applicant/applicant.module.css";
 
-async function loadArrangements(
-  sid: string,
-): Promise<{ items: ArrangementView[] } | null> {
+type ArrangementState =
+  | { kind: "ok"; items: ArrangementView[] }
+  | { kind: "unauthorized" }
+  | { kind: "failed"; message: string };
+
+async function loadArrangements(sid: string): Promise<ArrangementState> {
   try {
     const response = await fetch(
       `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/finance/arrangements`,
@@ -16,11 +21,26 @@ async function loadArrangements(
         signal: AbortSignal.timeout(10000),
       },
     );
-    if (response.status === 401) return null;
-    if (!response.ok) return { items: [] };
-    return (await response.json()) as { items: ArrangementView[] };
+    if (response.status === 401) return { kind: "unauthorized" };
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      return {
+        kind: "failed",
+        message:
+          payload.message ??
+          "Payment arrangements are unavailable right now. Try again shortly.",
+      };
+    }
+    const payload = (await response.json()) as { items: ArrangementView[] };
+    return { kind: "ok", items: payload.items };
   } catch {
-    return { items: [] };
+    return {
+      kind: "failed",
+      message:
+        "We cannot reach Student Finance. Your existing requests are unchanged. Try again shortly.",
+    };
   }
 }
 
@@ -30,25 +50,37 @@ async function loadArrangements(
 export default async function ArrangePage() {
   const sid = (await cookies()).get("sid")?.value;
   if (!sid) redirect("/sign-in?returnTo=%2Fstudent%2Ffinance%2Farrange");
-  const list = await loadArrangements(sid);
-  if (!list)
+
+  const state = await loadArrangements(sid);
+  if (state.kind === "unauthorized")
     redirect("/sign-in?returnTo=%2Fstudent%2Ffinance%2Farrange");
+
+  if (state.kind === "failed") {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Payment arrangement"
+          title="Request payment arrangement"
+        />
+        <StudentUnavailable message={state.message} />
+      </>
+    );
+  }
+
   return (
     <>
-      <p className={styles.eyebrow}>Payment arrangement</p>
-      <h1>Request payment arrangement</h1>
-      <p className={styles.muted}>
-        An approved arrangement lets you register under its terms; it is
-        decided by Student Finance, not by submitting this form. If your
-        request is declined, your original obligation stays active.
-      </p>
+      <PageHeader
+        eyebrow="Payment arrangement"
+        title="Request payment arrangement"
+        lede="Student Finance decides the request. Approval creates a time-boxed clearance entitlement; a decline leaves the original obligation unchanged."
+      />
       <ArrangementForm />
       <h2>Your requests</h2>
-      {list.items.length === 0 ? (
+      {state.items.length === 0 ? (
         <p className={styles.muted}>No arrangement requests.</p>
       ) : (
         <ul>
-          {list.items.map((item) => (
+          {state.items.map((item) => (
             <li key={item.id}>
               <strong>{item.terms}</strong> — {item.status}
               {item.expiresAt ? ` · Expires ${item.expiresAt}` : ""}
