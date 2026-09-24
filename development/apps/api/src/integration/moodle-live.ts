@@ -50,6 +50,45 @@ function roleIds(): Record<string, number> {
   }
 }
 
+function liveWritesEnabled(): boolean {
+  return (process.env.MOODLE_LIVE_WRITES ?? '').trim().toLowerCase() === 'true';
+}
+
+function appendFormValue(
+  form: URLSearchParams,
+  key: string,
+  value: unknown,
+): void {
+  if (value === undefined || value === null) return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      appendFormValue(form, `${key}[${index}]`, item),
+    );
+    return;
+  }
+  if (typeof value === 'object') {
+    for (const [childKey, childValue] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      appendFormValue(form, `${key}[${childKey}]`, childValue);
+    }
+    return;
+  }
+  if (typeof value === 'boolean') {
+    form.append(key, value ? '1' : '0');
+    return;
+  }
+  form.append(key, String(value));
+}
+
+function moodleForm(params: Record<string, unknown>): URLSearchParams {
+  const form = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    appendFormValue(form, key, value);
+  }
+  return form;
+}
+
 /**
  * Live Moodle adapter (External Services REST). Engages only with
  * explicit URL + token configuration; otherwise the factory never
@@ -134,10 +173,13 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
     let res: Response;
     try {
+      const form = moodleForm(params);
       res = await fetch(url, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(params),
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        },
+        body: form.toString(),
         signal: controller.signal,
       });
     } catch (error) {
@@ -175,6 +217,15 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     return data as T;
   }
 
+  private assertWritesEnabled(): void {
+    if (!liveWritesEnabled()) {
+      throw new MoodleApiError(
+        false,
+        'Live Moodle writes are disabled. Set MOODLE_LIVE_WRITES=true only after connection validation and mapping review.',
+      );
+    }
+  }
+
   private async courseIdByShortname(shortname: string): Promise<number | null> {
     const found = await this.call<Array<{ id: number }>>(
       'core_course_get_courses_by_field',
@@ -204,6 +255,11 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     void input.periodId;
     const existing = await this.courseIdByShortname(input.shellRef);
     if (existing !== null) return { id: String(existing), created: false };
+    this.assertWritesEnabled();
+    const categoryId = Number(process.env.MOODLE_CATEGORY_ID ?? '1');
+    if (!Number.isInteger(categoryId) || categoryId <= 0) {
+      throw new MoodleApiError(false, 'MOODLE_CATEGORY_ID must be a positive integer.');
+    }
     const created = await this.call<Array<{ id: number }>>(
       'core_course_create_courses',
       {
@@ -211,7 +267,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
           {
             fullname: input.shellRef,
             shortname: input.shellRef,
-            categoryid: 1,
+            categoryid: categoryId,
             visible: 0,
           },
         ],
@@ -244,6 +300,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       { courseid: courseId },
     );
     if (enrolled.some((u) => u.id === userId)) return 'EXISTS';
+    this.assertWritesEnabled();
     await this.call('enrol_manual_enrol_users', {
       enrolments: [
         { roleid: this.roleId(input.role), userid: userId, courseid: courseId },
@@ -270,6 +327,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       { courseid: courseId },
     );
     if (!enrolled.some((u) => u.id === userId)) return 'ABSENT';
+    this.assertWritesEnabled();
     await this.call('enrol_manual_unenrol_users', {
       enrolments: [{ userid: userId, courseid: courseId }],
     });
@@ -299,6 +357,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       { courseid: courseId },
     );
     if (enrolled.some((u) => u.id === userId)) return 'EXISTS';
+    this.assertWritesEnabled();
     await this.call('enrol_manual_enrol_users', {
       enrolments: [
         {
@@ -330,9 +389,10 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     let group = groups.find((g) => g.name === wanted);
     if (!group) {
       if (input.remove) return 'ABSENT';
+      this.assertWritesEnabled();
       const created = await this.call<Array<{ id: number }>>(
         'core_group_create_groups',
-        { groups: [{ courseid: courseId, name: input.groupId }] },
+        { groups: [{ courseid: courseId, name: wanted }] },
       );
       group = { id: created[0].id, name: wanted };
     }
@@ -341,11 +401,13 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     );
     if (userId === null) return 'ABSENT';
     if (input.remove) {
+      this.assertWritesEnabled();
       await this.call('core_group_delete_group_members', {
         members: [{ groupid: group.id, userid: userId }],
       });
       return 'SUSPENDED';
     }
+    this.assertWritesEnabled();
     await this.call('core_group_add_group_members', {
       members: [{ groupid: group.id, userid: userId }],
     });
@@ -364,6 +426,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     // full history and reason.
     const userId = await this.userIdByIdnumber(input.studentKey);
     if (userId === null) return 'ABSENT';
+    this.assertWritesEnabled();
     await this.call('enrol_manual_unenrol_users', {
       enrolments: [{ userid: userId, courseid: Number(input.shell.id) }],
     });
@@ -375,21 +438,25 @@ export class LiveMoodleAdapter implements MoodleAdapter {
   ): Promise<ActualEnrolment[]> {
     const courseId = Number(shell.id);
     const enrolled = await this.call<
-      Array<{ idnumber?: string; roles?: Array<{ shortname?: string }> }>
-    >('core_enrol_get_enrolled_users_with_capability', {
-      courseid: courseId,
-      options: [],
-    }).catch(async () => {
-      const fallback = await this.call<
-        Array<{ idnumber?: string; roles?: Array<{ shortname?: string }> }>
-      >('core_enrol_get_enrolled_users', { courseid: courseId });
-      return fallback;
-    });
+      Array<{
+        id: number;
+        idnumber?: string;
+        roles?: Array<{ shortname?: string }>;
+      }>
+    >('core_enrol_get_enrolled_users', { courseid: courseId });
+
     return enrolled
-      .filter((u) => typeof u.idnumber === 'string' && u.idnumber !== '')
-      .map((u) => ({
-        key: u.idnumber as string,
-        role: u.roles?.[0]?.shortname ?? 'unknown',
+      .filter(
+        (user) =>
+          typeof user.idnumber === 'string' &&
+          user.idnumber !== '' &&
+          (user.roles ?? []).some(
+            (role) => (role.shortname ?? '').toLowerCase() === 'student',
+          ),
+      )
+      .map((user) => ({
+        key: user.idnumber as string,
+        role: 'Student',
         status: 'ACTIVE' as const,
       }));
   }
@@ -398,15 +465,45 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     shell: ShellHandle,
   ): Promise<ActualGroupMember[]> {
     const courseId = Number(shell.id);
-    const groups = await this.call<
-      Array<{ name: string; userids?: number[] }>
-    >('core_group_get_course_groups', { courseid: courseId });
+    const groups = await this.call<Array<{ id: number; name: string }>>(
+      'core_group_get_course_groups',
+      { courseid: courseId },
+    );
+    if (groups.length === 0) return [];
+
+    const memberships = await this.call<
+      Array<{ groupid: number; userids: number[] }>
+    >('core_group_get_group_members', {
+      groupids: groups.map((group) => group.id),
+    });
+    const enrolled = await this.call<Array<{ id: number; idnumber?: string }>>(
+      'core_enrol_get_enrolled_users',
+      { courseid: courseId },
+    );
+    const idnumberByUserId = new Map(
+      enrolled
+        .filter(
+          (user) =>
+            typeof user.idnumber === 'string' &&
+            user.idnumber !== '' &&
+            !user.idnumber.startsWith('staff-'),
+        )
+        .map((user) => [user.id, user.idnumber as string]),
+    );
+    const groupNameById = new Map(
+      groups.map((group) => [group.id, group.name]),
+    );
+
     const out: ActualGroupMember[] = [];
-    for (const group of groups) {
-      for (const userid of group.userids ?? []) {
+    for (const membership of memberships) {
+      const groupName = groupNameById.get(membership.groupid);
+      if (!groupName) continue;
+      for (const userId of membership.userids) {
+        const idnumber = idnumberByUserId.get(userId);
+        if (!idnumber) continue;
         out.push({
-          groupKey: group.name,
-          studentKey: `moodle-user-${userid}`,
+          groupKey: groupName,
+          studentKey: idnumber,
           status: 'ACTIVE',
         });
       }
@@ -429,7 +526,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
         ok: true,
         backend: 'live',
         version: site.version ?? null,
-        detail: `Connected to ${site.sitename ?? 'Moodle'}. Live enrolments affect real courses.`,
+        detail: `Connected to ${site.sitename ?? 'Moodle'}. Live writes are ${liveWritesEnabled() ? 'enabled' : 'disabled'}.`,
       };
     } catch (error) {
       return {
