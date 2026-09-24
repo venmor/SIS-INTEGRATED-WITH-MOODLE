@@ -86,7 +86,6 @@ as keys.
    never retry blindly.
 
 ## 8. Resurrecting the sibling project's Moodle (reference)
-
 The sibling SIS tested live against `bitnami/moodle:4.5.4` in Docker
 at `127.0.0.1:8090` (admin `admin`, category id 1) with a manually
 minted token that was never committed — only `paste-the-generated-
@@ -100,3 +99,23 @@ mint a fresh token, and wire the three values below.
 Tokens belong to the service user, not a person. On staff changes,
 revoke at Manage tokens and mint a fresh one; old tokens stop working
 immediately. Never paste the token into tickets, logs, or chat.
+
+## 10. MoodleCloud sites (trial or paid)
+
+The same procedure applies, with two MoodleCloud specifics:
+
+1. Web services availability depends on the plan. If **Advanced
+   features → Enable web services** is missing or read-only, the
+   trial plan does not permit API access — upgrade or use a
+   self-hosted Moodle for live tests. The simulator stays the
+   default until a working connection proves otherwise.
+2. MoodleCloud forces HTTPS and manages cron itself; use the full
+   `https://<yoursite>.moodlecloud.com` URL with no trailing path.
+   Trial sites sleep when idle — the first call after sleep may time
+   out once; the adapter classifies that as retryable, and a second
+   Test connection confirms.
+
+Handing access to the integrator: URL + token + role IDs only. Never
+share the site-admin password; the dedicated service user from
+section 2 keeps admin credentials out of the integration entirely.
+Rotate the token after the live proving run.
