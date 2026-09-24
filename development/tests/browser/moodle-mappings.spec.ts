@@ -116,5 +116,7 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
     .getByLabel("Recovery evidence")
     .fill("Three clean deliveries observed after the flap; counts match.");
   await page.getByRole("button", { name: "Close incident" }).click();
-  await expect(page.getByText("Incident closed")).toBeVisible();
+  await expect(
+    page.getByText("Incident closed with recovery evidence."),
+  ).toBeVisible();
 });
