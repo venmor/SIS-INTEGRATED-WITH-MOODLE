@@ -188,9 +188,8 @@ test("student portal: home, contact update, correction request", async ({
   );
   expect(reversal.ok()).toBe(true);
   await page.goto("/student/finance");
-  await expect(
-    page.getByText("Registration is currently blocked"),
-  ).toBeVisible();
+  const blockedSummary = page.getByRole("region", { name: "Finance summary" });
+  await expect(blockedSummary).toContainText("Registration is currently blocked");
   await noOverflow(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });
