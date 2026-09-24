@@ -176,12 +176,14 @@ export class LiveMoodleAdapter implements MoodleAdapter {
   }
 
   private async courseIdByShortname(shortname: string): Promise<number | null> {
-    const found = await this.call<Array<{ id: number }>>(
+    const found = await this.call<Array<{ id: number; shortname?: string }>>(
       'core_course_get_courses_by_field',
       { field: 'shortname', value: shortname },
     );
-    const courses = Array.isArray(found) ? found : (found as { courses?: Array<{ id: number }> }).courses ?? [];
-    return courses.length > 0 ? courses[0].id : null;
+    const courses = Array.isArray(found) ? found : [];
+    // Match exactly: never take the first row of an unfiltered answer.
+    const exact = courses.find((c) => c.shortname === shortname);
+    return exact ? exact.id : null;
   }
 
   private async userIdByIdnumber(idnumber: string): Promise<number | null> {
