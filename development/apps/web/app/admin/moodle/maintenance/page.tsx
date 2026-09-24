@@ -36,7 +36,8 @@ interface WindowItem {
 // MAINTENANCE with student-safe wording while one is active.
 export default async function MaintenancePage() {
   const list = await loadStaff<{ items: WindowItem[] }>("/maintenance");
-  if (!list.ok)
+  if (!list.ok) {
+    const denied = list.status === 401 || list.status === 403;
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -44,13 +45,22 @@ export default async function MaintenancePage() {
           <h1 className={styles.title}>Moodle maintenance</h1>
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs Moodle administration authority. Sign in with a Moodle role or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={denied ? "Maintenance access unavailable" : "Maintenance data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs Moodle administration authority."
+                : "The integration service could not confirm maintenance state. Do not schedule or cancel a window until the current state can be read again."
+            }
+            action={
+              denied
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry maintenance", href: "/admin/moodle/maintenance" }
+            }
           />
         </main>
       </div>
     );
+  }
 
   return (
     <div className={styles.page}>
