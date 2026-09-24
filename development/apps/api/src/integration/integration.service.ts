@@ -2,15 +2,15 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { MOODLE_DEMO_V1 as policy } from '@sis/config';
+import { SimulatorError, type SimScenario } from './moodle-simulator.js';
+import { ensureSimShell } from './moodle-simulator.js';
 import {
-  SimulatorError,
-  applyEnrolment,
-  applyGroupMember,
-  applyRemoval,
-  applyStaffRole,
-  ensureSimShell,
-  type SimScenario,
-} from './moodle-simulator.js';
+  selectBackend,
+  type MoodleAdapter,
+  type ShellHandle,
+} from './moodle-adapter.js';
+import { SimulatorAdapter } from './moodle-sim-adapter.js';
+import { LiveMoodleAdapter, MoodleApiError } from './moodle-live.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
@@ -227,9 +227,33 @@ export class IntegrationService {
     }
     const connection = await this.ensureConnection(this.prisma);
     const inMaintenance = await this.maintenanceActive(this.prisma);
-    // Health reports state, never secret values.
+    const backend = selectBackend();
+    // Live health performs a real version call; simulator answers locally.
+    // Either way the response carries state, never secret values.
+    let version: string | null = null;
+    if (backend === 'live') {
+      const checked = await this.adapter().validateConnection().catch(() => ({
+        ok: false as const,
+        backend: 'live' as const,
+        version: null,
+        detail: 'Live validation failed.',
+      }));
+      version = checked.version;
+      if (!checked.ok) {
+        return {
+          provider: connection.provider,
+          backend,
+          version,
+          status: 'Failing',
+          detail: checked.detail,
+          lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
+        };
+      }
+    }
     return {
       provider: connection.provider,
+      backend,
+      version: backend === 'live' ? version : 'MOODLE-SIM-v1',
       status: inMaintenance ? 'MAINTENANCE' : connection.status,
       lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
     };
@@ -493,6 +517,13 @@ export class IntegrationService {
     return result;
   }
 
+  adapter(): MoodleAdapter {
+    if (selectBackend() === 'live') {
+      return new LiveMoodleAdapter(this.prisma);
+    }
+    return new SimulatorAdapter(this.prisma);
+  }
+
   async simulatorMode(): Promise<string> {
     const connection = await this.ensureConnection(this.prisma);
     const caps = (connection.capabilities ?? {}) as Record<string, unknown>;
@@ -502,6 +533,13 @@ export class IntegrationService {
   async setSimulatorMode(auth: IntegrationAuthority, mode: string) {
     if (process.env.DEMO_MODE !== 'true') {
       throw new HttpException({ message: 'Not found.' }, 404);
+    }
+    if (selectBackend() === 'live') {
+      this.fail(
+        'LIVE_BACKEND',
+        'Simulator controls do not apply to a live connection.',
+        400,
+      );
     }
     await this.moodleAdmin(auth, 'sync-moodle');
     const scenarios = policy.simulator.scenarios as unknown as string[];
@@ -575,7 +613,7 @@ export class IntegrationService {
     db: Tx,
     offeringId: string,
     periodCode: string,
-  ): Promise<{ shellId: string; shellRef: string }> {
+  ): Promise<ShellHandle> {
     // Shells derive from approved offerings: ensure-or-return, never two.
     const offering = await db.programmeOffering.findUniqueOrThrow({
       where: { id: offeringId },
@@ -597,25 +635,53 @@ export class IntegrationService {
       },
     });
     if (!mapping) {
-      mapping = await db.moodleMapping.create({
-        data: {
-          kind: 'SHELL',
-          sisType: 'OFFERING',
-          sisId: `${offeringId}:${periodCode}`,
-          moodleId: shellRef,
-          version: 1,
-          status: 'ACTIVE',
-          creatorAccountId: 'SYSTEM',
-          activatorAccountId: 'SYSTEM',
-        },
-      });
+      try {
+        mapping = await db.moodleMapping.create({
+          data: {
+            kind: 'SHELL',
+            sisType: 'OFFERING',
+            sisId: `${offeringId}:${periodCode}`,
+            moodleId: shellRef,
+            version: 1,
+            status: 'ACTIVE',
+            creatorAccountId: 'SYSTEM',
+            activatorAccountId: 'SYSTEM',
+          },
+        });
+      } catch (error) {
+        // Lost the race: fall back to the winner's mapping.
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code !== 'P2002'
+        )
+          throw error;
+        mapping = await db.moodleMapping.findFirst({
+          where: {
+            kind: 'SHELL',
+            sisType: 'OFFERING',
+            sisId: `${offeringId}:${periodCode}`,
+            status: 'ACTIVE',
+          },
+        });
+        if (!mapping) throw error;
+      }
     }
-    const shell = await ensureSimShell(db, {
+    const adapter = this.adapter();
+    if (adapter.backend === 'simulator') {
+      const shell = await ensureSimShell(db, {
+        shellRef,
+        offeringId,
+        periodId: period.id,
+      });
+      return { id: shell.id, ref: shellRef };
+    }
+    const live = await adapter.ensureShell({
+      db,
       shellRef,
       offeringId,
       periodId: period.id,
     });
-    return { shellId: shell.id, shellRef };
+    return { id: live.id, ref: shellRef };
   }
 
   private async markDelivered(db: Tx, outboxId: string): Promise<void> {
@@ -727,10 +793,14 @@ export class IntegrationService {
         const message =
           error instanceof Error ? error.message.slice(0, 500) : 'Unknown error';
         // Permanent mapping/source failures go to manual review, never
-        // infinite retry. Simulator outages and timeouts are retryable.
+        // infinite retry. Simulator outages/timeouts and retryable live
+        // API failures reschedule with backoff.
         const permanent =
           message.startsWith('MAP_') || message.startsWith('SRC_');
-        const retryable = error instanceof SimulatorError && !permanent;
+        const retryable =
+          !permanent &&
+          (error instanceof SimulatorError ||
+            (error instanceof MoodleApiError && error.retryable));
         await this.failAttempt(
           db,
           outboxId,
@@ -803,13 +873,11 @@ export class IntegrationService {
       where: { id: payload.registrationId },
     });
     if (!registration) throw new Error('SRC_REGISTRATION_GONE Registration vanished.');
-    const { shellId } = await this.shellFor(
+    const shell = await this.shellFor(db, attempt.offeringId, payload.period);
+    const adapter = this.adapter();
+    await adapter.applyEnrolment({
       db,
-      attempt.offeringId,
-      payload.period,
-    );
-    await applyEnrolment(db, {
-      shellId,
+      shell,
       studentId: attempt.studentId,
       role: 'Student',
       scenario,
@@ -823,8 +891,9 @@ export class IntegrationService {
       },
     });
     for (const allocation of allocations) {
-      await applyGroupMember(db, {
-        shellId,
+      await adapter.applyGroupMember({
+        db,
+        shell,
         groupId: allocation.groupId,
         studentId: allocation.studentId,
         scenario: scenario === 'MISMATCH' ? 'SUCCESS' : scenario,
@@ -846,20 +915,23 @@ export class IntegrationService {
       where: { id: registration.attemptId },
     });
     const period = await this.periodForOffering(db, attempt.offeringId);
-    const { shellId } = await this.shellFor(
-      db,
-      attempt.offeringId,
-      period.code,
-    );
+    const shell = await this.shellFor(db, attempt.offeringId, period.code);
+    const adapter = this.adapter();
     if (added) {
-      await applyEnrolment(db, {
-        shellId,
+      await adapter.applyEnrolment({
+        db,
+        shell,
         studentId: attempt.studentId,
         role: 'Student',
         scenario,
       });
     } else {
-      await applyRemoval(db, shellId, attempt.studentId, scenario);
+      await adapter.applyRemoval({
+        db,
+        shell,
+        studentId: attempt.studentId,
+        scenario,
+      });
     }
   }
 
@@ -878,10 +950,11 @@ export class IntegrationService {
       orderBy: { createdAt: 'desc' },
     });
     const period = await this.periodForOffering(db, group.offeringId);
-    const { shellId } = await this.shellFor(db, group.offeringId, period.code);
+    const shell = await this.shellFor(db, group.offeringId, period.code);
     const active = allocation?.status === 'ACTIVE' && payload.action !== 'REMOVE';
-    await applyGroupMember(db, {
-      shellId,
+    await this.adapter().applyGroupMember({
+      db,
+      shell,
       groupId: group.id,
       studentId: payload.studentId,
       scenario,
@@ -918,7 +991,7 @@ export class IntegrationService {
       orderBy: { code: 'desc' },
     });
     if (!period) throw new Error('MAP_PERIOD_GONE No period.');
-    const { shellId } = await this.shellFor(db, offeringId, period.code);
+    const shell = await this.shellFor(db, offeringId, period.code);
     const roleMap = policy.roleMap as unknown as Record<string, string>;
     const quizCap = 'QUIZ_CREATE_MARK';
     const hasQuiz = assignment.capabilities.includes(quizCap);
@@ -930,8 +1003,9 @@ export class IntegrationService {
         ? { groupIds: [assignment.groupId] }
         : { courseWide: true };
     }
-    await applyStaffRole(db, {
-      shellId,
+    await this.adapter().applyStaffRole({
+      db,
+      shell,
       accountId: assignment.accountId,
       moodleRole,
       quizScope,
@@ -1493,14 +1567,38 @@ export class IntegrationService {
     let repaired = 0;
     let cases = 0;
     try {
-      // Expected: SIS enrolment truth. Actual: simulator projections.
-      const shells = await this.prisma.simShell.findMany({
-        include: {
-          enrolments: true,
-          groupMembers: true,
-        },
+      // Expected: SIS enrolment truth. Actual: backend projections
+      // (simulator rows or live queries, same shape by contract).
+      const adapter = this.adapter();
+      const mappings = await this.prisma.moodleMapping.findMany({
+        where: { kind: 'SHELL', sisType: 'OFFERING', status: 'ACTIVE' },
       });
+      const shells: Array<{
+        offeringId: string;
+        handle: { id: string; ref: string };
+      }> = [];
+      for (const mapping of mappings) {
+        const [offeringId] = mapping.sisId.split(':');
+        if (adapter.backend === 'simulator') {
+          const row = await this.prisma.simShell.findUnique({
+            where: { shellRef: mapping.moodleId },
+          });
+          if (!row) continue;
+          shells.push({
+            offeringId,
+            handle: { id: row.id, ref: mapping.moodleId },
+          });
+        } else {
+          shells.push({
+            offeringId,
+            handle: { id: mapping.moodleId, ref: mapping.moodleId },
+          });
+        }
+      }
       for (const shell of shells) {
+        // Key space matches the backend: SIS row ids for the simulator,
+        // Moodle idnumbers (student numbers) for live.
+        const live = adapter.backend === 'live';
         const attempts = await this.prisma.programmeAttempt.findMany({
           where: { offeringId: shell.offeringId },
           select: { id: true, studentId: true },
@@ -1514,17 +1612,37 @@ export class IntegrationService {
           },
           include: { registration: true },
         });
-        const expectedStudents = new Map(
-          roster.map((r) => [
-            attemptStudent.get(r.registration.attemptId) as string,
-            r,
-          ]),
-        );
-        const actual = new Map(
-          shell.enrolments.map((e) => [e.studentId, e]),
-        );
-        for (const [studentId] of expectedStudents) {
-          const sim = actual.get(studentId);
+        let numberOf: (rowId: string) => string | undefined = (rowId) => rowId;
+        if (live) {
+          const students = await this.prisma.student.findMany({
+            where: { id: { in: [...new Set(attempts.map((a) => a.studentId))] } },
+            select: { id: true, studentNumber: true },
+          });
+          const numbers = new Map(students.map((s) => [s.id, s.studentNumber]));
+          numberOf = (rowId: string) => numbers.get(rowId);
+        }
+        const expectedStudents = new Map<string, { studentId: string }>();
+        for (const r of roster) {
+          const rowId = attemptStudent.get(r.registration.attemptId);
+          if (!rowId) continue;
+          const actualKey = live ? numberOf(rowId) : rowId;
+          if (actualKey) expectedStudents.set(actualKey, { studentId: rowId });
+        }
+        const actualEnrolments =
+          adapter.backend === 'simulator'
+            ? (
+                await this.prisma.simStudentEnrolment.findMany({
+                  where: { shellId: shell.handle.id },
+                })
+              ).map((e) => ({
+                key: e.studentId,
+                role: e.role,
+                status: e.status as 'ACTIVE' | 'SUSPENDED',
+              }))
+            : await adapter.listActualEnrolments(shell.handle);
+        const actual = new Map(actualEnrolments.map((e) => [e.key, e]));
+        for (const [actualKey, expected] of expectedStudents) {
+          const sim = actual.get(actualKey);
           if (!sim || sim.status !== 'ACTIVE' || sim.role !== 'Student') {
             diffs += 1;
             // Safe repair: requeue the registration's latest enrolment
@@ -1537,7 +1655,7 @@ export class IntegrationService {
               orderBy: { occurredAt: 'desc' },
             });
             const ownerAttempt = attempts.find(
-              (a) => a.studentId === studentId,
+              (a) => a.studentId === expected.studentId,
             );
             const registration = ownerAttempt
               ? await this.prisma.institutionalRegistration.findFirst({
@@ -1572,8 +1690,8 @@ export class IntegrationService {
                 } else {
                   cases += await this.openReconCase(run.id, {
                     kind: 'MISSING_IN_MOODLE',
-                    studentId,
-                    shellId: shell.id,
+                    studentId: expected.studentId,
+                    shellId: shell.handle.id,
                     detail: { note: 'No enrolment event to requeue.' },
                   });
                 }
@@ -1581,55 +1699,75 @@ export class IntegrationService {
             } else {
               cases += await this.openReconCase(run.id, {
                 kind: 'UNEXPECTED_IN_MOODLE',
-                studentId,
-                shellId: shell.id,
+                studentId: expected.studentId,
+                shellId: shell.handle.id,
                 detail: { note: 'Simulator holds an enrolment with no SIS registration.' },
               });
             }
           }
         }
-        for (const [studentId, sim] of actual) {
-          if (sim.status === 'ACTIVE' && !expectedStudents.has(studentId)) {
+        for (const [actualKey, sim] of actual) {
+          if (sim.status === 'ACTIVE' && !expectedStudents.has(actualKey)) {
             diffs += 1;
             cases += await this.openReconCase(run.id, {
               kind: 'UNEXPECTED_IN_MOODLE',
-              studentId,
-              shellId: shell.id,
+              shellId: shell.handle.id,
               detail: {
-                note: 'Active simulator enrolment with no enrolled SIS roster row.',
+                externalKey: actualKey,
+                note: 'Active Moodle-side enrolment with no enrolled SIS roster row.',
               },
+              dedupeKey: actualKey,
             });
           }
+          const expected = expectedStudents.get(actualKey);
           if (
             sim.status === 'ACTIVE' &&
             sim.role !== 'Student' &&
-            expectedStudents.has(studentId)
+            expected
           ) {
             diffs += 1;
             cases += await this.openReconCase(run.id, {
               kind: 'ENROLMENT_MISMATCH',
-              studentId,
-              shellId: shell.id,
+              studentId: expected.studentId,
+              shellId: shell.handle.id,
               detail: { role: sim.role, expected: 'Student' },
             });
           }
         }
-        // Groups: SIS allocations vs simulator mirrors.
+        // Groups: SIS allocations vs backend mirrors, keyed by TG name +
+        // student key so both backends compare identically.
         const allocations = await this.prisma.tGAllocation.findMany({
           where: {
             status: 'ACTIVE',
             group: { offeringId: shell.offeringId },
           },
+          include: { group: true },
         });
+        const groupNames = new Map(
+          allocations.map((a) => [a.groupId, a.group.name]),
+        );
+        const simMembers =
+          adapter.backend === 'simulator'
+            ? (
+                await this.prisma.simGroupMember.findMany({
+                  where: { shellId: shell.handle.id, status: 'ACTIVE' },
+                })
+              ).map((m) => ({
+                groupKey: groupNames.get(m.groupId) ?? m.groupId,
+                studentKey: live ? numberOf(m.studentId) : m.studentId,
+                status: m.status as 'ACTIVE' | 'SUSPENDED',
+              }))
+            : await adapter.listActualGroupMembers(shell.handle);
         const actualMembers = new Map(
-          shell.groupMembers
-            .filter((m) => m.status === 'ACTIVE')
-            .map((m) => [`${m.groupId}:${m.studentId}`, m]),
+          simMembers
+            .filter((m) => m.status === 'ACTIVE' && m.studentKey)
+            .map((m) => [`${m.groupKey}:${m.studentKey}`, m]),
         );
         for (const allocation of allocations) {
-          if (
-            !actualMembers.has(`${allocation.groupId}:${allocation.studentId}`)
-          ) {
+          const expectedKey = live
+            ? `${allocation.group.name}:${numberOf(allocation.studentId)}`
+            : `${allocation.group.name}:${allocation.studentId}`;
+          if (!actualMembers.has(expectedKey)) {
             diffs += 1;
             await queueMoodleEvent(this.prisma, {
               aggregate: 'TutorialGroup',
@@ -1683,17 +1821,28 @@ export class IntegrationService {
       studentId?: string;
       shellId?: string;
       detail: Record<string, unknown>;
+      dedupeKey?: string;
     },
   ): Promise<number> {
-    // Reruns converge: one open case per kind + student + shell.
-    const existing = await this.prisma.reconciliationCase.findFirst({
-      where: {
-        kind: input.kind,
-        studentId: input.studentId ?? null,
-        shellId: input.shellId ?? null,
-        status: { in: ['OPEN', 'ESCALATED'] },
-      },
-    });
+    // Reruns converge: one open case per kind + subject. Unexpected
+    // enrolments dedupe per external key so distinct drift rows each get
+    // their own governed case.
+    const base = {
+      kind: input.kind,
+      studentId: input.studentId ?? null,
+      shellId: input.shellId ?? null,
+      status: { in: ['OPEN', 'ESCALATED'] },
+    };
+    const existing = input.dedupeKey
+      ? await this.prisma.reconciliationCase.findFirst({
+          where: {
+            ...base,
+            detail: { path: ['externalKey'], equals: input.dedupeKey },
+          },
+        })
+      : await this.prisma.reconciliationCase.findFirst({
+          where: base,
+        });
     if (existing) return 0;
     await this.prisma.reconciliationCase.create({
       data: {
@@ -1805,17 +1954,52 @@ export class IntegrationService {
         }
         if (input.action === 'SUSPEND_ACCESS') {
           // Governed suspension: simulator access only, SIS untouched.
-          if (!row.studentId || !row.shellId) {
+          // Simulator-only enrolments carry the student in the case
+          // evidence rather than the SIS-linked column.
+          const detail = (row.detail ?? {}) as Record<string, unknown>;
+          const studentId =
+            row.studentId ??
+            (typeof detail.externalKey === 'string'
+              ? detail.externalKey
+              : null);
+          if (!studentId || !row.shellId) {
             this.fail(
               'NOT_APPLICABLE',
               'Suspension needs a student and a shell.',
               400,
             );
           }
-          await db.simStudentEnrolment.updateMany({
-            where: { shellId: row.shellId, studentId: row.studentId },
-            data: { status: 'SUSPENDED' },
-          });
+          const suspendAdapter = this.adapter();
+          if (suspendAdapter.backend === 'live') {
+            // Live shells address by the Moodle course id on the case;
+            // the student travels as the Moodle idnumber in evidence.
+            const detail = (row.detail ?? {}) as Record<string, unknown>;
+            const idnumber =
+              typeof detail.externalKey === 'string'
+                ? detail.externalKey
+                : studentId;
+            await suspendAdapter.suspendAccess({
+              db,
+              shell: {
+                id: row.shellId as string,
+                ref: row.shellId as string,
+              },
+              studentKey: idnumber,
+            });
+          } else {
+            const simShell = row.shellId
+              ? await db.simShell.findUnique({
+                  where: { id: row.shellId },
+                })
+              : null;
+            if (simShell) {
+              await suspendAdapter.suspendAccess({
+                db,
+                shell: { id: simShell.id, ref: simShell.shellRef },
+                studentKey: studentId,
+              });
+            }
+          }
           const closed = await db.reconciliationCase.update({
             where: { id: row.id },
             data: {
@@ -1841,6 +2025,17 @@ export class IntegrationService {
       },
     );
     return result;
+  }
+
+  async validateConnection(auth: IntegrationAuthority) {
+    await this.opsRole(auth);
+    const checked = await this.adapter().validateConnection();
+    return {
+      backend: checked.backend,
+      ok: checked.ok,
+      version: checked.version,
+      detail: checked.detail,
+    };
   }
 
   async deliveryPaused(): Promise<boolean> {

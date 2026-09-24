@@ -12,6 +12,8 @@ export interface MappingView {
 }
 export interface ConnectionView {
   provider: string;
+  backend?: string;
+  version?: string | null;
   status: string;
   lastCheckedAt: string | null;
 }

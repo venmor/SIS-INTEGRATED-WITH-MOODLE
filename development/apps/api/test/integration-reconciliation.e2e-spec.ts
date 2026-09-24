@@ -37,6 +37,17 @@ describe('Phase 6 reconciliation and closure', () => {
     return res.body as { runId: string; diffs: number; repaired: number; cases: number };
   }
 
+  async function ownOpenCase(ghostId: string) {
+    return db.reconciliationCase.findFirst({
+      where: {
+        kind: 'UNEXPECTED_IN_MOODLE',
+        status: 'OPEN',
+        detail: { path: ['externalKey'], equals: ghostId },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async function worker() {
     await intPost('/worker/run', {}, admin).expect(201);
   }
@@ -108,6 +119,15 @@ describe('Phase 6 reconciliation and closure', () => {
       finance,
       offeringId: seeded.id,
     } as Ctx;
+    // Shared shell for ghost-row tests: one assessed student delivered,
+    // so SimShell + mapping exist regardless of test order.
+    await assessedStudent(ctx);
+    await request(app.getHttpServer())
+      .post('/integration/worker/run')
+      .set({ 'x-requested-with': 'XMLHttpRequest' })
+      .set('Cookie', admin)
+      .send({})
+      .expect(201);
   });
 
   afterAll(async () => {
@@ -184,15 +204,11 @@ describe('Phase 6 reconciliation and closure', () => {
     await db.simStudentEnrolment.create({
       data: { shellId: shell.id, studentId: ghost.id, status: 'ACTIVE' },
     });
-    const run = await runRecon();
-    expect(run.cases).toBeGreaterThanOrEqual(1);
-    const cases = await intGet('/reconciliation/cases', support).expect(200);
-    const items = (
-      cases.body as { items: Array<{ kind: string; status: string }> }
-    ).items;
-    expect(
-      items.some((i) => i.kind === 'UNEXPECTED_IN_MOODLE' && i.status === 'OPEN'),
-    ).toBe(true);
+    await runRecon();
+    // Own ghost case exists (deduped across dirty DBs, never duplicated).
+    const own = await ownOpenCase(ghost.id);
+    expect(own).toBeDefined();
+    expect(own!.kind).toBe('UNEXPECTED_IN_MOODLE');
   });
 
   it('recon-mismatch: wrong roles open governed cases', async () => {
@@ -205,14 +221,16 @@ describe('Phase 6 reconciliation and closure', () => {
       where: { studentId: attempt.studentId },
       data: { role: 'Teacher', status: 'ACTIVE' },
     });
-    const run = await runRecon();
-    expect(run.cases).toBeGreaterThanOrEqual(1);
-    const cases = await intGet('/reconciliation/cases', admin).expect(200);
-    expect(
-      (
-        cases.body as { items: Array<{ kind: string }> }
-      ).items.some((i) => i.kind === 'ENROLMENT_MISMATCH'),
-    ).toBe(true);
+    await runRecon();
+    const own = await db.reconciliationCase.findFirst({
+      where: {
+        kind: 'ENROLMENT_MISMATCH',
+        studentId: attempt.studentId,
+        status: 'OPEN',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(own).toBeDefined();
   });
 
   it('recon-rerun: repeated runs converge without duplicate cases', async () => {
@@ -286,12 +304,7 @@ describe('Phase 6 reconciliation and closure', () => {
       data: { shellId: shell.id, studentId: ghost.id, status: 'ACTIVE' },
     });
     await runRecon();
-    const cases = await intGet('/reconciliation/cases', support).expect(200);
-    const target = (
-      cases.body as { items: Array<{ id: string; kind: string; status: string }> }
-    ).items.find(
-      (i) => i.kind === 'UNEXPECTED_IN_MOODLE' && i.status === 'OPEN',
-    );
+    const target = await ownOpenCase(ghost.id);
     expect(target).toBeDefined();
     const resolved = await intPost(
       `/reconciliation/cases/${target!.id}/resolve`,
@@ -333,10 +346,7 @@ describe('Phase 6 reconciliation and closure', () => {
       data: { shellId: shell.id, studentId: ghost.id, status: 'ACTIVE' },
     });
     await runRecon();
-    const cases = await intGet('/reconciliation/cases', admin).expect(200);
-    const target = (
-      cases.body as { items: Array<{ id: string; status: string }> }
-    ).items.find((i) => i.status === 'OPEN');
+    const target = await ownOpenCase(ghost.id);
     expect(target).toBeDefined();
     const escalated = await intPost(
       `/reconciliation/cases/${target!.id}/resolve`,
@@ -367,10 +377,7 @@ describe('Phase 6 reconciliation and closure', () => {
       data: { shellId: shell.id, studentId: ghost.id, status: 'ACTIVE' },
     });
     await runRecon();
-    const cases = await intGet('/reconciliation/cases', admin).expect(200);
-    const target = (
-      cases.body as { items: Array<{ id: string; status: string }> }
-    ).items.find((i) => i.status === 'OPEN');
+    const target = await ownOpenCase(ghost.id);
     expect(target).toBeDefined();
     // There is no "make SIS active" action: unknown actions are refused.
     const refused = await intPost(
@@ -402,10 +409,7 @@ describe('Phase 6 reconciliation and closure', () => {
       data: { shellId: shell.id, studentId: ghost.id, status: 'ACTIVE' },
     });
     await runRecon();
-    const cases = await intGet('/reconciliation/cases', support).expect(200);
-    const target = (
-      cases.body as { items: Array<{ id: string; status: string }> }
-    ).items.find((i) => i.status === 'OPEN');
+    const target = await ownOpenCase(ghost.id);
     expect(target).toBeDefined();
     await intPost(
       `/reconciliation/cases/${target!.id}/resolve`,

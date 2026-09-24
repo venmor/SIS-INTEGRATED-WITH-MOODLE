@@ -44,6 +44,12 @@ export class IntegrationController {
     return this.integration.connectionHealth(r.auth);
   }
 
+  @Post('connection/validate')
+  @UseGuards(CsrfGuard)
+  validateConnection(@Req() r: AuthRequest) {
+    return this.integration.validateConnection(r.auth);
+  }
+
   @Post('mappings')
   @UseGuards(CsrfGuard)
   draftMapping(@Req() r: AuthRequest, @Body() dto: DraftMappingDto) {

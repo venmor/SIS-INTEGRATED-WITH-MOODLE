@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ConnectionView, MappingView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { MappingForms } from "./forms";
+import { ConnectionValidate } from "./validate";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +59,9 @@ export default async function MappingsPage() {
         <Notice
           severity={health.data.status === "HEALTHY" ? "success" : "warning"}
           title={`Connection ${health.data.status}`}
-          message={`Provider ${health.data.provider}. Health reports state only; credential values are never shown here.`}
+          message={`Provider ${health.data.provider} · Backend ${(health.data as { backend?: string }).backend ?? "simulator"}. Health reports state only; credential values are never shown here.`}
         />
+        <ConnectionValidate />
         <h2>Registry</h2>
         {list.data.items.length === 0 ? (
           <p>No mappings yet.</p>

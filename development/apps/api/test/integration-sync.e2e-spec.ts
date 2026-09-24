@@ -375,11 +375,19 @@ describe('Phase 6 simulator delivery and enrolment sync', () => {
   it('sync-duplicate: redelivery converges without new rows', async () => {
     const student = await assessedStudent(ctx);
     await runWorker();
-    const first = await runWorker();
-    expect(first.delivered).toBe(0);
     const attempt = await db.programmeAttempt.findUniqueOrThrow({
       where: { applicationId: student.id },
     });
+    const before = await db.simStudentEnrolment.findFirstOrThrow({
+      where: { studentId: attempt.studentId },
+    });
+    await runWorker();
+    const after = await db.simStudentEnrolment.findFirstOrThrow({
+      where: { studentId: attempt.studentId },
+    });
+    // Redelivery is a no-op: same single row, untouched.
+    expect(after.id).toBe(before.id);
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
     expect(
       await db.simStudentEnrolment.count({
         where: { studentId: attempt.studentId },

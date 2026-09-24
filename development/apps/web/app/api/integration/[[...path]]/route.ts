@@ -19,7 +19,7 @@ async function proxy(
   const isWrite =
     req.method === "POST" &&
     new RegExp(
-      `^(mappings|mappings/${uuid}/test|mappings/${uuid}/activate|shells/provision|worker/run|simulator/mode|maintenance|maintenance/${uuid}/cancel|replays|replays/${uuid}/decide|delivery/pause|incidents|incidents/${uuid}/close|reconciliation/runs|reconciliation/cases/${uuid}/resolve)$`,
+      `^(mappings|mappings/${uuid}/test|mappings/${uuid}/activate|shells/provision|worker/run|simulator/mode|maintenance|maintenance/${uuid}/cancel|replays|replays/${uuid}/decide|delivery/pause|incidents|incidents/${uuid}/close|reconciliation/runs|reconciliation/cases/${uuid}/resolve|connection/validate)$`,
     ).test(path);
   if (!isRead && !isWrite)
     return NextResponse.json({ message: "Not found." }, { status: 404 });

@@ -30,15 +30,29 @@ export async function ensureSimShell(
     where: { shellRef: ref.shellRef },
   });
   if (existing) return { id: existing.id, created: false };
-  const created = await db.simShell.create({
-    data: {
-      shellRef: ref.shellRef,
-      offeringId: ref.offeringId,
-      periodId: ref.periodId,
-      status: 'ACTIVE',
-    },
-  });
-  return { id: created.id, created: true };
+  try {
+    const created = await db.simShell.create({
+      data: {
+        shellRef: ref.shellRef,
+        offeringId: ref.offeringId,
+        periodId: ref.periodId,
+        status: 'ACTIVE',
+      },
+    });
+    return { id: created.id, created: true };
+  } catch (error) {
+    // Lost the race: the winner's row is the shell.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      const winner = await db.simShell.findUniqueOrThrow({
+        where: { shellRef: ref.shellRef },
+      });
+      return { id: winner.id, created: false };
+    }
+    throw error;
+  }
 }
 
 export type SimScenario = 'SUCCESS' | 'TIMEOUT' | 'DUPLICATE' | 'MISMATCH' | 'OUTAGE';
@@ -77,29 +91,23 @@ async function applyOnce(
     });
     return 'MISMATCHED';
   }
-  const existing = await db.simStudentEnrolment.findUnique({
+  // Atomic upsert: concurrent deliveries converge instead of
+  // colliding on the unique key.
+  const row = await db.simStudentEnrolment.upsert({
     where: {
       shellId_studentId: { shellId: op.shellId, studentId: op.studentId },
     },
-  });
-  if (existing) {
-    if (existing.status !== 'ACTIVE' || existing.role !== op.role) {
-      await db.simStudentEnrolment.update({
-        where: { id: existing.id },
-        data: { status: 'ACTIVE', role: op.role },
-      });
-    }
-    return 'EXISTS';
-  }
-  await db.simStudentEnrolment.create({
-    data: {
+    update: { status: 'ACTIVE', role: op.role },
+    create: {
       shellId: op.shellId,
       studentId: op.studentId,
       role: op.role,
       status: 'ACTIVE',
     },
   });
-  return 'CREATED';
+  return row.createdAt.getTime() === row.updatedAt.getTime()
+    ? 'CREATED'
+    : 'EXISTS';
 }
 
 export async function applyEnrolment(
@@ -145,24 +153,16 @@ export async function applyStaffRole(
   },
 ): Promise<'CREATED' | 'EXISTS'> {
   failOn(input.scenario);
-  const existing = await db.simStaffRole.findUnique({
+  const row = await db.simStaffRole.upsert({
     where: {
       shellId_accountId: { shellId: input.shellId, accountId: input.accountId },
     },
-  });
-  if (existing) {
-    await db.simStaffRole.update({
-      where: { id: existing.id },
-      data: {
-        status: 'ACTIVE',
-        moodleRole: input.moodleRole,
-        quizScope: input.quizScope as Prisma.InputJsonValue,
-      },
-    });
-    return 'EXISTS';
-  }
-  await db.simStaffRole.create({
-    data: {
+    update: {
+      status: 'ACTIVE',
+      moodleRole: input.moodleRole,
+      quizScope: input.quizScope as Prisma.InputJsonValue,
+    },
+    create: {
       shellId: input.shellId,
       accountId: input.accountId,
       moodleRole: input.moodleRole,
@@ -170,7 +170,9 @@ export async function applyStaffRole(
       status: 'ACTIVE',
     },
   });
-  return 'CREATED';
+  return row.createdAt.getTime() === row.updatedAt.getTime()
+    ? 'CREATED'
+    : 'EXISTS';
 }
 
 export async function applyGroupMember(
@@ -191,31 +193,26 @@ export async function applyGroupMember(
       studentId: input.studentId,
     },
   };
-  const existing = await db.simGroupMember.findUnique({ where: key });
   if (input.remove) {
-    if (!existing) return 'ABSENT';
+    const target = await db.simGroupMember.findUnique({ where: key });
+    if (!target) return 'ABSENT';
     await db.simGroupMember.update({
-      where: { id: existing.id },
+      where: { id: target.id },
       data: { status: 'SUSPENDED' },
     });
     return 'SUSPENDED';
   }
-  if (existing) {
-    if (existing.status !== 'ACTIVE') {
-      await db.simGroupMember.update({
-        where: { id: existing.id },
-        data: { status: 'ACTIVE' },
-      });
-    }
-    return 'EXISTS';
-  }
-  await db.simGroupMember.create({
-    data: {
+  const row = await db.simGroupMember.upsert({
+    where: key,
+    update: { status: 'ACTIVE' },
+    create: {
       shellId: input.shellId,
       groupId: input.groupId,
       studentId: input.studentId,
       status: 'ACTIVE',
     },
   });
-  return 'CREATED';
+  void row;
+  // Convergent either way; callers treat membership as a set.
+  return 'EXISTS';
 }
