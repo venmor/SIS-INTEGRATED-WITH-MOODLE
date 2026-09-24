@@ -34,9 +34,21 @@ export default async function ReviewsPage() {
         {!loaded.ok ? (
           <Notice
             severity="warning"
-            title="Restricted area"
-            message="Access reviews need a reviewer workspace. Switch to one, or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={
+              loaded.status === 401 || loaded.status === 403
+                ? "Access review authority unavailable"
+                : "Access reviews temporarily unavailable"
+            }
+            message={
+              loaded.status === 401 || loaded.status === 403
+                ? "Access reviews need an administrator workspace."
+                : "The identity service could not load the review queue. Existing assignments remain unchanged; restore connectivity, then retry."
+            }
+            action={
+              loaded.status === 401 || loaded.status === 403
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry access reviews", href: "/admin/reviews" }
+            }
           />
         ) : (
           <>
