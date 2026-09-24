@@ -22,7 +22,7 @@ export default function DemoStoriesPage() {
           Moodle handoff.
         </p>
         <p className={styles.links}>
-          <Link href="/applications">Applicant applications</Link>
+          <Link href="/applicant">Applicant portal</Link>
           <Link href="/student">Student workspace</Link>
           <Link href="/student/finance">Student Finance</Link>
         </p>
