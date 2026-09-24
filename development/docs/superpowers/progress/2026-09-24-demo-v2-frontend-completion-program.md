@@ -31,6 +31,7 @@ Task 2 RED: isolated `ui-contracts` job in CI run 36017595240 completed install,
 
 Task 2 icon-system ruling: the Phase-6 web app had no shared icon library or icon primitive. Added a first-party `@sis/ui/Icon` stroke-icon vocabulary using `currentColor`, consistent 24×24 viewboxes, and aria-hidden decorative SVGs. Critical actions remain text-labelled. Cost if wrong: maintaining a small internal icon set adds UI-package surface area, but avoids mixing ad-hoc SVG styles or adding a large dependency only for icons.
 
+Task 2: implemented — student and finance live routes now use the shared institutional page grammar, complete required-width coverage, explicit outage/uncertainty states, and role-aware Finance maker/checker controls.
 
 Task 3: implemented — Phase-6 Moodle/integration operations UI polish covers Moodle home, maintenance, mappings, integration overview, deliveries, replays and reconciliation. Browser contracts live in `ui-phase6-operations-polish.spec.ts`.
 
@@ -48,7 +49,7 @@ Task 9: implemented — cross-workspace browser quality contracts cover represen
 
 Task 10: implemented — guarded `demo:rehearse`, rehearsal safety tests and `docs/demo/DEMO-RUNBOOK.md` provide a repeatable local presentation rehearsal path.
 
-Moodle live-adapter reconciliation (2026-09-24): implementation hardening is in progress on this branch after bringing the new `main` live adapter across. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
+Moodle live-adapter reconciliation (2026-09-24): implementation hardening is implemented on this branch after bringing the new `main` live adapter across; fresh runner verification remains required. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
 
 Verification note: the latest connector-authored head has no fresh GitHub Actions run, and both Vercel contexts are currently blocked by the account build-rate limit rather than a reported compile/test failure. Do not mark the live-adapter hardening verified green until a fresh API/unit/e2e/build runner completes.
 
@@ -94,3 +95,10 @@ Additional final-review fixes in this pass:
 - Tightened accessibility evidence wording to exactly match tested navigation and representative live controls.
 
 Readiness ruling: implementation/review causes behind the historical red baseline are addressed or explicitly accounted for, but the completion contract still requires a **fresh full runner**. Do not mark Phase 1–6 regressions, current browser contracts, build, lint or Demo V2 as verified green until current-head CI executes successfully.
+
+
+Fresh-run follow-up (CI #125, current programme branch):
+- `verify` reached API build and exposed one strict TypeScript narrowing error in `deliverOutbox()`; fixed by explicitly narrowing the claimed `outcome` to a string.
+- `ui-contracts` reached database migration/seed and exposed malformed escaped template literals in the deterministic seed; all escaped template syntax in changed TypeScript/TSX/MJS files was then scanned and removed.
+- A full PR changed-file syntax scan found no remaining escaped backticks or escaped template interpolations.
+- These fixes are committed after CI #125, so a new current-head run is still required before changing the readiness ruling.
