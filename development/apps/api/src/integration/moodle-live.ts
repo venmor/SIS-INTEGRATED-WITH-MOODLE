@@ -296,15 +296,21 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     if (userId === null) {
       throw new MoodleApiError(false, 'Moodle user missing for student.');
     }
-    const enrolled = await this.call<Array<{ id: number }>>(
-      'core_enrol_get_enrolled_users',
-      { courseid: courseId },
-    );
-    if (enrolled.some((u) => u.id === userId)) return 'EXISTS';
+    const expectedRoleId = this.roleId(input.role);
+    const enrolled = await this.call<
+      Array<{ id: number; roles?: Array<{ roleid?: number }> }>
+    >('core_enrol_get_enrolled_users', { courseid: courseId });
+    const current = enrolled.find((user) => user.id === userId);
+    if (
+      current?.roles?.some((role) => role.roleid === expectedRoleId)
+    ) {
+      return 'EXISTS';
+    }
+
     this.assertWritesEnabled();
     await this.call('enrol_manual_enrol_users', {
       enrolments: [
-        { roleid: this.roleId(input.role), userid: userId, courseid: courseId },
+        { roleid: expectedRoleId, userid: userId, courseid: courseId },
       ],
     });
     return 'CREATED';
