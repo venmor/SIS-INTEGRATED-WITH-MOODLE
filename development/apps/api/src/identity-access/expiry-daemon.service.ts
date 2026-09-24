@@ -127,7 +127,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           await this.prisma.$executeRaw`
             INSERT INTO "ExpiryWarning" ("id", "assignmentId", "warnedAt")
             VALUES (${randomUUID()}, ${candidate.id}, ${now})
-            ON CONFLICT DO NOTHING;
+            ON CONFLICT ("assignmentId") WHERE "acknowledgedAt" IS NULL DO NOTHING;
           `;
         }
       }
@@ -260,7 +260,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           await tx.$executeRaw`
             INSERT INTO "ExpiryWarning" ("id", "assignmentId", "warnedAt")
             VALUES (${randomUUID()}, ${assignment.id}, ${now})
-            ON CONFLICT DO NOTHING;
+            ON CONFLICT ("assignmentId") WHERE "acknowledgedAt" IS NULL DO NOTHING;
           `;
         }
 
