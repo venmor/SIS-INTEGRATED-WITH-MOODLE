@@ -22,7 +22,7 @@ test("student portal: home, contact update, correction request", async ({
 
   // Student workspace offers the student portal.
   await expect(
-    page.getByRole("link", { name: "Student portal" }),
+    page.getByRole("link", { name: "Student home", exact: true }),
   ).toBeVisible();
   await page.goto("/student");
   await expect(
