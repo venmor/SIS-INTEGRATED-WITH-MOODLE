@@ -1073,6 +1073,21 @@ export class IntegrationService {
       return { processed: 0, delivered: 0, retried: 0, dead: 0 };
     }
     const now = new Date();
+    const leaseSeconds = (
+      policy.worker as unknown as { claimLeaseSeconds?: number }
+    ).claimLeaseSeconds ?? 60;
+    const staleBefore = new Date(now.getTime() - leaseSeconds * 1000);
+    await this.prisma.integrationDeliveryAttempt.updateMany({
+      where: {
+        state: 'DELIVERING',
+        updatedAt: { lte: staleBefore },
+      },
+      data: {
+        state: 'PENDING',
+        nextRunAt: now,
+        lastError: 'Recovered stale delivery claim.',
+      },
+    });
     const due = await this.prisma.integrationDeliveryAttempt.findMany({
       where: {
         state: 'PENDING',
