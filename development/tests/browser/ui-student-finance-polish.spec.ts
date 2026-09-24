@@ -27,6 +27,18 @@ async function expectNoHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
+async function expectRouteAtRequiredWidths(page: Page, route: string) {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto(route);
+    await expect(page.locator("#main-content")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+}
+
 test("student portal prioritizes action, registration, finance and courses", async ({
   page,
 }) => {
@@ -106,4 +118,43 @@ test("finance officer home is a professional work queue", async ({ page }) => {
     queue.getByRole("link", { name: "Payment arrangements" }),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+
+test("all live student routes stay usable at the required presentation widths", async ({
+  page,
+}) => {
+  const student = await createStudent();
+  await signIn(page, student.username, student.password);
+
+  for (const route of [
+    "/student",
+    "/student/courses",
+    "/student/readiness",
+    "/student/register",
+    "/student/changes",
+    "/student/finance",
+    "/student/finance/pay",
+    "/student/finance/arrange",
+  ]) {
+    await expectRouteAtRequiredWidths(page, route);
+  }
+});
+
+test("finance operational routes stay usable at the required presentation widths", async ({
+  page,
+}) => {
+  const officer = await createFinanceOfficer();
+  await signIn(page, officer.username, officer.password);
+
+  for (const route of [
+    "/admin/finance",
+    "/admin/finance/cases",
+    "/admin/finance/adjustments",
+    "/admin/finance/arrangements",
+    "/admin/finance/sponsorships",
+    "/admin/finance/cashier",
+  ]) {
+    await expectRouteAtRequiredWidths(page, route);
+  }
 });
