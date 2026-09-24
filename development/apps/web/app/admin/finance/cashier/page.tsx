@@ -11,15 +11,19 @@ async function cashierAuthority(
 ): Promise<"allowed" | "denied" | "unavailable"> {
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    // The reconciliation queue requires the same FINANCE_OFFICER capability
-    // used by cashier intake, without mutating any finance state.
-    const response = await fetch(`${api}/finance/cases`, {
+    const response = await fetch(`${api}/auth/me`, {
       headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
       signal: AbortSignal.timeout(10000),
     });
     if (response.status === 401 || response.status === 403) return "denied";
-    return response.ok ? "allowed" : "unavailable";
+    if (!response.ok) return "unavailable";
+    const me = (await response.json()) as {
+      activeWorkspace?: { role?: string } | null;
+    };
+    return me.activeWorkspace?.role === "FINANCE_OFFICER"
+      ? "allowed"
+      : "denied";
   } catch {
     return "unavailable";
   }
