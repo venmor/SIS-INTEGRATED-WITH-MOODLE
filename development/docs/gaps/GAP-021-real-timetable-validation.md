@@ -1,0 +1,3 @@
+# GAP-021: Published timetable validation for course amendments
+
+Phase 4 course records have semester and capacity but no authoritative meeting slots. The 2026-09-24 repair uses named fictional collision groups only when `DEMO_MODE=true`; an unknown group or non-demo approval is denied with `TIMETABLE_UNVERIFIED`. These groups are not a published timetable or institutional rule. Before live add/drop approval, the academic owner must approve a timetable source, effective period, conflict and exception policy, and the staff authority for override. Implement and test those contracts without changing official registration history silently.

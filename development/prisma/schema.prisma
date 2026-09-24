@@ -524,6 +524,24 @@ model ApplicationDecision {
   acceptBy DateTime?
   decidedAt DateTime @default(now())
   releasedAt DateTime?
+  revisions ApplicationDecisionRevision[]
+}
+
+// Immutable released terms. ApplicationDecision is the current projection;
+// each release/extension retains its full prior terms and authority.
+model ApplicationDecisionRevision {
+  id String @id @default(uuid())
+  decisionId String
+  decision ApplicationDecision @relation(fields: [decisionId], references: [id], onDelete: Restrict)
+  version Int
+  outcome String
+  message String
+  conditions Json?
+  acceptBy DateTime?
+  reason String
+  actorAccountId String?
+  createdAt DateTime @default(now())
+  @@unique([decisionId, version])
 }
 model SupportTicket {
   id String @id @default(uuid())
@@ -891,7 +909,18 @@ model FinancePaymentTransaction {
   evidence Json?
   createdAt DateTime @default(now())
   allocations FinanceAllocation[]
+  originalReversal FinancePaymentReversal? @relation("ReversedOriginal")
+  reversalEntry FinancePaymentReversal? @relation("ReversalEntry")
   @@index([accountId, status])
+}
+
+model FinancePaymentReversal {
+  id String @id @default(uuid())
+  originalTransactionId String @unique
+  originalTransaction FinancePaymentTransaction @relation("ReversedOriginal", fields: [originalTransactionId], references: [id], onDelete: Restrict)
+  reversalTransactionId String @unique
+  reversalTransaction FinancePaymentTransaction @relation("ReversalEntry", fields: [reversalTransactionId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
 }
 
 // Phase 5 slice 4: callbacks and reconciliation cases (TASK-PH5-004).
@@ -940,9 +969,22 @@ model FinanceAllocation {
   amountMinor Int
   policyVersion String
   createdAt DateTime @default(now())
+  reversal FinanceAllocationReversal?
   @@unique([paymentTransactionId, chargeLineId])
   @@index([chargeLineId])
   @@index([accountId])
+}
+
+// Reversal is a compensating row. The original allocation remains available
+// for historical reproduction and is excluded only from current balances.
+model FinanceAllocationReversal {
+  id String @id @default(uuid())
+  allocationId String @unique
+  allocation FinanceAllocation @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+  providerRef String
+  nonce String
+  amountMinor Int
+  createdAt DateTime @default(now())
 }
 
 

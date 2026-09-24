@@ -56,8 +56,9 @@ export default async function ChangesPage() {
       <h1>Course changes</h1>
       <p className={styles.muted}>
         Required courses cannot be dropped here — request academic advice
-        through a support ticket. Adding a course revalidates prerequisites,
-        capacity, load and finance before anything is recorded.
+        through a support ticket. Registry checks prerequisites, capacity,
+        load and timetable compatibility before approval. Approved changes
+        update your finance account. Class meeting times are not yet published.
       </p>
       <ChangeForms />
       <h2>Change history</h2>

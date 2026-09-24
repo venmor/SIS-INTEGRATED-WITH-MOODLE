@@ -685,6 +685,7 @@ export class ApplicationCaseService {
     },
     decision: {
       outcome: string;
+      version: number;
       message: string;
       conditions: unknown;
       acceptBy: Date | null;
@@ -707,6 +708,7 @@ export class ApplicationCaseService {
       studyMode: row.offering.studyMode,
       campus: row.offering.campus,
       outcome: decision.outcome,
+      version: decision.version,
       message: decision.message,
       conditions: raw.map((c) => {
         if (typeof c === 'string')

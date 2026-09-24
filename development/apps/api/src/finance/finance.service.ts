@@ -256,6 +256,50 @@ export class FinanceService {
     return overrides[courseCode] ?? policy.billing.courseFeeMinor;
   }
 
+  // Registration owns the roster; Finance alone appends its monetary effect.
+  // Called in the same transaction as an authorized amendment, so a failed
+  // reassessment rolls the amendment back instead of leaving a stale invoice.
+  async reassessRegistrationAmendment(db: Tx, registrationId: string, amendmentId: string): Promise<string> {
+    const registration = await db.institutionalRegistration.findUniqueOrThrow({
+      where: { id: registrationId },
+      include: { roster: { where: { status: 'ENROLLED' }, include: { course: true } } },
+    });
+    const attempt = await db.programmeAttempt.findUniqueOrThrow({ where: { id: registration.attemptId } });
+    const account = await db.financeAccount.findUnique({ where: { studentId: attempt.studentId } });
+    if (!account) return 'NOT_ASSESSED';
+    const invoice = await db.financeInvoice.findUnique({
+      where: { accountId_periodId: { accountId: account.id, periodId: registration.periodId } },
+      include: { lines: { include: { course: true } } },
+    });
+    if (!invoice) return 'NOT_ASSESSED';
+    const enrolled = new Map(registration.roster.map((row) => [row.courseId, row.course]));
+    const known = new Set([...enrolled.keys(), ...invoice.lines.filter((line) => line.courseId).map((line) => line.courseId as string)]);
+    for (const courseId of known) {
+      const lines = invoice.lines.filter((line) => line.courseId === courseId && line.status === 'POSTED');
+      const net = lines.reduce((sum, line) => sum + line.amountMinor, 0);
+      const course = enrolled.get(courseId) ?? lines.find((line) => line.course)?.course;
+      if (!course) continue;
+      const desired = enrolled.has(courseId) ? this.courseFeeMinor(course.code) : 0;
+      const delta = desired - net;
+      if (delta === 0) continue;
+      await db.financeChargeLine.create({
+        data: {
+          invoiceId: invoice.id,
+          code: delta > 0 ? 'COURSE_FEE' : 'COURSE_FEE_REVERSAL',
+          description: `${course.code} — ${delta > 0 ? 'course charge' : 'course change credit'}`,
+          courseId,
+          amountMinor: delta,
+          currency: policy.currency,
+          feeRule: delta > 0 ? 'PER_COURSE_ENROLLED_FEE' : 'COURSE_CHANGE_CREDIT',
+          policyVersion: policy.version,
+          inputs: json({ registrationId, amendmentId, courseCode: course.code }),
+          status: 'POSTED',
+        },
+      });
+    }
+    return this.allocateAndAssess(db, account.id, registration.periodId, `REGISTRATION_AMENDMENT:${amendmentId}`);
+  }
+
   async assessCharges(
     auth: FinanceAuthority,
     key: string,
@@ -536,7 +580,7 @@ export class FinanceService {
     }>;
   }> {
     const rows = await db.financeAllocation.findMany({
-      where: { accountId, chargeLine: { invoice: { accountId, periodId } } },
+      where: { accountId, reversal: null, chargeLine: { invoice: { accountId, periodId } } },
       include: {
         chargeLine: true,
         paymentTransaction: { include: { request: true } },
@@ -2248,19 +2292,19 @@ export class FinanceService {
       orderBy: { createdAt: 'asc' },
     });
     const posted = await db.financePaymentTransaction.findMany({
-      where: { accountId, status: 'POSTED' },
+      where: { accountId, status: 'POSTED', originalReversal: null },
       orderBy: { createdAt: 'asc' },
-      include: { allocations: true },
+      include: { allocations: { include: { reversal: true } } },
     });
     for (const tx of posted) {
       let remaining =
         tx.amountMinor -
-        tx.allocations.reduce((sum, a) => sum + a.amountMinor, 0);
+        tx.allocations.filter((a) => !a.reversal).reduce((sum, a) => sum + a.amountMinor, 0);
       if (remaining <= 0) continue;
       for (const line of lines) {
         if (remaining <= 0) break;
         const onLine = await db.financeAllocation.aggregate({
-          where: { chargeLineId: line.id },
+          where: { chargeLineId: line.id, reversal: null },
           _sum: { amountMinor: true },
         });
         const lineDue = line.amountMinor - (onLine._sum.amountMinor ?? 0);
@@ -2294,6 +2338,7 @@ export class FinanceService {
     const allocated = await db.financeAllocation.aggregate({
       where: {
         accountId,
+        reversal: null,
         chargeLine: { invoice: { accountId, periodId } },
       },
       _sum: { amountMinor: true },
@@ -2559,7 +2604,7 @@ export class FinanceService {
       };
       const transaction = await db.financePaymentTransaction.findUnique({
         where: { providerRef: input.providerRef },
-        include: { request: true, account: true },
+        include: { request: true, account: true, originalReversal: true },
       });
       if (!transaction || !transaction.request) {
         const opened = await db.financeReconciliationCase.create({
@@ -2586,6 +2631,10 @@ export class FinanceService {
         };
       }
       const request = transaction.request;
+      if (input.status === 'REVERSED' && (transaction.originalReversal || transaction.status === 'REVERSED')) {
+        await mark('DUPLICATE');
+        return { outcome: 'DUPLICATE', reference: request.reference };
+      }
       // Callbacks for spent requests never confirm: the request expires
       // and the money becomes governed review work.
       if (
@@ -2711,17 +2760,24 @@ export class FinanceService {
         return { outcome: 'FAILED', reference: request.reference };
       }
       if (input.status === 'REVERSED') {
-        // Reversals are new events; the reversed transaction's allocations
-        // are voided as the compensating effect, then clearance is
-        // reassessed under policy (governed recalculation).
-        await db.financeAllocation.deleteMany({
+        // Keep posted allocations unchanged. A linked compensating row
+        // removes each from current totals while retaining the original.
+        const originalAllocations = await db.financeAllocation.findMany({
           where: { paymentTransactionId: transaction.id },
         });
-        await db.financePaymentTransaction.update({
-          where: { id: transaction.id },
-          data: { status: 'REVERSED', signatureValid: true },
-        });
-        await db.financePaymentTransaction.create({
+        for (const allocation of originalAllocations) {
+          await db.financeAllocationReversal.upsert({
+            where: { allocationId: allocation.id },
+            update: {},
+            create: {
+              allocationId: allocation.id,
+              providerRef: input.providerRef,
+              nonce: input.nonce,
+              amountMinor: allocation.amountMinor,
+            },
+          });
+        }
+        const reversalEntry = await db.financePaymentTransaction.create({
           data: {
             requestId: request.id,
             accountId: transaction.accountId,
@@ -2733,6 +2789,12 @@ export class FinanceService {
             status: 'REVERSED',
             signatureValid: true,
             evidence: json({ reversesProviderRef: input.providerRef }),
+          },
+        });
+        await db.financePaymentReversal.create({
+          data: {
+            originalTransactionId: transaction.id,
+            reversalTransactionId: reversalEntry.id,
           },
         });
         await db.outboxEvent.create({

@@ -442,6 +442,19 @@ describe('Phase 3 offer acceptance and onboarding handoff', () => {
     expect((extended.body as { acceptBy: string }).acceptBy).toBe(
       '2027-03-15T17:00:00.000Z',
     );
+    const versioned = await db.applicationDecision.findUniqueOrThrow({
+      where: { applicationId: app.id },
+    });
+    expect(versioned.version).toBe(2);
+    const terms = await db.applicationDecisionRevision.findMany({
+      where: { decisionId: versioned.id },
+      orderBy: { version: 'asc' },
+    });
+    expect(terms.map((row) => [row.version, row.acceptBy?.toISOString()])).toEqual([
+      [1, '2020-01-15T17:00:00.000Z'],
+      [2, '2027-03-15T17:00:00.000Z'],
+    ]);
+    expect(terms[1].reason).toBe('Postal delay in the district.');
     // Acceptance now succeeds under the authorized extension.
     await appPost(
       `/${app.id}/offer/response`,

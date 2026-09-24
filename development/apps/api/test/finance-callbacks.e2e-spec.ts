@@ -501,16 +501,42 @@ describe('Phase 5 callback normalization and duplicate protection', () => {
   it('callback-reversal: reversals are new events with recalculation', async () => {
     const { student, reference, staged } = await initiatedPayment();
     await postCallback(callbackBody(staged, reference)).expect(200);
+    const allocatedBefore = await db.financeAllocation.findMany({
+      where: { paymentTransaction: { providerRef: staged.providerRef } },
+    });
+    expect(allocatedBefore.length).toBeGreaterThan(0);
     const reversed = await postCallback(
       callbackBody(staged, reference, { status: 'REVERSED' }),
     ).expect(200);
     expect((reversed.body as { outcome: string }).outcome).toBe('REVERSED');
+    const allocatedAfter = await db.financeAllocation.findMany({
+      where: { paymentTransaction: { providerRef: staged.providerRef } },
+    });
+    expect(allocatedAfter.map((row) => row.id)).toEqual(
+      allocatedBefore.map((row) => row.id),
+    );
+    const compensations = await db.financeAllocationReversal.findMany({
+      where: { allocationId: { in: allocatedBefore.map((row) => row.id) } },
+    });
+    expect(compensations).toHaveLength(allocatedBefore.length);
+    expect(compensations.reduce((sum, row) => sum + row.amountMinor, 0)).toBe(
+      allocatedBefore.reduce((sum, row) => sum + row.amountMinor, 0),
+    );
     const events = await db.financePaymentTransaction.findMany({
       where: { accountId: staged.accountId, status: 'REVERSED' },
     });
-    // The original flips to REVERSED and the reversal itself is a new
-    // event row linked back to it; the original confirmation is history.
-    expect(events).toHaveLength(2);
+    // The original posted transaction is immutable; reversal is a linked
+    // compensating event, and repeated delivery must not create another.
+    expect(events).toHaveLength(1);
+    const original = await db.financePaymentTransaction.findUniqueOrThrow({
+      where: { providerRef: staged.providerRef },
+    });
+    expect(original.status).toBe('POSTED');
+    const again = await postCallback(
+      callbackBody(staged, reference, { status: 'REVERSED' }),
+    ).expect(200);
+    expect((again.body as { outcome: string }).outcome).toBe('DUPLICATE');
+    expect(await db.financePaymentTransaction.count({ where: { accountId: staged.accountId, status: 'REVERSED' } })).toBe(1);
     expect(
       events.some(
         (e) =>

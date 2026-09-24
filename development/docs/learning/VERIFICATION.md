@@ -206,3 +206,31 @@ dispatch → receipt → CLEARED → reversal → HELD) and new
 (finance step-up auth). `backup:test`, manual screen-reader/WSL replay,
 remote CI, Vercel route check, and human walkthrough remain
 **not verified**. Uncommitted pending review.
+
+## Phase 3–5 integrity repair — 2026-09-24 (`main`)
+
+For `TASK-PH345-001`, regression assertions first reproduced the missing
+offer revision, missing prerequisite refusal and charge reassessment, deleted
+allocation history, and mutable posted transaction. On a fresh isolated seeded
+database (`sis_phase345_final_test`), the eight affected API e2e specs then
+passed **101/101**. API unit tests passed **68/68**. Repository typecheck,
+lint and production build exited 0; lint retained existing warnings.
+
+The existing localhost `sis` database was backed up to
+`/home/hangoma/.local/share/sis-backups/sis-before-phase345-fix-2026-09-24.dump`
+(`pg_restore -l` succeeded), then only the two additive integrity migrations
+were deployed. No database reset or seed rerun occurred. API and web were
+restarted at `127.0.0.1:3001` and `127.0.0.1:3100`; both returned HTTP 200.
+Headless Chromium signed in as the existing fictional `phiri.n` account and
+confirmed the applicant offer displays `offer version 1`, then switched to
+the STUDENT workspace and rendered `/student/changes` and
+`/student/finance` at 390px with no horizontal overflow. This student has no
+invoice, so the finance page correctly displayed `No invoice yet`; the
+charge, credit, clearance and reversal effects were verified in API e2e tests
+rather than this live browser account. Browser inspection did not execute a
+new course amendment or payment reversal on localhost.
+
+The new revisions preserve terms from this migration forward. A previously
+deleted allocation cannot be reconstructed. Real timetable checks remain
+GAP-021; finance step-up remains GAP-020. Human review, remote CI and any
+production deployment are not verified by this local run.

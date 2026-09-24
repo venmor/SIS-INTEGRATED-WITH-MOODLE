@@ -22,6 +22,7 @@ describe('Phase 4 course changes and waitlist', () => {
   let officer: string;
   let approver: string;
   let records: string;
+  let finance: string;
   let offeringId: string;
   const csrf = { 'x-requested-with': 'XMLHttpRequest' };
   const key = () => randomUUID();
@@ -52,6 +53,12 @@ describe('Phase 4 course changes and waitlist', () => {
   const regPost = (path: string, body: object, c: string) =>
     request(app.getHttpServer())
       .post(`/registration${path}`)
+      .set(csrf)
+      .set('Cookie', c)
+      .send(body);
+  const finPost = (path: string, body: object, c: string) =>
+    request(app.getHttpServer())
+      .post(`/finance${path}`)
       .set(csrf)
       .set('Cookie', c)
       .send(body);
@@ -313,6 +320,9 @@ describe('Phase 4 course changes and waitlist', () => {
     records = (
       await user('RECORDS_OFFICER', ['convert-student'], 'INTAKE', '2026')
     ).cookie;
+    finance = (
+      await user('FINANCE_OFFICER', ['assess-charges'], 'FINANCE', 'GLOBAL')
+    ).cookie;
     const seeded = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: 'SWE' }, availability: 'OPEN' },
     });
@@ -391,6 +401,58 @@ describe('Phase 4 course changes and waitlist', () => {
       where: { type: 'MoodleCourseAdded' },
     });
     expect(outbox).toBeDefined();
+  });
+
+  it('amendment-prerequisite: an approval cannot add an unmet prerequisite', async () => {
+    const app = await registeredStudent();
+    const created = await change(app.cookie, {
+      kind: 'ADD',
+      courseCode: 'SWE121',
+      reason: 'I want to study data structures.',
+    }).expect(201);
+    const denied = await regPost(
+      `/amendments/${(created.body as { id: string }).id}/decide`,
+      { approve: true, idempotencyKey: key() },
+      records,
+    ).expect(409);
+    expect((denied.body as { code: string }).code).toBe('PREREQ_UNMET');
+  });
+
+  it('amendment-finance: an approved add reassesses charges', async () => {
+    const app = await registeredStudent();
+    const student = await db.student.findFirstOrThrow({
+      where: { person: { accounts: { some: { sessions: { some: { tokenHash: createHash('sha256').update(app.cookie.slice(4)).digest('hex') } } } } } },
+      include: { attempts: true },
+    });
+    const attemptId = student.attempts[0].id;
+    await finPost('/assess', { attemptId, idempotencyKey: key() }, finance).expect(201);
+    const account = await db.financeAccount.findUniqueOrThrow({ where: { studentId: student.id } });
+    const invoice = await db.financeInvoice.findFirstOrThrow({ where: { accountId: account.id } });
+    const before = await db.financeChargeLine.aggregate({ where: { invoiceId: invoice.id }, _sum: { amountMinor: true } });
+    const created = await change(app.cookie, { kind: 'ADD', courseCode: 'BUS111', reason: 'Elective.' }).expect(201);
+    const approved = await regPost(`/amendments/${(created.body as { id: string }).id}/decide`, { approve: true, idempotencyKey: key() }, records);
+    expect(approved.status, JSON.stringify(approved.body)).toBe(201);
+    const after = await db.financeChargeLine.aggregate({ where: { invoiceId: invoice.id }, _sum: { amountMinor: true } });
+    expect((after._sum.amountMinor ?? 0) - (before._sum.amountMinor ?? 0)).toBe(85000);
+    const clearance = await db.financeClearance.findFirstOrThrow({ where: { studentId: student.id } });
+    expect(clearance.status).not.toBe('CLEARED');
+  });
+
+  it('amendment-credit: a drop appends a credit without erasing the original charge', async () => {
+    const app = await registeredStudent(['SWE111', 'MTH111', 'ENG111', 'BUS111']);
+    const student = await db.student.findFirstOrThrow({
+      where: { person: { accounts: { some: { sessions: { some: { tokenHash: createHash('sha256').update(app.cookie.slice(4)).digest('hex') } } } } } },
+      include: { attempts: true },
+    });
+    await finPost('/assess', { attemptId: student.attempts[0].id, idempotencyKey: key() }, finance).expect(201);
+    const account = await db.financeAccount.findUniqueOrThrow({ where: { studentId: student.id } });
+    const invoice = await db.financeInvoice.findFirstOrThrow({ where: { accountId: account.id } });
+    const created = await change(app.cookie, { kind: 'DROP', courseCode: 'BUS111', reason: 'Change my elective.' }).expect(201);
+    await regPost(`/amendments/${(created.body as { id: string }).id}/decide`, { approve: true, idempotencyKey: key() }, records).expect(201);
+    const bus = await db.financeChargeLine.findMany({ where: { invoiceId: invoice.id, course: { code: 'BUS111' } }, orderBy: { createdAt: 'asc' } });
+    expect(bus.map((row) => [row.code, row.amountMinor])).toEqual([
+      ['COURSE_FEE', 85000], ['COURSE_FEE_REVERSAL', -85000],
+    ]);
   });
 
   it('amendment-approve-drop: roster flips, never deletes', async () => {

@@ -1067,6 +1067,18 @@ export class ReviewService {
             releasedAt: new Date(),
           },
         });
+        await db.applicationDecisionRevision.create({
+          data: {
+            decisionId: decision.id,
+            version: decision.version,
+            outcome: decision.outcome,
+            message: decision.message,
+            conditions: decision.conditions as Prisma.InputJsonValue,
+            acceptBy: decision.acceptBy,
+            reason: 'INITIAL_RELEASE',
+            actorAccountId: auth.accountId,
+          },
+        });
         const offered =
           input.outcome === 'ADMIT' ||
           input.outcome === 'ADMIT_WITH_CONDITIONS';
@@ -1134,7 +1146,7 @@ export class ReviewService {
       auth,
       key,
       'ExtendAdmissionOffer',
-      { applicationId, version, newDeadline },
+      { applicationId, version, newDeadline, reason },
       async (db) => {
         const row = await this.approverView(db, applicationId);
         if (!this.inScope(pre.scopeType, pre.scopeRef, row.offering.intake))
@@ -1185,9 +1197,24 @@ export class ReviewService {
           );
         }
         this.checkVersion(row, version);
+        if (new Date(newDeadline) <= (decision.acceptBy ?? new Date(0))) {
+          this.fail('INVALID_DEADLINE', 'The extension must move the deadline later.', 400);
+        }
         const updated = await db.applicationDecision.update({
           where: { applicationId },
-          data: { acceptBy: new Date(newDeadline) },
+          data: { acceptBy: new Date(newDeadline), version: { increment: 1 } },
+        });
+        await db.applicationDecisionRevision.create({
+          data: {
+            decisionId: updated.id,
+            version: updated.version,
+            outcome: updated.outcome,
+            message: updated.message,
+            conditions: updated.conditions as Prisma.InputJsonValue,
+            acceptBy: updated.acceptBy,
+            reason: reason.trim(),
+            actorAccountId: auth.accountId,
+          },
         });
         await this.event(db, applicationId, {
           code: 'OfferExtended',
@@ -1211,7 +1238,7 @@ export class ReviewService {
           applicationId,
           key,
           'ALLOW',
-          { acceptBy: updated.acceptBy?.toISOString(), reason: reason.trim() },
+          { acceptBy: updated.acceptBy?.toISOString(), reason: reason.trim(), version: updated.version, priorDeadline: decision.acceptBy?.toISOString() },
         );
         return {
           body: {

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { APPLICATION_DEMO_V1 as applications } from '@sis/config';
 import { STUDENT_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
+import { FinanceService } from '../finance/finance.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
@@ -47,7 +48,7 @@ export interface ReadinessAssessment {
 // information, never inferred outcomes.
 @Injectable()
 export class RegistrationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly finance: FinanceService) {}
 
   private fail(
     code: string,
@@ -1529,6 +1530,37 @@ export class RegistrationService {
         if (approve) {
           if (amendment.kind === 'ADD') {
             await db.$queryRaw`SELECT id FROM "Course" WHERE id = ${amendment.courseId} FOR UPDATE`;
+            const existingRoster = await db.courseRegistration.findMany({
+              where: { registrationId: amendment.registrationId, status: 'ENROLLED' },
+              include: { course: true },
+            });
+            if (existingRoster.some((row) => row.courseId === amendment.courseId)) {
+              this.fail('ALREADY_ENROLLED', 'This course is already registered.', 409);
+            }
+            const prerequisites = await db.coursePrerequisite.findMany({
+              where: { courseId: amendment.courseId },
+              include: { requires: true },
+            });
+            // The MVP has no released prior-result source yet. Never infer
+            // completed prerequisites from an enrolled course or Moodle.
+            if (prerequisites.length > 0) {
+              this.fail('PREREQ_UNMET', `A verified prior result is required for ${prerequisites.map((row) => row.requires.code).join(', ')}.`, 409);
+            }
+            const weights = policy.courseTypeWeights as Record<string, number>;
+            const load = existingRoster.reduce((sum, row) => sum + (weights[row.course.courseType] ?? 1), 0)
+              + (weights[amendment.course.courseType] ?? 1);
+            const band = policy.loadBands as { maxHalves: number };
+            if (load > band.maxHalves) {
+              this.fail('LOAD_INVALID', `Adding this course would exceed the ${band.maxHalves} half-course limit.`, 409);
+            }
+            const groups = policy.demoCollisionGroups as Record<string, string>;
+            const requestedGroup = groups[amendment.course.code];
+            if (process.env.DEMO_MODE !== 'true' || !requestedGroup || existingRoster.some((row) => !groups[row.course.code])) {
+              this.fail('TIMETABLE_UNVERIFIED', 'A timetable compatibility check is unavailable. Registry cannot complete this addition yet.', 409);
+            }
+            if (existingRoster.some((row) => groups[row.course.code] === requestedGroup)) {
+              this.fail('TIMETABLE_CONFLICT', 'This course overlaps an enrolled course in the demo timetable.', 409);
+            }
             const enrolled = await db.courseRegistration.count({
               where: {
                 courseId: amendment.courseId,
@@ -1581,6 +1613,7 @@ export class RegistrationService {
               data: { status: 'DROPPED' },
             });
           }
+          const financeStatus = await this.finance.reassessRegistrationAmendment(db, amendment.registrationId, amendment.id);
           const nextVersion =
             (
               await db.registrationAmendment.aggregate({
@@ -1604,6 +1637,7 @@ export class RegistrationService {
                 registrationId: amendment.registrationId,
                 courseCode: amendment.course.code,
                 amendmentVersion: nextVersion,
+                financeStatus,
               }),
             },
           });

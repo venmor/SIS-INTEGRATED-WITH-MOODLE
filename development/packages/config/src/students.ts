@@ -14,6 +14,12 @@ export const STUDENT_DEMO_V1 = {
   // Demo load bands in half-course equivalents (full/extended count 2).
   loadBands: { minHalves: 2, maxHalves: 6 },
   courseTypeWeights: { half: 1, full: 2, extended: 2 },
+  // Fictional collision groups for the seeded demonstration courses only.
+  // These are not published class times or an institutional timetable.
+  demoCollisionGroups: {
+    SWE111: 'A', MTH111: 'B', ENG111: 'C',
+    SWE121: 'D', SWE150: 'E', BUS111: 'F', BUS112: 'G',
+  } as Record<string, string>,
   // Current teaching period for the portal home (period-aware display).
   // Registration windows live on AcademicPeriod rows, not here.
   currentPeriod: "2026S1",

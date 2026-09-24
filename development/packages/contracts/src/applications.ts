@@ -373,6 +373,7 @@ export interface ApplicantOfferView {
   studyMode: string;
   campus: string;
   outcome: string;
+  version: number;
   message: string;
   conditions: OfferConditionView[];
   acceptBy: string | null;

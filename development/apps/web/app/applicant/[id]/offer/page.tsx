@@ -47,7 +47,7 @@ export default async function OfferPage({
       </p>
       <p className={styles.muted}>
         Respond by{" "}
-        {offer.acceptBy ? formatLusaka(offer.acceptBy) : "the stated deadline"}.
+        {offer.acceptBy ? formatLusaka(offer.acceptBy) : "the stated deadline"} (offer version {offer.version}).
         Accepting does not register you; registration opens separately.
       </p>
       {offer.conditions.length > 0 ? (
