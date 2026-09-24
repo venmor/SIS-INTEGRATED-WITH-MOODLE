@@ -317,7 +317,7 @@ describe('LiveMoodleAdapter contract', () => {
             {
               id: 77,
               idnumber: 'STU-DEMO-0001',
-              roles: [{ shortname: 'student' }],
+              roles: [{ roleid: 5, shortname: 'student' }],
             },
             {
               id: 88,
