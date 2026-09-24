@@ -324,6 +324,116 @@ describe('LiveMoodleAdapter contract', () => {
     }
   });
 
+  it('adds the required staff role when the user is enrolled with a different role', async () => {
+    process.env.MOODLE_LIVE_WRITES = 'true';
+    const prisma = prismaDouble() as unknown as {
+      account: { findUnique: ReturnType<typeof vi.fn> };
+    };
+    prisma.account.findUnique.mockResolvedValue({ username: 'lecturer.one' });
+    const { server, calls } = stub((seen) => {
+      if (seen.wsfunction === 'core_user_get_users')
+        return { status: 200, json: { users: [{ id: 88 }] } };
+      if (seen.wsfunction === 'core_enrol_get_enrolled_users')
+        return {
+          status: 200,
+          json: [
+            {
+              id: 88,
+              roles: [{ roleid: 5, shortname: 'student' }],
+            },
+          ],
+        };
+      if (seen.wsfunction === 'enrol_manual_enrol_users')
+        return { status: 200, json: null };
+      return { status: 400, json: { exception: 'unexpected' } };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prisma as never, {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.applyStaffRole({
+          db: {} as never,
+          shell: { id: '7', ref: 'SWE-2026S1' },
+          accountId: 'staff-row-id',
+          moodleRole: 'Teacher',
+          quizScope: null,
+          scenario: 'SUCCESS',
+        }),
+      ).resolves.toBe('CREATED');
+
+      const enrol = calls.find(
+        (call) => call.wsfunction === 'enrol_manual_enrol_users',
+      );
+      expect(enrol?.form.get('enrolments[0][roleid]')).toBe('3');
+      expect(enrol?.form.get('enrolments[0][userid]')).toBe('88');
+      expect(enrol?.form.get('enrolments[0][courseid]')).toBe('7');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('does not re-add an existing group member', async () => {
+    process.env.MOODLE_LIVE_WRITES = 'true';
+    const prisma = prismaDouble() as unknown as {
+      student: { findUnique: ReturnType<typeof vi.fn> };
+      tutorialGroup: { findUnique: ReturnType<typeof vi.fn> };
+    };
+    prisma.tutorialGroup.findUnique.mockResolvedValue({
+      name: 'SWE Demo Tutorial A',
+    });
+    prisma.student.findUnique.mockResolvedValue({
+      studentNumber: 'STU-DEMO-0001',
+    });
+    const { server, calls } = stub((seen) => {
+      if (seen.wsfunction === 'core_group_get_course_groups')
+        return {
+          status: 200,
+          json: [{ id: 90, name: 'SWE Demo Tutorial A' }],
+        };
+      if (seen.wsfunction === 'core_user_get_users')
+        return { status: 200, json: { users: [{ id: 77 }] } };
+      if (seen.wsfunction === 'core_group_get_group_members')
+        return {
+          status: 200,
+          json: [{ groupid: 90, userids: [77] }],
+        };
+      return { status: 200, json: null };
+    });
+    const baseUrl = await listen(server);
+    try {
+      const adapter = new LiveMoodleAdapter(prisma as never, {
+        baseUrl,
+        token: 't',
+        timeoutMs: 5000,
+        restPath: '/webservice/rest/server.php',
+      });
+
+      await expect(
+        adapter.applyGroupMember({
+          db: {} as never,
+          shell: { id: '7', ref: 'SWE-2026S1' },
+          groupId: 'sis-tg-row-id',
+          studentId: 'student-row-id',
+          scenario: 'SUCCESS',
+        }),
+      ).resolves.toBe('EXISTS');
+
+      expect(
+        calls.some(
+          (call) => call.wsfunction === 'core_group_add_group_members',
+        ),
+      ).toBe(false);
+    } finally {
+      server.close();
+    }
+  });
+
   it('maps Moodle exceptions to permanent failures', async () => {
     const { server } = stub(() => ({
       status: 200,
