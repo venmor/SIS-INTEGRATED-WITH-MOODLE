@@ -9,7 +9,6 @@ import {
   csrf,
   http,
   key,
-  registeredStudent,
   user,
   type Ctx,
 } from './helpers/phase6.js';
@@ -27,7 +26,6 @@ describe('Phase 6 simulator delivery and enrolment sync', () => {
   let db: PrismaService;
   let ctx: Ctx;
   let admin: string;
-  let support: string;
   let coordinator: string;
 
   const intPost = (path: string, body: object, c: string) =>
@@ -109,15 +107,13 @@ describe('Phase 6 simulator delivery and enrolment sync', () => {
         'MOODLE',
       )
     ).cookie;
-    support = (
-      await user(
-        db,
-        'INTEGRATION_SUPPORT',
-        ['replay-event', 'manage-incident'],
-        'SYSTEM',
-        'INTEGRATION',
-      )
-    ).cookie;
+    await user(
+      db,
+      'INTEGRATION_SUPPORT',
+      ['replay-event', 'manage-incident'],
+      'SYSTEM',
+      'INTEGRATION',
+    );
     coordinator = (
       await user(
         db,
