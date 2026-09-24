@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Icon, Notice, PageHeader, StatusChip } from "@sis/ui";
-import { loadFinanceWorkspaceRole } from "./finance-role";
+import { loadFinanceWorkspaceState } from "./finance-role";
 import styles from "./finance-workspace.module.css";
 
 export const dynamic = "force-dynamic";
@@ -34,22 +34,35 @@ interface WorkItem {
 }
 
 export default async function FinanceWorkspacePage() {
-  const role = await loadFinanceWorkspaceRole();
-  if (!role)
+  const workspace = await loadFinanceWorkspaceState();
+  if (workspace.kind !== "ok")
     return (
       <div className={styles.page}>
         <main className={styles.main}>
           <PageHeader eyebrow="Student Information System" title="Finance workspace" />
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs finance authority. Sign in with a finance role or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={
+              workspace.kind === "denied"
+                ? "Finance access unavailable"
+                : "Finance service temporarily unavailable"
+            }
+            message={
+              workspace.kind === "denied"
+                ? "This workspace needs finance authority. Sign in with a finance role or ask an administrator."
+                : "The system could not confirm your active finance workspace. Keep the current reference and retry when connectivity is restored."
+            }
+            action={
+              workspace.kind === "denied"
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry finance workspace", href: "/admin/finance" }
+            }
           />
         </main>
       </div>
     );
 
+  const role = workspace.role;
   const [adjustments, arrangements, cases] = await Promise.all([
     loadStaff<{ items: unknown[] }>("/adjustments"),
     loadStaff<{ items: unknown[] }>("/arrangements"),
