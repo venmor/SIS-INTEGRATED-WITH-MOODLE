@@ -28,7 +28,8 @@
     "test:scripts": "node --test scripts/*.test.mjs",
     "scan": "node scripts/check-source.mjs",
     "test:browser": "node scripts/with-env.mjs playwright test",
-    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json"
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
+    "demo:doctor": "node scripts/demo-doctor.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed/seed.ts"
