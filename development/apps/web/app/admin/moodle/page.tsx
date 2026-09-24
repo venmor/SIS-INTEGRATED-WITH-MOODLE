@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ConnectionView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
+import { moodleBackendLabel } from "../integration/backend-label";
 import styles from "../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,7 @@ export default async function MoodleAdminPage() {
       </div>
     );
 
+  const backendLabel = moodleBackendLabel(health.data.backend);
   const attention = deliveries.data.items.filter((item) =>
     ["DEAD_LETTER", "MANUAL_REVIEW"].includes(item.state),
   );
@@ -98,7 +100,7 @@ export default async function MoodleAdminPage() {
           <Notice
             severity={health.data.status === "HEALTHY" ? "success" : "warning"}
             title={`Connection ${health.data.status}`}
-            message={`Provider ${health.data.provider}. SIS registration stays authoritative through every sync state.`}
+            message={`${backendLabel}${health.data.version ? ` · version ${health.data.version}` : ""}. SIS registration stays authoritative through every sync state.`}
           />
           <p className={styles.supporting}>
             Last checked: {health.data.lastCheckedAt ?? "Not recorded yet"}.
