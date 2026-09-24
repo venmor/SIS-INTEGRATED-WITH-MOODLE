@@ -30,3 +30,24 @@ Task 2 RED contract: student home must order `Required action → Registration �
 Task 2 RED: isolated `ui-contracts` job in CI run 36017595240 completed install, migration/seed, API/web build and Chromium setup, then failed `ui-student-finance-polish.spec.ts` on the current Student/Finance hierarchy as expected. Task 1 navigation tests remained green.
 
 Task 2 icon-system ruling: the Phase-6 web app had no shared icon library or icon primitive. Added a first-party `@sis/ui/Icon` stroke-icon vocabulary using `currentColor`, consistent 24×24 viewboxes, and aria-hidden decorative SVGs. Critical actions remain text-labelled. Cost if wrong: maintaining a small internal icon set adds UI-package surface area, but avoids mixing ad-hoc SVG styles or adding a large dependency only for icons.
+
+
+Task 3: implemented — Phase-6 Moodle/integration operations UI polish covers Moodle home, maintenance, mappings, integration overview, deliveries, replays and reconciliation. Browser contracts live in `ui-phase6-operations-polish.spec.ts`.
+
+Task 4: implemented — deterministic demo story data, reset/seed assertions and `demo:doctor` provide stable presentation identities and integration recovery scenarios.
+
+Task 5: implemented — `/demo`, `/demo/stories` and `/demo/evidence` form the Demo Control Centre and presentation evidence/fallback pack.
+
+Task 6: implemented — Phase-7 assessment staging/release and student-results preview routes establish the next-version assessment/results interaction grammar without leaking preview capability into live routes.
+
+Task 7: implemented — CI gained the finance simulator secret and isolated UI programme contracts. Connector-authored commits do not currently receive fresh pull-request workflow runs, so recent commits still require runner verification.
+
+Task 8: implemented — V2 preview maturity index plus Student, Teaching, Finance, Support, Quality, Graduation, Reporting and Integrations future-workspace previews share the same maturity-labelled preview grammar.
+
+Task 9: implemented — cross-workspace browser quality contracts cover representative authenticated routes, 390px/1440px widths, overflow, gradients, keyboard focus and preview/live separation.
+
+Task 10: implemented — guarded `demo:rehearse`, rehearsal safety tests and `docs/demo/DEMO-RUNBOOK.md` provide a repeatable local presentation rehearsal path.
+
+Moodle live-adapter reconciliation (2026-09-24): implementation hardening is in progress on this branch after bringing the new `main` live adapter across. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
+
+Verification note: the latest connector-authored head has no fresh GitHub Actions run, and both Vercel contexts are currently blocked by the account build-rate limit rather than a reported compile/test failure. Do not mark the live-adapter hardening verified green until a fresh API/unit/e2e/build runner completes.
