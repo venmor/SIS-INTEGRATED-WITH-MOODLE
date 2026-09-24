@@ -27,7 +27,9 @@ test.describe("Phase 7 assessment and results previews", () => {
     await page.goto("/design-preview/assessment/staging");
     await expect(page.getByText(/Assigned scope.*SWE111/i)).toBeVisible();
     await expect(page.getByText(/correct.*assigned scope/i)).toBeVisible();
-    await expect(page.getByText(/stage.*examination validation/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Staging consequence" }),
+    ).toContainText(/stage.*examination validation/i);
   });
 
   test("examination validation and result release remain separate authorities", async ({
@@ -47,7 +49,9 @@ test.describe("Phase 7 assessment and results previews", () => {
     page,
   }) => {
     await page.goto("/design-preview/student/results");
-    await expect(page.getByText(/Published official result/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Published official results" }),
+    ).toBeVisible();
     await expect(page.getByText(/Provisional Moodle mark/i)).toHaveCount(0);
     await expect(page.getByText(/system administrators do not edit results/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /edit result/i })).toHaveCount(0);
