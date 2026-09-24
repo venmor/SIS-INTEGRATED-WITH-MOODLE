@@ -58,13 +58,20 @@ export default async function IntegrationPage() {
     loadStaff<{ items: QueueItem[] }>("/replays"),
     loadStaff<{ items: QueueItem[] }>("/incidents"),
   ]);
-  const failed = [health, queue, dead, replays, incidents].filter(
-    (result) => !result.ok,
-  );
-  if (failed.length > 0) {
-    const denied = failed.some(
-      (result) => !result.ok && (result.status === 401 || result.status === 403),
-    );
+  if (
+    !health.ok ||
+    !queue.ok ||
+    !dead.ok ||
+    !replays.ok ||
+    !incidents.ok
+  ) {
+    const denied =
+      (!health.ok && (health.status === 401 || health.status === 403)) ||
+      (!queue.ok && (queue.status === 401 || queue.status === 403)) ||
+      (!dead.ok && (dead.status === 401 || dead.status === 403)) ||
+      (!replays.ok && (replays.status === 401 || replays.status === 403)) ||
+      (!incidents.ok &&
+        (incidents.status === 401 || incidents.status === 403));
     return (
       <div className={styles.page}>
         <main className={styles.main}>
