@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
+import { createRecordsOfficer } from "./fixtures";
 
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
@@ -51,14 +52,15 @@ test("records duplicates: officer reviews and resolves a match", async ({
     await prisma.$disconnect();
   }
 
+  const officer = await createRecordsOfficer();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/sign-in");
-  await page.getByLabel("Username", { exact: true }).fill("mwansa.k");
-  await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Mwansa");
+  await page.getByLabel("Username", { exact: true }).fill(officer.username);
+  await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
   await expect(
-    page.getByRole("link", { name: "Identity review queue" }),
+    page.getByRole("link", { name: "Identity review", exact: true }),
   ).toBeVisible();
   await page.goto("/admin/records/duplicates");
   await expect(
