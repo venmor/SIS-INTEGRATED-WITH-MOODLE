@@ -128,7 +128,8 @@ test("student portal: home, contact update, correction request", async ({
   ).toHaveCount(2);
   await expect(page.getByText(/Due /)).toBeVisible();
   await expect(page.getByText(/Total: /)).toBeVisible();
-  await expect(page.getByText("Clearance is being prepared")).toBeVisible();
+  const financeSummary = page.getByRole("region", { name: "Finance summary" });
+  await expect(financeSummary).toContainText("Clearance is being prepared");
   await expect(page.getByText(/Outstanding:/)).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Statement" }).first(),
