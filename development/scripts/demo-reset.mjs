@@ -41,4 +41,5 @@ ready();
 sh("npx", ["prisma", "generate"]);
 sh("npx", ["prisma", "migrate", "deploy"]);
 sh("node", ["prisma/seed/seed.ts"]);
+sh("node", ["scripts/demo-seed-assert.mjs"]);
 console.log("demo:reset complete");
