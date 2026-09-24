@@ -739,29 +739,28 @@ export class IntegrationService {
   }
 
   async deliverOutbox(outboxId: string): Promise<{ outcome: string }> {
-    return this.prisma.$transaction(async (db) => {
+    const scenario = (await this.simulatorMode()) as SimScenario;
+    const claimed = await this.prisma.$transaction(async (db) => {
       const event = await db.outboxEvent.findUnique({
         where: { id: outboxId },
       });
       if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
-      if (event.deliveredAt) return { outcome: 'DUPLICATE' };
+      if (event.deliveredAt) {
+        return { outcome: 'DUPLICATE' as const };
+      }
+
       const attemptRow = await db.integrationDeliveryAttempt.findFirst({
         where: { outboxId, state: { in: ['PENDING', 'DELIVERING'] } },
         orderBy: { createdAt: 'desc' },
       });
-      const scenario = (await this.simulatorMode()) as SimScenario;
-      // Active maintenance defers without consuming the retry budget:
-      // the attempt resumes at the window end.
-      const deferred = await this.prisma.$transaction(async (db) => {
-        const window = await this.maintenanceWindow(db);
-        if (!window) return null;
-        const row = await db.integrationDeliveryAttempt.findFirst({
-          where: { outboxId, state: { in: ['PENDING', 'DELIVERING'] } },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (row) {
+
+      // Maintenance is a database-only decision, so it stays inside the
+      // short claim transaction. No provider/network call occurs here.
+      const window = await this.maintenanceWindow(db);
+      if (window) {
+        if (attemptRow) {
           await db.integrationDeliveryAttempt.update({
-            where: { id: row.id },
+            where: { id: attemptRow.id },
             data: {
               state: 'PENDING',
               lastError: 'Deferred for scheduled maintenance.',
@@ -769,9 +768,9 @@ export class IntegrationService {
             },
           });
         }
-        return window;
-      });
-      if (deferred) return { outcome: 'RETRY' };
+        return { outcome: 'RETRY' as const };
+      }
+
       const attemptNo = (attemptRow?.attempt ?? 0) + 1;
       const attemptId =
         attemptRow?.id ??
@@ -780,38 +779,66 @@ export class IntegrationService {
             data: { outboxId, state: 'PENDING', attempt: 0 },
           })
         ).id;
-      await db.integrationDeliveryAttempt.update({
-        where: { id: attemptId },
+
+      // Only one caller may move a PENDING attempt into DELIVERING.
+      // A concurrent/stale caller leaves the active delivery alone.
+      const lock = await db.integrationDeliveryAttempt.updateMany({
+        where: { id: attemptId, state: 'PENDING' },
         data: { state: 'DELIVERING', attempt: attemptNo },
       });
-      const payload = (event.payload ?? {}) as Record<string, unknown>;
-      try {
-        await this.routeDelivery(db, event.type, payload, scenario);
+      if (lock.count === 0) {
+        return { outcome: 'RETRY' as const };
+      }
+
+      return {
+        eventType: event.type,
+        payload: (event.payload ?? {}) as Record<string, unknown>,
+        attemptId,
+        attemptNo,
+      };
+    });
+
+    if ('outcome' in claimed) return { outcome: claimed.outcome };
+
+    try {
+      // Provider I/O must never hold a Prisma interactive transaction open.
+      // Live Moodle may legitimately take seconds; simulator writes are
+      // idempotent and also work through the service client outside a tx.
+      await this.routeDelivery(
+        this.prisma as unknown as Tx,
+        claimed.eventType,
+        claimed.payload,
+        scenario,
+      );
+      await this.prisma.$transaction(async (db) => {
         await this.markDelivered(db, outboxId);
-        return { outcome: 'DELIVERED' };
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message.slice(0, 500) : 'Unknown error';
-        // Permanent mapping/source failures go to manual review, never
-        // infinite retry. Simulator outages/timeouts and retryable live
-        // API failures reschedule with backoff.
-        const permanent =
-          message.startsWith('MAP_') || message.startsWith('SRC_');
-        const retryable =
-          !permanent &&
-          (error instanceof SimulatorError ||
-            (error instanceof MoodleApiError && error.retryable));
+      });
+      return { outcome: 'DELIVERED' };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message.slice(0, 500) : 'Unknown error';
+      const sourcePermanent =
+        message.startsWith('MAP_') || message.startsWith('SRC_');
+      const moodlePermanent =
+        error instanceof MoodleApiError && !error.retryable;
+      const manualReview = sourcePermanent || moodlePermanent;
+      const retryable =
+        !manualReview &&
+        (error instanceof SimulatorError ||
+          (error instanceof MoodleApiError && error.retryable));
+
+      await this.prisma.$transaction(async (db) => {
         await this.failAttempt(
           db,
           outboxId,
-          attemptId,
-          attemptNo,
+          claimed.attemptId,
+          claimed.attemptNo,
           message,
-          permanent ? false : retryable,
+          retryable,
         );
-        return { outcome: permanent ? 'MANUAL_REVIEW' : 'RETRY' };
-      }
-    });
+      });
+      return { outcome: manualReview ? 'MANUAL_REVIEW' : 'RETRY' };
+    }
   }
 
   private async routeDelivery(
