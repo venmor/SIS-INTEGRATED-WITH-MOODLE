@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   createApplicant,
   createCoordinator,
@@ -56,7 +56,7 @@ async function signIn(page: Page, username: string, password: string) {
 
 async function tabUntilFocused(
   page: Page,
-  target: ReturnType<Page["locator"]>,
+  target: Locator,
   maxTabs = 60,
 ) {
   for (let count = 0; count < maxTabs; count += 1) {
@@ -68,7 +68,7 @@ async function tabUntilFocused(
   throw new Error("Target was not reachable by keyboard tab order.");
 }
 
-async function expectVisibleFocus(target: ReturnType<Page["locator"]>) {
+async function expectVisibleFocus(target: Locator) {
   const focus = await target.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
