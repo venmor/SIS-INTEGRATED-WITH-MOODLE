@@ -1149,7 +1149,7 @@ async function ensureDemoStoryPack(): Promise<void> {
     const app = await submitted(
       input.username,
       input.applicationReference,
-      \`SUB-\${input.applicationReference}\`,
+      `SUB-${input.applicationReference}`,
     );
     let student = await prisma.student.findUnique({
       where: { studentNumber: input.studentNumber },
