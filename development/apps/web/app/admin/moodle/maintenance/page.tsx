@@ -51,6 +51,7 @@ export default async function MaintenancePage() {
         </main>
       </div>
     );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -59,20 +60,41 @@ export default async function MaintenancePage() {
         <p>
           <Link href="/admin/moodle">Moodle administration</Link>
         </p>
-        <h2>Scheduled windows</h2>
-        {list.data.items.length === 0 ? (
-          <p>No maintenance windows scheduled.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>{item.reason}</strong> — {item.status} ·{" "}
-                {item.startsAt} → {item.endsAt}
-              </li>
-            ))}
-          </ul>
-        )}
-        <MaintenanceForms />
+
+        <section className={styles.section} aria-label="Maintenance impact">
+          <h2>Maintenance impact</h2>
+          <p>
+            Scheduled maintenance affects Moodle delivery only. SIS
+            registration remains authoritative while queued Moodle work is
+            deferred until the active window ends.
+          </p>
+          <p className={styles.supporting}>
+            Students keep their SIS registration state during a Moodle
+            maintenance window; delayed destination access is reported as a
+            sync state, not as a registration failure.
+          </p>
+        </section>
+
+        <section className={styles.section} aria-label="Scheduled windows">
+          <h2>Scheduled windows</h2>
+          {list.data.items.length === 0 ? (
+            <p>No maintenance windows scheduled.</p>
+          ) : (
+            <ul>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.reason}</strong> — {item.status} ·{" "}
+                  {item.startsAt} → {item.endsAt}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.section} aria-label="Maintenance actions">
+          <h2>Maintenance actions</h2>
+          <MaintenanceForms />
+        </section>
       </main>
     </div>
   );
