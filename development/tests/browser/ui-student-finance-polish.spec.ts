@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   assessStudentCharges,
+  createCoordinator,
   createFinanceOfficer,
   createStudent,
 } from "./fixtures";
@@ -157,4 +158,20 @@ test("finance operational routes stay usable at the required presentation widths
   ]) {
     await expectRouteAtRequiredWidths(page, route);
   }
+});
+
+
+test("cashier controls stay hidden outside the active Finance Officer workspace", async ({
+  page,
+}) => {
+  const coordinator = await createCoordinator();
+  await signIn(page, coordinator.username, coordinator.password);
+  await page.goto("/admin/finance/cashier");
+
+  await expect(
+    page.getByRole("heading", { name: "Cashier intake", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Cashier access unavailable")).toBeVisible();
+  await expect(page.getByRole("form", { name: "Record cash intake" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Record intake" })).toHaveCount(0);
 });
