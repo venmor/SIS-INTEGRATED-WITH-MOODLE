@@ -123,7 +123,11 @@ export default async function Home() {
           state={`Signed in as ${me.account.displayName}`}
           reason="Your session is active on this device."
           updated={formatLusaka(new Date())}
-          action="Select an active workspace below to proceed."
+          action={
+            active && liveDestinations.length === 0
+              ? "This role has no dedicated live screen in the current release. Switch workspace if another assignment is available."
+              : "Select an active workspace below to proceed."
+          }
         />
         <WorkspaceSwitcher
           workspaces={me.workspaces}
