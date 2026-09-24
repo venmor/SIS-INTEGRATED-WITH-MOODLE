@@ -118,6 +118,12 @@ test.describe.serial("Phase 6 operations presentation", () => {
     await expect(
       page.getByRole("region", { name: "Needs attention" }),
     ).toContainText(/dead letter|replay|incident/i);
+    await expect(
+      page.getByRole("region", { name: "Health and freshness" }),
+    ).toContainText("Moodle simulator");
+    await expect(
+      page.getByRole("region", { name: "Deliveries and reconciliation" }),
+    ).toContainText("Moodle simulator destination evidence");
     await noOverflow(page);
   });
 
@@ -169,6 +175,9 @@ test.describe.serial("Phase 6 operations presentation", () => {
     await page.goto("/admin/moodle");
 
     const headings = await page.locator("#main-content h2").allTextContents();
+    await expect(
+      page.getByRole("region", { name: "Health and freshness" }),
+    ).toContainText("Moodle simulator");
     expect(headings.slice(0, 4)).toEqual([
       "Needs attention",
       "Health and freshness",
@@ -202,4 +211,17 @@ test.describe.serial("Phase 6 operations presentation", () => {
     await expect(authority).toContainText(/Moodle/i);
     await noOverflow(page);
   });
+});
+
+
+test("reconciliation names the active Moodle backend instead of hard-coding live or simulator state", async ({
+  page,
+}) => {
+  const support = await createIntegrationSupport();
+  await signIn(page, support.username, support.password);
+  await page.goto("/admin/integration/reconciliation");
+
+  await expect(
+    page.getByRole("region", { name: "Reconciliation authority" }),
+  ).toContainText("Moodle simulator is destination evidence");
 });
