@@ -129,7 +129,7 @@ test.describe.serial("authenticated route matrix", () => {
   }) => {
     const applicant = await createApplicant();
     await signIn(page, applicant.username, applicant.password);
-    await assertRouteAtRequiredWidths(page, "/applications");
+    await assertRouteAtRequiredWidths(page, "/applicant");
 
     await page.context().clearCookies();
     await signIn(page, "temwani.r", "Seed-2026-Temwani");
