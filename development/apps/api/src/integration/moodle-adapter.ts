@@ -13,6 +13,10 @@ export class MoodleConfigurationError extends Error {
   }
 }
 
+export function liveWritesEnabled(): boolean {
+  return (process.env.MOODLE_LIVE_WRITES ?? '').trim().toLowerCase() === 'true';
+}
+
 export type ApplyResult =
   | 'CREATED'
   | 'EXISTS'
