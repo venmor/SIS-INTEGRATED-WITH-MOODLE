@@ -6,6 +6,13 @@ export type Tx = Prisma.TransactionClient;
  * live engages only with explicit URL + token configuration. */
 export type MoodleBackend = 'simulator' | 'live';
 
+export class MoodleConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MoodleConfigurationError';
+  }
+}
+
 export type ApplyResult =
   | 'CREATED'
   | 'EXISTS'
@@ -105,9 +112,19 @@ export interface MoodleAdapter {
   }>;
 }
 
-/** Backend selection: live only with explicit URL + token, else simulator. */
+/** Backend selection: simulator only when live config is entirely absent.
+ * A half-configured live connection is a deployment error, not a simulator
+ * fallback, because silently falling back can hide a broken production setup. */
 export function selectBackend(): MoodleBackend {
   const url = (process.env.MOODLE_API_URL ?? '').trim();
   const token = (process.env.MOODLE_API_TOKEN ?? '').trim();
-  return url !== '' && token !== '' ? 'live' : 'simulator';
+  const hasUrl = url !== '';
+  const hasToken = token !== '';
+
+  if (!hasUrl && !hasToken) return 'simulator';
+  if (hasUrl && hasToken) return 'live';
+
+  throw new MoodleConfigurationError(
+    'Live Moodle configuration is incomplete. Set both MOODLE_API_URL and MOODLE_API_TOKEN, or leave both unset for simulator mode.',
+  );
 }
