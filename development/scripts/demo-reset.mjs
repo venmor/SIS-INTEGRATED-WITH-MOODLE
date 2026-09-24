@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./env.mjs";
+import { validateDemoResetEnvironment } from "./demo-safety.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,6 +36,12 @@ function ready() {
 }
 
 loadEnv({ root, requireFile: true });
+const errors = validateDemoResetEnvironment(process.env);
+if (errors.length) {
+  console.error("Demo reset refused unsafe or incomplete configuration.");
+  for (const error of errors) console.error(`- ${error}`);
+  process.exit(1);
+}
 sh("docker", ["compose", "down", "-v"]);
 sh("docker", ["compose", "up", "-d", "db"]);
 ready();
