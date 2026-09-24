@@ -251,3 +251,23 @@ test("reconciliation return path follows the active operations role", async ({
     page.getByRole("link", { name: "Integration support" }),
   ).toHaveCount(0);
 });
+
+
+test("Moodle operational pages distinguish access denial from service recovery", async ({
+  page,
+}) => {
+  const coordinator = await createCoordinator();
+  await signIn(page, coordinator.username, coordinator.password);
+
+  await page.goto("/admin/moodle");
+  await expect(page.getByText("Moodle access unavailable")).toBeVisible();
+
+  await page.goto("/admin/moodle/mappings");
+  await expect(page.getByText("Mapping access unavailable")).toBeVisible();
+
+  await page.goto("/admin/moodle/maintenance");
+  await expect(page.getByText("Maintenance access unavailable")).toBeVisible();
+  await expect(
+    page.getByRole("form", { name: /maintenance/i }),
+  ).toHaveCount(0);
+});
