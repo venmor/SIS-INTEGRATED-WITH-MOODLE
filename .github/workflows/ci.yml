@@ -104,7 +104,7 @@ jobs:
       - run: npm run build --workspace=@sis/config && npm run build --workspace=apps/api && npm run build --workspace=web
       - run: npx playwright install --with-deps chromium
       - name: Run demo-readiness UI contracts
-        run: npx playwright test tests/browser/ui-workspace-navigation.spec.ts tests/browser/ui-student-finance-polish.spec.ts tests/browser/ui-phase6-operations-polish.spec.ts tests/browser/demo-control.spec.ts tests/browser/student-portal.spec.ts
+        run: npx playwright test tests/browser/ui-workspace-navigation.spec.ts tests/browser/ui-student-finance-polish.spec.ts tests/browser/ui-phase6-operations-polish.spec.ts tests/browser/demo-control.spec.ts tests/browser/design-preview-assessment.spec.ts tests/browser/student-portal.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
