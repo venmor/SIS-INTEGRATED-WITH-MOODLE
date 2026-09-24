@@ -72,7 +72,7 @@ describe('LiveMoodleAdapter contract', () => {
     process.env.MOODLE_LIVE_WRITES = oldWrites;
   });
 
-  it('uses Moodle form encoding while keeping token and function in the request URL', async () => {
+  it('uses Moodle form encoding without placing the token in the request URL', async () => {
     const { server, calls } = stub(() => ({
       status: 200,
       json: { version: '4.5', sitename: 'Stub Moodle' },
@@ -90,11 +90,11 @@ describe('LiveMoodleAdapter contract', () => {
       expect(out.ok).toBe(true);
       expect(out.backend).toBe('live');
       expect(calls[0].wsfunction).toBe('core_webservice_get_site_info');
-      expect(calls[0].token).toBe('test-token-never-real');
+      expect(calls[0].token).toBeNull();
       expect(calls[0].contentType).toMatch(
         /^application\/x-www-form-urlencoded/,
       );
-      expect(calls[0].raw).toBe('');
+      expect(calls[0].form.get('wstoken')).toBe('test-token-never-real');
     } finally {
       server.close();
     }
