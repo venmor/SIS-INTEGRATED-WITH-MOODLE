@@ -54,6 +54,34 @@ async function signIn(page: Page, username: string, password: string) {
   await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
 }
 
+async function tabUntilFocused(
+  page: Page,
+  target: ReturnType<Page["locator"]>,
+  maxTabs = 60,
+) {
+  for (let count = 0; count < maxTabs; count += 1) {
+    await page.keyboard.press("Tab");
+    if (await target.evaluate((element) => document.activeElement === element)) {
+      return;
+    }
+  }
+  throw new Error("Target was not reachable by keyboard tab order.");
+}
+
+async function expectVisibleFocus(target: ReturnType<Page["locator"]>) {
+  const focus = await target.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outline: style.outlineStyle,
+      boxShadow: style.boxShadow,
+    };
+  });
+  expect(
+    focus.outline !== "none" ||
+      (focus.boxShadow !== "none" && focus.boxShadow !== ""),
+  ).toBe(true);
+}
+
 test("public, demo and preview route matrix keeps institutional visual rules", async ({
   page,
 }) => {
@@ -154,4 +182,33 @@ test("keyboard focus reaches visible navigation on demo and preview surfaces", a
     expect(["A", "BUTTON"]).toContain(focused?.tag);
     expect(focused?.outline).not.toBe("none");
   }
+});
+
+
+test("keyboard reaches live student form controls with visible focus", async ({
+  page,
+}) => {
+  const student = await createStudent();
+  await signIn(page, student.username, student.password);
+  await page.goto("/student/courses");
+
+  const firstCourse = page.getByLabel("SWE111 — Programming Fundamentals");
+  await tabUntilFocused(page, firstCourse);
+  await expectVisibleFocus(firstCourse);
+  await page.keyboard.press("Space");
+  await expect(firstCourse).toBeChecked();
+
+  const save = page.getByRole("button", { name: "Save course plan" });
+  await tabUntilFocused(page, save);
+  await expectVisibleFocus(save);
+});
+
+test("keyboard reaches the live Moodle connection check", async ({ page }) => {
+  const moodle = await createMoodleAdmin();
+  await signIn(page, moodle.username, moodle.password);
+  await page.goto("/admin/moodle/mappings");
+
+  const check = page.getByRole("button", { name: "Test connection" });
+  await tabUntilFocused(page, check);
+  await expectVisibleFocus(check);
 });
