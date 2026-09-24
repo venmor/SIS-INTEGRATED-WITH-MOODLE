@@ -58,6 +58,27 @@ test("student portal prioritizes action, registration, finance and courses", asy
   await expect(financial).toContainText("Next step");
   await expectNoHorizontalOverflow(page);
 
+  // Finance assessment is valid only after a submitted registration.
+  await page.goto("/student/courses");
+  await page.getByLabel("SWE111 — Programming Fundamentals").check();
+  await page.getByLabel("MTH111 — Discrete Mathematics").check();
+  await page.getByLabel("ENG111 — Communication Skills").check();
+  await page.getByRole("button", { name: "Save course plan" }).click();
+  await expect(page.getByText("Draft saved as version 1.")).toBeVisible();
+
+  await page.goto("/student/register");
+  await page
+    .getByLabel("My course selection is accurate to my knowledge.")
+    .check();
+  await page
+    .getByLabel("I understand the registration rules for this period.")
+    .check();
+  await page
+    .getByLabel("I understand my fee obligations are handled separately.")
+    .check();
+  await page.getByRole("button", { name: "Submit registration" }).click();
+  await expect(page.getByText("Registration completed.")).toBeVisible();
+
   await assessStudentCharges(student.studentNumber);
   await page.goto("/student/finance");
   const summary = page.getByRole("region", { name: "Finance summary" });
