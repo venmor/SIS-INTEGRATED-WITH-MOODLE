@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ArrangementView } from "@sis/contracts";
-import { Notice } from "@sis/ui";
+import { Notice, PageHeader } from "@sis/ui";
 import { ArrangementDecide } from "./forms";
 import styles from "../../../page.module.css";
 
@@ -33,8 +33,10 @@ export default async function ArrangementsPage() {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.context}>Student Information System</p>
-          <h1 className={styles.title}>Payment arrangements</h1>
+          <PageHeader
+            eyebrow="Student Information System"
+            title="Payment arrangements"
+          />
           <Notice
             severity="warning"
             title="Workspace unavailable"
@@ -47,8 +49,11 @@ export default async function ArrangementsPage() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>Payment arrangements</h1>
+        <PageHeader
+          eyebrow="Student Information System"
+          title="Payment arrangements"
+          lede="Review requested terms and apply the separate approver decision boundary."
+        />
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
