@@ -26,6 +26,7 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ci_review
       DEMO_MODE: "true"
       APPLICATION_SCANNER: demo-fixtures
+      FIN_SIM_SECRET: demo-fixtures-secret
       API_INTERNAL_URL: http://127.0.0.1:3101
       PORT: "3101"
     steps:
@@ -83,6 +84,7 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ui_review
       DEMO_MODE: "true"
       APPLICATION_SCANNER: demo-fixtures
+      FIN_SIM_SECRET: demo-fixtures-secret
       API_INTERNAL_URL: http://127.0.0.1:3101
       PORT: "3101"
     steps:
