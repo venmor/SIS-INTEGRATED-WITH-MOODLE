@@ -4,6 +4,7 @@ import { Notice } from "@sis/ui";
 import { ReplayRequestForm } from "./replays/forms";
 import { PauseForm } from "./pause";
 import { IncidentForms } from "./incidents";
+import { moodleBackendLabel } from "./backend-label";
 import styles from "../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ async function loadStaff<T>(
 
 interface HealthView {
   provider: string;
+  backend?: string;
+  version?: string | null;
   status: string;
   lastCheckedAt: string | null;
 }
@@ -86,6 +89,7 @@ export default async function IntegrationPage() {
     );
   }
 
+  const backendLabel = moodleBackendLabel(health.data.backend);
   const pendingReplays = replays.data.items.filter(
     (item) => item.status === "PENDING",
   );
@@ -141,7 +145,7 @@ export default async function IntegrationPage() {
           <Notice
             severity={health.data.status === "HEALTHY" ? "success" : "warning"}
             title={`Connection ${health.data.status}`}
-            message={`Provider ${health.data.provider}. Delivery state is operational evidence; SIS remains the source of record.`}
+            message={`${backendLabel}${health.data.version ? ` · version ${health.data.version}` : ""}. Delivery state is operational evidence; SIS remains the source of record.`}
           />
           <p className={styles.supporting}>
             Last checked: {health.data.lastCheckedAt ?? "Not recorded yet"}.
@@ -169,7 +173,7 @@ export default async function IntegrationPage() {
           )}
           <p>
             <Link href="/admin/integration/reconciliation">Open reconciliation</Link>{" "}
-            to compare SIS expected state with the Moodle simulator.
+            to compare SIS expected state with {backendLabel} destination evidence.
           </p>
         </section>
 
