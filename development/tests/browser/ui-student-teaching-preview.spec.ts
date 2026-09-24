@@ -17,19 +17,19 @@ test.describe.serial("student and teaching experience previews", () => {
     await expect(
       page.getByRole("status", { name: "Design preview" }),
     ).toContainText("No live records or actions.");
+    const previewNav = page.getByRole("navigation", {
+      name: "Preview workspaces",
+    });
     await expect(
-      page.getByRole("link", { name: "Student home preview" }),
+      previewNav.getByRole("link", { name: "Student", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Teaching workspace preview" }),
+      previewNav.getByRole("link", { name: "Teaching", exact: true }),
     ).toBeVisible();
 
     await page.goto("/");
     await expect(
-      page.getByRole("link", { name: "Student home preview" }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("link", { name: "Teaching workspace preview" }),
+      page.getByRole("navigation", { name: "Preview workspaces" }),
     ).toHaveCount(0);
   });
 
