@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ArrangementView } from "@sis/contracts";
 import { Notice, PageHeader } from "@sis/ui";
 import { ArrangementDecide } from "./forms";
+import { loadFinanceWorkspaceRole } from "../finance-role";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,11 @@ async function loadStaff<T>(
 // Payment arrangements: student requests, approver decides. Approval
 // grants a time-boxed clearance entitlement, not a vague note.
 export default async function ArrangementsPage() {
-  const list = await loadStaff<{ items: ArrangementView[] }>("/arrangements");
-  if (!list.ok)
+  const [role, list] = await Promise.all([
+    loadFinanceWorkspaceRole(),
+    loadStaff<{ items: ArrangementView[] }>("/arrangements"),
+  ]);
+  if (!role || !list.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -69,8 +73,18 @@ export default async function ArrangementsPage() {
             ))}
           </ul>
         )}
-        <h2>Decide (approver only)</h2>
-        <ArrangementDecide />
+        {role === "FINANCE_APPROVER" ? (
+          <>
+            <h2>Decide arrangement</h2>
+            <ArrangementDecide />
+          </>
+        ) : (
+          <Notice
+            severity="info"
+            title="Separate approval"
+            message="Finance Officers can review requests here. A Finance Approver makes the decision."
+          />
+        )}
       </main>
     </div>
   );
