@@ -34,7 +34,11 @@ export default async function MappingsPage() {
     loadStaff<ConnectionView>("/health"),
     loadStaff<{ items: MappingView[] }>("/mappings"),
   ]);
-  if (!health.ok || !list.ok)
+  if (!health.ok || !list.ok) {
+    const failures = [health, list].filter((item) => !item.ok);
+    const denied = failures.some(
+      (item) => !item.ok && (item.status === 401 || item.status === 403),
+    );
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -42,13 +46,22 @@ export default async function MappingsPage() {
           <h1 className={styles.title}>Moodle mappings</h1>
           <Notice
             severity="warning"
-            title="Workspace unavailable"
-            message="This workspace needs Moodle administration authority. Sign in with a Moodle role or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={denied ? "Mapping access unavailable" : "Mapping data temporarily unavailable"}
+            message={
+              denied
+                ? "This workspace needs Moodle administration authority."
+                : "The integration service could not load mapping state. Do not recreate mappings from memory; restore connectivity, then retry."
+            }
+            action={
+              denied
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry mappings", href: "/admin/moodle/mappings" }
+            }
           />
         </main>
       </div>
     );
+  }
   const backendLabel = moodleBackendLabel(health.data.backend);
 
   return (
