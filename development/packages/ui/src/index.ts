@@ -26,3 +26,5 @@ export { Money } from "./Money";
 export { StatusChip } from "./StatusChip";
 export type { StatusChipTone } from "./StatusChip";
 export { PageHeader } from "./PageHeader";
+export { Icon } from "./Icon";
+export type { IconName } from "./Icon";
