@@ -36,25 +36,32 @@ interface Me {
   } | null;
 }
 
-async function loadMe(): Promise<Me | null> {
+type HomeIdentityState =
+  | { kind: "signed-out" }
+  | { kind: "unavailable" }
+  | { kind: "signed-in"; me: Me };
+
+async function loadMe(): Promise<HomeIdentityState> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) return null;
+  if (!sid) return { kind: "signed-out" };
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/auth/me`, {
       headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return null;
-    return (await res.json()) as Me;
+    if (res.status === 401) return { kind: "signed-out" };
+    if (!res.ok) return { kind: "unavailable" };
+    return { kind: "signed-in", me: (await res.json()) as Me };
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
 }
 
 export default async function Home() {
-  const me = await loadMe();
-  if (!me) {
+  const identity = await loadMe();
+  if (identity.kind === "signed-out") {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -83,6 +90,24 @@ export default async function Home() {
       </div>
     );
   }
+  if (identity.kind === "unavailable") {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <p className={styles.context}>Student Information System</p>
+          <h1 className={styles.title}>Workspace temporarily unavailable</h1>
+          <Notice
+            severity="warning"
+            title="We cannot confirm your signed-in workspace"
+            message="The identity service is temporarily unavailable. Your session and institutional records have not been changed. Retry when connectivity is restored."
+            action={{ label: "Retry workspace", href: "/" }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  const me = identity.me;
   const active = me.activeWorkspace;
   const liveDestinations = active ? getWorkspaceNavItems(active.role) : [];
   const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
