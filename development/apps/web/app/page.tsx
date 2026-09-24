@@ -5,7 +5,7 @@ import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 import { ExpiryBanner } from "./expiry-banner";
 import { WorkspaceSwitcher } from "./workspace-switcher";
-import { WorkspaceNav } from "./workspace-nav";
+import { getWorkspaceNavItems, WorkspaceNav } from "./workspace-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +84,7 @@ export default async function Home() {
     );
   }
   const active = me.activeWorkspace;
+  const liveDestinations = active ? getWorkspaceNavItems(active.role) : [];
   const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
   return (
     <div className={styles.page}>
@@ -128,7 +129,15 @@ export default async function Home() {
           workspaces={me.workspaces}
           activeId={active?.assignmentId ?? null}
         />
-        {active ? <WorkspaceNav role={active.role} /> : null}
+        {active && liveDestinations.length > 0 ? (
+          <WorkspaceNav role={active.role} />
+        ) : active ? (
+          <Notice
+            severity="info"
+            title="No dedicated live workspace for this role"
+            message="This role is recognized by identity and access control, but the current release does not expose an authoritative operational screen for it. If you hold another assignment, switch workspace above."
+          />
+        ) : null}
         <div className={styles.actions}>
           <a className={styles.primary} href="/sign-in">
             Switch account
