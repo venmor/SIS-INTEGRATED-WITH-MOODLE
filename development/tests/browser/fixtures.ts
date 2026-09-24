@@ -254,6 +254,53 @@ export async function createFinanceOfficer() {
   }
 }
 
+/** Phase 5 slice 6: finance approver fixture (decision authority only). */
+export async function createFinanceApprover() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.fin.approver.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser finance approver",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "FINANCE_APPROVER",
+        scopeType: "FINANCE",
+        scopeRef: "GLOBAL",
+        capabilities: ["approve-adjustment"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 5 slice 6: open reconciliation case fixture for queue triage. */
 export async function seedReconCase() {
   const url = process.env.DATABASE_URL;
