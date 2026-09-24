@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { Card, Notice, PageHeader } from "@sis/ui";
+import { Icon, Notice, PageHeader, StatusChip } from "@sis/ui";
 import styles from "./finance-workspace.module.css";
 
 export const dynamic = "force-dynamic";
@@ -23,32 +23,27 @@ async function loadStaff<T>(
   }
 }
 
-interface WorkspaceCard {
+interface WorkItem {
   href: string;
   title: string;
+  icon: "reconciliation" | "receipt" | "finance" | "identity";
   count: number | null;
-  countLabel: string;
+  state: string;
   body: string;
-  action: string;
 }
 
-// Finance workspace home (TASK-PH5-006): prioritized work cards with
-// live counts and one primary action each — not sentences in a list.
-// Every figure links to its queue; authority stays server-side.
 export default async function FinanceWorkspacePage() {
   const [cases, adjustments, arrangements] = await Promise.all([
     loadStaff<{ items: unknown[] }>("/cases"),
     loadStaff<{ items: unknown[] }>("/adjustments"),
     loadStaff<{ items: unknown[] }>("/arrangements"),
   ]);
+
   if (!cases.ok || !adjustments.ok || !arrangements.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <PageHeader
-            eyebrow="Student Information System"
-            title="Finance workspace"
-          />
+          <PageHeader eyebrow="Student Information System" title="Finance workspace" />
           <Notice
             severity="warning"
             title="Workspace unavailable"
@@ -58,71 +53,85 @@ export default async function FinanceWorkspacePage() {
         </main>
       </div>
     );
-  const cards: Array<WorkspaceCard> = [
+
+  const work: WorkItem[] = [
     {
       href: "/admin/finance/cases",
       title: "Reconciliation queue",
+      icon: "reconciliation",
       count: cases.data.items.length,
-      countLabel: "open cases",
+      state: "Open cases",
       body: "Uncertain, duplicate and mismatch payments waiting for review.",
-      action: "Open queue",
     },
     {
       href: "/admin/finance/adjustments",
       title: "Adjustments and refunds",
+      icon: "receipt",
       count: adjustments.data.items.length,
-      countLabel: "awaiting decision",
-      body: "Maker/checker approvals for credits, waivers and refunds.",
-      action: "Review requests",
+      state: "Awaiting decision",
+      body: "Maker/checker decisions for credits, waivers and refunds.",
     },
     {
       href: "/admin/finance/arrangements",
       title: "Payment arrangements",
+      icon: "finance",
       count: arrangements.data.items.length,
-      countLabel: "awaiting decision",
+      state: "Awaiting decision",
       body: "Student arrangement requests with terms and reasons.",
-      action: "Review requests",
     },
     {
       href: "/admin/finance/sponsorships",
       title: "Sponsorships",
+      icon: "identity",
       count: null,
-      countLabel: "",
-      body: "Record and confirm sponsor coverage with evidence.",
-      action: "Manage sponsorships",
+      state: "Manage coverage",
+      body: "Sponsor coverage and supporting evidence.",
     },
     {
       href: "/admin/finance/cashier",
       title: "Cashier intake",
+      icon: "receipt",
       count: null,
-      countLabel: "",
-      body: "Record reported bank and cash payments, then confirm them.",
-      action: "Open cashier",
+      state: "Record payment",
+      body: "Reported bank and cash payments awaiting confirmation.",
     },
   ];
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <PageHeader
           eyebrow="Student Information System"
           title="Finance workspace"
-          lede="Prioritized work across reconciliation, approvals and intake. Counts update on every visit."
+          lede="Work requiring review, approval or confirmation."
         />
-        <div className={styles.grid}>
-          {cards.map((card) => (
-            <Card key={card.href} title={card.title}>
-              {card.count !== null ? (
-                <p className={styles.count}>
-                  <strong>{card.count}</strong> {card.countLabel}
-                </p>
-              ) : null}
-              <p className={styles.body}>{card.body}</p>
-              <p className={styles.action}>
-                <Link href={card.href}>{card.action}</Link>
-              </p>
-            </Card>
-          ))}
-        </div>
+        <section className={styles.queue} aria-label="Finance work queue">
+          <div className={styles.queueHeading}>
+            <Icon name="finance" size={20} />
+            <h2>Finance work queue</h2>
+          </div>
+          <ul>
+            {work.map((item) => (
+              <li key={item.href}>
+                <div className={styles.itemIcon}>
+                  <Icon name={item.icon} size={19} />
+                </div>
+                <div className={styles.itemBody}>
+                  <Link href={item.href}>{item.title}</Link>
+                  <p>{item.body}</p>
+                </div>
+                <div className={styles.itemState}>
+                  {item.count !== null ? <strong>{item.count}</strong> : null}
+                  <StatusChip
+                    tone={item.count !== null && item.count > 0 ? "attention" : "neutral"}
+                  >
+                    {item.state}
+                  </StatusChip>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
     </div>
   );
