@@ -1,121 +1,233 @@
-# Moodle live-connection setup (from Moodle itself)
+# Moodle live-connection setup
 
-Goal: produce the three values the SIS live adapter needs —
-`MOODLE_API_URL`, `MOODLE_API_TOKEN`, `MOODLE_ROLE_IDS` — from any
-Moodle 4.x+ site where you hold Site Administrator rights. Nothing is
-invented on the SIS side: the token below is issued by Moodle, and the
-Test connection button verifies it before any enrolment flows.
+Goal: connect SIS to a Moodle 4.x+ site through a dedicated External
+Services account without allowing writes during the first proving step.
 
-## 1. Enable web services (one-time, admin)
+The live adapter needs:
 
-1. Site administration → Advanced features → check **Enable web
-   services** → Save.
+- `MOODLE_API_URL`
+- `MOODLE_API_TOKEN`
+- `MOODLE_ROLE_IDS`
+- `MOODLE_CATEGORY_ID`
+- `MOODLE_LIVE_WRITES` (keep `false` until the read-only checks pass)
+
+The deterministic `MOODLE-SIM-v1` backend remains active only when both
+URL and token are absent. Supplying only one is treated as a
+configuration error rather than silently falling back to the simulator.
+
+## 1. Enable web services
+
+As a Moodle Site Administrator:
+
+1. Site administration → Advanced features → enable **Web services**.
 2. Site administration → Server → Web services → Manage protocols →
-   enable **REST protocol** (eye icon open).
-3. Site administration → Server → Web services → External services →
-   confirm **Moodle mobile web service** is enabled (it ships the
-   core functions; or create a custom service in step 3).
+   enable **REST**.
+3. Prefer a dedicated custom External Service for the SIS integration
+   rather than expanding a general-purpose service.
 
-## 2. Create the dedicated service user (never a human admin)
+## 2. Create a dedicated service user
 
-1. Users → Accounts → Add a new user, e.g. `sis-integration`
-   (firstname `SIS`, lastname `Integration`, a working email you
-   control; auth method Manual).
-2. Do NOT make it a site admin. Permissions come from a role below.
+Create a non-human account such as `sis-integration`.
 
-## 3. Create the service role with exactly these capabilities
+Do not make this account a Site Administrator. Give it only the role and
+service permissions required by the custom External Service.
 
-1. Users → Permissions → Define roles → Add a new role, e.g.
-   `SIS integration`, context **System**, no archetype.
-2. Allow ONLY:
-   - `moodle/course:create`, `moodle/course:view`
-   - `moodle/user:view`
-   - `moodle/role:assign`
-   - `enrol/manual:manage` (covers enrol + unenrol users)
-   - `moodle/group:manage`
-   - `webservice/rest:use`
-3. Assign the role to `sis-integration` at System context (Users →
-   Permissions → Assign system roles).
+Never reuse a lecturer or administrator's personal token.
 
-## 4. Authorize the web-service functions (custom-service path)
+## 3. Create the integration role
 
-If you use the built-in mobile service, skip to step 5. For a
-least-privilege custom service:
+Create a system-level role for the service user with only the
+capabilities required by your Moodle configuration. At minimum, the
+account/service must be able to:
 
-1. Server → Web services → External services → Add custom service,
-   e.g. `SIS enrolment sync`, enable it, authorised users only.
-2. Add functions (Functions tab → Add):
-   - `core_webservice_get_site_info`
-   - `core_course_get_courses_by_field`, `core_course_create_courses`
-   - `core_user_get_users`
-   - `core_enrol_get_enrolled_users`
-   - `enrol_manual_enrol_users`, `enrol_manual_unenrol_users`
-   - `core_group_get_course_groups`, `core_group_create_groups`,
-     `core_group_add_group_members`, `core_group_delete_group_members`
-3. Authorised users tab → add `sis-integration`.
+- read site information,
+- read/create the configured course shells,
+- look up Moodle users,
+- read and manage manual enrolments,
+- read/manage groups,
+- use REST web services.
 
-## 5. Mint the token and read the role IDs
+Confirm the effective permissions on the target Moodle instance rather
+than copying a role definition from another installation.
 
-1. Server → Web services → Manage tokens → Add: user
-   `sis-integration`, service from step 3/4 → Save. Copy the token
-   once — Moodle never shows it again.
-2. Role IDs: Users → Permissions → Define roles → click each needed
-   role (Teacher, Non-editing teacher, Tutor/Student); the numeric
-   `roleid=` in the page URL is the value for `MOODLE_ROLE_IDS`.
-   Confirmed against the sibling SIS project (Bitnami Moodle 4.5,
-   stock roles): `{"Teacher":3,"Non-editing Teacher":5,"Student":5}`
-   — verify on your instance before trusting these numbers.
+## 4. Create the custom External Service
 
-## 6. Student identity (required for matching)
+Site administration → Server → Web services → External services.
 
-The adapter matches SIS `studentNumber` ↔ Moodle user **ID number**
-(`idnumber`), staff `username` ↔ `staff-<username>`. Bulk-load via
-Users → Accounts → Upload users (map `idnumber`), or confirm your
-SSO/LDAP already writes idnumber. Names and emails are never used
-as keys.
+Create an enabled service such as **SIS enrolment sync**, restrict it to
+authorised users, and add `sis-integration`.
 
-## 7. Wire the SIS side and prove it
+Add these functions:
 
-1. Set `MOODLE_API_URL=https://your-moodle` (no trailing path),
-   `MOODLE_API_TOKEN=<token>`, `MOODLE_ROLE_IDS=<json>`.
-2. Sign in as the Moodle administrator → Moodle mappings → **Test
-   connection**: expect `Live … Connected to <sitename>` with the
-   site version.
-3. The adapter refuses unknown role shortnames and surfaces Moodle
-   `errorcode`s as permanent failures — fix mapping/role config,
-   never retry blindly.
+- `core_webservice_get_site_info`
+- `core_course_get_courses_by_field`
+- `core_course_create_courses`
+- `core_user_get_users`
+- `core_enrol_get_enrolled_users`
+- `enrol_manual_enrol_users`
+- `enrol_manual_unenrol_users`
+- `core_group_get_course_groups`
+- `core_group_get_group_members`
+- `core_group_create_groups`
+- `core_group_add_group_members`
+- `core_group_delete_group_members`
 
-## 8. Resurrecting the sibling project's Moodle (reference)
-The sibling SIS tested live against `bitnami/moodle:4.5.4` in Docker
-at `127.0.0.1:8090` (admin `admin`, category id 1) with a manually
-minted token that was never committed — only `paste-the-generated-
-token-here` placeholders exist there, which is correct practice.
-That stack needs a Docker host; this machine has none, so it cannot
-run here. To retest live: start that compose on a Docker machine,
-mint a fresh token, and wire the three values below.
+The adapter uses Moodle's REST parameter structure, including bracketed
+nested parameters such as `enrolments[0][userid]` and
+`groupids[0]`.
 
-## 9. Rotate and revoke
+## 5. Mint the token
 
-Tokens belong to the service user, not a person. On staff changes,
-revoke at Manage tokens and mint a fresh one; old tokens stop working
-immediately. Never paste the token into tickets, logs, or chat.
+Site administration → Server → Web services → Manage tokens.
 
-## 10. MoodleCloud sites (trial or paid)
+Create a token for `sis-integration` and the custom SIS service. Copy
+it into your secret/environment configuration.
 
-The same procedure applies, with two MoodleCloud specifics:
+SIS does not persist the token in its database or application audit
+records. Infrastructure, proxy and APM logging should also redact
+web-service tokens.
 
-1. Web services availability depends on the plan. If **Advanced
-   features → Enable web services** is missing or read-only, the
-   trial plan does not permit API access — upgrade or use a
-   self-hosted Moodle for live tests. The simulator stays the
-   default until a working connection proves otherwise.
-2. MoodleCloud forces HTTPS and manages cron itself; use the full
-   `https://<yoursite>.moodlecloud.com` URL with no trailing path.
-   Trial sites sleep when idle — the first call after sleep may time
-   out once; the adapter classifies that as retryable, and a second
-   Test connection confirms.
+## 6. Confirm role IDs on this Moodle site
 
-Handing access to the integrator: URL + token + role IDs only. Never
-share the site-admin password; the dedicated service user from
-section 2 keeps admin credentials out of the integration entirely.
-Rotate the token after the live proving run.
+Site administration → Users → Permissions → Define roles.
+
+Open every Moodle role that SIS may assign and record its numeric role
+ID from that Moodle instance.
+
+Populate `MOODLE_ROLE_IDS` using the SIS labels:
+
+```json
+{
+  "Teacher": 3,
+  "Tutor": 4,
+  "Non-editing Teacher": 4,
+  "Student": 5
+}
+```
+
+The numbers above show the **shape only**. Do not copy them without
+checking your site.
+
+If your SIS Tutor role intentionally uses Moodle's stock Non-editing
+Teacher role, `Tutor` and `Non-editing Teacher` may deliberately map
+to the same numeric Moodle role ID. `Student` must map to the actual
+student role on your site.
+
+Unknown labels are refused instead of guessed.
+
+## 7. Confirm the destination course category
+
+Choose the Moodle category where SIS-created course shells should live.
+Read its numeric category ID and set:
+
+```
+MOODLE_CATEGORY_ID=<target category id>
+```
+
+Do not rely on category `1` unless you have explicitly confirmed that
+it is the intended destination on this Moodle instance.
+
+## 8. Confirm Moodle identity keys
+
+The adapter uses stable identifiers:
+
+- SIS student `studentNumber` ↔ Moodle user `idnumber`
+- SIS staff username ↔ Moodle `idnumber` value
+  `staff-<username>`
+
+Names and email addresses are not reconciliation keys.
+
+Before enabling writes, confirm that the Moodle users you intend to sync
+already have the required `idnumber` values.
+
+## 9. First connection: read-only
+
+Configure:
+
+```
+MOODLE_API_URL=https://your-moodle.example
+MOODLE_API_TOKEN=<secret token>
+MOODLE_ROLE_IDS=<verified JSON>
+MOODLE_CATEGORY_ID=<verified category id>
+MOODLE_LIVE_WRITES=false
+```
+
+Then sign in to the SIS Moodle administration workspace and use
+**Test connection**.
+
+Expected result:
+
+- backend: live,
+- Moodle site/version returned,
+- detail states that live writes are disabled.
+
+At this stage do **not** run provisioning, the delivery worker,
+reconciliation repair, enrolment sync or group sync against the real
+site.
+
+If only URL or token is configured, SIS reports configuration failure;
+it does not quietly present the simulator as healthy.
+
+## 10. Review mappings before writes
+
+Before changing `MOODLE_LIVE_WRITES`:
+
+1. verify course-shell naming and destination category,
+2. verify every `MOODLE_ROLE_IDS` value,
+3. verify student/staff Moodle `idnumber` values,
+4. verify the custom service function list,
+5. verify active SIS→Moodle mappings,
+6. take/confirm a Moodle backup or use a disposable proving course.
+
+## 11. Controlled write proving run
+
+Only after the checks above, set:
+
+```
+MOODLE_LIVE_WRITES=true
+```
+
+Start with a disposable or dedicated proving course and a small set of
+fictional/test identities.
+
+Recommended proving order:
+
+1. provision one shell,
+2. enrol one test student,
+3. add that student to one tutorial group,
+4. assign one test staff role,
+5. rerun the same events to confirm idempotency,
+6. run reconciliation and confirm no drift,
+7. test removal/suspension behavior.
+
+The adapter keeps provider HTTP calls outside Prisma interactive
+transactions and sends permanent Moodle/configuration failures to
+manual review rather than retrying them indefinitely.
+
+## 12. MoodleCloud
+
+MoodleCloud API/web-service availability depends on the plan and site
+configuration. If the Web services controls are unavailable, keep the
+SIS simulator enabled until you have a Moodle site that permits the
+required External Service.
+
+Use the full HTTPS site base URL, for example:
+
+```
+https://example.moodlecloud.com
+```
+
+Do not append `/webservice/rest/server.php`; SIS adds the REST endpoint.
+
+## 13. Rotate and revoke
+
+Treat the integration token as a service credential.
+
+- revoke it immediately if exposed,
+- rotate it after proving runs where appropriate,
+- never paste it into tickets, source code, screenshots or chat,
+- never share the Moodle Site Administrator password with the
+  integration.
+
+Changing/revoking the token does not require changing SIS student or
+academic records.
