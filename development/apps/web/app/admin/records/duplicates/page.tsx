@@ -35,9 +35,21 @@ export default async function DuplicatesPage() {
           <h1 className={styles.title}>Identity review queue</h1>
           <Notice
             severity="warning"
-            title="Queue unavailable"
-            message="This queue needs a records workspace. Sign in with records authority or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={
+              candidates.status === 401 || candidates.status === 403
+                ? "Identity review access unavailable"
+                : "Identity review temporarily unavailable"
+            }
+            message={
+              candidates.status === 401 || candidates.status === 403
+                ? "This queue needs a Records Officer workspace."
+                : "The records service could not confirm the duplicate queue. No identity decision has been made; restore connectivity, then retry."
+            }
+            action={
+              candidates.status === 401 || candidates.status === 403
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry identity review", href: "/admin/records/duplicates" }
+            }
           />
         </main>
       </div>
