@@ -7,37 +7,46 @@ import { AuditTimeline } from "./timeline";
 
 export const dynamic = "force-dynamic";
 
-async function loadGate(): Promise<{
-  allowed: boolean;
-  initial: AuditTimelineResponse | null;
-}> {
+type AuditGate =
+  | { kind: "allowed"; initial: AuditTimelineResponse }
+  | { kind: "denied" }
+  | { kind: "unavailable" };
+
+async function loadGate(): Promise<AuditGate> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) return { allowed: false, initial: null };
+  if (!sid) return { kind: "denied" };
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const me = await fetch(`${api}/auth/me`, {
-      headers: { cookie: `sid=${sid}` },
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     });
-    if (!me.ok) return { allowed: false, initial: null };
+    if (me.status === 401 || me.status === 403) return { kind: "denied" };
+    if (!me.ok) return { kind: "unavailable" };
     const body = (await me.json()) as {
       activeWorkspace: { role: string } | null;
     };
     const role = body.activeWorkspace?.role ?? null;
     if (role === null || !SECURITY_V1.grantorRoles.includes(role)) {
-      return { allowed: false, initial: null };
+      return { kind: "denied" };
     }
+
     const timeline = await fetch(`${api}/auth/audit/timeline?take=20`, {
-      headers: { cookie: `sid=${sid}` },
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     });
-    if (!timeline.ok) return { allowed: false, initial: null };
+    if (timeline.status === 401 || timeline.status === 403) {
+      return { kind: "denied" };
+    }
+    if (!timeline.ok) return { kind: "unavailable" };
     return {
-      allowed: true,
+      kind: "allowed",
       initial: (await timeline.json()) as AuditTimelineResponse,
     };
   } catch {
-    return { allowed: false, initial: null };
+    return { kind: "unavailable" };
   }
 }
 
@@ -48,12 +57,24 @@ export default async function AuditPage() {
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Audit trail</h1>
-        {!gate.allowed || !gate.initial ? (
+        {gate.kind !== "allowed" ? (
           <Notice
             severity="warning"
-            title="Restricted area"
-            message="The audit trail needs an administrator workspace. Switch to one, or ask an administrator."
-            action={{ label: "Back home", href: "/" }}
+            title={
+              gate.kind === "denied"
+                ? "Audit authority unavailable"
+                : "Audit evidence temporarily unavailable"
+            }
+            message={
+              gate.kind === "denied"
+                ? "The audit trail needs an administrator workspace."
+                : "The identity service could not load audit evidence. Do not infer an empty audit trail; restore connectivity, then retry."
+            }
+            action={
+              gate.kind === "denied"
+                ? { label: "Back home", href: "/" }
+                : { label: "Retry audit trail", href: "/admin/audit" }
+            }
           />
         ) : (
           <>
