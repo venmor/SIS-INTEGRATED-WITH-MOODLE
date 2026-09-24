@@ -39,32 +39,39 @@ test.describe("approved V2 workspace previews", () => {
     page,
   }) => {
     await page.goto("/design-preview/support");
-    await expect(page.getByText(/restricted support notes/i)).toBeVisible();
-    await expect(page.getByText(/need-to-know/i)).toBeVisible();
+    const detail = page.getByRole("region", { name: "Record detail" });
+    await expect(detail).toContainText(/restricted support notes/i);
+    await expect(detail).toContainText(/need-to-know/i);
   });
 
   test("reporting preview states suppression and signatory controls", async ({ page }) => {
     await page.goto("/design-preview/reporting");
-    await expect(page.getByText(/privacy suppression/i)).toBeVisible();
-    await expect(page.getByText(/authorised signatory/i)).toBeVisible();
+    const detail = page.getByRole("region", { name: "Record detail" });
+    await expect(detail).toContainText(/privacy suppression/i);
+    await expect(detail).toContainText(/authorised signatory/i);
   });
 
   test("graduation preview preserves source integrity", async ({ page }) => {
     await page.goto("/design-preview/graduation");
-    await expect(page.getByText(/source records remain authoritative/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Record detail" }),
+    ).toContainText(/source records remain authoritative/i);
   });
 
   test("finance preview shows approval boundaries for refunds and reversals", async ({
     page,
   }) => {
     await page.goto("/design-preview/finance-depth");
-    await expect(page.getByText(/second approver/i)).toBeVisible();
-    await expect(page.getByText(/reversal/i)).toBeVisible();
+    const detail = page.getByRole("region", { name: "Record detail" });
+    await expect(detail).toContainText(/second approver/i);
+    await expect(detail).toContainText(/reversal/i);
   });
 
   test("integration preview never renders credential values", async ({ page }) => {
     await page.goto("/design-preview/integrations");
-    await expect(page.getByText(/credential rotation/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Record detail" }),
+    ).toContainText(/credential rotation/i);
     const body = (await page.locator("body").innerText()).toLowerCase();
     expect(body).not.toMatch(/token\s*:/);
     expect(body).not.toMatch(/secret\s*:/);
