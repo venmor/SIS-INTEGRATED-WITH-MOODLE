@@ -225,3 +225,29 @@ test("reconciliation names the active Moodle backend instead of hard-coding live
     page.getByRole("region", { name: "Reconciliation authority" }),
   ).toContainText("Moodle simulator is destination evidence");
 });
+
+
+test("reconciliation return path follows the active operations role", async ({
+  page,
+}) => {
+  const support = await createIntegrationSupport();
+  await signIn(page, support.username, support.password);
+  await page.goto("/admin/integration/reconciliation");
+  await expect(
+    page.getByRole("link", { name: "Integration support" }),
+  ).toHaveAttribute("href", "/admin/integration");
+  await expect(
+    page.getByRole("link", { name: "Moodle administration" }),
+  ).toHaveCount(0);
+
+  await page.context().clearCookies();
+  const moodle = await createMoodleAdmin();
+  await signIn(page, moodle.username, moodle.password);
+  await page.goto("/admin/integration/reconciliation");
+  await expect(
+    page.getByRole("link", { name: "Moodle administration" }),
+  ).toHaveAttribute("href", "/admin/moodle");
+  await expect(
+    page.getByRole("link", { name: "Integration support" }),
+  ).toHaveCount(0);
+});
