@@ -45,3 +45,21 @@ button:focus-visible {
 html {
   color-scheme: light;
 }
+
+/* Global skip link — offscreen until focused. Area layouts may add
+ * their own targeted skip links; this one always reaches #main-content
+ * where present, else the first heading. */
+.globalSkip {
+  position: absolute;
+  left: var(--space-4);
+  top: -10rem;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 100;
+}
+
+.globalSkip:focus {
+  top: var(--space-4);
+}

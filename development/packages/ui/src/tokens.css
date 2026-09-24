@@ -105,10 +105,22 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+
+  /* Type weights — never hardcode 400/600/700 in components. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Shadows — subtle surface lift only, never decoration. */
+  --shadow-sm: 0 1px 1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 1px 3px rgb(0 0 0 / 0.07);
 
   /* Type scale — 19.6: title / section / body / supporting / status */
   --font-title: 2rem;

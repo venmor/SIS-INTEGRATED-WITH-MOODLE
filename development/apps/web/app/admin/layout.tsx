@@ -123,16 +123,21 @@ export default async function AdminLayout({
           />
         ) : null}
 
-        <nav className={styles.nav} aria-label="Workspace sections">
-          <Link href="/">Workspace home</Link>
-          {items
-            .filter((item) => item.show)
-            .map((item) => (
-              <Link key={item.href} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-        </nav>
+        <details className={styles.menu}>
+          <summary className={styles.menuToggle}>
+            Workspace sections
+          </summary>
+          <nav className={styles.nav} aria-label="Workspace sections">
+            <Link href="/">Workspace home</Link>
+            {items
+              .filter((item) => item.show)
+              .map((item) => (
+                <Link key={item.href} href={item.href}>
+                  {item.label}
+                </Link>
+              ))}
+          </nav>
+        </details>
 
         <div className={styles.account}>
           <p>{me?.account.displayName ?? "Signed-in user"}</p>
@@ -140,7 +145,7 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      <div className={styles.content}>{children}</div>
+      <div className={styles.content} id="main-content" tabIndex={-1}>{children}</div>
     </div>
   );
 }

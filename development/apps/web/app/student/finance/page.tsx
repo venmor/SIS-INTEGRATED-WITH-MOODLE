@@ -7,18 +7,17 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import {
+  Card,
+  DataTable,
+  Money,
+  Notice,
+  PageHeader,
+  StatusChip,
+} from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
 import { formatMinor } from "../../../lib/money";
-import styles from "../../applicant/applicant.module.css";
-
-interface PaymentItem {
-  reference: string;
-  status: string;
-  amountMinor: number;
-  currency: string;
-  createdAt: string;
-}
+import styles from "./finance.module.css";
 
 async function loadFinance<T>(
   path: string,
@@ -56,30 +55,37 @@ async function loadFinance<T>(
   }
 }
 
-// Finance home: clearance summary, invoice, statement, receipts. Every
-// figure carries currency; the page formats, never calculates. Balances
-// always say whether registration is blocked.
+// Finance and clearance: summary with block-explanation, invoice and
+// statement as aligned tables, receipts list. Every figure carries
+// currency; the page formats, never calculates.
 export default async function FinancePage() {
   const [account, invoice, statement, paymentList] = await Promise.all([
     loadFinance<FinanceAccountView>("/account?period=2026S1"),
     loadFinance<InvoiceView>("/invoices?period=2026S1"),
     loadFinance<StatementView>("/statement?period=2026S1"),
-    loadFinance<{ items: PaymentItem[] }>("/payments?period=2026S1"),
+    loadFinance<{ items: Array<{ reference: string; status: string; amountMinor: number; currency: string; createdAt: string }> }>(
+      "/payments?period=2026S1",
+    ),
   ]);
   if (!account.data || !invoice.data || !statement.data) {
     const failed = [account, invoice, statement].find((r) => r.message);
     if (failed)
       return (
         <>
-          <p className={styles.eyebrow}>Finance and clearance</p>
-          <h1>Finance and clearance</h1>
+          <PageHeader
+            eyebrow="Finance and clearance"
+            title="Finance and clearance"
+          />
           <StudentUnavailable message={failed.message} />
         </>
       );
     return (
       <>
-        <p className={styles.eyebrow}>Finance and clearance</p>
-        <h1>Finance and clearance</h1>
+        <PageHeader
+          eyebrow="Finance and clearance"
+          title="Finance and clearance"
+          lede="Your charges, payments and clearance for the period, with what to do next."
+        />
         <Notice
           severity="info"
           title="No invoice yet"
@@ -93,90 +99,138 @@ export default async function FinancePage() {
   );
   return (
     <>
-      <p className={styles.eyebrow}>
-        Finance and clearance · {account.data.period}
-      </p>
-      <h1>Finance and clearance</h1>
+      <PageHeader
+        eyebrow={`Finance and clearance · ${account.data.period}`}
+        title="Finance and clearance"
+        lede="Your charges, payments and clearance for the period, with what to do next."
+      />
       <Notice
         severity={account.data.blocksRegistration ? "warning" : "success"}
         title={account.data.clearanceWording}
         message={`${account.data.nextAction} Outstanding: ${formatMinor(account.data.currency, account.data.outstandingMinor)}. ${account.data.blocksRegistration ? "This blocks final registration." : "Registration is not blocked by finance."} Support: ${account.data.supportRoute}.`}
       />
-      <p className={styles.muted}>
+      <p className={styles.meta}>
         Student {account.data.studentNumber} · Sponsorship:{" "}
         {account.data.sponsorship} · Last confirmed{" "}
         {formatLusaka(account.data.refreshedAt)}
       </p>
-      <p>
+      <p className={styles.actions}>
         <Link href="/student/finance/pay">Make a payment</Link> ·{" "}
         <Link href="/student/finance/arrange">Request payment arrangement</Link>
       </p>
-      <h2>Invoice for {invoice.data.period}</h2>
-      <p className={styles.muted}>
-        Official reference {invoice.data.reference}
-        {invoice.data.dueAt ? ` · Due ${formatLusaka(invoice.data.dueAt)}` : ""} ·
-        Fee schedule {invoice.data.policyVersion}
-      </p>
-      <ul>
-        {invoice.data.lines.map((line) => (
-          <li key={line.id}>
-            <p>
-              <strong>{line.description}</strong> —{" "}
-              {formatMinor(line.currency, line.amountMinor)}
-            </p>
-            <p className={styles.muted}>
-              {line.code} · Rule {line.feeRule} · {line.currency}
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p>
-        <strong>
-          Total: {formatMinor(invoice.data.currency, invoice.data.totalMinor)}
-        </strong>
-      </p>
-      <h2>Statement</h2>
-      <ul>
-        {statement.data.lines.map((line) => (
-          <li key={line.id}>
-            <p>
-              {line.description} —{" "}
-              {formatMinor(line.currency, line.amountMinor)} · {line.status}
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p>
-        Invoiced{" "}
-        {formatMinor(statement.data.currency, statement.data.invoicedMinor)} ·
-        Paid {formatMinor(statement.data.currency, statement.data.paidMinor)} ·
-        Outstanding{" "}
-        {formatMinor(
-          statement.data.currency,
-          statement.data.outstandingMinor,
-        )}
-      </p>
-      <h2>Receipts</h2>
-      {receipts.length === 0 ? (
-        <p className={styles.muted}>
-          No confirmed payments yet. Receipts appear here after Finance
-          confirms a payment.
+      <Card title={`Invoice for ${invoice.data.period}`}>
+        <p className={styles.meta}>
+          Official reference {invoice.data.reference}
+          {invoice.data.dueAt ? ` · Due ${formatLusaka(invoice.data.dueAt)}` : ""} ·
+          Fee schedule {invoice.data.policyVersion}
         </p>
-      ) : (
-        <ul>
-          {receipts.map((receipt) => (
-            <li key={receipt.reference}>
-              <p>
-                <strong>Receipt {receipt.reference}</strong> —{" "}
-                {formatMinor(receipt.currency, receipt.amountMinor)}
-              </p>
-              <p className={styles.muted}>
-                Confirmed {formatLusaka(receipt.createdAt)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
+        <DataTable
+          hideTitle
+          title={`Invoice ${invoice.data.reference}`}
+          description="Charges for this period. Amounts include currency."
+          columns={[
+            {
+              heading: "Description",
+              render: (line) => (
+                <>
+                  <strong>{line.description}</strong>
+                  <br />
+                  <span className={styles.rule}>
+                    {line.code} · Rule {line.feeRule}
+                  </span>
+                </>
+              ),
+            },
+            {
+              heading: "Amount",
+              numeric: true,
+              render: (line) => (
+                <Money currency={line.currency} amountMinor={line.amountMinor} />
+              ),
+            },
+          ]}
+          rows={invoice.data.lines}
+          keyOf={(line) => line.id}
+          emptyText="No charge lines on this invoice."
+        />
+        <p className={styles.total}>
+          Total:{" "}
+          <Money
+            currency={invoice.data.currency}
+            amountMinor={invoice.data.totalMinor}
+          />
+        </p>
+      </Card>
+      <Card title="Statement">
+        <DataTable
+          hideTitle
+          title="Statement"
+          description="Posted charges for this period."
+          columns={[
+            {
+              heading: "Description",
+              render: (line) => (
+                <>
+                  {line.description}{" "}
+                  <StatusChip tone="neutral">{line.status}</StatusChip>
+                </>
+              ),
+            },
+            {
+              heading: "Amount",
+              numeric: true,
+              render: (line) => (
+                <Money currency={line.currency} amountMinor={line.amountMinor} />
+              ),
+            },
+          ]}
+          rows={statement.data.lines}
+          keyOf={(line) => line.id}
+          emptyText="No statement lines for this period."
+        />
+        <p className={styles.total}>
+          Invoiced{" "}
+          <Money
+            currency={statement.data.currency}
+            amountMinor={statement.data.invoicedMinor}
+          />{" "}
+          · Paid{" "}
+          <Money
+            currency={statement.data.currency}
+            amountMinor={statement.data.paidMinor}
+          />{" "}
+          · Outstanding{" "}
+          <Money
+            currency={statement.data.currency}
+            amountMinor={statement.data.outstandingMinor}
+          />
+        </p>
+      </Card>
+      <Card title="Receipts">
+        {receipts.length === 0 ? (
+          <p className={styles.meta}>
+            No confirmed payments yet. Receipts appear here after Finance
+            confirms a payment.
+          </p>
+        ) : (
+          <ul className={styles.receipts}>
+            {receipts.map((receipt) => (
+              <li key={receipt.reference}>
+                <p>
+                  <strong>Receipt {receipt.reference}</strong> —{" "}
+                  <Money
+                    currency={receipt.currency}
+                    amountMinor={receipt.amountMinor}
+                  />
+                </p>
+                <p className={styles.meta}>
+                  Confirmed {formatLusaka(receipt.createdAt)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </>
   );
 }

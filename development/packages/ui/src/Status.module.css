@@ -3,7 +3,7 @@
   border-left: 4px solid var(--gray-400);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
-  padding: var(--space-4) var(--space-5, 20px);
+  padding: var(--space-4) var(--space-5);
   width: 100%;
   max-width: none;
 }

@@ -1,0 +1,35 @@
+.meta {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  margin: 0 0 var(--space-3);
+}
+
+.actions {
+  margin: 0 0 var(--space-5);
+}
+
+.total {
+  font-size: var(--font-body);
+  margin: var(--space-3) 0 0;
+}
+
+.rule {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+
+.receipts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.receipts li + li {
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.receipts p {
+  margin: 0 0 var(--space-1);
+}

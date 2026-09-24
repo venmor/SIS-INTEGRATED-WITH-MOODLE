@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReconCaseView } from "@sis/contracts";
-import { Notice } from "@sis/ui";
+import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +46,11 @@ export default async function FinanceCasesPage() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>Reconciliation queue</h1>
+        <PageHeader
+          eyebrow="Student Information System"
+          title="Reconciliation queue"
+          lede="Uncertain, duplicate and mismatch payments waiting for review. Originals are never edited here; resolution opens the case."
+        />
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
@@ -58,16 +61,37 @@ export default async function FinanceCasesPage() {
             message="No open reconciliation cases. Uncertain, duplicate and mismatched payments will appear here."
           />
         ) : (
-          <ul>
-            {queue.data.items.map((item) => (
-              <li key={item.id}>
-                <Link href={`/admin/finance/cases/${item.id}`}>
-                  {item.kind} · {item.status}
-                </Link>{" "}
-                — {item.safeMessage}
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            title="Open reconciliation cases"
+            description="Uncertain, duplicate and mismatch payments with safe next steps."
+            columns={[
+              {
+                heading: "Case",
+                render: (item) => (
+                  <Link href={`/admin/finance/cases/${item.id}`}>
+                    {item.kind}
+                  </Link>
+                ),
+              },
+              {
+                heading: "State",
+                render: (item) => (
+                  <StatusChip
+                    tone={item.status === "OPEN" ? "attention" : "info"}
+                  >
+                    {item.status}
+                  </StatusChip>
+                ),
+              },
+              {
+                heading: "Next step",
+                render: (item) => item.safeMessage,
+              },
+            ]}
+            rows={queue.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No open reconciliation cases."
+          />
         )}
       </main>
     </div>

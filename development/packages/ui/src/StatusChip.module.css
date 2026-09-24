@@ -1,0 +1,37 @@
+.chip {
+  display: inline-block;
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+  white-space: nowrap;
+}
+
+.info {
+  background: var(--info-bg);
+  border-color: var(--blue-200);
+  color: var(--info-text);
+}
+
+.success {
+  background: var(--success-bg);
+  border-color: var(--green-200);
+  color: var(--success-text);
+}
+
+.attention,
+.warning {
+  background: var(--warning-bg);
+  border-color: var(--gold-200);
+  color: var(--warning-text);
+}
+
+.error {
+  background: var(--error-bg);
+  border-color: var(--unza-red);
+  color: var(--error-text);
+}

@@ -102,11 +102,15 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
   await expect(
     page.getByText("Browser flap observed.").first(),
   ).toBeVisible();
-  const incidentId = await page
-    .getByText(/ID [0-9a-f-]{36}/)
-    .first()
-    .textContent()
-    .then((text) => text?.match(/[0-9a-f-]{36}/)?.[0] ?? "");
+  const openIncident = page
+    .locator("li", { hasText: "Browser flap observed." })
+    .filter({ hasText: "OPEN" })
+    .first();
+  await expect(openIncident).toBeVisible();
+  const incidentId =
+    (await openIncident
+      .textContent()
+      .then((text) => text?.match(/[0-9a-f-]{36}/)?.[0] ?? "")) ?? "";
   await page.getByLabel("Incident ID").fill(incidentId);
   await page
     .getByLabel("Recovery evidence")

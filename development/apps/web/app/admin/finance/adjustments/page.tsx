@@ -1,8 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { AdjustmentView } from "@sis/contracts";
-import { Notice } from "@sis/ui";
-import { formatMinor } from "../../../../lib/money";
+import { DataTable, Money, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { AdjustmentForms } from "./forms";
 import styles from "../../../page.module.css";
 
@@ -48,27 +47,47 @@ export default async function AdjustmentsPage() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>Adjustments and refunds</h1>
+        <PageHeader
+          eyebrow="Student Information System"
+          title="Adjustments and refunds"
+          lede="Officers request; approvers decide — never the same person. Approved credits post compensating lines."
+        />
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
         <AdjustmentForms />
         <h2>Awaiting decision</h2>
-        {list.data.items.length === 0 ? (
-          <p>No adjustments awaiting decision.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.kind} {formatMinor(item.currency, item.amountMinor)}
-                </strong>{" "}
-                — {item.reason} · {item.status}
-              </li>
-            ))}
-          </ul>
-        )}
+        <DataTable
+          hideTitle
+          title="Adjustments awaiting decision"
+          description="Credit notes, waivers and refunds with reasons and amounts."
+          columns={[
+            {
+              heading: "Kind",
+              render: (item) => <strong>{item.kind}</strong>,
+            },
+            {
+              heading: "Amount",
+              numeric: true,
+              render: (item) => (
+                <Money currency={item.currency} amountMinor={item.amountMinor} />
+              ),
+            },
+            {
+              heading: "Reason",
+              render: (item) => item.reason,
+            },
+            {
+              heading: "State",
+              render: (item) => (
+                <StatusChip tone="attention">{item.status}</StatusChip>
+              ),
+            },
+          ]}
+          rows={list.data.items}
+          keyOf={(item) => item.id}
+          emptyText="No adjustments awaiting decision."
+        />
       </main>
     </div>
   );

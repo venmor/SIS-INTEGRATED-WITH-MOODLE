@@ -117,15 +117,21 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByText(`Official reference ${reference}`),
   ).toBeVisible();
+  // Invoice line renders in both table and mobile-card forms.
+  const invoiceCard = page.locator("section", {
+    has: page.getByRole("heading", { name: "Invoice for 2026S1" }),
+  });
   await expect(
-    page.getByText("SWE111 — Programming Fundamentals", { exact: true }),
-  ).toBeVisible();
+    invoiceCard.getByText("SWE111 — Programming Fundamentals", {
+      exact: true,
+    }),
+  ).toHaveCount(2);
   await expect(page.getByText(/Due /)).toBeVisible();
   await expect(page.getByText(/Total: /)).toBeVisible();
   await expect(page.getByText("Clearance is being prepared")).toBeVisible();
   await expect(page.getByText(/Outstanding:/)).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Statement" }),
+    page.getByRole("heading", { name: "Statement" }).first(),
   ).toBeVisible();
   await noOverflow(page);
 

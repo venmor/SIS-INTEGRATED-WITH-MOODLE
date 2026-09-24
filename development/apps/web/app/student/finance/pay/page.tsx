@@ -3,12 +3,22 @@ import { FINANCE_DEMO_V1 } from "@sis/config";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../../chrome";
+import { Card, DataTable, Money, PageHeader, StatusChip } from "@sis/ui";
 import { PayForms } from "./forms";
-import styles from "../../../applicant/applicant.module.css";
+import { formatLusaka } from "../../../../lib/time";
 
 interface PaymentItem {
   reference: string;
   status: string;
+  amountMinor: number;
+  currency: string;
+  createdAt: string;
+}
+
+function statusTone(status: string) {
+  if (status === "CONFIRMED") return "success" as const;
+  if (status === "FAILED" || status === "EXPIRED") return "error" as const;
+  return "info" as const;
 }
 
 type LoadState =
@@ -63,16 +73,14 @@ export default async function PayPage() {
   if (state.kind === "missing")
     return (
       <>
-        <p className={styles.eyebrow}>Make a payment</p>
-        <h1>Make a payment</h1>
+        <PageHeader eyebrow="Make a payment" title="Make a payment" />
         <StudentUnavailable message="No invoice has been issued for this period yet. Finance issues your invoice after registration." />
       </>
     );
   if (state.kind === "failed")
     return (
       <>
-        <p className={styles.eyebrow}>Make a payment</p>
-        <h1>Make a payment</h1>
+        <PageHeader eyebrow="Make a payment" title="Make a payment" />
         <StudentUnavailable message={state.message} />
       </>
     );
@@ -82,8 +90,11 @@ export default async function PayPage() {
     ) ?? null;
   return (
     <>
-      <p className={styles.eyebrow}>Make a payment</p>
-      <h1>Make a payment</h1>
+      <PageHeader
+        eyebrow="Make a payment"
+        title="Make a payment"
+        lede={`Amount due with currency, an explicit method choice, and the effect on clearance before you confirm.${state.account.dueAt ? ` Deadline ${formatLusaka(state.account.dueAt)}.` : ""}`}
+      />
       <PayForms
         initial={{
           outstandingMinor: state.account.outstandingMinor,
@@ -97,18 +108,41 @@ export default async function PayPage() {
           openStatus: open?.status ?? null,
         }}
       />
-      <h2>Your payment requests</h2>
-      {state.payments.length === 0 ? (
-        <p className={styles.muted}>No payment requests for this period.</p>
-      ) : (
-        <ul>
-          {state.payments.map((item) => (
-            <li key={item.reference}>
-              <strong>{item.reference}</strong> — {item.status}
-            </li>
-          ))}
-        </ul>
-      )}
+      <Card title="Your payment requests">
+        <DataTable
+          hideTitle
+          title="Payment requests"
+          description="Every attempt with its state. An open request blocks a second attempt."
+          columns={[
+            {
+              heading: "Reference",
+              render: (item) => <strong>{item.reference}</strong>,
+            },
+            {
+              heading: "Amount",
+              numeric: true,
+              render: (item) => (
+                <Money currency={item.currency} amountMinor={item.amountMinor} />
+              ),
+            },
+            {
+              heading: "State",
+              render: (item) => (
+                <StatusChip tone={statusTone(item.status)}>
+                  {item.status}
+                </StatusChip>
+              ),
+            },
+            {
+              heading: "Started",
+              render: (item) => formatLusaka(item.createdAt),
+            },
+          ]}
+          rows={state.payments}
+          keyOf={(item) => item.reference}
+          emptyText="No payment requests for this period."
+        />
+      </Card>
     </>
   );
 }

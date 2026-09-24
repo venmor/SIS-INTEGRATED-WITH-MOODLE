@@ -170,7 +170,7 @@
   grid-template-columns: minmax(9rem, 0.7fr) minmax(22rem, 2fr) minmax(12rem, 0.9fr);
   gap: var(--space-6);
   align-items: center;
-  padding: var(--space-5, 20px) var(--space-6);
+  padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border);
 }
 

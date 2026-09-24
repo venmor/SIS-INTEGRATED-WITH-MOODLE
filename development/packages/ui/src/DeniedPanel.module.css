@@ -4,7 +4,7 @@
   border-left: 4px solid var(--attention);
   border-radius: var(--radius-md);
   background: var(--attention-bg);
-  padding: var(--space-4) var(--space-5, 20px);
+  padding: var(--space-4) var(--space-5);
 }
 
 .denied:focus {
