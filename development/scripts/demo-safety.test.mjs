@@ -41,3 +41,13 @@ test("demo reset refuses a missing or malformed database URL", () => {
     /DATABASE_URL must be a valid URL/i,
   );
 });
+
+test("demo reset refuses live Moodle provider configuration", () => {
+  const errors = validateDemoResetEnvironment({
+    DEMO_MODE: "true",
+    DATABASE_URL: "postgresql://sis:sis@localhost:5432/sis",
+    MOODLE_API_URL: "https://moodle.example.edu",
+    MOODLE_API_TOKEN: "not-a-real-token",
+  });
+  assert.match(errors.join("\n"), /simulator-only|Moodle/i);
+});
