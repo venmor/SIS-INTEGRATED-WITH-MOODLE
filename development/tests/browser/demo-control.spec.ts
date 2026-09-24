@@ -45,9 +45,31 @@ test.describe("Demo Control Centre", () => {
       page.getByText("Design preview · No live records or actions."),
     ).toBeVisible();
     await expect(page.getByText(/Phase 7 preview/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Applicant portal" })).toHaveAttribute(
+      "href",
+      "/applicant",
+    );
     await expect(page.getByRole("link", { name: /Integration recovery/ })).toHaveAttribute(
       "href",
       "/admin/integration",
     );
   });
+});
+
+
+test("control-centre story launch routes point at real live workspaces", async ({
+  page,
+}) => {
+  await page.goto("/demo");
+
+  await expect(page.getByRole("link", { name: "/applicant" })).toHaveAttribute(
+    "href",
+    "/applicant",
+  );
+  await expect(
+    page.getByRole("link", { name: "/admin/teaching/groups" }),
+  ).toHaveAttribute("href", "/admin/teaching/groups");
+  await expect(
+    page.getByRole("link", { name: "/admin/integration" }),
+  ).toHaveAttribute("href", "/admin/integration");
 });
