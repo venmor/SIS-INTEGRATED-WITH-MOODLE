@@ -54,6 +54,36 @@ test.describe("Demo evidence and fallback pack", () => {
     );
   });
 
+  test("unknown Moodle status stays explicit and never looks connected", async ({
+    page,
+  }) => {
+    const admin = await createMoodleAdmin();
+    await signIn(page, admin.username, admin.password);
+
+    await page.route("**/api/integration/connection/validate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          backend: "live",
+          ok: false,
+          version: null,
+          detail:
+            "Connection state is unknown. The last known provider state may be stale; retry before enabling writes.",
+        }),
+      });
+    });
+
+    await page.goto("/admin/moodle/mappings");
+    await page.getByRole("button", { name: "Test connection" }).click();
+
+    await expect(page.getByText("Connection needs attention")).toBeVisible();
+    await expect(
+      page.getByText(/Connection state is unknown.*stale.*retry before enabling writes/i),
+    ).toBeVisible();
+    await expect(page.getByText("Connection confirmed")).toHaveCount(0);
+  });
+
   test("live connection validation recovers from a temporary outage without duplicate writes", async ({
     page,
   }) => {
@@ -95,6 +125,7 @@ test.describe("Demo evidence and fallback pack", () => {
     await expect(check).toBeEnabled();
 
     await check.click();
+    await expect(page.getByText("Connection confirmed")).toBeVisible();
     await expect(
       page.getByText(/Live: Connected to Demo Moodle\. Live writes are disabled\./),
     ).toBeVisible();
