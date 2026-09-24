@@ -19,6 +19,7 @@ if (process.env.ALLOW_DEMO_SEED !== "true") {
 }
 
 import { createRequire } from "node:module";
+import { randomUUID } from "node:crypto";
 import {
   DEMO_PERIOD,
   DEMO_POLICY_VERSION,
@@ -1005,6 +1006,676 @@ async function ensureStudentDemo(): Promise<void> {
   }
 }
 
+
+async function ensureDemoStoryPack(): Promise<void> {
+  const offering = await prisma.programmeOffering.findFirstOrThrow({
+    where: {
+      programme: { code: "SWE" },
+      intake: DEMO_PERIOD,
+      availability: "OPEN",
+    },
+    include: { programme: true },
+  });
+  const period = await prisma.academicPeriod.findUniqueOrThrow({
+    where: { code: DEMO_PERIOD },
+  });
+  const curriculum = await prisma.curriculumVersion.findUniqueOrThrow({
+    where: {
+      programmeId_version: {
+        programmeId: offering.programmeId,
+        version: 1,
+      },
+    },
+  });
+  const courses = await prisma.course.findMany({
+    where: { code: { in: ["SWE111", "MTH111", "ENG111"] } },
+    orderBy: { code: "asc" },
+  });
+
+  async function account(username: string) {
+    return prisma.account.findUniqueOrThrow({ where: { username } });
+  }
+
+  async function application(
+    username: string,
+    reference: string,
+    state: string,
+  ) {
+    const existing = await prisma.application.findUnique({
+      where: { reference },
+    });
+    if (existing) return existing;
+    const owner = await account(username);
+    return prisma.application.create({
+      data: {
+        accountId: owner.id,
+        offeringId: offering.id,
+        reference,
+        state,
+        version: state === "Submitted" ? 2 : 1,
+        policyVersion: "DEMO-APPLICATION-v1",
+        requirementVersion: DEMO_POLICY_VERSION,
+        personal: {
+          givenName: username.split(".")[0],
+          familyName: "Demo",
+          dateOfBirth: "2000-01-01",
+        },
+        contact: { preferredChannel: "PORTAL" },
+        qualifications: {
+          routeCode: "ECZ",
+          institution: "Fictional ECZ",
+          awardTitle: "Grade 12",
+          completionYear: 2025,
+        },
+      },
+    });
+  }
+
+  async function submitted(
+    username: string,
+    reference: string,
+    submissionReference: string,
+  ) {
+    const app = await application(username, reference, "Submitted");
+    const snapshot = await prisma.applicationSubmission.findUnique({
+      where: { applicationId: app.id },
+    });
+    if (!snapshot) {
+      await prisma.applicationSubmission.create({
+        data: {
+          applicationId: app.id,
+          reference: submissionReference,
+          snapshot: {
+            demo: true,
+            state: "Submitted",
+            programme: offering.programme.code,
+            intake: offering.intake,
+          },
+          receipt: {
+            reference: submissionReference,
+            nextStep: "Await admissions assessment.",
+          },
+        },
+      });
+    }
+    return app;
+  }
+
+  await application(
+    DEMO_SCENARIOS.applicants.draft.username,
+    DEMO_SCENARIOS.applicants.draft.applicationReference,
+    "Created",
+  );
+
+  await submitted(
+    DEMO_SCENARIOS.applicants.submitted.username,
+    DEMO_SCENARIOS.applicants.submitted.applicationReference,
+    DEMO_SCENARIOS.applicants.submitted.submissionReference,
+  );
+
+  const offerApp = await submitted(
+    DEMO_SCENARIOS.applicants.offer.username,
+    DEMO_SCENARIOS.applicants.offer.applicationReference,
+    DEMO_SCENARIOS.applicants.offer.submissionReference,
+  );
+  const offerDecision = await prisma.applicationDecision.findUnique({
+    where: { applicationId: offerApp.id },
+  });
+  if (!offerDecision) {
+    await prisma.applicationDecision.create({
+      data: {
+        applicationId: offerApp.id,
+        outcome: "ADMIT_WITH_CONDITIONS",
+        message:
+          "Fictional demonstration offer. Accept the offer before Registry converts the record to a student.",
+        conditions: [],
+        version: 1,
+        acceptBy: new Date("2027-01-15T15:00:00.000Z"),
+        decidedAt: new Date("2026-09-20T09:00:00.000Z"),
+        releasedAt: new Date("2026-09-20T09:05:00.000Z"),
+      },
+    });
+  }
+
+  async function ensureStudentFixture(input: {
+    username: string;
+    studentNumber: string;
+    applicationReference: string;
+    registrationReceipt: string;
+    invoiceReference: string;
+    cleared: boolean;
+  }) {
+    const owner = await account(input.username);
+    const app = await submitted(
+      input.username,
+      input.applicationReference,
+      \`SUB-\${input.applicationReference}\`,
+    );
+    let student = await prisma.student.findUnique({
+      where: { studentNumber: input.studentNumber },
+    });
+    if (!student) {
+      const byPerson = await prisma.student.findUnique({
+        where: { personId: owner.personId },
+      });
+      student =
+        byPerson ??
+        (await prisma.student.create({
+          data: {
+            personId: owner.personId,
+            studentNumber: input.studentNumber,
+            status: "ACTIVE",
+          },
+        }));
+    }
+    const studentRole = await prisma.roleAssignment.findFirst({
+      where: {
+        accountId: owner.id,
+        role: "STUDENT",
+        scopeType: "STUDENT",
+        scopeRef: student.studentNumber,
+        revokedAt: null,
+      },
+    });
+    if (!studentRole) {
+      await prisma.roleAssignment.create({
+        data: {
+          accountId: owner.id,
+          role: "STUDENT",
+          scopeType: "STUDENT",
+          scopeRef: student.studentNumber,
+          startsAt: new Date("2026-09-20T00:00:00.000Z"),
+          capabilities: ["study"],
+          reason: "Fictional Phase-6 demonstration student workspace",
+        },
+      });
+    }
+
+    let attempt = await prisma.programmeAttempt.findUnique({
+      where: { applicationId: app.id },
+    });
+    if (!attempt) {
+      attempt = await prisma.programmeAttempt.create({
+        data: {
+          studentId: student.id,
+          applicationId: app.id,
+          offeringId: offering.id,
+          intake: offering.intake,
+          curriculumVersionId: curriculum.id,
+          status: "ACTIVE",
+        },
+      });
+    }
+
+    let registration = await prisma.institutionalRegistration.findUnique({
+      where: {
+        attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
+      },
+    });
+    if (!registration) {
+      registration = await prisma.institutionalRegistration.create({
+        data: {
+          attemptId: attempt.id,
+          periodId: period.id,
+          version: 1,
+          status: "REGISTERED",
+          receipt: input.registrationReceipt,
+          snapshot: {
+            demo: true,
+            registrationNumber: input.registrationReceipt,
+            studentNumber: student.studentNumber,
+            period: period.code,
+            courses: courses.map((course) => ({
+              code: course.code,
+              title: course.title,
+              credits: course.credits,
+            })),
+            clearance: input.cleared ? "CLEARED" : "CLEARED_AT_REGISTRATION",
+            submittedAt: "2026-09-20T10:00:00.000Z",
+          },
+          declarations: [
+            "PLAN_ACCURATE",
+            "RULES_UNDERSTOOD",
+            "FINANCE_UNDERSTOOD",
+          ],
+        },
+      });
+    }
+    for (const course of courses) {
+      await prisma.courseRegistration.upsert({
+        where: {
+          registrationId_courseId: {
+            registrationId: registration.id,
+            courseId: course.id,
+          },
+        },
+        update: {},
+        create: {
+          registrationId: registration.id,
+          courseId: course.id,
+          status: "ENROLLED",
+        },
+      });
+    }
+
+    const financeAccount = await prisma.financeAccount.upsert({
+      where: { studentId: student.id },
+      update: {},
+      create: { studentId: student.id },
+    });
+    let invoice = await prisma.financeInvoice.findUnique({
+      where: {
+        accountId_periodId: {
+          accountId: financeAccount.id,
+          periodId: period.id,
+        },
+      },
+    });
+    if (!invoice) {
+      invoice = await prisma.financeInvoice.create({
+        data: {
+          accountId: financeAccount.id,
+          periodId: period.id,
+          reference: input.invoiceReference,
+          policyVersion: "FINANCE-DEMO-v1",
+          status: "ISSUED",
+          dueAt: new Date("2026-10-15T15:00:00.000Z"),
+        },
+      });
+    }
+    let charge = await prisma.financeChargeLine.findFirst({
+      where: { invoiceId: invoice.id, code: "DEMO_TUITION" },
+    });
+    if (!charge) {
+      charge = await prisma.financeChargeLine.create({
+        data: {
+          invoiceId: invoice.id,
+          code: "DEMO_TUITION",
+          description: "Fictional demonstration tuition charge",
+          amountMinor: 100000,
+          currency: "ZMW",
+          feeRule: "DEMO_FIXED_CHARGE",
+          policyVersion: "FINANCE-DEMO-v1",
+          inputs: { demo: true },
+          status: "POSTED",
+        },
+      });
+    }
+
+    if (input.cleared) {
+      const paymentReference =
+        DEMO_SCENARIOS.students.cleared.paymentReference;
+      let request = await prisma.financePaymentRequest.findUnique({
+        where: { reference: paymentReference },
+      });
+      if (!request) {
+        request = await prisma.financePaymentRequest.create({
+          data: {
+            accountId: financeAccount.id,
+            invoiceId: invoice.id,
+            reference: paymentReference,
+            amountMinor: 100000,
+            currency: "ZMW",
+            method: "MOBILE_MONEY",
+            status: "CONFIRMED",
+            idempotencyKey: "DEMO-CLEARED-PAYMENT-v1",
+            simulatorScenario: "SUCCESS",
+            payerReference: "FICTIONAL-PAYER-001",
+            expiresAt: new Date("2027-01-15T00:00:00.000Z"),
+            createdAt: new Date("2026-09-20T10:05:00.000Z"),
+          },
+        });
+      }
+      let tx = await prisma.financePaymentTransaction.findUnique({
+        where: { providerRef: "SIM-DEMO-CLEARED-001" },
+      });
+      if (!tx) {
+        tx = await prisma.financePaymentTransaction.create({
+          data: {
+            requestId: request.id,
+            accountId: financeAccount.id,
+            provider: "FIN-SIM-v1",
+            providerRef: "SIM-DEMO-CLEARED-001",
+            amountMinor: 100000,
+            currency: "ZMW",
+            channel: "MOBILE_MONEY",
+            status: "POSTED",
+            signatureValid: true,
+            evidence: { demo: true, outcome: "SUCCESS" },
+            createdAt: new Date("2026-09-20T10:06:00.000Z"),
+          },
+        });
+      }
+      await prisma.financeAllocation.upsert({
+        where: {
+          paymentTransactionId_chargeLineId: {
+            paymentTransactionId: tx.id,
+            chargeLineId: charge.id,
+          },
+        },
+        update: {},
+        create: {
+          accountId: financeAccount.id,
+          paymentTransactionId: tx.id,
+          chargeLineId: charge.id,
+          amountMinor: 100000,
+          policyVersion: "FINANCE-DEMO-v1",
+        },
+      });
+      await prisma.financeClearance.upsert({
+        where: {
+          studentId_periodId: { studentId: student.id, periodId: period.id },
+        },
+        update: {
+          status: "CLEARED",
+          policyVersion: "FINANCE-DEMO-v1",
+          expiresAt: null,
+        },
+        create: {
+          studentId: student.id,
+          periodId: period.id,
+          status: "CLEARED",
+          policyVersion: "FINANCE-DEMO-v1",
+        },
+      });
+      await prisma.hold.updateMany({
+        where: {
+          studentId: student.id,
+          holdType: "FINANCIAL_CLEARANCE",
+          status: "ACTIVE",
+        },
+        data: { status: "RELEASED", releasedAt: new Date() },
+      });
+    } else {
+      await prisma.financeClearance.upsert({
+        where: {
+          studentId_periodId: { studentId: student.id, periodId: period.id },
+        },
+        update: { status: "HELD", policyVersion: "FINANCE-DEMO-v1" },
+        create: {
+          studentId: student.id,
+          periodId: period.id,
+          status: "HELD",
+          policyVersion: "FINANCE-DEMO-v1",
+        },
+      });
+      const openHold = await prisma.hold.findFirst({
+        where: {
+          studentId: student.id,
+          holdType: "FINANCIAL_CLEARANCE",
+          status: "ACTIVE",
+        },
+      });
+      if (!openHold) {
+        await prisma.hold.create({
+          data: {
+            studentId: student.id,
+            holdType: "FINANCIAL_CLEARANCE",
+            effect: "BLOCK_REGISTRATION",
+            reason:
+              "Fictional demo payment change requires Finance review before the next registration action.",
+            office: "Student Finance",
+            status: "ACTIVE",
+          },
+        });
+      }
+    }
+
+    return { owner, student, attempt, registration };
+  }
+
+  const cleared = await ensureStudentFixture({
+    username: DEMO_SCENARIOS.students.cleared.username,
+    studentNumber: DEMO_SCENARIOS.students.cleared.studentNumber,
+    applicationReference:
+      DEMO_SCENARIOS.students.cleared.applicationReference,
+    registrationReceipt:
+      DEMO_SCENARIOS.students.cleared.registrationReceipt,
+    invoiceReference: DEMO_SCENARIOS.students.cleared.invoiceReference,
+    cleared: true,
+  });
+  const held = await ensureStudentFixture({
+    username: DEMO_SCENARIOS.students.held.username,
+    studentNumber: DEMO_SCENARIOS.students.held.studentNumber,
+    applicationReference: DEMO_SCENARIOS.students.held.applicationReference,
+    registrationReceipt: DEMO_SCENARIOS.students.held.registrationReceipt,
+    invoiceReference: DEMO_SCENARIOS.students.held.invoiceReference,
+    cleared: false,
+  });
+
+  const coordinator = await account(
+    DEMO_SCENARIOS.teaching.coordinatorUsername,
+  );
+  const lecturer = await account(DEMO_SCENARIOS.teaching.lecturerUsername);
+  let group = await prisma.tutorialGroup.findFirst({
+    where: {
+      offeringId: offering.id,
+      name: DEMO_SCENARIOS.teaching.groupName,
+    },
+  });
+  if (!group) {
+    group = await prisma.tutorialGroup.create({
+      data: {
+        offeringId: offering.id,
+        name: DEMO_SCENARIOS.teaching.groupName,
+        capacity: 40,
+        meetingPattern: "Wednesday 14:00",
+        tutorRequirement: "Assigned tutor",
+        venue: "Fictional Lab A",
+        mode: "IN_PERSON",
+        allocationRule: "DEMO_MANUAL",
+        effectiveDate: new Date("2026-09-20T00:00:00.000Z"),
+        status: "ACTIVE",
+        version: 1,
+      },
+    });
+  } else if (group.status !== "ACTIVE") {
+    group = await prisma.tutorialGroup.update({
+      where: { id: group.id },
+      data: { status: "ACTIVE" },
+    });
+  }
+  const teaching = await prisma.teachingAssignment.findFirst({
+    where: { accountId: lecturer.id, groupId: group.id, status: "ACTIVE" },
+  });
+  if (!teaching) {
+    await prisma.teachingAssignment.create({
+      data: {
+        accountId: lecturer.id,
+        role: "TUT",
+        offeringId: offering.id,
+        groupId: group.id,
+        capabilities: ["teach", "mark-delegated-activities"],
+        effectiveFrom: new Date("2026-09-20T00:00:00.000Z"),
+        status: "ACTIVE",
+        authorizerAccountId: coordinator.id,
+      },
+    });
+  }
+  await prisma.tGAllocation.upsert({
+    where: {
+      groupId_studentId: { groupId: group.id, studentId: cleared.student.id },
+    },
+    update: {},
+    create: {
+      groupId: group.id,
+      studentId: cleared.student.id,
+      reason: "Fictional demonstration allocation",
+      status: "ACTIVE",
+    },
+  });
+
+  async function demoDelivery(
+    marker: string,
+    registration: typeof cleared.registration,
+    attempt: typeof cleared.attempt,
+    state: string,
+    nextRunAt: Date | null,
+  ) {
+    const candidates = await prisma.outboxEvent.findMany({
+      where: {
+        aggregate: "InstitutionalRegistration",
+        aggregateId: registration.id,
+        type: "MoodleEnrolmentQueued",
+      },
+    });
+    let event = candidates.find(
+      (row) =>
+        (row.payload as Record<string, unknown>).demoMarker === marker,
+    );
+    if (!event) {
+      const eventId = randomUUID();
+      event = await prisma.outboxEvent.create({
+        data: {
+          id: eventId,
+          aggregate: "InstitutionalRegistration",
+          aggregateId: registration.id,
+          type: "MoodleEnrolmentQueued",
+          payload: {
+            eventId,
+            eventType: "zm.sis.registration.course-enrolled.v1",
+            correlationId: \`DEMO-\${marker}\`,
+            idempotencyKey: \`DEMO-\${marker}\`,
+            payloadVersion: 1,
+            deliveryStatus: "QUEUED",
+            retryPolicy: "MOODLE-DEMO-v1",
+            registrationId: registration.id,
+            attemptId: attempt.id,
+            period: period.code,
+            courses: courses.map((course) => course.code),
+            demoMarker: marker,
+          },
+        },
+      });
+    }
+    let delivery = await prisma.integrationDeliveryAttempt.findFirst({
+      where: { outboxId: event.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!delivery) {
+      delivery = await prisma.integrationDeliveryAttempt.create({
+        data: {
+          outboxId: event.id,
+          state,
+          attempt: state === "DEAD_LETTER" ? 3 : 1,
+          nextRunAt,
+          lastError:
+            state === "DEAD_LETTER"
+              ? "Fictional Moodle timeout after the demo retry budget."
+              : "Fictional Moodle maintenance delay.",
+        },
+      });
+    }
+    return { event, delivery };
+  }
+
+  await demoDelivery(
+    DEMO_SCENARIOS.integration.delayedMarker,
+    cleared.registration,
+    cleared.attempt,
+    "PENDING",
+    new Date("2027-01-15T09:00:00.000Z"),
+  );
+  const dead = await demoDelivery(
+    DEMO_SCENARIOS.integration.deadLetterMarker,
+    cleared.registration,
+    cleared.attempt,
+    "DEAD_LETTER",
+    null,
+  );
+  const replay = await prisma.replayDecision.findFirst({
+    where: { attemptId: dead.delivery.id, status: "PENDING" },
+  });
+  if (!replay) {
+    const requester = await account(
+      DEMO_SCENARIOS.integration.moodleAdminUsername,
+    );
+    await prisma.replayDecision.create({
+      data: {
+        scope: "attempt",
+        attemptId: dead.delivery.id,
+        evidence: {
+          sourceTruth: "SIS registration remains REGISTERED.",
+          destinationState: "Moodle delivery exhausted the retry budget.",
+          demoMarker: DEMO_SCENARIOS.integration.deadLetterMarker,
+        },
+        declaration: DEMO_SCENARIOS.integration.replayDeclaration,
+        status: "PENDING",
+        requesterAccountId: requester.id,
+      },
+    });
+  }
+
+  const shell = await prisma.simShell.upsert({
+    where: {
+      offeringId_periodId: {
+        offeringId: offering.id,
+        periodId: period.id,
+      },
+    },
+    update: {},
+    create: {
+      shellRef: \`SWE-\${period.code}-DEMO\`,
+      offeringId: offering.id,
+      periodId: period.id,
+      status: "ACTIVE",
+    },
+  });
+  await prisma.simStudentEnrolment.upsert({
+    where: {
+      shellId_studentId: {
+        shellId: shell.id,
+        studentId: held.student.id,
+      },
+    },
+    update: { status: "ACTIVE" },
+    create: {
+      shellId: shell.id,
+      studentId: held.student.id,
+      role: "Student",
+      status: "ACTIVE",
+    },
+  });
+  const mismatch = await prisma.reconciliationCase.findFirst({
+    where: {
+      kind: DEMO_SCENARIOS.integration.reconciliationKind,
+      studentId: cleared.student.id,
+      status: "OPEN",
+    },
+  });
+  if (!mismatch) {
+    await prisma.reconciliationCase.create({
+      data: {
+        kind: DEMO_SCENARIOS.integration.reconciliationKind,
+        status: "OPEN",
+        studentId: cleared.student.id,
+        shellId: shell.id,
+        detail: {
+          expected: "ACTIVE",
+          actual: "MISSING",
+          safeAction: "Requeue Moodle delivery; preserve SIS registration.",
+          demo: true,
+        },
+      },
+    });
+  }
+
+  await prisma.moodleConnection.upsert({
+    where: { provider: "MOODLE-SIM-v1" },
+    update: {
+      status: "HEALTHY",
+      lastCheckedAt: new Date("2026-09-24T12:00:00.000Z"),
+    },
+    create: {
+      provider: "MOODLE-SIM-v1",
+      baseUrl: "https://moodle.demo.invalid",
+      status: "HEALTHY",
+      capabilities: { demo: true, sync: true },
+      lastCheckedAt: new Date("2026-09-24T12:00:00.000Z"),
+    },
+  });
+}
+
 async function main(): Promise<void> {  // Identity administrator first so later grants reference a granter/approver.
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
   await ensureAccount(admin, null);
@@ -1017,9 +1688,10 @@ async function main(): Promise<void> {  // Identity administrator first so later
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
   await ensureStudentDemo();
+  await ensureDemoStoryPack();
   // Explicit fictional verified-contact fixture; never infer verification for real users.
   if (process.env.DEMO_MODE === "true") {
-    for (const username of ["bwalya.m", "daka.c", "phiri.n"]) {
+    for (const username of ["bwalya.m", "daka.c", "phiri.n", "lombe.a"]) {
       const applicant = await prisma.account.findUnique({
         where: { username },
       });
