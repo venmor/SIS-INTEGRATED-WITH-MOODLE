@@ -698,6 +698,12 @@ export class IntegrationService {
       offeringId,
       periodId: period.id,
     });
+    if (mapping.moodleId !== live.id) {
+      await db.moodleMapping.update({
+        where: { id: mapping.id },
+        data: { moodleId: live.id },
+      });
+    }
     return { id: live.id, ref: shellRef };
   }
 
@@ -1201,6 +1207,84 @@ export class IntegrationService {
 
   async listShells(auth: IntegrationAuthority) {
     await this.moodleAdmin(auth, 'sync-moodle');
+    const adapter = this.adapter();
+    if (adapter.backend === 'live') {
+      const mappings = await this.prisma.moodleMapping.findMany({
+        where: {
+          kind: 'SHELL',
+          sisType: 'OFFERING',
+          status: 'ACTIVE',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      const offeringIds = [
+        ...new Set(
+          mappings
+            .map((mapping) => mapping.sisId.split(':')[0])
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      const offerings = await this.prisma.programmeOffering.findMany({
+        where: { id: { in: offeringIds } },
+        include: { programme: true },
+      });
+      const offeringById = new Map(
+        offerings.map((offering) => [offering.id, offering]),
+      );
+      const pattern = policy.shellIdPattern as unknown as string;
+      const items: Array<{
+        shellRef: string;
+        offeringId: string;
+        periodId: string;
+        status: string;
+        activeEnrolments: number;
+        activeGroupMembers: number;
+      }> = [];
+
+      for (const mapping of mappings) {
+        const [offeringId, periodCode = ''] = mapping.sisId.split(':');
+        if (!offeringId) continue;
+        const offering = offeringById.get(offeringId);
+        const shellRef = offering
+          ? pattern
+              .replace('{programme}', offering.programme.code)
+              .replace('{intake}', offering.intake)
+          : mapping.moodleId;
+
+        if (!/^\d+$/.test(mapping.moodleId)) {
+          items.push({
+            shellRef,
+            offeringId,
+            periodId: periodCode,
+            status: 'UNRESOLVED',
+            activeEnrolments: 0,
+            activeGroupMembers: 0,
+          });
+          continue;
+        }
+
+        const handle = { id: mapping.moodleId, ref: shellRef };
+        const [enrolments, groupMembers] = await Promise.all([
+          adapter.listActualEnrolments(handle),
+          adapter.listActualGroupMembers(handle),
+        ]);
+        items.push({
+          shellRef,
+          offeringId,
+          periodId: periodCode,
+          status: 'ACTIVE',
+          activeEnrolments: enrolments.filter(
+            (item) => item.status === 'ACTIVE',
+          ).length,
+          activeGroupMembers: groupMembers.filter(
+            (item) => item.status === 'ACTIVE',
+          ).length,
+        });
+      }
+      return { items };
+    }
+
     const rows = await this.prisma.simShell.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -1637,6 +1721,8 @@ export class IntegrationService {
       // Expected: SIS enrolment truth. Actual: backend projections
       // (simulator rows or live queries, same shape by contract).
       const adapter = this.adapter();
+      const repairWritesAllowed =
+        adapter.backend !== 'live' || liveWritesEnabled();
       const mappings = await this.prisma.moodleMapping.findMany({
         where: { kind: 'SHELL', sisType: 'OFFERING', status: 'ACTIVE' },
       });
@@ -1712,6 +1798,20 @@ export class IntegrationService {
           const sim = actual.get(actualKey);
           if (!sim || sim.status !== 'ACTIVE' || sim.role !== 'Student') {
             diffs += 1;
+            if (!repairWritesAllowed) {
+              cases += await this.openReconCase(run.id, {
+                kind: 'MISSING_IN_MOODLE',
+                studentId: expected.studentId,
+                shellId: shell.handle.id,
+                detail: {
+                  externalKey: actualKey,
+                  note:
+                    'Live read-only reconciliation detected drift. No repair was queued because MOODLE_LIVE_WRITES is disabled.',
+                },
+                dedupeKey: actualKey,
+              });
+              continue;
+            }
             // Safe repair: requeue the registration's latest enrolment
             // event for idempotent redelivery.
             const latest = await this.prisma.outboxEvent.findFirst({
@@ -1863,6 +1963,22 @@ export class IntegrationService {
             : `${allocation.group.name}:${allocation.studentId}`;
           if (!actualMembers.has(expectedKey)) {
             diffs += 1;
+            if (!repairWritesAllowed) {
+              cases += await this.openReconCase(run.id, {
+                kind: 'GROUP_MEMBERSHIP_MISSING',
+                studentId: allocation.studentId,
+                shellId: shell.handle.id,
+                detail: {
+                  externalKey: expectedKey,
+                  groupId: allocation.groupId,
+                  groupName: allocation.group.name,
+                  note:
+                    'Live read-only reconciliation detected group drift. No repair was queued because MOODLE_LIVE_WRITES is disabled.',
+                },
+                dedupeKey: expectedKey,
+              });
+              continue;
+            }
             await queueMoodleEvent(this.prisma, {
               aggregate: 'TutorialGroup',
               aggregateId: allocation.groupId,
