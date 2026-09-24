@@ -122,7 +122,7 @@ export default async function Home() {
           state={`Signed in as ${me.account.displayName}`}
           reason="Your session is active on this device."
           updated={formatLusaka(new Date())}
-          action="Choose a workspace below. Powers never appear silently — only the active role applies."
+          action="Select an active workspace below to proceed."
         />
         <WorkspaceSwitcher
           workspaces={me.workspaces}

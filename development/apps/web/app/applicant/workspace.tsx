@@ -9,7 +9,7 @@ import type {
   ApplicationSection,
   ApplicationError,
 } from "@sis/contracts";
-import { ActionButton, ErrorSummary } from "@sis/ui";
+import { ActionButton, ErrorSummary, Status } from "@sis/ui";
 import { ApplicationContext, ApplicationSteps } from "./chrome";
 import { applicantRequest, ApplicantRequestError, errorMessage } from "./api";
 import { formatLusaka } from "../../lib/time";
@@ -56,7 +56,7 @@ export function StartForm({
   return (
     <>
       <h1>Start an application</h1>
-      <p className={styles.demo}>Fictional demonstration · {policy.version}</p>
+      <p className={styles.eyebrow}>Application policy version {policy.version}</p>
       {error && (
         <ErrorSummary
           title="We could not start your application"
@@ -71,13 +71,12 @@ export function StartForm({
         </p>
         <p>{policy.fee.explanation}</p>
         <p>
-          You may create up to {policy.maxActivePerIntake} active applications
-          per intake, with {policy.maxChoices} programme choice per application
-          in this demonstration.
+          Up to {policy.maxActivePerIntake} active applications are permitted
+          per intake, with {policy.maxChoices} programme choice per application.
         </p>
         <p>
           You can save your progress and return later. Your application will not
-          be sent until you review it and submit it.
+          be submitted until you review and confirm it.
         </p>
         <p>{policy.contactRequirement}</p>
         <div className={styles.actions}>
@@ -555,8 +554,8 @@ export function Workspace({
           } as Record<string, string>
         )[section] ?? "Application"}
       </h1>
-      <p className={styles.demo}>
-        Fictional demonstration · {p.version} · {p.fee.explanation}
+      <p className={styles.eyebrow}>
+        Policy version {p.version} · {p.fee.explanation}
       </p>
       <ApplicationContext application={a} />
       <ApplicationSteps application={a} />
@@ -652,8 +651,7 @@ export function Workspace({
           <details>
             <summary>Discard draft</summary>
             <p>
-              This hides your unfinished draft. Retained audit records are not
-              erased. You cannot undo it. {p.fee.explanation}
+              Discarding your draft removes it from your active workspace. This action cannot be undone.
             </p>
             <label className={styles.checkboxLabel}>
               <input
@@ -737,8 +735,7 @@ export function Workspace({
           {section === "qualifications" && (
             <>
               <p>
-                Declared — verification required. This form does not
-                authenticate your qualification or make an admissions decision.
+                Enter your official qualification details and examination grades as shown on your certificates.
               </p>
               {field(
                 "routeCode",
@@ -888,44 +885,51 @@ export function Workspace({
       {section === "documents" && (
         <>
           <p>
-            Use clear, well-lit scans with every page and document edge visible.
-            Avoid password-protected files. Accepted:{" "}
-            {p.upload.extensions.join(", ")}; maximum{" "}
+            Clear files only · {p.upload.extensions.join(", ")} · up to{" "}
             {p.upload.maxBytes / 1024 / 1024} MB.
           </p>
-          <p>
-            Safety processor: {p.upload.scanner}. In fixture mode only the
-            bundled fictional-result.pdf can pass. Arbitrary files stay
-            quarantined until the required safety checks are available. PDFs
-            also require structural validation.
-          </p>
-          {a.requiredDocuments.map((d) => (
-            <article key={d.category} className={styles.card}>
-              <h2>{d.label} — Required</h2>
-              <p>{d.purpose}</p>
-              {a.documents
-                .filter((file) => file.category === d.category)
-                .map((file) => (
-                  <div key={file.id}>
+          {a.requiredDocuments.map((documentRequirement) => {
+            const files = a.documents.filter(
+              (item) => item.category === documentRequirement.category,
+            );
+            const latestFile = files.at(-1) ?? null;
+
+            return (
+              <article
+                key={documentRequirement.category}
+                className={styles.documentRequirement}
+              >
+                <div className={styles.documentHeading}>
+                  <div>
+                    <h2>{documentRequirement.label}</h2>
+                    <p>{documentRequirement.purpose}</p>
+                  </div>
+                  <p className={styles.documentStatus}>
+                    <strong>Status:</strong>{" "}
+                    {latestFile?.statusLabel ?? "Not uploaded"}
+                  </p>
+                </div>
+
+                {files.map((item) => (
+                  <div key={item.id} className={styles.documentVersion}>
                     <p>
-                      {file.fileName} · {file.statusLabel} · version{" "}
-                      {file.version}
+                      {item.fileName} · {item.statusLabel} · version {item.version}
                     </p>
-                    {file.canPreview && (
+                    {item.canPreview && (
                       <a
-                        href={`/api/applications/${a.id}/documents/${file.id}/content`}
+                        href={`/api/applications/${a.id}/documents/${item.id}/content`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Preview {file.fileName}
+                        Preview {item.fileName}
                       </a>
                     )}
-                    {file.status === "SecurityScanPending" && (
+                    {item.status === "SecurityScanPending" && (
                       <button
                         type="button"
                         disabled={pending || uncertain || !a.editable}
                         onClick={() =>
-                          run(`/${a.id}/documents/${file.id}/scan`, {
+                          run(`/${a.id}/documents/${item.id}/scan`, {
                             version: a.version,
                           })
                         }
@@ -935,8 +939,9 @@ export function Workspace({
                     )}
                   </div>
                 ))}
-            </article>
-          ))}
+              </article>
+            );
+          })}
           <form
             className={styles.form}
             onSubmit={(e) => {
@@ -1087,10 +1092,18 @@ export function Workspace({
       )}
       {section === "review" && (
         <>
-          <p>
-            Check the exact information below. After submission, Admissions
-            receives this version and direct editing is locked.
-          </p>
+          <p>Review your details. Submission locks this version.</p>
+          <Status
+            severity={review.ready ? "success" : "attention"}
+            state={review.ready ? "Ready to submit" : "Not ready to submit"}
+            reason={
+              review.ready
+                ? "Required items complete."
+                : `${a.blockers.length} required item${a.blockers.length === 1 ? "" : "s"} need attention.`
+            }
+            updated={formatLusaka(a.updatedAt)}
+            action={review.ready ? "Check the details below." : "Fix the items below."}
+          />
           {["personal", "contact", "qualifications"].map((s) => (
             <section key={s} className={styles.card}>
               <h2>
@@ -1118,7 +1131,7 @@ export function Workspace({
           </section>
           {a.blockers.length > 0 && (
             <section className={styles.card}>
-              <h2>Your application is not ready to submit yet</h2>
+              <h2>Items to fix</h2>
               <ul>
                 {a.blockers.map((b, i) => (
                   <li key={i}>
@@ -1166,9 +1179,8 @@ export function Workspace({
               <div>
                 <h3>Submit application?</h3>
                 <p>
-                  {a.offering.programmeName} · {a.offering.intake}. Admissions
-                  will receive the version shown above. You may not edit it
-                  directly after submission.
+                  {a.offering.programmeName} · {a.offering.intake}. Submission
+                  locks this version.
                 </p>
                 <ActionButton
                   kind="primary"

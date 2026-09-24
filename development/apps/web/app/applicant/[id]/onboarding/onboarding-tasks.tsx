@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { OnboardingTaskView } from "@sis/contracts";
-import { ErrorSummary, Notice } from "@sis/ui";
+import { ActionButton, ErrorSummary, Notice } from "@sis/ui";
 import { applicantRequest, errorMessage } from "../../api";
 
 // Applicant-owned tasks complete here with a fresh idempotency key per
@@ -78,15 +78,17 @@ export function OnboardingTasks({
             {task.status === "COMPLETED" ? null : task.owner ===
               "APPLICANT" ? (
               <p>
-                <button
+                <ActionButton
                   type="button"
+                  kind="secondary"
+                  pending={pending === task.taskKey}
+                  loadingText="Marking complete…"
                   disabled={pending !== null}
+                  aria-label={`Mark task as complete: ${task.title}`}
                   onClick={() => void complete(task.taskKey)}
                 >
-                  {pending === task.taskKey
-                    ? "Working…"
-                    : "Mark complete"}
-                </button>
+                  Mark complete
+                </ActionButton>
               </p>
             ) : (
               <p>Verification in progress — no action required.</p>

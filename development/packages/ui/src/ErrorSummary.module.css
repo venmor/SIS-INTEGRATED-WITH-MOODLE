@@ -1,10 +1,10 @@
 .summary {
+  width: 100%;
   border: 1px solid var(--error);
   border-left: 4px solid var(--error);
   border-radius: var(--radius-md);
   background: var(--error-bg);
-  padding: var(--space-4);
-  max-width: 40rem;
+  padding: var(--space-4) var(--space-5, 20px);
 }
 
 .summary:focus {

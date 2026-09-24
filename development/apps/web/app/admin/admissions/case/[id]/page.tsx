@@ -10,6 +10,29 @@ import { ReviewCase } from "./case";
 
 export const dynamic = "force-dynamic";
 
+interface Me {
+  activeWorkspace: {
+    role: string;
+  } | null;
+}
+
+async function loadActiveRole(): Promise<string | null> {
+  const sid = (await cookies()).get("sid")?.value;
+  if (!sid) return null;
+  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
+  try {
+    const response = await fetch(`${api}/auth/me`, {
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const me = (await response.json()) as Me;
+    return me.activeWorkspace?.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadStaff<T>(
   path: string,
 ): Promise<{ ok: true; data: T } | { ok: false; status: number }> {
@@ -34,10 +57,11 @@ export default async function ReviewCasePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [evidence, findings, history] = await Promise.all([
+  const [evidence, findings, history, role] = await Promise.all([
     loadStaff<ReviewEvidenceView>(`/${id}/evidence`),
     loadStaff<{ items: ReviewFindingView[] }>(`/${id}/findings`),
     loadStaff<{ items: ReviewTimelineEvent[] }>(`/${id}/history`),
+    loadActiveRole(),
   ]);
   if (!evidence.ok || !findings.ok || !history.ok) {
     return (
@@ -62,15 +86,12 @@ export default async function ReviewCasePage({
         <h1 className={styles.title}>
           Review case {evidence.data.reference}
         </h1>
-        <p className={styles.lede}>
-          Demonstration comparison workspace: declarations beside document
-          states. Findings record observations only — applicant data is never
-          modified here.
-        </p>
+        <p className={styles.lede}>Review evidence and record the case outcome.</p>
         <ReviewCase
           evidence={evidence.data}
           initialFindings={findings.data.items}
           initialHistory={history.data.items}
+          role={role}
         />
       </main>
     </div>

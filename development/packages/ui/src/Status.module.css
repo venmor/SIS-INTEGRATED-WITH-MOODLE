@@ -3,8 +3,9 @@
   border-left: 4px solid var(--gray-400);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
-  padding: var(--space-4);
-  max-width: 40rem;
+  padding: var(--space-4) var(--space-5, 20px);
+  width: 100%;
+  max-width: none;
 }
 
 .state {
@@ -12,6 +13,7 @@
   font-size: var(--font-body);
   line-height: var(--line-tight);
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .reason {
@@ -24,13 +26,16 @@
 .meta {
   margin-top: var(--space-2);
   font-size: var(--font-supporting);
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
 .next {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid rgb(0 0 0 / 0.07);
   font-size: var(--font-status);
-  font-weight: 600;
+  font-weight: 650;
   color: var(--text-primary);
 }
 

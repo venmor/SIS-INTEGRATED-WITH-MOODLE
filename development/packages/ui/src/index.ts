@@ -18,3 +18,4 @@ export { CompareTable } from "./CompareTable";
 export type { CompareColumn } from "./CompareTable";
 export { GuidanceResult } from "./GuidanceResult";
 export type { GuidanceOutcome } from "./GuidanceResult";
+export { Skeleton, SkeletonText, SkeletonCard, SkeletonQueue } from "./Skeleton";

@@ -1,10 +1,10 @@
 .denied {
+  width: 100%;
   border: 1px solid var(--border);
   border-left: 4px solid var(--attention);
   border-radius: var(--radius-md);
   background: var(--attention-bg);
-  padding: var(--space-4);
-  max-width: 40rem;
+  padding: var(--space-4) var(--space-5, 20px);
 }
 
 .denied:focus {

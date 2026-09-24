@@ -1,32 +1,30 @@
 import Link from "next/link";
+import styles from "../applicant.module.css";
+
 export default function Help() {
   return (
     <>
       <h1>Application help</h1>
       <p>
-        Use fictional information only. This teaching demonstration does not
-        offer admission or process payments.
+        Find guidance for completing your application and submitting supporting documents.
       </p>
-      <p>
-        Your draft is saved on the server only after a confirmed save. If a
-        request fails, keep the page open and check the saved result before
-        retrying.
-      </p>
-      <p>
-        Documents are quarantined until safety checks finish. A safe file still
-        requires readability and formal verification checks.
-      </p>
-      <p>
-        For this local demo, use the fictional applicant account listed in the
-        developer demonstration guide. Account registration and real contact
-        verification are not yet available.
-      </p>
-      <p>
-        Contact Admissions through your institution’s published support route.
-        Provide the support reference, never your password or complete identity
-        number.
-      </p>
-      <Link href="/applicant">Return to my applications</Link>
+      <section className={styles.card}>
+        <h2>Saving progress</h2>
+        <p>
+          Your draft is saved on the server after selecting Save. If a connection issue occurs, check your saved result before retrying.
+        </p>
+        <h2>Document submission</h2>
+        <p>
+          Uploaded documents undergo integrity and file safety verification before staff review. Ensure all scans are clear and readable.
+        </p>
+        <h2>Contacting support</h2>
+        <p>
+          For assistance, contact Admissions through published institutional support channels. Include your application reference in correspondence.
+        </p>
+      </section>
+      <div className={styles.actions}>
+        <Link href="/applicant">Return to my applications</Link>
+      </div>
     </>
   );
 }
