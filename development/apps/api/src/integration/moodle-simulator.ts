@@ -30,6 +30,27 @@ export async function ensureSimShell(
     where: { shellRef: ref.shellRef },
   });
   if (existing) return { id: existing.id, created: false };
+
+  // A simulator shell is unique by offering + period as well as by ref.
+  // Demo data from an older release may therefore occupy the right domain
+  // identity under a legacy ref. Normalize that row instead of attempting a
+  // second shell and turning a harmless demo-version mismatch into P2002.
+  const legacy = await db.simShell.findUnique({
+    where: {
+      offeringId_periodId: {
+        offeringId: ref.offeringId,
+        periodId: ref.periodId,
+      },
+    },
+  });
+  if (legacy) {
+    await db.simShell.update({
+      where: { id: legacy.id },
+      data: { shellRef: ref.shellRef },
+    });
+    return { id: legacy.id, created: false };
+  }
+
   try {
     const created = await db.simShell.create({
       data: {
@@ -41,15 +62,35 @@ export async function ensureSimShell(
     });
     return { id: created.id, created: true };
   } catch (error) {
-    // Lost the race: the winner's row is the shell.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
     ) {
-      const winner = await db.simShell.findUniqueOrThrow({
+      // Lost a concurrent create/normalization race. Resolve by either
+      // canonical ref or the offering-period identity, then converge the ref.
+      const winnerByRef = await db.simShell.findUnique({
         where: { shellRef: ref.shellRef },
       });
-      return { id: winner.id, created: false };
+      if (winnerByRef) return { id: winnerByRef.id, created: false };
+
+      const winnerByScope = await db.simShell.findUnique({
+        where: {
+          offeringId_periodId: {
+            offeringId: ref.offeringId,
+            periodId: ref.periodId,
+          },
+        },
+      });
+      if (winnerByScope) {
+        const normalized =
+          winnerByScope.shellRef === ref.shellRef
+            ? winnerByScope
+            : await db.simShell.update({
+                where: { id: winnerByScope.id },
+                data: { shellRef: ref.shellRef },
+              });
+        return { id: normalized.id, created: false };
+      }
     }
     throw error;
   }
