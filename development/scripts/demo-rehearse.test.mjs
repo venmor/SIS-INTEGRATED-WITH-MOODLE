@@ -21,6 +21,18 @@ test("demo rehearsal refuses non-demo and remote database targets", () => {
   });
   assert.match(errors.join("\n"), /DEMO_MODE=true/);
   assert.match(errors.join("\n"), /local database/i);
+  assert.match(errors.join("\n"), /local API/i);
+});
+
+test("demo rehearsal refuses live Moodle provider configuration", () => {
+  const errors = validateRehearsalEnvironment({
+    DEMO_MODE: "true",
+    DATABASE_URL: "postgresql://sis:sis@127.0.0.1:5432/sis_demo",
+    API_INTERNAL_URL: "http://127.0.0.1:3101",
+    MOODLE_API_URL: "https://moodle.example.org",
+    MOODLE_API_TOKEN: "should-never-be-used-in-rehearsal",
+  });
+  assert.match(errors.join("\n"), /simulator-only/i);
 });
 
 test("demo rehearsal requires the environment needed by the story checks", () => {
