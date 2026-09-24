@@ -198,6 +198,8 @@ export default async function IntegrationPage() {
                   <strong>
                     {item.title} · {item.severity} · {item.status}
                   </strong>
+                  <br />
+                  <span className={styles.supporting}>Incident ID {item.id}</span>
                 </li>
               ))}
             </ul>
