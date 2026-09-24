@@ -94,6 +94,38 @@ describe('IntegrationService live configuration', () => {
   });
 });
 
+describe('IntegrationService read-only live mode', () => {
+  it('does not let the background worker consume queued work while live writes are disabled', async () => {
+    const oldUrl = process.env.MOODLE_API_URL;
+    const oldToken = process.env.MOODLE_API_TOKEN;
+    const oldWrites = process.env.MOODLE_LIVE_WRITES;
+    process.env.MOODLE_API_URL = 'https://moodle.example.test';
+    process.env.MOODLE_API_TOKEN = 'test-token';
+    process.env.MOODLE_LIVE_WRITES = 'false';
+
+    const prisma = {
+      integrationDeliveryAttempt: { findMany: vi.fn() },
+      outboxEvent: { findMany: vi.fn() },
+    };
+    const service = new IntegrationService(prisma as never);
+
+    try {
+      await expect(service.runWorker()).resolves.toEqual({
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+      });
+      expect(prisma.integrationDeliveryAttempt.findMany).not.toHaveBeenCalled();
+      expect(prisma.outboxEvent.findMany).not.toHaveBeenCalled();
+    } finally {
+      process.env.MOODLE_API_URL = oldUrl;
+      process.env.MOODLE_API_TOKEN = oldToken;
+      process.env.MOODLE_LIVE_WRITES = oldWrites;
+    }
+  });
+});
+
 describe('IntegrationService delivery boundary', () => {
   it('performs provider delivery outside Prisma interactive transactions', async () => {
     const h = harness();
