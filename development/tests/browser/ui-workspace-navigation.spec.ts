@@ -3,6 +3,7 @@ import {
   createFinanceApprover,
   createFinanceOfficer,
   createIntegrationSupport,
+  createLecturerWorkspaceUser,
   createMoodleAdmin,
   createStudent,
 } from "./fixtures";
@@ -107,4 +108,20 @@ test.describe.serial("role-aware workspace navigation", () => {
     await expect(nav.getByRole("link", { name: "Finance workspace" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Moodle" })).toHaveCount(0);
   });
+});
+
+
+test("recognized IAM roles without a Phase-6 operational screen get an honest landing state", async ({
+  page,
+}) => {
+  const lecturer = await createLecturerWorkspaceUser();
+  await signIn(page, lecturer.username, lecturer.password);
+
+  await expect(
+    page.getByText("No dedicated live workspace for this role"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Workspace navigation" }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/does not expose an authoritative operational screen/i)).toBeVisible();
 });
