@@ -46,6 +46,8 @@ jobs:
       - run: npm test
       - run: npx prisma validate && npx prisma migrate deploy
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
+      - name: Assert deterministic demo story pack
+        run: node scripts/demo-seed-assert.mjs
       - run: npm run test:e2e --workspace=apps/api -- --exclude '**/applications.e2e-spec.ts' --exclude '**/config-versions.e2e-spec.ts' --no-file-parallelism
       - run: npm run test:e2e --workspace=apps/api -- applications.e2e-spec.ts config-versions.e2e-spec.ts --no-file-parallelism
       - run: npm run build
@@ -97,6 +99,8 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
+      - name: Assert deterministic demo story pack
+        run: node scripts/demo-seed-assert.mjs
       - run: npm run build --workspace=@sis/config && npm run build --workspace=apps/api && npm run build --workspace=web
       - run: npx playwright install --with-deps chromium
       - name: Run demo-readiness UI contracts
