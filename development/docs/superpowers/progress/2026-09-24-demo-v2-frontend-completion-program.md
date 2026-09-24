@@ -25,3 +25,8 @@ Task 1 Ruling: add `student/layout.tsx` even though the plan listed only student
 Task 1: complete — isolated UI job in CI run 36017087297 passed build, migration/seed and all four `ui-workspace-navigation.spec.ts` contracts on `0c0fdc7`. The full `verify` job remains independently affected by the recorded Phase-6 baseline API e2e failures.
 
 Task 2 RED contract: student home must order `Required action → Registration → Finance → Courses and changes`; readiness conditions must expose owner and next step structurally; student finance must expose a labelled Finance summary; finance staff home must expose a labelled work queue rather than dashboard-card composition.
+
+
+Task 2 RED: isolated `ui-contracts` job in CI run 36017595240 completed install, migration/seed, API/web build and Chromium setup, then failed `ui-student-finance-polish.spec.ts` on the current Student/Finance hierarchy as expected. Task 1 navigation tests remained green.
+
+Task 2 icon-system ruling: the Phase-6 web app had no shared icon library or icon primitive. Added a first-party `@sis/ui/Icon` stroke-icon vocabulary using `currentColor`, consistent 24×24 viewboxes, and aria-hidden decorative SVGs. Critical actions remain text-labelled. Cost if wrong: maintaining a small internal icon set adds UI-package surface area, but avoids mixing ad-hoc SVG styles or adding a large dependency only for icons.
