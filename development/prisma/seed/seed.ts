@@ -8,16 +8,12 @@
 // Credential table — never stored or printed in plain text.
 // Erasable TypeScript only (runs on Node 24 type stripping, no runner dep).
 
-// Explicit demo kill-switch: predictable fictional passwords may be written
-// only when both the caller opts in and the environment identifies itself as
-// the fictional demo. Local reset and the guarded Vercel demo bootstrap set
-// these flags; every other invocation aborts before touching the database.
-if (
-  process.env.ALLOW_DEMO_SEED !== "true" ||
-  process.env.DEMO_MODE !== "true"
-) {
+// Local-demo kill-switch: this seed must never run outside an explicit local
+// reset (predictable fictional passwords). demo:reset sets the flag;
+// any other invocation aborts before touching the database.
+if (process.env.ALLOW_DEMO_SEED !== "true") {
   console.error(
-    "refusing: demo seed requires ALLOW_DEMO_SEED=true and DEMO_MODE=true",
+    "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
   );
   process.exit(1);
 }
@@ -35,7 +31,7 @@ import {
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
-const { hash, verify } = require("argon2");
+const { hash } = require("argon2");
 
 // Prisma 7 connects through a driver adapter (no built-in engine).
 const adapter = new PrismaPg({
@@ -465,32 +461,9 @@ async function ensureAccount(
       },
     });
   }
-  // Re-running the fictional seed must repair an older shared demo database:
-  // demo users can be locked by walkthrough mistakes, and earlier deployments
-  // may contain password hashes from an older seed revision.
-  await prisma.account.update({
-    where: { id: account.id },
-    data: {
-      status: "ACTIVE",
-      failedSignInCount: 0,
-      lockedUntil: null,
-    },
-  });
-  await prisma.person.update({
-    where: { id: account.personId },
-    data: {
-      displayName: entry.personName,
-      email: entry.email,
-      phone: entry.phone,
-    },
-  });
-
   const activePassword = await prisma.credential.findFirst({
     where: { accountId: account.id, kind: "PASSWORD", status: "ACTIVE" },
   });
-  const passwordMatches = activePassword
-    ? await verify(activePassword.secretHash, entry.password).catch(() => false)
-    : false;
   if (!activePassword) {
     await prisma.credential.create({
       data: {
@@ -500,20 +473,7 @@ async function ensureAccount(
         status: "ACTIVE",
       },
     });
-  } else if (!passwordMatches) {
-    await prisma.credential.update({
-      where: { id: activePassword.id },
-      data: { secretHash: await hash(entry.password) },
-    });
-    // A password repair invalidates old demo sessions so the next request
-    // cannot continue under credentials that no longer match the published
-    // fictional account.
-    await prisma.session.updateMany({
-      where: { accountId: account.id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
   }
-
   for (const r of entry.roles) {
     const scopeRef = r.scopeRef === "self" ? account.personId : r.scopeRef;
     const existing = await prisma.roleAssignment.findFirst({
@@ -525,17 +485,6 @@ async function ensureAccount(
         startsAt: new Date(r.startsAt),
       },
     });
-    const roleData = {
-      endsAt: r.endsAt ? new Date(r.endsAt) : null,
-      grantedById: granterId,
-      approverId: granterId,
-      appointmentRef: r.appointmentRef,
-      authoritySource: r.authoritySource,
-      capabilities: r.capabilities,
-      employmentType: r.employmentType,
-      reason: r.reason,
-      revokedAt: null,
-    };
     if (!existing) {
       await prisma.roleAssignment.create({
         data: {
@@ -544,13 +493,15 @@ async function ensureAccount(
           scopeType: r.scopeType,
           scopeRef,
           startsAt: new Date(r.startsAt),
-          ...roleData,
+          endsAt: r.endsAt ? new Date(r.endsAt) : null,
+          grantedById: granterId,
+          approverId: granterId,
+          appointmentRef: r.appointmentRef,
+          authoritySource: r.authoritySource,
+          capabilities: r.capabilities,
+          employmentType: r.employmentType,
+          reason: r.reason,
         },
-      });
-    } else {
-      await prisma.roleAssignment.update({
-        where: { id: existing.id },
-        data: roleData,
       });
     }
   }
