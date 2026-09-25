@@ -82,6 +82,29 @@ export default async function GradeBatchDetailPage({
             </StatusChip>
           </dd>
         </dl>
+        <h2>Provenance (frozen at stage time)</h2>
+        <p>
+          Later plan or mapping changes never rewrite this snapshot;
+          corrections stage a new revision instead.
+        </p>
+        <dl>
+          <dt>Moodle instance</dt>
+          <dd>{item.moodleInstance}</dd>
+          <dt>Moodle course</dt>
+          <dd>{item.moodleCourseRef}</dd>
+          <dt>Moodle activity</dt>
+          <dd>{item.moodleActivityId}</dd>
+          <dt>Offering</dt>
+          <dd>{item.offeringRef}</dd>
+          <dt>Period</dt>
+          <dd>{item.periodCode}</dd>
+          <dt>Component</dt>
+          <dd>
+            {item.componentCode} (plan v{item.planVersion})
+          </dd>
+          <dt>Policy</dt>
+          <dd>{item.policyVersion}</dd>
+        </dl>
         <h2>Lines</h2>
         <DataTable
           hideTitle
@@ -102,6 +125,14 @@ export default async function GradeBatchDetailPage({
             {
               heading: "Outcome",
               render: (line: GradeBatchView["lines"][number]) => line.outcome,
+            },
+            {
+              heading: "Converted",
+              numeric: true,
+              render: (line: GradeBatchView["lines"][number]) =>
+                line.convertedValue == null
+                  ? "—"
+                  : `${line.convertedValue}`,
             },
             {
               heading: "State",

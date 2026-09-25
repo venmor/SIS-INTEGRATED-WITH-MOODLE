@@ -3,8 +3,9 @@
 ## Authority and ownership
 
 User authorization: Phase 7 slices 1–3 implementation request, 2026-09-24.
-Release v0.8.0 track. Proposed lead Charles Hangoma; reviewer Chitundu
-Milimbo. Rehearsal duties only. Human review pending.
+Release v0.8.0 track. Lead Chitundu Milimbo; reviewer Charles Hangoma
+(user correction 2026-09-25: Chitundu leads the Phase 7 slices, Charles
+reviews). Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 2; Design Sec 5 §4 (staging
 lifecycle RECEIVED→POSTED_AS_PROVISIONAL, 11 provenance fields, Moodle
@@ -71,4 +72,6 @@ GAP-022, open decisions (results authorities, Moodle instance).
 
 ## Completion
 
-Pending; see VERIFICATION. Human review pending.
+Code verified 2026-09-25 (API e2e 18/18, slice-1 regression 20/20,
+browser 1/1, unit 73/73, typecheck/lint/build green — see VERIFICATION
+Phase 7 slice 2 + NOTE-PH7-002). Human review pending.

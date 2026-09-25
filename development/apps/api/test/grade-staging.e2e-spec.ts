@@ -447,6 +447,223 @@ describe('Phase 7 Moodle grade staging snapshot', () => {
     expect(count).toBe(1);
   });
 
+  it('stage-provenance: frozen snapshot carries DS5 S4 provenance', async () => {
+    const ghost = `GHOST-${key().slice(0, 8)}`;
+    const revision = `mdl-rev-${key()}`;
+    const res = await stage(lecA, {
+      mappingId,
+      sourceRevision: revision,
+      lines: [
+        { studentRef: knownStudentRef, rawValue: 17 },
+        { studentRef: ghost, rawValue: 12 },
+      ],
+    }).expect(201);
+    const batch = res.body as {
+      id: string;
+      moodleInstance: string;
+      moodleCourseRef: string;
+      moodleActivityId: string;
+      offeringRef: string;
+      periodCode: string;
+      componentCode: string;
+      planVersion: number;
+      policyVersion: string;
+      sourceResponse: { sourceRevision: string };
+      lines: Array<{
+        studentRef: string;
+        flagCode: string | null;
+        resolvedStudentId: string | null;
+        conversionFormula: string | null;
+      }>;
+    };
+    const mapping = await db.gradeActivityMapping.findUniqueOrThrow({
+      where: { id: mappingId },
+      include: { component: { include: { plan: true } } },
+    });
+    // Frozen at stage time: later supersedes never rewrite the snapshot.
+    expect(batch.moodleInstance).toBe('MOODLE-SIM-v1');
+    expect(batch.moodleCourseRef).toBe(mapping.moodleCourseRef);
+    expect(batch.moodleActivityId).toBe(mapping.moodleActivityId);
+    expect(batch.offeringRef).toBe(mapping.component.plan.offeringRef);
+    expect(batch.periodCode).toBe(mapping.component.plan.periodCode);
+    expect(batch.componentCode).toBe(mapping.component.code);
+    expect(batch.planVersion).toBe(mapping.component.plan.version);
+    expect(batch.policyVersion).toBe('ASSESSMENT-DEMO-v1');
+    expect(batch.sourceResponse).toMatchObject({ sourceRevision: revision });
+    const known = batch.lines.find((l) => l.studentRef === knownStudentRef);
+    expect(known?.resolvedStudentId).toBeTruthy();
+    expect(known?.conversionFormula).toBe('identity');
+    const unknown = batch.lines.find((l) => l.studentRef === ghost);
+    expect(unknown?.flagCode).toBe('MOODLE_ONLY');
+    expect(unknown?.resolvedStudentId).toBeNull();
+  });
+
+  it('stage-outage: unreachable source refuses, last batch survives, resume works', async () => {
+    const before = await db.gradeBatch.count({ where: { mappingId } });
+    const shell = await db.moodleMapping.findFirstOrThrow({
+      where: { kind: 'SHELL', moodleId: `${SHELL_REF}-STG`, status: 'ACTIVE' },
+    });
+    await db.moodleMapping.update({
+      where: { id: shell.id },
+      data: { status: 'OUTAGE' },
+    });
+    try {
+      const refused = await stage(lecA, {
+        mappingId,
+        sourceRevision: `mdl-rev-${key()}`,
+        lines: [{ studentRef: knownStudentRef, rawValue: 10 }],
+      });
+      expect(refused.status).toBe(503);
+      expect(refused.body.code).toBe('SOURCE_UNAVAILABLE');
+      // Nothing written: the last confirmed batch is preserved as-is.
+      expect(
+        await db.gradeBatch.count({ where: { mappingId } }),
+      ).toBe(before);
+    } finally {
+      await db.moodleMapping.update({
+        where: { id: shell.id },
+        data: { status: 'ACTIVE' },
+      });
+    }
+    // Resume: the same payload stages once the source is reachable again.
+    const revision = `mdl-rev-${key()}`;
+    const res = await stage(lecA, {
+      mappingId,
+      sourceRevision: revision,
+      lines: [{ studentRef: knownStudentRef, rawValue: 10 }],
+    }).expect(201);
+    expect((res.body as { sourceRevision: string }).sourceRevision).toBe(
+      revision,
+    );
+  });
+
+  it('stage-retry: lost-response replay recovers without duplicate outbox', async () => {
+    const k = key();
+    const revision = `mdl-rev-${key()}`;
+    const payload = {
+      mappingId,
+      sourceRevision: revision,
+      lines: [{ studentRef: knownStudentRef, rawValue: 12 }],
+    };
+    const first = await post(
+      '/batches',
+      { idempotencyKey: k, ...payload },
+      lecA,
+    ).expect(201);
+    // Timeout then retry with the same key: command lookup recovers the
+    // stored batch instead of staging twice.
+    const retry = await post(
+      '/batches',
+      { idempotencyKey: k, ...payload },
+      lecA,
+    ).expect(201);
+    expect(retry.body.id).toBe(first.body.id);
+    expect(
+      await db.outboxEvent.count({
+        where: {
+          aggregate: 'GradeBatch',
+          aggregateId: (first.body as { id: string }).id,
+        },
+      }),
+    ).toBe(1);
+  });
+
+  it('stage-superseded: an expired mapping stops transfer', async () => {
+    const drafted = await post(
+      '/plans',
+      { idempotencyKey: key(), ...mkPlan() },
+      lecA,
+    ).expect(201);
+    const plan = drafted.body as { id: string; version: number };
+    await post(
+      `/plans/${plan.id}/approve`,
+      { idempotencyKey: key(), version: plan.version },
+      coordB,
+    ).expect(201);
+    const full = await db.assessmentPlan.findUniqueOrThrow({
+      where: { id: plan.id },
+      include: { components: true },
+    });
+    const component = full.components.find((c) => c.code === 'CA-ASSIGN');
+    if (!component) throw new Error('demo component missing');
+    const first = await post(
+      '/mappings',
+      {
+        idempotencyKey: key(),
+        ...mkMapping(component.id, {
+          moodleActivityId: `SIM-QUIZ-${key().slice(0, 8)}`,
+          moodleCourseRef: `${SHELL_REF}-STG`,
+        }),
+      },
+      lecA,
+    ).expect(201);
+    const firstId = (first.body as { id: string }).id;
+    await post(`/mappings/${firstId}/test`, { idempotencyKey: key() }, lecA)
+      .expect(201);
+    await post(
+      `/mappings/${firstId}/activate`,
+      { idempotencyKey: key() },
+      coordB,
+    ).expect(201);
+    // A newer activation expires the first mapping (supersede, never edit).
+    const second = await post(
+      '/mappings',
+      {
+        idempotencyKey: key(),
+        ...mkMapping(component.id, {
+          moodleActivityId: `SIM-QUIZ-${key().slice(0, 8)}`,
+          moodleCourseRef: `${SHELL_REF}-STG`,
+        }),
+      },
+      lecA,
+    ).expect(201);
+    const secondId = (second.body as { id: string }).id;
+    await post(`/mappings/${secondId}/test`, { idempotencyKey: key() }, lecA)
+      .expect(201);
+    await post(
+      `/mappings/${secondId}/activate`,
+      { idempotencyKey: key() },
+      coordB,
+    ).expect(201);
+    const res = await stage(lecA, {
+      mappingId: firstId,
+      sourceRevision: `mdl-rev-${key()}`,
+      lines: [{ studentRef: knownStudentRef, rawValue: 5 }],
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('MAPPING_REQUIRED');
+  });
+
+  it('stage-change-event: each revision emits its own outbox event', async () => {
+    const first = await stage(lecA, {
+      mappingId,
+      sourceRevision: `mdl-rev-${key()}`,
+      lines: [{ studentRef: knownStudentRef, rawValue: 13 }],
+    }).expect(201);
+    const second = await stage(lecA, {
+      mappingId,
+      sourceRevision: `mdl-rev-${key()}`,
+      lines: [{ studentRef: knownStudentRef, rawValue: 16 }],
+    }).expect(201);
+    const firstId = (first.body as { id: string }).id;
+    const secondId = (second.body as { id: string }).id;
+    for (const id of [firstId, secondId]) {
+      const event = await db.outboxEvent.findFirst({
+        where: { aggregate: 'GradeBatch', aggregateId: id },
+      });
+      expect(event?.type).toBe('MoodleGradeTransferStaged');
+      // Canonical chain (GAP-022): ACT-ASM-001 + CMD + INT + EVT.
+      expect(event?.payload as object).toMatchObject({
+        chain: {
+          act: 'ACT-ASM-001',
+          command: 'CMD-LRN-StageMoodleGradeTransfer',
+          interface: 'INT-Moodle-GradeTransfer-v1',
+          event: 'EVT-MoodleGradeTransferStaged-v1',
+        },
+      });
+    }
+  });
+
   it('stage-reads: list and detail are reader-scoped', async () => {
     const listed = await get('/batches', lecA).expect(200);
     expect(

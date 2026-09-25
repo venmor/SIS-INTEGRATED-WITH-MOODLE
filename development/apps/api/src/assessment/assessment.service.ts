@@ -1,7 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { ASSESSMENT_DEMO_V1 as policy } from '@sis/config';
+import { ASSESSMENT_DEMO_V1 as policy, MOODLE_DEMO_V1 as moodle } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
@@ -15,7 +15,10 @@ interface AssessmentAuthority extends ActiveAuthority {
 }
 
 // Phase 7 slices 1–2: assessment scheme + grade-activity mapping plan +
-// Moodle grade staging snapshot (TASK-PH7-001/002, GAP-022 interim).
+// Moodle grade staging snapshot (TASK-PH7-001/002, GAP-022 interim). Staged
+// batches freeze DS5 §4 provenance (source + SIS coordinates in force at
+// stage time); an unreachable source refuses fail-closed (503) and preserves
+// the last confirmed batch instead of writing through an outage.
 // Versioned plans per offering+period
 // (DRAFT→APPROVED; approval supersedes, never edits; one APPROVED per
 // offering+period). Mappings bind one Moodle activity to one approved
@@ -791,6 +794,9 @@ export class AssessmentService {
     rawValue: number | null;
     outcome: string;
     convertedValue: number | null;
+    conversionFormula: string | null;
+    resolvedStudentId: string | null;
+    resolvedAccountId: string | null;
     status: string;
     flagCode: string | null;
   }) {
@@ -800,6 +806,9 @@ export class AssessmentService {
       rawValue: row.rawValue,
       outcome: row.outcome,
       convertedValue: row.convertedValue,
+      conversionFormula: row.conversionFormula,
+      resolvedStudentId: row.resolvedStudentId,
+      resolvedAccountId: row.resolvedAccountId,
       status: row.status,
       flagCode: row.flagCode,
     };
@@ -812,12 +821,24 @@ export class AssessmentService {
     status: string;
     version: number;
     createdAt: Date;
+    moodleInstance: string;
+    moodleCourseRef: string;
+    moodleActivityId: string;
+    offeringRef: string;
+    periodCode: string;
+    componentCode: string;
+    planVersion: number;
+    policyVersion: string;
+    sourceResponse: unknown;
     lines: Array<{
       id: string;
       studentRef: string;
       rawValue: number | null;
       outcome: string;
       convertedValue: number | null;
+      conversionFormula: string | null;
+      resolvedStudentId: string | null;
+      resolvedAccountId: string | null;
       status: string;
       flagCode: string | null;
     }>;
@@ -829,6 +850,15 @@ export class AssessmentService {
       status: row.status,
       version: row.version,
       createdAt: row.createdAt.toISOString(),
+      moodleInstance: row.moodleInstance,
+      moodleCourseRef: row.moodleCourseRef,
+      moodleActivityId: row.moodleActivityId,
+      offeringRef: row.offeringRef,
+      periodCode: row.periodCode,
+      componentCode: row.componentCode,
+      planVersion: row.planVersion,
+      policyVersion: row.policyVersion,
+      sourceResponse: row.sourceResponse ?? null,
       lines: row.lines.map((l) => this.lineView(l)),
     };
   }
@@ -858,6 +888,22 @@ export class AssessmentService {
         409,
       );
     }
+    // Outage survival: an unreachable source refuses fail-closed and
+    // preserves the last confirmed batch instead of writing through.
+    const shell = await this.prisma.moodleMapping.findFirst({
+      where: {
+        kind: 'SHELL',
+        status: 'ACTIVE',
+        moodleId: mapping.moodleCourseRef,
+      },
+    });
+    if (!shell) {
+      this.fail(
+        'SOURCE_UNAVAILABLE',
+        'The Moodle source is unreachable. Staged batches are preserved; retry once the source recovers.',
+        503,
+      );
+    }
     const outcomes = new Set<string>(policy.nonNumericOutcomes as readonly string[]);
     return this.command(auth, key, 'StageGradeBatch', input, async (db) => {
       // Serialize concurrent stages of the same mapping+revision first;
@@ -884,6 +930,8 @@ export class AssessmentService {
           let status = 'STAGED';
           let flagCode: string | null = null;
           let converted: number | null = null;
+          let resolvedStudentId: string | null = null;
+          let resolvedAccountId: string | null = null;
           if (!outcomes.has(outcome)) {
             status = 'QUARANTINED';
             flagCode = 'STRUCTURALLY_INVALID';
@@ -908,22 +956,29 @@ export class AssessmentService {
                 ? 'OUT_OF_RANGE'
                 : 'STRUCTURALLY_INVALID';
           } else if (outcome === 'MARK_RECORDED') {
-            // Moodle-only check: a staged mark with no SIS student behind
-            // it is preserved as evidence but converts to nothing.
-            const known =
-              (await db.student.findUnique({
-                where: { studentNumber: line.studentRef },
-              })) ??
-              (await db.account.findUnique({
-                where: { username: line.studentRef },
-              }));
-            if (!known) {
-              status = 'FLAGGED';
-              flagCode = 'MOODLE_ONLY';
-            } else {
+            // Moodle-only check: a staged mark with no SIS identity behind
+            // it is preserved as evidence but converts to nothing. The
+            // resolved identity is the student/enrolment mapping (DS5 §4);
+            // enrolment-truth disputes belong to the slice-3 swimlanes.
+            const student = await db.student.findUnique({
+              where: { studentNumber: line.studentRef },
+            });
+            if (student) {
+              resolvedStudentId = student.id;
               // Demo conversion is the identity formula; the applied
               // policy version travels with the batch, never a bare value.
               converted = line.rawValue ?? null;
+            } else {
+              const account = await db.account.findUnique({
+                where: { username: line.studentRef },
+              });
+              if (account) {
+                resolvedAccountId = account.id;
+                converted = line.rawValue ?? null;
+              } else {
+                status = 'FLAGGED';
+                flagCode = 'MOODLE_ONLY';
+              }
             }
           }
           seen.add(line.studentRef);
@@ -932,6 +987,9 @@ export class AssessmentService {
             rawValue: line.rawValue ?? null,
             outcome,
             convertedValue: converted,
+            conversionFormula: converted !== null ? 'identity' : null,
+            resolvedStudentId,
+            resolvedAccountId,
             status,
             flagCode,
           });
@@ -955,6 +1013,22 @@ export class AssessmentService {
             sourceRevision: input.sourceRevision,
             status: 'VALIDATED',
             createdByAccountId: auth.accountId,
+            // Frozen DS5 §4 provenance: the source and SIS coordinates in
+            // force at stage time. Later supersedes never rewrite these.
+            moodleInstance: moodle.provider,
+            moodleCourseRef: mapping.moodleCourseRef,
+            moodleActivityId: mapping.moodleActivityId,
+            offeringRef: mapping.component.plan.offeringRef,
+            periodCode: mapping.component.plan.periodCode,
+            componentCode: mapping.component.code,
+            planVersion: mapping.component.plan.version,
+            policyVersion: policy.version,
+            sourceResponse: json({
+              sourceRevision: input.sourceRevision,
+              receivedLines: input.lines.length,
+              receivedAt: new Date().toISOString(),
+              instance: moodle.provider,
+            }),
             lines: { create: [...unique.values()] },
           },
           include: { lines: true },
@@ -973,6 +1047,16 @@ export class AssessmentService {
                 (l) => l.status !== 'STAGED',
               ).length,
               policyVersion: policy.version,
+              // Canonical chain (GAP-022 interim): ACT-ASM-001 +
+              // CMD-LRN-StageMoodleGradeTransfer +
+              // INT-Moodle-GradeTransfer-v1 +
+              // EVT-MoodleGradeTransferStaged-v1.
+              chain: {
+                act: 'ACT-ASM-001',
+                command: 'CMD-LRN-StageMoodleGradeTransfer',
+                interface: 'INT-Moodle-GradeTransfer-v1',
+                event: 'EVT-MoodleGradeTransferStaged-v1',
+              },
             }),
           },
         });

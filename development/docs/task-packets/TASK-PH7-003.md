@@ -3,8 +3,9 @@
 ## Authority and ownership
 
 User authorization: Phase 7 slices 1–3 implementation request, 2026-09-24.
-Release v0.8.0 track. Proposed lead Chitundu Milimbo; reviewer Charles
-Hangoma. Rehearsal duties only. Human review pending.
+Release v0.8.0 track. Lead Chitundu Milimbo; reviewer Charles Hangoma
+(user correction 2026-09-25 confirmed: Chitundu leads the Phase 7
+slices, Charles reviews). Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 3; Design Sec 5 §§3,12,17
 (non-numeric outcomes, course-result early states, 6-step missing-mark

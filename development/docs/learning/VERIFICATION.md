@@ -252,3 +252,58 @@ teaching, mappings, ops workspaces, full checkpoint. Unit + scripts +
 repo lint green. New gaps: GAP-021 (TG timetable). `backup:test`,
 manual screen-reader/WSL replay, remote CI, Vercel route check, and
 human walkthrough remain **not verified**. Uncommitted pending review.
+
+## Phase 7 slice 1 (2026-09-25, fresh `sis_ph7_s1_test` + `sis_ph7_browser_test`)
+
+Assessment scheme + grade-activity mapping plan (TASK-PH7-001),
+simulator-only. Code in `024af1d` + one uncommitted test-only fix
+(browser strict-mode `.first()`); this box runs Node **22.13.1**
+(pinned **24.21.0**) against PostgreSQL **18** (`sis-postgres-18`).
+Typecheck exit 0, web lint clean, API lint warnings-only
+(pre-existing), API dist via direct `tsc -p
+tsconfig.build.json` (`nest` CLI crashes on Node 22,
+`ERR_REQUIRE_CYCLE_MODULE`), web production build exit 0. API e2e
+`assessment-plan` **20/20** on the fresh DB (draft/versioning,
+supersede, four-eyes, version conflict, closed codes, mapping
+journey, self-activation refusal, synthetic fail-writes-nothing,
+test-required, both-identifiers, arbitrary-mapping block,
+unapproved/closed refusal, tutor/sysadmin/moodle-admin denials,
+offering scope, neutrals, concurrent activation, idempotence,
+officer reads). Unit **73/73**. Browser `assessment-plan`
+(plan → map → activate incl. slice-2 staging leg) **1/1** on
+`migrate deploy` + demo-seeded browser DB with rebuilt apps
+(390px, keyboard/focus, no overflow, empty localStorage).
+
+Environment deviations (recorded, not hidden): `npm run scan`
+cannot run here (ripgrep unavailable); `test:scripts` has 3
+environment failures (missing `rg`, plain-node `.ts` imports) on
+Node 22 — unrelated to slice 1. First browser attempt failed
+sign-in because a stale API on 3101 read the `sis` database;
+fresh servers against the browser DB fixed it. `backup:test`,
+full-suite regression on a shared DB (order-fragile), manual
+screen-reader/WSL replay, remote CI, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH7-001](NOTE-PH7-001.md).
+
+## Phase 7 slice 2 (2026-09-25, fresh `sis_ph7_s2_test` + `sis_ph7_browser_test`)
+
+Moodle grade staging snapshot with frozen DS5 §4 provenance,
+fail-closed outage guard, and the GAP-022 canonical chain
+(TASK-PH7-002; lead Chitundu Milimbo, reviewer Charles Hangoma per
+user correction 2026-09-25). Same Node 22.13.1 / PostgreSQL 18
+environment notes as slice 1. Typecheck exit 0, web lint clean, API
+lint warnings-only (pre-existing), API dist via direct `tsc`, web
+production build exit 0. API e2e `grade-staging` **18/18** on the
+fresh DB (13 prior proofs + frozen provenance, outage refusal +
+preservation + resume, lost-response replay with a single outbox row,
+superseded-mapping refusal, per-revision outbox events with the
+chain). Slice-1 regression `assessment-plan` **20/20**, unit
+**73/73**. Browser `assessment-plan` (incl. staging leg + new
+provenance assertions) **1/1** on migrated + rebuilt apps (390px,
+keyboard/focus, no overflow, empty localStorage).
+
+Playwright's `npm`-based webServer still cannot start on Windows and
+stale servers get silently reused; reused the proven workaround (kill
+orphans, start API + `next start` directly against the target DB).
+`backup:test`, full-suite shared-DB regression, manual
+screen-reader/WSL replay, remote CI, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH7-002](NOTE-PH7-002.md).

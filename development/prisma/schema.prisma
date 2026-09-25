@@ -52,6 +52,9 @@ model Account {
   recoveryTokens RecoveryToken[]
   applications Application[]
   teachingAssignments TeachingAssignment[]
+  // Phase 7 slice 2: staged lines resolved to this account by username
+  // when no student number matched (still converts, never official).
+  resolvedGradeLines GradeLine[]
 
   @@index([personId])
 }
@@ -697,6 +700,9 @@ model Student {
   clearances FinanceClearance[]
   financeAccount FinanceAccount?
   tgAllocations TGAllocation[]
+  // Phase 7 slice 2: staged lines resolved to this student (DS5 §4
+  // student/enrolment mapping; null stays MOODLE_ONLY evidence).
+  resolvedGradeLines GradeLine[]
   @@index([status, createdAt])
 }
 
@@ -1525,6 +1531,10 @@ model GradeActivityMapping {
 // provenance (raw value, outcome code, converted value kept null until
 // validation); quarantine flags isolate invalid lines while preserving
 // valid ones (TEST-REC-003). Staging never makes results official.
+// Phase 7 slice 2: frozen DS5 §4 provenance (TASK-PH7-002). Batches
+// freeze the source and SIS coordinates in force at stage time, so later
+// supersedes never rewrite the snapshot. Lines record the resolved SIS
+// identity (null stays MOODLE_ONLY evidence) and the applied formula.
 model GradeBatch {
   id String @id @default(uuid())
   mappingId String
@@ -1534,6 +1544,15 @@ model GradeBatch {
   version Int @default(1)
   createdByAccountId String
   createdAt DateTime @default(now())
+  moodleInstance String @default("MOODLE-SIM-v1")
+  moodleCourseRef String @default("")
+  moodleActivityId String @default("")
+  offeringRef String @default("")
+  periodCode String @default("")
+  componentCode String @default("")
+  planVersion Int @default(1)
+  policyVersion String @default("ASSESSMENT-DEMO-v1")
+  sourceResponse Json @default("{}")
   lines GradeLine[]
   @@unique([mappingId, sourceRevision])
   @@index([mappingId, status])
@@ -1547,9 +1566,15 @@ model GradeLine {
   rawValue Float?
   outcome String @default("MARK_RECORDED")
   convertedValue Float?
+  conversionFormula String?
+  resolvedStudentId String?
+  resolvedStudent Student? @relation(fields: [resolvedStudentId], references: [id], onDelete: Restrict)
+  resolvedAccountId String?
+  resolvedAccount Account? @relation(fields: [resolvedAccountId], references: [id], onDelete: Restrict)
   status String @default("STAGED")
   flagCode String?
   createdAt DateTime @default(now())
   @@unique([batchId, studentRef])
   @@index([batchId, status])
+  @@index([resolvedStudentId])
 }

@@ -248,7 +248,10 @@ test("assessment plan: plan to mapping activation journey", async ({
 
   await page.goto("/admin/assessment/batches");
   await expect(
-    page.locator("main").getByRole("heading", { name: "Grade batches", exact: true }),
+    page
+      .locator("main")
+      .getByRole("heading", { name: "Grade batches", exact: true })
+      .first(),
   ).toBeVisible();
   await page.getByLabel("Mapping ID").fill(mappingId);
   await page.getByLabel("Source revision").fill(revision);
@@ -277,6 +280,9 @@ test("assessment plan: plan to mapping activation journey", async ({
   ).toBeVisible();
   await expect(page.locator("main")).toContainText("MOODLE_ONLY");
   await expect(page.locator("main")).toContainText("STAGED");
+  // Frozen DS5 §4 provenance travels with the stored snapshot.
+  await expect(page.locator("main")).toContainText("MOODLE-SIM-v1");
+  await expect(page.locator("main")).toContainText("CA-QUIZ1");
   await noOverflow(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });

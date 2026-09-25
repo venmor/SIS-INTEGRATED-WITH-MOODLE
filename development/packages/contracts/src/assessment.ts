@@ -41,15 +41,21 @@ export interface GradeMappingTestView {
   reasons: string[];
   conditions: Array<{ condition: string; passed: boolean }>;
 }
-/** Phase 7 slice 2: staged grade snapshot views (TASK-PH7-002). Lines
- * carry provenance (raw value, outcome code, converted value kept null
- * until validation); quarantine flags isolate invalid lines. */
+/** Phase 7 slice 2: staged grade snapshot views (TASK-PH7-002). Batches
+ * freeze DS5 §4 provenance (source + SIS coordinates in force at stage
+ * time); lines carry the raw value, outcome code, converted value (null
+ * until validation), resolved SIS identity (null stays MOODLE_ONLY
+ * evidence) and the applied conversion formula. Quarantine flags isolate
+ * invalid lines. ISO date strings. */
 export interface GradeLineView {
   id: string;
   studentRef: string;
   rawValue: number | null;
   outcome: string;
   convertedValue: number | null;
+  conversionFormula: string | null;
+  resolvedStudentId: string | null;
+  resolvedAccountId: string | null;
   status: string;
   flagCode: string | null;
 }
@@ -60,5 +66,14 @@ export interface GradeBatchView {
   status: string;
   version: number;
   createdAt: string;
+  moodleInstance: string;
+  moodleCourseRef: string;
+  moodleActivityId: string;
+  offeringRef: string;
+  periodCode: string;
+  componentCode: string;
+  planVersion: number;
+  policyVersion: string;
+  sourceResponse: unknown;
   lines: GradeLineView[];
 }
