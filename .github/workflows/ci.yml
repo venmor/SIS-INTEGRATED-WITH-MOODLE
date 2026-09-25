@@ -133,8 +133,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: development/.nvmrc
-      - name: Probe deployed preview authentication
-        run: node scripts/preview-auth-smoke.mjs
+      - name: Probe public demo authentication
+        run: PREVIEW_BASE_URL=https://sis-moodle.vercel.app node scripts/preview-auth-smoke.mjs
 
 
   preview-protection-smoke:
