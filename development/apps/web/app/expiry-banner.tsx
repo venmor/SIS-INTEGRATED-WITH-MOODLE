@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ExpiryWarningView } from "@sis/contracts";
-import { Notice } from "@sis/ui";
+import { ActionButton, Notice } from "@sis/ui";
 import { formatLusaka } from "../lib/time";
 
 function minutesLeft(endsAt: string | null): number | null {
@@ -25,6 +25,7 @@ async function getWarnings(): Promise<ExpiryWarningView[]> {
 // holds, acknowledges without interrupting the session. Silent when empty.
 export function ExpiryBanner() {
   const [warnings, setWarnings] = useState<ExpiryWarningView[] | null>(null);
+  const [acknowledging, setAcknowledging] = useState(false);
   const [, setTick] = useState(0);
 
   const refresh = useCallback(() => {
@@ -41,12 +42,17 @@ export function ExpiryBanner() {
   }, [refresh]);
 
   async function acknowledge(id: string) {
-    await fetch(`/api/auth/workspace/expiry-warnings/${id}/ack`, {
-      method: "POST",
-      headers: { "x-requested-with": "XMLHttpRequest" },
-      credentials: "same-origin",
-    }).catch(() => undefined);
-    refresh();
+    setAcknowledging(true);
+    try {
+      await fetch(`/api/auth/workspace/expiry-warnings/${id}/ack`, {
+        method: "POST",
+        headers: { "x-requested-with": "XMLHttpRequest" },
+        credentials: "same-origin",
+      }).catch(() => undefined);
+      refresh();
+    } finally {
+      setAcknowledging(false);
+    }
   }
 
   if (!warnings || warnings.length === 0) return null;
@@ -65,13 +71,16 @@ export function ExpiryBanner() {
           message={`Scope ${first.scopeType}:${first.scopeRef} ends ${first.endsAt ? formatLusaka(first.endsAt) : "soon"}. Finish time-sensitive work — drafts are preserved if access changes.`}
         />
       </div>
-      <button
+      <ActionButton
         type="button"
+        kind="secondary"
+        pending={acknowledging}
+        loadingText="Acknowledging…"
         aria-label={`Acknowledge expiry warning for ${first.role} in ${first.scopeRef}`}
         onClick={() => void acknowledge(first.id)}
       >
         Acknowledge
-      </button>
+      </ActionButton>
     </>
   );
 }
