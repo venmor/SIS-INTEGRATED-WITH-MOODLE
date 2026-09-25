@@ -6,4 +6,4 @@ Composite role books organize approved material that appeared across several des
 
 The project is intentionally constrained: no early microservices, Kubernetes, Kafka, Redis, chatbot or uncontrolled AI decision-making. These exclusions protect learning time and keep the presentation MVP defensible.
 
-The design provides a coherent path from research to an operationally mature SIS–Moodle platform. Its central achievement is not a technology list; it is a traceable agreement between user experience, institutional authority, architecture, security, delivery and learning. Following the roadmap and evidence gates will let Charles and Chitindu build progressively without losing the approved patterns.
+The design provides a coherent path from research to an operationally mature SIS–Moodle platform. Its central achievement is not a technology list; it is a traceable agreement between user experience, institutional authority, architecture, security, delivery and learning. Following the roadmap and evidence gates will let Charles and Chitundu build progressively without losing the approved patterns.

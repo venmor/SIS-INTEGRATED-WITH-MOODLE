@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH2-001 (public programme discovery)
 
-- Lead developer: Chitindu Milimbo (user decision 2026-09-18; confirm vs standing ruling in ROTATION-LEDGER line 18)
+- Lead developer: Chitundu Milimbo (user decision 2026-09-18; confirm vs standing ruling in ROTATION-LEDGER line 18)
 - Reviewer: Charles Hangoma
 - Date/release: 2026-09-18 / v0.3.0 Phase 2 slice 1
 - Branch: `feat/ph2-001-discovery` (local-only flow; no worktree — shares the single Docker pgdata volume, and CONTRIBUTING permits branches)

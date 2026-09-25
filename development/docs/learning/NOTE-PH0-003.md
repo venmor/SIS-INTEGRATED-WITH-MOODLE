@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH0-003
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-15 / v0.1.0 Phase 0 slice 3
 
 ## What we built and why

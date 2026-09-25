@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Charles Hangoma; reviewer Chitindu Milimbo. Rehearsal duties only. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Charles Hangoma; reviewer Chitundu Milimbo. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 6 ("where MVP requires"); Student Part 4 §§5–7,10 (add/drop window, previews, waitlist, late changes, reversals); Design Sec 3 §§4–5; REQ-REG-006/007 (reason + evidence + route, full audit); UI course-changes/waitlist/late screens + SCR-FRM-REG-001/OPS; error/a11y catalogues. Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH4-005. Owning module `registration`.
 

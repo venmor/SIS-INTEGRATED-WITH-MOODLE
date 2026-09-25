@@ -7,7 +7,7 @@ You are working on the university SIS implementation. The blueprint is authorita
 
 Task packet: [path]
 Release/phase: [id]
-Lead developer: [Charles or Chitindu]
+Lead developer: [Charles or Chitundu]
 Reviewer: [other developer]
 
 Before editing:

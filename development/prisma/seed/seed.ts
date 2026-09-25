@@ -409,6 +409,53 @@ const SEED: SeedAccount[] = [
       },
     ],
   },
+  // Phase 7 slice 1 assessment governance (TASK-PH7-001, GAP-022 interim).
+  // Fictional scoped capabilities: school-scoped plan/mapping approval for
+  // the coordinator, period-scoped result validation for the examinations
+  // officer. MOODLE_ADMIN (mumba.s, Phase 6) is reused for technical
+  // mapping only — it never approves. Not UNZA policy.
+  {
+    username: "chisela.k",
+    personName: "Chisela K.",
+    email: "chisela.k@demo.invalid",
+    phone: "+260950000016",
+    password: "Seed-2026-Chisela",
+    roles: [
+      {
+        role: "COORDINATOR",
+        scopeType: "SCHOOL",
+        scopeRef: "Computing",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ACA-2026-102",
+        authoritySource: "School board (demonstration)",
+        capabilities: ["approve-assessment"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration assessment approver",
+      },
+    ],
+  },
+  {
+    username: "kaluba.e",
+    personName: "Kaluba E.",
+    email: "kaluba.e@demo.invalid",
+    phone: "+260950000017",
+    password: "Seed-2026-Kaluba",
+    roles: [
+      {
+        role: "EXAMINATIONS_OFFICER",
+        scopeType: "PERIOD",
+        scopeRef: "2026S1",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "EXM-2026-101",
+        authoritySource: "Examinations office (demonstration)",
+        capabilities: ["validate-results"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration examinations officer",
+      },
+    ],
+  },
 ];
 
 async function ensureAccount(

@@ -11,6 +11,7 @@ import { RegistrationModule } from './registration/registration.module.js';
 import { FinanceModule } from './finance/finance.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 import { IntegrationModule } from './integration/integration.module.js';
+import { AssessmentModule } from './assessment/assessment.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { IntegrationModule } from './integration/integration.module.js';
     FinanceModule,
     TeachingModule,
     IntegrationModule,
+    AssessmentModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

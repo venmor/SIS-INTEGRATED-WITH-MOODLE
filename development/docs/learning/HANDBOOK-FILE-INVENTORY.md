@@ -159,7 +159,7 @@ Navigation inventory, not a claim of completed implementation or line-by-line re
 
 | File | First heading |
 |---|---|
-| [01-charles-and-chitindu-rotation-model.md](../../../unza-sis-moodle-design-handbook-v3.0.0/10-DEVELOPER-LEARNING-AND-TEAMWORK/01-charles-and-chitindu-rotation-model.md) | Charles and Chitindu Rotation Model |
+| [01-charles-and-chitindu-rotation-model.md](../../../unza-sis-moodle-design-handbook-v3.0.0/10-DEVELOPER-LEARNING-AND-TEAMWORK/01-charles-and-chitindu-rotation-model.md) | Charles and Chitundu Rotation Model |
 | [02-traceability-learning-and-presentation-evidence.md](../../../unza-sis-moodle-design-handbook-v3.0.0/10-DEVELOPER-LEARNING-AND-TEAMWORK/02-traceability-learning-and-presentation-evidence.md) | Section 19, Part 5C — Traceability, learning records and presentation evidence |
 | [03-learning-roadmap-by-phase.md](../../../unza-sis-moodle-design-handbook-v3.0.0/10-DEVELOPER-LEARNING-AND-TEAMWORK/03-learning-roadmap-by-phase.md) | Learning Roadmap by Phase |
 | [04-high-level-to-code-level-explanation-model.md](../../../unza-sis-moodle-design-handbook-v3.0.0/10-DEVELOPER-LEARNING-AND-TEAMWORK/04-high-level-to-code-level-explanation-model.md) | High-Level to Code-Level Explanation Model |

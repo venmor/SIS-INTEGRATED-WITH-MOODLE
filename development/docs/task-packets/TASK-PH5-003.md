@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitindu Milimbo (callback/reconciliation UI + adversarial tests); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitundu Milimbo (callback/reconciliation UI + adversarial tests); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap Phase 5 slice 3; Finance Blueprint Journey A step 3 + Journey B (initiation receives idempotency reference; uncertain outcomes user-visible); applicant Part 7 confirmation sequence + duplicate-guard list + uncertain wording ("We are checking your payment status. Do not pay again yet."); student journey Part 2 §4 (pay view contents; method list config-driven; partial-payment warning; never raw card entry; confirmation separates payment-confirmed from clearance-complete); REQ-FIN-002/003; ACT-FIN-001 (immutable payment event; duplicate callbacks return prior outcome); architecture INT-PAY-001 + simulation-first rule (deterministic simulator: success, timeout, duplicate, delayed ack, reconciliation; labelled; no real credentials); security rate-limit/idempotency rules (high-impact lower limit + key; "do not pay again" until outcome known); UI-SUBMIT-001 (idempotency reference before submit; disable repeat; uncertain check-by-reference); UI-CONFIRM-001 not required for initiation but deliberate method/amount review applies. Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH5-001 (invoice to pay against). Owning module `finance`.
 

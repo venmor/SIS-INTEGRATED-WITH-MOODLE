@@ -1,7 +1,7 @@
 /**
  * CATALOGUE-v1 — versioned demo catalogue configuration (05/05 config
  * standard, TASK-PH2-001). Fictional demo values, NOT institutional policy.
- * Effective 2026-01-01, owner: Lead Chitindu (demo). Code reads these values;
+ * Effective 2026-01-01, owner: Lead Chitundu (demo). Code reads these values;
  * nothing catalogue-related is hardcoded in controllers or components.
  */
 export interface CatalogueConfig {
@@ -20,7 +20,7 @@ export interface CatalogueConfig {
 
 export const CATALOGUE_V1: CatalogueConfig = {
   version: "CATALOGUE-v1",
-  owner: "Lead Chitindu (demo)",
+  owner: "Lead Chitundu (demo)",
   effectiveFrom: "2026-01-01",
   search: {
     defaultTake: 12,

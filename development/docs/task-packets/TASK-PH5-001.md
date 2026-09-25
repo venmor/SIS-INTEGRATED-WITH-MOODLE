@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Charles Hangoma (data/ledger logic); reviewer Chitindu Milimbo. Rehearsal duties only. Human review pending.
+User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Charles Hangoma (data/ledger logic); reviewer Chitundu Milimbo. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap Phase 5 slice 1; Design Sec 6 §§11–14 (SIS finance boundary; fee dimensions; calculation methods; assessment workflow; immutable subledger); REQ-FIN-001 (charges derive from approved fee policy, enrolment context, effective period); Finance Blueprint Journey A steps 1–2 (approved fee configuration assesses charges for programme/period/load/category; student receives amount, reason, due date, payment reference); student journey Part 2 §3 (invoice contents, charge categories, period separation); Part 3 §7 (course-based charges from plan/registration; UI never calculates fees); DEC-FIN-001 (billing strategy is versioned configuration, not a conditional); permission Part 3A §15.8 (student sees own charges; finance configures); UI catalogue review/invoice patterns; UI constitution (money always with currency). Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH4-005 (registration roster feeds course-based charges). Owning module `finance` (new).
 

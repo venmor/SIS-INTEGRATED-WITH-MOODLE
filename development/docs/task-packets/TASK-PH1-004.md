@@ -8,7 +8,7 @@
   evaluation; assignment shape), REQ-IAM-005 (re-auth hooks; MFA enforcement
   stays 2b/production), REQ-OPS-004 (append-only audit rows), REQ-NFR-001/003,
   REQ-NFR-004 (high-impact commands transactional/idempotent)
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope
   identity-access policy engine + SoD + purpose + denial UX + grant
   hardening (idempotency, outbox, approver, resolve) only
 - Action/screen/component IDs: ACT-IAM-001, UI-ACCESS-001 (denial panel),

@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitindu Milimbo (queue UI + adversarial tests); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitundu Milimbo (queue UI + adversarial tests); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap Phase 5 slice 6 + demonstration checkpoint (uncertain→"do not pay again"→reconcile→clearance→reversal→governed recalculation); Finance Blueprint Journey B/C/D (uncertain case handling; sponsorship versions/expiry; adjustment 5-step with compensating records) + workspace priorities + acceptance requirements; SCR-REC-FIN-001 (charge/payment evidence, allocation, callback history, exception, authorized action); UI-TASK-001/UI-RECORD-001/UI-TABLE-001/UI-TIMELINE-001/UI-DECISION-001/UI-CONFIRM-001 (refund approval confirmation; no bulk refund approval); Design Sec 6 §§16,20 (sponsorship versions; refund chain; requester ≠ sole approver); permission Part 3A §15.8 + segregation (threshold approvals; maker/checker; cashier provisional only; step-up re-auth for adjustments/refunds); security recovery rules (approved manual replay; TEST-REC-001/004/005/006/008/010); TEST-E2E-FIN-006 (maker/checker refund; audit history); student journey Part 2 §§5–6,8 (sponsorship outcomes; arrangement request/approve; review-case wording; no uncontrolled auto-refund). Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH5-001–005. Owning modules `finance` + web finance workspace.
 

@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Chitindu Milimbo; reviewer Charles Hangoma. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
+User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Chitundu Milimbo; reviewer Charles Hangoma. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
 
 Controlling sources: handbook `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP/05-phase-3-admissions-review-and-offer.md` slice 6; applicant Part 10 full (offer, conditions, accept/decline, onboarding, conversion boundary) with Part 1 lifecycle (`Offered → OfferAccepted | OfferDeclined → Onboarding`); exact record `15-APPROVED-DESIGN-EVIDENCE/02-role-blueprints/011-...` (Part 10); Design §6 §§9–10 (acceptance/matriculation rules, onboarding checklist); `05-REQUIREMENTS-PERMISSIONS-DATA/` REQ-ADM-007/008, ACT-APP (offer response), permission §15.4 (applicant accept/decline own offer only); Journey B handoff boundary (conversion is Phase 4, explicitly not here); UI constitution + notification/error/recovery catalogues; security/idempotency/recovery. SUP-001–SUP-013 apply. Depends on TASK-PH3-005 (released OFFERED decisions with explicit conditions/deadlines/version). REST paths and test names are implementation-local, not invented handbook IDs.
 

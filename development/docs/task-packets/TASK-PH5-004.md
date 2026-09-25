@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Charles Hangoma; reviewer Chitindu Milimbo. Rehearsal duties only. Human review pending.
+User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Charles Hangoma; reviewer Chitundu Milimbo. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap Phase 5 slice 4; Design Sec 6 §15 (RECEIVED→…→RECONCILED plus DUPLICATE_SUSPECTED/UNMATCHED/FAILED/REVERSED; provider refs + idempotency keys prevent duplicate posting); Finance Blueprint Journey A step 4 + Journey B (normalize; check signature/amount/currency/reference/duplicate; officer sees evidence/SIS-request/callbacks/differences/safe actions; cannot delete original or fabricate confirmation); applicant Part 7 confirmation sequence (validate signature/amount/currency/reference/uniqueness/obligation state) + amount-mismatch wording; REQ-FIN-002/003; ACT-FIN-001; INT-PAY-001 (signature, replay window, unique provider ref, idempotency, reversal events, reconciliation query); security provider-callback rules (signed, replay detection, bounded processing; TEST-REC-002 one financial effect); architecture payment flow (notification → checks → staged → duplicate detection → verified → posted); UI-ERROR-001 finance example; UI constitution ("Payment confirmation is still in progress… Do not pay again… FIN-20418"). Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH5-003 (requests to confirm). Owning module `finance`.
 

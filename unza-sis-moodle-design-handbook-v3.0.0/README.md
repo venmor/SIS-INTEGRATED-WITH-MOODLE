@@ -1,7 +1,7 @@
 # UNZA SIS–Moodle Design and Development Handbook
 
 Version: **3.0.0 — documentation baseline**  
-Audience: Charles Hangoma, Chitindu Milimbo, supervisors, reviewers and future AI development agents.
+Audience: Charles Hangoma, Chitundu Milimbo, supervisors, reviewers and future AI development agents.
 
 This directory is the report-ready design handbook for the Student Information System and Moodle integration. It contains the recovered design, reorganized from problem and user needs through architecture, journeys, UI/UX, security, delivery, learning, testing, demonstration and controlled expansion.
 
@@ -21,7 +21,7 @@ Begin with [START-HERE.md](START-HERE.md), then follow [MASTER-CONTENTS.md](MAST
 - Institutional policy is configurable and versioned, not hard-coded.
 - External effects are idempotent, retried safely and reconciled.
 - AI agents work from small task packets and repository evidence, never model memory alone.
-- Charles and Chitindu rotate vertical-slice leadership so both learn the full system.
+- Charles and Chitundu rotate vertical-slice leadership so both learn the full system.
 
 ## Package status
 

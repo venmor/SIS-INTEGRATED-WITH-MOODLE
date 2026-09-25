@@ -46,7 +46,7 @@ A stable, fictional, connected demonstration proves user value, architecture, go
 
 ## Team rotation and documentation
 
-Charles and Chitindu alternate story narration and technical explanation. Each can take over if the other laptop or account fails.
+Charles and Chitundu alternate story narration and technical explanation. Each can take over if the other laptop or account fails.
 
 ## Demonstration checkpoint
 

@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH1-004
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 4 (policy + denial; e2e 23/23 green)
 
 ## What we built and why
@@ -114,4 +114,4 @@ panel. Evidence: unit 27 green; e2e 23/23 green.
 3. Why does resolve 404 differ from grant 400? → Authorized grantors get
    scoped-empty (UI-EMPTY); everyone else gets uniform denies (no oracle).
 4. What is still open? → 11 GAP records (delegation, registries, training,
-   delivery, ops queue, review daemon…); Playwright; Chitindu WSL replay.
+   delivery, ops queue, review daemon…); Playwright; Chitundu WSL replay.

@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitindu Milimbo; reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitundu Milimbo; reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 4; Student Part 3 §§1–2,6–7 (course types, plan UI, charges); Design Sec 4 rule engine + Sec 3 §5 (course registration states, validation dimensions); REQ-REG-002/003; ACT-REG-001 contract format; permission §15.5 (student select/submit own only; adviser recommend; coordinator configured approval); UI `Plan your courses` + SCR-FRM-REG-001; error catalogue ERR-VAL/RULE/CONFLICT/STALE. Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH4-002. Owning module `registration`.
 

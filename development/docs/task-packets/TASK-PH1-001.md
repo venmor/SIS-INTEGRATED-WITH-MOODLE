@@ -4,7 +4,7 @@
 
 - Phase/release: v0.2.0 Phase 1 (slice 1 of 6)
 - Requirement IDs: REQ-IAM-001, REQ-IAM-003, REQ-OPS-004 (table only; enforcement in slices 2–6), REQ-NFR-004, REQ-NFR-007
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope `prisma/`, `scripts/`, root manifest seed wiring only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope `prisma/`, `scripts/`, root manifest seed wiring only
 - Action/screen/component IDs: IAM-ROL-01 (12.9, data shape only — no grant API yet), ACT-IAM-001 (data shape only)
 - Policy/configuration version: demo-seed v0.1 (fictional persons/roles/scopes; NOT institutional policy)
 - Acceptance-test IDs: migration-apply, seed-idempotency, db-constraint-duplicate, no-secret-scan
@@ -51,7 +51,7 @@ toy scope tree, reproducibly, via one command (`npm run demo:reset`).
 
 ## Seed set (fictional, demo-seed v0.1)
 
-Mutinta L. (LEC@OFFERING:CSE101-2026S1 + DEAN@SCHOOL:SNS active, TUT expired 2025), Chanda K. (STU own record), Bwalya M. (APP), Mweene T. (SYSADMIN identity-admin). Demo passwords: fictional, per-account `Seed-2026-<name>` pattern, argon2id-hashed at seed time, documented in NOTE for Chitindu's demo only.
+Mutinta L. (LEC@OFFERING:CSE101-2026S1 + DEAN@SCHOOL:SNS active, TUT expired 2025), Chanda K. (STU own record), Bwalya M. (APP), Mweene T. (SYSADMIN identity-admin). Demo passwords: fictional, per-account `Seed-2026-<name>` pattern, argon2id-hashed at seed time, documented in NOTE for Chitundu's demo only.
 
 ## Out of scope
 

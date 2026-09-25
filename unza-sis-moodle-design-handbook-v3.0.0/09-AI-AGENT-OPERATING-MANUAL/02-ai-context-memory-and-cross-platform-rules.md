@@ -82,7 +82,7 @@ Small tasks preserve context, make review realistic, and prevent one AI change f
 
 ## Human ownership still matters
 
-AI can write code, explain code, create tests, and suggest improvements. But Charles and Chitindu must always:
+AI can write code, explain code, create tests, and suggest improvements. But Charles and Chitundu must always:
 
 1. Read the task packet first.
 2. Understand the generated change.
@@ -108,9 +108,9 @@ Use this model:
 | Developer | Recommended setup |
 |---|---|
 | Charles — Arch Linux | Native Git, Node.js, Docker Engine/Docker Compose |
-| Chitindu — Windows | Git + VS Code + Docker Desktop using the WSL 2 backend |
+| Chitundu — Windows | Git + VS Code + Docker Desktop using the WSL 2 backend |
 
-For Windows, Chitindu should work inside a **WSL 2 Linux project folder**, not a Windows-mounted folder such as `C:\...`. This avoids common problems with file watching, permissions, Docker mounts, and slow dependency installation.
+For Windows, Chitundu should work inside a **WSL 2 Linux project folder**, not a Windows-mounted folder such as `C:\...`. This avoids common problems with file watching, permissions, Docker mounts, and slow dependency installation.
 
 Both of you then run the same commands:
 

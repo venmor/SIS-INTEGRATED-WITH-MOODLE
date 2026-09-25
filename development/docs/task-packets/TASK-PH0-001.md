@@ -4,7 +4,7 @@
 
 - Phase/release: v0.1.0 Phase 0
 - Requirement IDs: REQ-NFR-006, REQ-NFR-007, REQ-NFR-008
-- Role and scope: Lead (Supervisor) / Reviewer Chitindu Milimbo / scope development/ only
+- Role and scope: Lead (Supervisor) / Reviewer Chitundu Milimbo / scope development/ only
 - Action/screen/component IDs: none — foundation only, no business action
 - Policy/configuration version: none — no institutional values used
 - Acceptance-test IDs: structural verification only (no ACT/PERM test)
@@ -51,4 +51,4 @@ Node pin, npm workspaces, Docker services, Next.js/NestJS scaffold, design token
 - [ ] Failure/recovery paths covered (n/a — no runtime)
 - [x] Documentation and traceability updated (this packet + rotation ledger)
 - [ ] Relevant checks pass (structural verification below)
-- [ ] Reviewer can explain the change (pending Chitindu walkthrough)
+- [ ] Reviewer can explain the change (pending Chitundu walkthrough)

@@ -14,4 +14,4 @@ Later approved decisions and security/privacy/official-record rules take precede
 
 Current review: [Phase 2 slices 2–5](development/docs/learning/PHASE-2-IMPLEMENTATION-REVIEW.md), [earlier-slice findings](development/docs/learning/PRIOR-PHASE-REVIEW.md), [verification](development/docs/learning/VERIFICATION.md). Verify Git branch/status and current evidence when resuming; do not infer completion from an old conversation.
 
-Keep requested changes reviewable in the existing worktree. Do not commit, merge, push, reset shared databases, or invent human signoff without the user's authorization. Follow the locked stack and module boundaries. Explain user behavior, UI/API/data/audit flow, tests and remaining gaps so both Charles and Chitindu can present the work.
+Keep requested changes reviewable in the existing worktree. Do not commit, merge, push, reset shared databases, or invent human signoff without the user's authorization. Follow the locked stack and module boundaries. Explain user behavior, UI/API/data/audit flow, tests and remaining gaps so both Charles and Chitundu can present the work.

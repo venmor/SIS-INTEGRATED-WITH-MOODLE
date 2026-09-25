@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH1-005
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-17 / v0.2.0 Phase 1 slice 5 (access audit, expiry daemon, reviews, reinstatement, break-glass; e2e 55/55 green after two fix batches — see NOTE-PH1-005-FIXES.md)
 
 ## What we built and why

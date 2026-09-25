@@ -46,4 +46,4 @@ The new admissions migration is additive and protects submitted snapshots agains
 
 ## Evidence
 
-Use [VERIFICATION.md](VERIFICATION.md) for final commands, counts and limitations. Earlier historical counts in task packets describe their original runs. The current prior API suite contains 67 tests, including the repaired active-workspace review scenarios. The independent Superpowers review checked the code; it is separate from the still-pending Charles/Chitindu review.
+Use [VERIFICATION.md](VERIFICATION.md) for final commands, counts and limitations. Earlier historical counts in task packets describe their original runs. The current prior API suite contains 67 tests, including the repaired active-workspace review scenarios. The independent Superpowers review checked the code; it is separate from the still-pending Charles/Chitundu review.

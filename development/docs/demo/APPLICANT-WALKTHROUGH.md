@@ -86,7 +86,7 @@ Generated HTML reports/traces/screenshots are under `playwright-report/` and `te
 ## Human review record — leave unchecked until actually done
 
 - [ ] Charles runs the complete story and explains controller/service/database boundaries.
-- [ ] Chitindu reproduces on WSL and explains ownership, versions and command replay.
+- [ ] Chitundu reproduces on WSL and explains ownership, versions and command replay.
 - [ ] Both draw the save/submit sequence without reading the code.
 - [ ] Both explain why scan, readability and qualification verification are different.
 - [ ] Keyboard-only, 200–400% zoom, screen-reader labels/errors and slow-network recovery are reviewed.

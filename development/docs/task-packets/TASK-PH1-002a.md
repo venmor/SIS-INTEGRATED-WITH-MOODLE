@@ -4,7 +4,7 @@
 
 - Phase/release: v0.2.0 Phase 1 (slice 2a of 2b; MFA is 2b)
 - Requirement IDs: REQ-IAM-006, REQ-NFR-001, REQ-NFR-003, REQ-OPS-004 (auth rows), REQ-IAM-005 (re-auth hooks only)
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope identity-access session/recovery + sign-in UI only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope identity-access session/recovery + sign-in UI only
 - Action/screen/component IDs: IAM-REC-02 (§12.10 states), UI-FIELD-003 (password/sign-in field, exact copy), UI-FIELD-001 (username field), UI-ACTION-001 (buttons), UI-ERROR-001 (error summary)
 - Policy/configuration version: demo-seed v0.2 (accounts) + SECURITY-v1 (new: TTLs, limits, lockout, password policy text, message templates AUTH-*)
 - Acceptance-test IDs: auth-success, auth-generic-fail, auth-enumeration, auth-rate-limit, auth-lockout-neutral, recovery-generic, recovery-single-use, recovery-session-kill, cookie-flags, log-inspection, keyboard-SR-signin, slow-connection-double-submit

@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH5-001 (versioned fee assessment)
 
 - Lead developer: Charles Hangoma (proposed; TASK-PH5-001)
-- Reviewer: Chitindu Milimbo (proposed)
+- Reviewer: Chitundu Milimbo (proposed)
 - Date/release: 2026-09-23 / v0.6.0 track Phase 5 slice 1
 - Branch: local `main` worktree (uncommitted; human review pending)
 

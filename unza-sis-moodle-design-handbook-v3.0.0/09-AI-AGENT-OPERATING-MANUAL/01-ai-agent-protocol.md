@@ -60,7 +60,7 @@ Explicit out-of-scope list
 
 ## Human review
 
-Charles and Chitindu retain design authority. Generated work does not merge unless the reviewer confirms scope, module ownership, permissions, states, data changes, audit, recovery, dependency need and test evidence. If neither developer can explain the code, the task remains incomplete and the agent must teach/explain it.
+Charles and Chitundu retain design authority. Generated work does not merge unless the reviewer confirms scope, module ownership, permissions, states, data changes, audit, recovery, dependency need and test evidence. If neither developer can explain the code, the task remains incomplete and the agent must teach/explain it.
 
 ## Three-level explanation requirement
 

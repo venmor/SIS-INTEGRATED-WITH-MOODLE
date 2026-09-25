@@ -4,7 +4,7 @@
 
 - Phase/release: v0.1.0 Phase 0 (slice 4)
 - Requirement IDs: REQ-NFR-003, REQ-NFR-006, REQ-NFR-008
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope `packages/ui` + shell re-skin only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope `packages/ui` + shell re-skin only
 - Action/screen/component IDs: UI-STATUS-001, UI-NOTICE-001, UI-EMPTY-001 (contracts in `packages/ui/README.md`); no screen IDs — shell only
 - Policy/configuration version: none — palette is PROPOSED, requires institutional approval (not policy truth)
 - Acceptance-test IDs: shell verification only (build, lint, contrast math, render check, pattern scan)
@@ -64,5 +64,5 @@ Field/Button/Table/Timeline/Decision/Document, component render-test runner (web
 - [x] Three components with complete §14.2 contracts in `packages/ui/README.md`
 - [x] Shell re-skinned (19.4 order, one primary action, Status static)
 - [x] Verification above all green
-- [ ] Chitindu reproduces on WSL (pending)
+- [ ] Chitundu reproduces on WSL (pending)
 - [ ] Reviewer can explain the change (pending walkthrough)

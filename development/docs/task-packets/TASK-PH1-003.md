@@ -9,7 +9,7 @@
   backend enforcement here, full matrix in slice 4), REQ-IAM-005 (re-auth +
   MFA-ready hooks for privileged grants; MFA enforcement stays 2b/production),
   REQ-OPS-004 (audit rows incl. active role/scope), REQ-NFR-001, REQ-NFR-003
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope
   identity-access grant + switch + workspace UI only
 - Action/screen/component IDs: ACT-IAM-001 (assign privileged role),
   UI-CONTEXT-001 (workspace context bar: active role, scope, period),

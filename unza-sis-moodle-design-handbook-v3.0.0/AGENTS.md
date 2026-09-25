@@ -29,4 +29,4 @@ This directory contains authoritative design documentation. The sibling `develop
 
 ## Completion report
 
-Report requirement/action/test IDs, files changed, data/API/configuration changes, authorization effects, tests run, evidence, limitations and unresolved gaps. If Charles and Chitindu cannot explain the change, it does not merge.
+Report requirement/action/test IDs, files changed, data/API/configuration changes, authorization effects, tests run, evidence, limitations and unresolved gaps. If Charles and Chitundu cannot explain the change, it does not merge.

@@ -164,6 +164,20 @@ export default async function Home() {
               Tutorial groups
             </Link>
           ) : null}
+          {active?.role === "LEC" ||
+          active?.role === "COORDINATOR" ||
+          active?.role === "MOODLE_ADMIN" ? (
+            <Link className={styles.primary} href="/admin/assessment/plans">
+              Assessment plans
+            </Link>
+          ) : null}
+          {active?.role === "LEC" ||
+          active?.role === "COORDINATOR" ||
+          active?.role === "MOODLE_ADMIN" ? (
+            <Link className={styles.primary} href="/admin/assessment/mappings">
+              Grade mappings
+            </Link>
+          ) : null}
           {active?.role === "FINANCE_OFFICER" ||
           active?.role === "FINANCE_APPROVER" ? (
             <Link className={styles.primary} href="/admin/finance">

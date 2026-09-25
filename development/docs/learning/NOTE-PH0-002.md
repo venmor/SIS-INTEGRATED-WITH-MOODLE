@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH0-002
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-14 / v0.1.0 Phase 0 slice 2
 
 ## What we built and why
@@ -26,7 +26,7 @@ No routes/auth yet. Guards: `.env` never committed (gitignored), `.env.example` 
 
 ## Tests and what they prove
 
-Structural/toolchain checks only (not business tests): dir contract, no nested `.git`, `npm install` clean, `docker compose config` valid, `db` healthy via `pg_isready`, secret scan, `git diff --check`. Full proof log in completion report. Chitindu re-run pending on WSL.
+Structural/toolchain checks only (not business tests): dir contract, no nested `.git`, `npm install` clean, `docker compose config` valid, `db` healthy via `pg_isready`, secret scan, `git diff --check`. Full proof log in completion report. Chitundu re-run pending on WSL.
 
 ## What failed or confused us
 

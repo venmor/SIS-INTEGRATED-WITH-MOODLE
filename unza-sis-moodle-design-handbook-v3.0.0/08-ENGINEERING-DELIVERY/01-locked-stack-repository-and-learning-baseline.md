@@ -144,7 +144,7 @@ A phase is not complete until its tests, documentation, demo scenario and retros
 
 ## 19.21 Team-learning model
 
-Charles Hangoma and Chitindu Milimbo will not be permanently divided into frontend and backend roles.
+Charles Hangoma and Chitundu Milimbo will not be permanently divided into frontend and backend roles.
 
 For each vertical slice:
 

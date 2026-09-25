@@ -16,7 +16,7 @@
 - Verify file permissions do not create root-owned project files.
 - Run the same repository scripts used by CI.
 
-## Chitindu — Windows
+## Chitundu — Windows
 
 - Use WSL2 and Docker Desktop/compatible container runtime.
 - Clone and run the repository inside the WSL Linux filesystem for performance and case consistency.

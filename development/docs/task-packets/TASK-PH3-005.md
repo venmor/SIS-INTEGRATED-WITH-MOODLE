@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Charles Hangoma; reviewer Chitindu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
+User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Charles Hangoma; reviewer Chitundu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
 
 Controlling sources: handbook `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP/05-phase-3-admissions-review-and-offer.md` slice 5; Journey A steps 6–8; Design §6 §§7–8 (decisions catalogue, conditions, AI prohibitions); `05-REQUIREMENTS-PERMISSIONS-DATA/` REQ-ADM-006/007 (separation; conditions/expiry/versions), REQ-OPS-002 (delivery failure ≠ domain reversal), ACT-ADM-002, permission §§15.4/15.9–15.10/15.21 (SoD); applicant Part 9 §§6/9–11 (decision viewing, neutral notices); UI `UI-DECISION-001` (frozen package, options, rationale, declaration, conflict status, effective date, audit preview); security/idempotency/recovery. Exact records: `01-design-sections/006-...`, cross-blueprint `004/005/008-...`, role blueprints `010-...` (Part 9). SUP-001–SUP-013 apply. Depends on TASK-PH3-004 (a recorded recommendation should normally precede a decision; see precondition rule below). REST paths and test names are implementation-local, not invented handbook IDs.
 

@@ -5,7 +5,7 @@
 | Developer | Environment |
 |---|---|
 | Charles Hangoma | Arch Linux, Git, Node.js and Docker Engine/Compose |
-| Chitindu Milimbo | Windows with Git, VS Code, WSL 2 and Docker Desktop using WSL backend |
+| Chitundu Milimbo | Windows with Git, VS Code, WSL 2 and Docker Desktop using WSL backend |
 
 On Windows, keep the project inside the WSL Linux filesystem rather than a Windows-mounted `C:` folder to reduce file-watching, permission, path and performance problems.
 

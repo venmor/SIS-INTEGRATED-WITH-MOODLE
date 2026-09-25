@@ -4,7 +4,7 @@
 
 - Phase/release: v0.1.0 Phase 0 (slice 3)
 - Requirement IDs: REQ-NFR-006, REQ-NFR-007, REQ-NFR-008
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope development/ shells only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope development/ shells only
 - Action/screen/component IDs: none — shells only, no business action
 - Policy/configuration version: none — no institutional values
 - Acceptance-test IDs: shell verification only (generator specs + health shape + builds)
@@ -50,5 +50,5 @@ Business modules/journeys, Prisma models/migrations/seed, design tokens/componen
 - [x] API `GET /health` returns `{status:'ok',version}` via controller→service
 - [x] Generator specs green + health spec added
 - [x] `prisma validate` passes (no models; run as `export $(cat .env | grep -v '^#' | xargs) && npx prisma validate` — Prisma 7 reads real env, not `.env`, in `prisma.config.ts`)
-- [ ] Chitindu reproduces install/build/health on WSL (pending)
+- [ ] Chitundu reproduces install/build/health on WSL (pending)
 - [ ] Reviewer can explain the change (pending walkthrough)

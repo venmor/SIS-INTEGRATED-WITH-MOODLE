@@ -2,12 +2,12 @@
 
 - Status: Approved
 - Date: 2026-09-14
-- Decision owners: Lead Charles / Reviewer Chitindu Milimbo
+- Decision owners: Lead Charles / Reviewer Chitundu Milimbo
 - Affected requirement/module/release: REQ-NFR-006, REQ-NFR-007 / foundation / v0.1.0 Phase 0
 
 ## Context
 
-Phase 0 needs one reproducible toolchain on Arch Linux (Charles) and Windows/WSL (Chitindu) before app shells. Host had Node 26.8.2 + psql 18.6. Handbook requires pinned Node, one manager+lockfile (npm workspaces recommended), Docker Postgres, LF endings, .env.example names only.
+Phase 0 needs one reproducible toolchain on Arch Linux (Charles) and Windows/WSL (Chitundu) before app shells. Host had Node 26.8.2 + psql 18.6. Handbook requires pinned Node, one manager+lockfile (npm workspaces recommended), Docker Postgres, LF endings, .env.example names only.
 
 ## Options considered
 
@@ -23,7 +23,7 @@ Pin Node `24.21.0` in `development/.nvmrc` + `engines`; npm workspaces `apps/*, 
 
 ## Consequences
 
-Benefits: same engine + DB both OS; one lockfile; no secrets in repo; CI can reuse same pins. Costs: both devs must install Node 24.21.0 (fnm/nvm) even though Arch box has Node 26; Chitindu must use Node 24 + PG18. Security/ops: no real data; local-only defaults.
+Benefits: same engine + DB both OS; one lockfile; no secrets in repo; CI can reuse same pins. Costs: both devs must install Node 24.21.0 (fnm/nvm) even though Arch box has Node 26; Chitundu must use Node 24 + PG18. Security/ops: no real data; local-only defaults.
 
 ## Verification and reversal
 

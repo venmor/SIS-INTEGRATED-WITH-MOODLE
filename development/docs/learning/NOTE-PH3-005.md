@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH3-005 (separate decision authority and offer)
 
 - Lead developer: Charles Hangoma (proposed; TASK-PH3-005)
-- Reviewer: Chitindu Milimbo (proposed)
+- Reviewer: Chitundu Milimbo (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 5
 - Branch: local `main` worktree (uncommitted; human review pending)
 

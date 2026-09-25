@@ -10,4 +10,4 @@ An AI-generated change is reviewable only when it explains:
 6. **Code level:** main files/classes/functions and why the pattern was chosen.
 7. **Test level:** what proves normal, denial, failure and recovery behaviour.
 
-Charles or Chitindu should be able to restate each level in their own words. If neither can, the change remains unmerged while the agent teaches, simplifies or revises it.
+Charles or Chitundu should be able to restate each level in their own words. If neither can, the change remains unmerged while the agent teaches, simplifies or revises it.

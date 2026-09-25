@@ -4,7 +4,7 @@
 
 - Phase/release: v0.1.0 Phase 0 (slice 5, final)
 - Requirement IDs: REQ-NFR-006, REQ-NFR-008
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope `.github/` + `docs/operations/` only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope `.github/` + `docs/operations/` only
 - Action/screen/component IDs: none — delivery machinery, no product behaviour
 - Policy/configuration version: none
 - Acceptance-test IDs: local CI replay (every workflow step run in order, green)

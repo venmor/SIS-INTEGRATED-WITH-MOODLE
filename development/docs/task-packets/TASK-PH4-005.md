@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Charles Hangoma; reviewer Chitindu Milimbo. Rehearsal duties only. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Charles Hangoma; reviewer Chitundu Milimbo. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 5; Student Part 4 §§1–2,8,10–11 (preconditions, interaction, receipt, failure table, acceptance); Design Sec 3 §§4–6 (states, snapshot discipline); ACT-REG-001 (verifies status/period/eligibility/policy/finance; creates registration exactly once; durable enrolment event; Moodle failure never reverses); REQ-REG-003/004, REQ-LRN-002/003, REQ-OPS-001/004; permission §§15.5/15.9/15.10; UI review/completed/receipt/timetable/Moodle-handoff screens; declarations versioned apart from payment consent. Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH3-004 (selection). Owning module `registration`.
 

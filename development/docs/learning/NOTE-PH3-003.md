@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH3-003 (clarification round-trip closure)
 
 - Lead developer: Charles Hangoma (proposed; TASK-PH3-003)
-- Reviewer: Chitindu Milimbo (proposed)
+- Reviewer: Chitundu Milimbo (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 3
 - Branch: local `main` worktree (uncommitted; human review pending)
 

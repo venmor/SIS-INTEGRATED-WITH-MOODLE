@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed learning rotation: lead Charles Hangoma (conversion/data integrity); reviewer Chitindu Milimbo. Names assign rehearsal/review duties, not completed approval. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed learning rotation: lead Charles Hangoma (conversion/data integrity); reviewer Chitundu Milimbo. Names assign rehearsal/review duties, not completed approval. Human review pending.
 
 Controlling sources: roadmap `06-phase-4-…` slice 2; Design Sec 3 §§1–4 + global rules (separate lifecycle records, transitions with actor/time/reason/correlation, no silent overwrite, unique never-reused IDs); Design Sec 4 hierarchy/lifecycles (curriculum published-only intake, no in-place edit, course codes never reused); Design Sec 6 §§3 (identity: email ≠ person ID, duplicates → human queue, never auto-merge, merge needs authority/evidence/before-after/reversible IDs), §9 (matriculation chain, idempotent repeat); Journey B (one controlled transaction: uniqueness → student number + attempt + curriculum; correction preserves old values); REQ-ADM-008, REQ-REG-001/004/007; permission §15.5 (Records Officer controlled correction, transcript export, never policy change) + ops roles (no marks/finance/Moodle changes; Registrar ≠ DB access); applicant Part 10 conversion preconditions/boundary. Exact records: `01-design-sections/003,004,006`, `02-role-blueprints/011` (Part 10), cross-blueprint `001,006,007,008,009`. SUP-001–SUP-013 apply. New owning module `records` (Student Records). REST paths/test names are implementation-local.
 

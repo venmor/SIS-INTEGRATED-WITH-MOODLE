@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 3 slices 1–2 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Chitindu Milimbo; reviewer Charles Hangoma. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
+User authorization: Phase 3 slices 1–2 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Chitundu Milimbo; reviewer Charles Hangoma. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
 
 Controlling sources: handbook `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP/05-phase-3-admissions-review-and-offer.md` slice 2; `03-USER-EXPERIENCE-BLUEPRINTS/07-admissions-registry-examinations-and-graduation-operations.md` Journey A steps 1–8; `02-INSTITUTIONAL-AND-SYSTEM-DESIGN/06-design-section-6-admissions-onboarding-and-student-finance.md` §§4–7; `05-REQUIREMENTS-PERMISSIONS-DATA/` REQ-ADM-005 (review assigned evidence without modifying applicant evidence), ACT-ADM-001, permission §§15.1–15.4; applicant Part 9 §§3/10.4 (applicant-visible vs internal separation); `04-UI-UX-DESIGN-SYSTEM/01-ui-ux-constitution.md`; `07-SECURITY-PRIVACY-RESILIENCE/` evidence-access logging, idempotency, recovery. SUP-001–SUP-012 apply. Depends on TASK-PH3-001 (assignment gates every comparison read/write). REST paths and test names are implementation-local, not invented handbook IDs.
 

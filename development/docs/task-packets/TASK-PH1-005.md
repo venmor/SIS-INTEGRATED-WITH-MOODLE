@@ -3,7 +3,7 @@
 ## Authority
 
 - Phase/release: v0.2.0 Phase 1 (slice 5 of handbook 5; one slice)
-- Requirement IDs: REQ-IAM-002/003/004 (active-role evaluation, assignment shape, deny-by-default), REQ-IAM-005/006 (re-auth hooks, recovery no-disclosure), REQ-OPS-004 (append-only audit), REQ-NFR-001/003/004 (deny-by-default, accessibility, idempotency), REQ-SUP-005 (break-glass)- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope identity-access expiry daemon, review schedules, audit review UI, controlled reinstatement, break-glass, audit timeline UI
+- Requirement IDs: REQ-IAM-002/003/004 (active-role evaluation, assignment shape, deny-by-default), REQ-IAM-005/006 (re-auth hooks, recovery no-disclosure), REQ-OPS-004 (append-only audit), REQ-NFR-001/003/004 (deny-by-default, accessibility, idempotency), REQ-SUP-005 (break-glass)- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope identity-access expiry daemon, review schedules, audit review UI, controlled reinstatement, break-glass, audit timeline UI
 - Action/screen/component IDs: ACT-IAM-001 (grant), ACT-SUP-001 (break-glass), UI-ACCESS-001 (denial), UI-EMPTY-001 (empty states), UI-CONTEXT-001 (workspace bar), UI-SUBMIT-001 (idempotency), TEST-AUTH-006/007/008/009/010/011 (denials), TEST-REC-006 (expiry), TEST-REC-008 (backup restore)
 - Policy/configuration version: SECURITY-v1 (new: expiry check interval, review risk-levels, break-glass TTL, reinstatement reason) + demo-seed v0.2
 - Acceptance-test IDs (packet-local; mapped in appendix): audit-timeline, expiry-daemon, review-schedule, reinstate-controlled, break-glass-request, expiry-warning-draft, revocation-during-session, backup-restore-reconciliation, prior-new-audit-expiry

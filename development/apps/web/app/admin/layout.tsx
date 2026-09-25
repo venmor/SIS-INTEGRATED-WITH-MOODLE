@@ -37,6 +37,8 @@ function workspaceLabel(role: string | undefined) {
   if (role === "RECORDS_OFFICER") return "Records workspace";
   if (role === "FINANCE_OFFICER") return "Finance workspace";
   if (role === "FINANCE_APPROVER") return "Finance approval workspace";
+  if (role === "LEC") return "Lecturer workspace";
+  if (role === "COORDINATOR") return "Coordinator workspace";
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
@@ -72,6 +74,30 @@ export default async function AdminLayout({
       href: "/admin/teaching/groups",
       label: "Tutorial groups",
       show: role === "COORDINATOR",
+    },
+    {
+      href: "/admin/assessment/plans",
+      label: "Assessment plans",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "MOODLE_ADMIN",
+    },
+    {
+      href: "/admin/assessment/mappings",
+      label: "Grade mappings",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "MOODLE_ADMIN",
+    },
+    {
+      href: "/admin/assessment/batches",
+      label: "Grade batches",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/moodle",

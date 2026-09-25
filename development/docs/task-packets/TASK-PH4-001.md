@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitindu Milimbo (registration policy/UI); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitundu Milimbo (registration policy/UI); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 1; Student Journey Part 1 §§2–3,5–6,11 (portal home, readiness 9 conditions, conversion handoff matrix, commands); Design Sec 6 §§3,9,10 (identity, matriculation, onboarding task states); REQ-ADM-008, REQ-REG-001; permission §§15.3–15.4 (student own contact only; records controlled correction); UI families SCR-HOME/FRM/QUE + UI-CONTEXT/STATUS/TASK/STALE/DENIED/EMPTY; error catalogue; 12-TESTING. Exact records as TASK-PH3 set plus `02-role-blueprints/012–015` (Student Parts 1–4). SUP-001–SUP-013 apply. Depends on TASK-PH4-002 (students exist first). New UI in `records` + student home areas.
 

@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitindu Milimbo; reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 4 slices 1–6 implementation request, 2026-09-22. Release v0.5.0 track. Proposed lead Chitundu Milimbo; reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 3; Student Parts 1 §§5,11 + 3 §§3–5; Design Sec 6 §§17–18 (clearance/holds), Sec 3 §4 (institutional registration states); REQ-REG-003/005, REQ-FIN-004, REQ-OPS-004; permission §§15.5/15.8 (clearance-state-only visibility both directions); UI readiness/progression/finance screens; error catalogue §16 business-rule wording. Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH4-002. Owning module `registration` (Registration & Progression), consuming Finance clearance status+expiry read-only.
 

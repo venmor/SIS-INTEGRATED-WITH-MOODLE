@@ -40,7 +40,7 @@ The team can select the first implementation task without relying on chat memory
 
 ## Team rotation and documentation
 
-Charles and Chitindu jointly perform this gate. Each independently explains the applicant-to-student and Moodle-authority boundaries before dividing tasks.
+Charles and Chitundu jointly perform this gate. Each independently explains the applicant-to-student and Moodle-authority boundaries before dividing tasks.
 
 ## Demonstration checkpoint
 

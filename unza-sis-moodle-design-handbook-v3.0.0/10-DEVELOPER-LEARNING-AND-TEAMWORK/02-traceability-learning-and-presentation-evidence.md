@@ -69,7 +69,7 @@ New terms learned:
 Questions to revise before presentation:
 ```
 
-This keeps Charles and Chitindu able to explain the project from high-level architecture down to individual code decisions.
+This keeps Charles and Chitundu able to explain the project from high-level architecture down to individual code decisions.
 
 ## 19.55 Required diagrams
 

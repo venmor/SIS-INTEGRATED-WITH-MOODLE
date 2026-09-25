@@ -630,3 +630,163 @@ export async function releaseDueAttempts() {
     await db.$disconnect();
   }
 }
+
+/** Phase 7 slice 1: lecturer fixture scoped to the assessment demo offering. */
+export async function createLecturer() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.lec.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  const offeringRef = "SWE-2026S1";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser lecturer",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "LEC",
+        scopeType: "OFFERING",
+        scopeRef: offeringRef,
+        capabilities: ["stage-marks"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password, offeringRef, periodCode: "2026S1" };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Phase 7 slice 1: assessment coordinator (school-scoped approval). */
+export async function createAssessmentCoordinator() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.acoord.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser assessment coordinator",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "COORDINATOR",
+        scopeType: "SCHOOL",
+        scopeRef: "Computing",
+        capabilities: ["approve-assessment"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Phase 7 slice 1: ensure an ACTIVE shell binds the demo course ref. */
+export async function ensureAssessmentShell() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const shellRef = "SIM-SH-SWE-2026S1";
+  try {
+    const offering = await db.programmeOffering.findFirstOrThrow({
+      where: { programme: { code: "SWE" }, availability: "OPEN" },
+    });
+    const existing = await db.moodleMapping.findFirst({
+      where: { kind: "SHELL", moodleId: shellRef, status: "ACTIVE" },
+    });
+    if (!existing) {
+      await db.moodleMapping.create({
+        data: {
+          kind: "SHELL",
+          sisType: "OFFERING",
+          sisId: `${offering.id}:2026S1`,
+          moodleId: shellRef,
+          version: 1,
+          status: "ACTIVE",
+          creatorAccountId: "SYSTEM",
+          activatorAccountId: "SYSTEM",
+        },
+      });
+    }
+    return shellRef;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Phase 7 slice 2: staged student with a genuine SIS student number, so
+ * staged marks resolve instead of flagging MOODLE_ONLY. */
+export async function ensureStagedStudent() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const studentNumber = `STU-2026-B${randomUUID().slice(0, 8).toUpperCase()}`;
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional staged student",
+        email: `${studentNumber}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    await db.student.create({
+      data: { personId: person.id, studentNumber },
+    });
+    return studentNumber;
+  } finally {
+    await db.$disconnect();
+  }
+}

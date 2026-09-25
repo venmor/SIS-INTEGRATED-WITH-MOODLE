@@ -1460,3 +1460,96 @@ model WaitlistEntry {
   @@unique([attemptId, periodId, courseId])
   @@index([courseId, status])
 }
+
+// Phase 7 slice 1: assessment scheme and grade-activity mapping plan
+// (TASK-PH7-001). Plans version per offering+period (DRAFT→APPROVED;
+// approval supersedes, never edits; one APPROVED per offering+period via
+// the partial unique index in migration 20260927090000 — same
+// hand-maintained pattern as ReviewRecommendation). Mappings bind one
+// Moodle activity to one approved component (DRAFT→TESTED→ACTIVE under
+// four-eyes; one ACTIVE per component, same partial-unique pattern).
+// ASSESSMENT-DEMO-v1 values are fictional (SUP-009, GAP-022).
+model AssessmentPlan {
+  id String @id @default(uuid())
+  offeringRef String
+  periodCode String
+  version Int @default(1)
+  status String @default("DRAFT")
+  policyVersion String
+  createdByAccountId String
+  approvedByAccountId String?
+  createdAt DateTime @default(now())
+  approvedAt DateTime?
+  components AssessmentComponent[]
+  @@unique([offeringRef, periodCode, version])
+  @@index([offeringRef, periodCode, status])
+}
+
+model AssessmentComponent {
+  id String @id @default(uuid())
+  planId String
+  plan AssessmentPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  code String
+  maxMark Int
+  weight Int
+  scaleRef String @default("0-100")
+  moderationRequired Boolean @default(true)
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  mappings GradeActivityMapping[]
+  @@unique([planId, code])
+  @@index([planId, status])
+}
+
+model GradeActivityMapping {
+  id String @id @default(uuid())
+  componentId String
+  component AssessmentComponent @relation(fields: [componentId], references: [id], onDelete: Restrict)
+  moodleActivityId String
+  moodleCourseRef String
+  status String @default("DRAFT")
+  version Int @default(1)
+  createdByAccountId String
+  activatedByAccountId String?
+  testResult Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  batches GradeBatch[]
+  @@unique([componentId, version])
+  @@index([componentId, status])
+}
+
+// Phase 7 slice 2: Moodle grade staging snapshot (TASK-PH7-002).
+// Immutable batches per ACTIVE mapping + source revision (one batch per
+// mapping+revision; replay returns stored batch). Lines carry DS5 §4
+// provenance (raw value, outcome code, converted value kept null until
+// validation); quarantine flags isolate invalid lines while preserving
+// valid ones (TEST-REC-003). Staging never makes results official.
+model GradeBatch {
+  id String @id @default(uuid())
+  mappingId String
+  mapping GradeActivityMapping @relation(fields: [mappingId], references: [id], onDelete: Restrict)
+  sourceRevision String
+  status String @default("RECEIVED")
+  version Int @default(1)
+  createdByAccountId String
+  createdAt DateTime @default(now())
+  lines GradeLine[]
+  @@unique([mappingId, sourceRevision])
+  @@index([mappingId, status])
+}
+
+model GradeLine {
+  id String @id @default(uuid())
+  batchId String
+  batch GradeBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  studentRef String
+  rawValue Float?
+  outcome String @default("MARK_RECORDED")
+  convertedValue Float?
+  status String @default("STAGED")
+  flagCode String?
+  createdAt DateTime @default(now())
+  @@unique([batchId, studentRef])
+  @@index([batchId, status])
+}

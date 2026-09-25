@@ -4,7 +4,7 @@ The project proposes a workflow-led university Student Information System integr
 
 The handbook serves four audiences:
 
-- Charles and Chitindu, who need to learn the system from institutional purpose down to implementation detail.
+- Charles and Chitundu, who need to learn the system from institutional purpose down to implementation detail.
 - AI agents, which need bounded context and exact rules to remain consistent as the codebase grows.
 - The supervisor and assessors, who need a coherent research/design narrative and proof of process.
 - Future reviewers, who need traceability from requirements to decisions, tests and releases.

@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Charles Hangoma; reviewer Chitindu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
+User authorization: Phase 3 slices 3–6 implementation request, 2026-09-21. Release v0.4.0 track. Proposed learning rotation: lead Charles Hangoma; reviewer Chitundu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
 
 Controlling sources: handbook `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP/05-phase-3-admissions-review-and-offer.md` slice 3; `03-USER-EXPERIENCE-BLUEPRINTS/07-admissions-registry-examinations-and-graduation-operations.md` Journey A step 4; applicant Part 9 §§1–5, 9–11 with Part 1 lifecycle (`Submitted → ClarificationRequested → Submitted`); exact records `15-APPROVED-DESIGN-EVIDENCE/02-role-blueprints/010-...` (Part 9), `009-...` (Part 8 uncertainty wording), cross-blueprint Part 4 error/recovery/notification catalogue (`008-...`); `05-REQUIREMENTS-PERMISSIONS-DATA/` REQ-ADM, ACT-APP/ACT-ADM, permission §§15.4/15.9/15.10; `07-SECURITY-PRIVACY-RESILIENCE/` idempotency/recovery. SUP-001–SUP-013 apply. Command names follow source language. REST paths and test names are implementation-local, not invented handbook IDs.
 

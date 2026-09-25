@@ -12,7 +12,7 @@ Lead/reviewer rotation:
 
 ## What Charles learned
 
-## What Chitindu learned
+## What Chitundu learned
 
 ## Problems, debt and design gaps
 

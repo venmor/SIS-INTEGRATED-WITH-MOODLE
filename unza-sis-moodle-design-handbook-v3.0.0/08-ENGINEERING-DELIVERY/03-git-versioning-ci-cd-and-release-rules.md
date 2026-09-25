@@ -130,7 +130,7 @@ Use three environments with fictional data only:
 
 | Environment | Purpose | Who uses it |
 |---|---|---|
-| Local | Development on each laptop | Charles and Chitindu |
+| Local | Development on each laptop | Charles and Chitundu |
 | Staging/demo | Shared integration and presentation testing | Both developers, supervisor demo |
 | Production | Optional final deployment | Only after final approval |
 
@@ -271,7 +271,7 @@ Minimum release smoke tests:
 
 For every weekly cycle:
 
-| Day/activity | Charles | Chitindu |
+| Day/activity | Charles | Chitundu |
 |---|---|---|
 | Planning | Co-define task packet | Co-define task packet |
 | Feature work | Lead one vertical slice | Review requirements/test plan |

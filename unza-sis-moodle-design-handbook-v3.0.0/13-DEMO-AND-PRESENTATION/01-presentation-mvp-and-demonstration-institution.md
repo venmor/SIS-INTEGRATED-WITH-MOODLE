@@ -204,12 +204,12 @@ It must refuse to run against an environment marked as production.
 
 ## 21.12 Presentation ownership
 
-Charles and Chitindu will both present technical and functional aspects.
+Charles and Chitundu will both present technical and functional aspects.
 
 A recommended split:
 
 - Charles: problem, architecture, applicant-to-registration journey and Git workflow.
-- Chitindu: security, Moodle recovery, result governance and testing.
+- Chitundu: security, Moodle recovery, result governance and testing.
 - Both: code explanation, database relationships, CI evidence and questions.
 
 The split can rotate during practice so both developers understand the full system.

@@ -78,6 +78,11 @@ export const SECURITY_V1: SecurityConfig = {
       'TUT',
       'ADMISSIONS_OFFICER',
       'ADMISSIONS_APPROVER',
+      // Phase 7 slice 1 (TASK-PH7-001, GAP-022): assessment demo accounts
+      // need deliberate workspace switching for sign-in UX. Fictional
+      // demo values, NOT institutional policy.
+      'COORDINATOR',
+      'EXAMINATIONS_OFFICER',
     ],
     'iam.me.read': [
       'SYSADMIN',
@@ -88,6 +93,9 @@ export const SECURITY_V1: SecurityConfig = {
       'TUT',
       'ADMISSIONS_OFFICER',
       'ADMISSIONS_APPROVER',
+      // Phase 7 slice 1 (TASK-PH7-001, GAP-022): same sign-in UX reason.
+      'COORDINATOR',
+      'EXAMINATIONS_OFFICER',
     ],
   },
   sodPairs: [],

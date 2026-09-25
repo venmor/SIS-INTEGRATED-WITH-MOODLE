@@ -15,6 +15,6 @@ Before an AI agent writes code, all answers below must be `YES`.
 | Required tests are named | Unit/API/E2E/security/accessibility/recovery IDs |
 | Scope is small enough to review | Explicit out-of-scope list |
 | No action-specific design gap remains | Readiness matrix and open-gap check |
-| A human lead and reviewer are assigned | Charles/Chitindu rotation |
+| A human lead and reviewer are assigned | Charles/Chitundu rotation |
 
 If any answer is `NO`, the agent must stop and create a design-gap question. It must not fill the missing answer from convention or model memory.

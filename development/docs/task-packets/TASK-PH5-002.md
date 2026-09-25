@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitindu Milimbo (statement/callback UI track); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
+User authorization: Phase 5 all-slices implementation request, 2026-09-23. Release v0.6.0 track. Proposed lead Chitundu Milimbo (statement/callback UI track); reviewer Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap Phase 5 slice 2; student journey Part 2 §§1–2,8 (finance home summary; clearance status model; payment history; receipt after completion); REQ-FIN-006 (understandable balances, allocations, status, last update, dispute/support route); permission Part 3A §15.8 (student: own charges/payments/sponsorship summary/clearance; own statement/receipt export; never other students); UI-RECORD-001 (9-region case page); UI-STATUS-001 (state/reason/time/owner/next action); UI-STALE-001 (last confirmed data); UI constitution privacy (mask references; no finance detail in academic screens). Exact records as prior packets. SUP-001–SUP-013 apply. Depends on TASK-PH5-001 (charges/invoice). Owning modules `finance` (reads) + web student finance pages.
 

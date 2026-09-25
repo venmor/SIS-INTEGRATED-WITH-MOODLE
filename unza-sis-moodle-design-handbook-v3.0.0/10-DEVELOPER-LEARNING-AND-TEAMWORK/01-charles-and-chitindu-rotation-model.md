@@ -1,6 +1,6 @@
-# Charles and Chitindu Rotation Model
+# Charles and Chitundu Rotation Model
 
-Charles Hangoma and Chitindu Milimbo are co-developers and co-owners. Neither is permanently assigned “frontend only” or “backend only.”
+Charles Hangoma and Chitundu Milimbo are co-developers and co-owners. Neither is permanently assigned “frontend only” or “backend only.”
 
 ## Per vertical slice
 

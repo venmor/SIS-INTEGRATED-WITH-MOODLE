@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH1-005 correctness & scope fixes (review findings)
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-17 / v0.2.0 Phase 1 slice 5, fix batch
 - Parent note: `NOTE-PH1-005.md` (unchanged record); this file tracks the
   review findings and their fixes, TDD per item, Phases 0–5.

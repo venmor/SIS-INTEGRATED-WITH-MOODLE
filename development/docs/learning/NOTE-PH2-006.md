@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH2-006 (post-submit case: timeline, clarification, correction, decision, tickets, withdrawal, inbox)
 
-- Lead developer: Chitindu Milimbo (proposed; TASK-PH2-006 line 5)
+- Lead developer: Chitundu Milimbo (proposed; TASK-PH2-006 line 5)
 - Reviewer: Charles Hangoma (proposed)
 - Date/release: 2026-09-21 / v0.3.0 Phase 2 slice 6
 - Branch: local `main`, commit `e44170a` (“Implemented phase 2 slice 6 and phase 3 slice 1 and 2”)

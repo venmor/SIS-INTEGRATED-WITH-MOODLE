@@ -21,7 +21,7 @@ Original statements that the package contains no code describe this handbook dir
 | Browser testing | Playwright plus unit, API, authorization, accessibility and recovery tests |
 | Integration | Outbox, idempotency, retry/dead letter and reconciliation |
 | AI | Repository memory, bounded task packets, human review and no guessing |
-| Team | Charles Hangoma and Chitindu Milimbo rotate full vertical-slice ownership |
+| Team | Charles Hangoma and Chitundu Milimbo rotate full vertical-slice ownership |
 | UI | UI/UX Constitution; CSS Modules; Tailwind excluded unless approved later |
 
 ## Source coverage

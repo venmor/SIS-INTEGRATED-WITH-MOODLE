@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH5-006 (reconciliation queue and governance)
 
-- Lead developer: Chitindu Milimbo (proposed; TASK-PH5-006)
+- Lead developer: Chitundu Milimbo (proposed; TASK-PH5-006)
 - Reviewer: Charles Hangoma (proposed)
 - Date/release: 2026-09-23 / v0.6.0 track Phase 5 slice 6
 - Branch: local `main` worktree (uncommitted; human review pending)

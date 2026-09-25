@@ -12,7 +12,7 @@
 | 7 | `07-SECURITY-PRIVACY-RESILIENCE` | Security, rate limiting, redundancy, recovery and code health | Both developers, reviewers |
 | 8 | `08-ENGINEERING-DELIVERY` | Locked stack, future repo, Git, CI/CD, release and OS rules | Both developers |
 | 9 | `09-AI-AGENT-OPERATING-MANUAL` | Context, scope, task and evidence rules for AI | AI agents and human reviewers |
-| 10 | `10-DEVELOPER-LEARNING-AND-TEAMWORK` | Charles/Chitindu learning and rotation model | Both developers |
+| 10 | `10-DEVELOPER-LEARNING-AND-TEAMWORK` | Charles/Chitundu learning and rotation model | Both developers |
 | 11 | `11-STEP-BY-STEP-IMPLEMENTATION-ROADMAP` | Design gate, MVP releases and expansion to completion | Team and supervisor |
 | 12 | `12-TESTING-AND-ACCEPTANCE` | Proof required for features and releases | Test lead, reviewer |
 | 13 | `13-DEMO-AND-PRESENTATION` | Seeded demo, stories, evidence and defence preparation | Presenters |

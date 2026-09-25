@@ -185,7 +185,7 @@ Expected: the README, AI instructions and design index each link to the handbook
 
 - [ ] **Step 4: Record the completed foundation task in the rotation ledger**
 
-Add one row for “Phase 0 folder structure” with the agreed lead/reviewer fields left as `Unassigned` until Charles and Chitindu assign them; link the task plan and specification as review evidence.
+Add one row for “Phase 0 folder structure” with the agreed lead/reviewer fields left as `Unassigned` until Charles and Chitundu assign them; link the task plan and specification as review evidence.
 
 - [ ] **Step 5: Perform final structural check**
 

@@ -4,7 +4,7 @@
 
 - Phase/release: v0.1.0 Phase 0 (slice 2)
 - Requirement IDs: REQ-NFR-006, REQ-NFR-007
-- Role and scope: Lead Charles / Reviewer Chitindu Milimbo / scope development/ toolchain only
+- Role and scope: Lead Charles / Reviewer Chitundu Milimbo / scope development/ toolchain only
 - Action/screen/component IDs: none — foundation only
 - Policy/configuration version: none — no institutional values
 - Acceptance-test IDs: structural + toolchain verification only
@@ -50,5 +50,5 @@ Next.js/NestJS scaffolds, Prisma schema/migrations/seed, design tokens/component
 - [x] Postgres 18 healthy via pg_isready (verified 2026-09-14: container healthy, PostgreSQL 18.6, `pg_isready` accepting connections)
 - [x] .env.example names only; .env/.gitignore guards verified
 - [x] Cross-platform placeholder scripts present (dev/lint/test/build/demo:reset)
-- [ ] Chitindu reproduces on WSL with Node 24.21.0 + Postgres 18 (pending — notice below)
+- [ ] Chitundu reproduces on WSL with Node 24.21.0 + Postgres 18 (pending — notice below)
 - [ ] Reviewer can explain the change (pending walkthrough)

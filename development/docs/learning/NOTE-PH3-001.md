@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH3-001 (assigned admissions queue and filters)
 
 - Lead developer: Charles Hangoma (proposed; TASK-PH3-001 line 5)
-- Reviewer: Chitindu Milimbo (proposed)
+- Reviewer: Chitundu Milimbo (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 1
 - Branch: local `main`, commit `e44170a` (“Implemented phase 2 slice 6 and phase 3 slice 1 and 2”)
 

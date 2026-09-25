@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH3-004 (eligibility and recommendation package)
 
-- Lead developer: Chitindu Milimbo (proposed; TASK-PH3-004)
+- Lead developer: Chitundu Milimbo (proposed; TASK-PH3-004)
 - Reviewer: Charles Hangoma (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 4
 - Branch: local `main` worktree (uncommitted; human review pending)

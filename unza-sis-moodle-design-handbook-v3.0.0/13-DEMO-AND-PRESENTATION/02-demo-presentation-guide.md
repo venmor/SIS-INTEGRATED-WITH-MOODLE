@@ -47,7 +47,7 @@ Show invalid-login throttling, unrelated-record denial, duplicate-submission pre
 6. Git history, task packets and learning records
 7. MVP-to-completion roadmap and limitations
 
-Suggested initial speaking split: Charles covers problem, architecture, applicant/registration and Git workflow; Chitindu covers security, Moodle recovery, results and tests. Rotate during rehearsals so both can answer end-to-end.
+Suggested initial speaking split: Charles covers problem, architecture, applicant/registration and Git workflow; Chitundu covers security, Moodle recovery, results and tests. Rotate during rehearsals so both can answer end-to-end.
 
 ## Defence questions both developers prepare for
 

@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH1-002a
 
 - Lead developer: Charles
-- Reviewer: Chitindu Milimbo
+- Reviewer: Chitundu Milimbo
 - Date/release: 2026-09-15 / v0.2.0 Phase 1 slice 2 (sessions + recovery + sign-in UI; MFA stays a later slice per REQ-IAM-005/open production decision)
 
 ## What we built and why

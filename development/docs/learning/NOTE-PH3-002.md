@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH3-002 (evidence and declaration comparison)
 
-- Lead developer: Chitindu Milimbo (proposed; TASK-PH3-002 line 5)
+- Lead developer: Chitundu Milimbo (proposed; TASK-PH3-002 line 5)
 - Reviewer: Charles Hangoma (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 2
 - Branch: local `main`, commit `e44170a` (“Implemented phase 2 slice 6 and phase 3 slice 1 and 2”)

@@ -33,7 +33,7 @@
 
 ## Team and AI
 
-- How did Charles and Chitindu both learn the full stack?
+- How did Charles and Chitundu both learn the full stack?
 - How do AI agents avoid forgetting project patterns?
 - What do you do when AI proposes an unapproved feature?
 - What evidence proves that generated code is understood and safe?

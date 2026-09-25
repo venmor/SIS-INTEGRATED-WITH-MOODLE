@@ -1,6 +1,6 @@
 # TASK-DEPLOY-002 — Clean Vercel builds and readable applicant access
 
-Date: 2026-09-20. Scope authorized by the user's build-log, applicant-login, and unreadable-input report. Learning ownership follows the existing packets: Charles (lead), Chitindu Milimbo (reviewer); human walkthrough remains pending.
+Date: 2026-09-20. Scope authorized by the user's build-log, applicant-login, and unreadable-input report. Learning ownership follows the existing packets: Charles (lead), Chitundu Milimbo (reviewer); human walkthrough remains pending.
 
 ## Source and outcome
 

@@ -1,6 +1,6 @@
 # Learning Note — TASK-PH3-006 (offer acceptance and onboarding handoff)
 
-- Lead developer: Chitindu Milimbo (proposed; TASK-PH3-006)
+- Lead developer: Chitundu Milimbo (proposed; TASK-PH3-006)
 - Reviewer: Charles Hangoma (proposed)
 - Date/release: 2026-09-21 / v0.4.0 track Phase 3 slice 6
 - Branch: local `main` worktree (uncommitted; human review pending)

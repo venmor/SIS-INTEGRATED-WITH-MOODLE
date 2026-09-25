@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Date: 2026-09-17
-- Decision owners: Lead Charles / Reviewer Chitindu Milimbo
+- Decision owners: Lead Charles / Reviewer Chitundu Milimbo
 - Affected requirement/module/release: TASK-PH1-005 (expiry daemon) / identity-access / v0.2.0 Phase 1 slice 5
 
 ## Context

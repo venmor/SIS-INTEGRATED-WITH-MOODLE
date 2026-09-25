@@ -2,7 +2,7 @@
 
 ## Authority and ownership
 
-User authorization: repository review and Phase 2 slices 2–5 implementation request, 2026-09-19. Release v0.3.0. Proposed learning rotation: lead Charles Hangoma; reviewer Chitindu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
+User authorization: repository review and Phase 2 slices 2–5 implementation request, 2026-09-19. Release v0.3.0. Proposed learning rotation: lead Charles Hangoma; reviewer Chitundu Milimbo. These names assign rehearsal/review responsibilities, not completed human approval. Human review remains pending.
 
 Controlling sources: handbook `03-USER-EXPERIENCE-BLUEPRINTS/01-applicant-journey-book.md`, Part 6; exact approved Blueprint 1 records in `15-APPROVED-DESIGN-EVIDENCE/02-role-blueprints/`; `04-UI-UX-DESIGN-SYSTEM/01-ui-ux-constitution.md`; `05-REQUIREMENTS-PERMISSIONS-DATA/` functional requirements/actions/permissions/configuration; `06-ARCHITECTURE-INTEGRATIONS/`; `07-SECURITY-PRIVACY-RESILIENCE/` upload/privacy/idempotency/recovery; `12-TESTING-AND-ACCEPTANCE/`. SUP-001–SUP-012 and applicant Ready row apply. Requirement family REQ-ADM and REQ-NFR; command names below follow source language. REST paths and test names are implementation-local, not invented handbook IDs.
 

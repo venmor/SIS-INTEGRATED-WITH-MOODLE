@@ -3,7 +3,7 @@ goal: Review foundations and implement Phase 2 slices 2 through 5
 version: 1
 date_created: 2026-09-19
 last_updated: 2026-09-19
-owner: Charles Hangoma and Chitindu Milimbo
+owner: Charles Hangoma and Chitundu Milimbo
 status: Implemented for review
 tags: [feature, review, admissions, learning]
 ---
