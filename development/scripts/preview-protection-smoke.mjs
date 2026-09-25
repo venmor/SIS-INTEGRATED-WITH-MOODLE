@@ -13,7 +13,7 @@ const targets = [
   },
 ];
 
-let failed = false;
+const results = [];
 for (const target of targets) {
   try {
     const response = await fetch(target.url, {
@@ -21,24 +21,37 @@ for (const target of targets) {
       signal: AbortSignal.timeout(15000),
     });
     const text = await response.text();
-    console.log(
-      JSON.stringify({
-        target: target.name,
-        status: response.status,
-        location: response.headers.get("location"),
-        body: text.slice(0, 500),
-      }),
-    );
-    if (response.status !== 200) failed = true;
+    const result = {
+      target: target.name,
+      status: response.status,
+      location: response.headers.get("location"),
+      body: text.slice(0, 500),
+    };
+    results.push(result);
+    console.log(JSON.stringify(result));
   } catch (error) {
-    failed = true;
-    console.log(
-      JSON.stringify({
-        target: target.name,
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
+    const result = {
+      target: target.name,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    results.push(result);
+    console.log(JSON.stringify(result));
   }
 }
 
-if (failed) process.exit(1);
+const branch = results.find((item) => item.target === "branch frontend");
+const production = results.find((item) => item.target === "production frontend");
+const api = results.find((item) => item.target === "production API");
+
+const branchProtected =
+  branch &&
+  (branch.status === 302 || branch.status === 401) &&
+  JSON.stringify(branch).toLowerCase().includes("vercel");
+const publicDemoHealthy = production?.status === 200 && api?.status === 200;
+
+if (!branchProtected || !publicDemoHealthy) {
+  console.error(
+    "Unexpected Vercel protection topology: branch preview should be protected while public demo web/API remain reachable.",
+  );
+  process.exit(1);
+}
