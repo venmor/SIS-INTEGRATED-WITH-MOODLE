@@ -102,6 +102,13 @@ export function SignInForm({
             message: `${body.message ?? AUTH_MESSAGES.rateLimited.text}${ref}`,
           },
         ]);
+      } else if (res.status >= 500) {
+        setErrors([
+          {
+            fieldId: "username",
+            message: `${body.message ?? "The sign-in service is temporarily unavailable."} Your credentials were not rejected. Retry when the service recovers.${ref}`,
+          },
+        ]);
       } else {
         setErrors([
           {
