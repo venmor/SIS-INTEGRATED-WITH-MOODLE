@@ -3,10 +3,15 @@ import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const DEMO_API_PROJECT_ID = "prj_R9XRipqNatks71GYJCxOySknyxBr";
 
 export function validateVercelDemoBootstrap(env) {
   if (!env.VERCEL) return { run: false, errors: [] };
-  if (env.DEMO_MODE !== "true") return { run: false, errors: [] };
+  const isDocumentedDemoProject =
+    env.VERCEL_PROJECT_ID === DEMO_API_PROJECT_ID;
+  if (env.DEMO_MODE !== "true" && !isDocumentedDemoProject) {
+    return { run: false, errors: [] };
+  }
 
   const errors = [];
   const databaseUrl = env.DATABASE_URL;
@@ -58,6 +63,7 @@ export function main(env = process.env) {
   const childEnv = {
     ...env,
     ALLOW_DEMO_SEED: "true",
+    DEMO_MODE: "true",
     PATH: `${join(root, "node_modules", ".bin")}${delimiter}${env.PATH ?? ""}`,
   };
 
