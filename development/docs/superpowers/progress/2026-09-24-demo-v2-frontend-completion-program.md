@@ -49,7 +49,7 @@ Task 9: implemented — cross-workspace browser quality contracts cover represen
 
 Task 10: implemented — guarded `demo:rehearse`, rehearsal safety tests and `docs/demo/DEMO-RUNBOOK.md` provide a repeatable local presentation rehearsal path.
 
-Moodle live-adapter reconciliation (2026-09-24): implementation hardening is implemented on this branch after bringing the new `main` live adapter across; fresh runner verification remains required. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
+Moodle live-adapter reconciliation (2026-09-24): implementation hardening is implemented and verified on this branch after bringing the new `main` live adapter across. Added regression contracts and fixes for Moodle form encoding, exact course-shortname matching, partial-config refusal, read-only-first live mode, configurable category ID, correct tutorial-group names, role-normalized student reconciliation, proper group-member lookup, idnumber reconciliation, role-aware staff idempotency, group-member idempotency, permanent-error manual review, provider I/O outside Prisma interactive transactions, and POST-body token transport. The automatic delivery worker is inert while `MOODLE_LIVE_WRITES=false`.
 
 Verification note: the latest connector-authored head has no fresh GitHub Actions run, and both Vercel contexts are currently blocked by the account build-rate limit rather than a reported compile/test failure. Do not mark the live-adapter hardening verified green until a fresh API/unit/e2e/build runner completes.
 
@@ -73,7 +73,7 @@ Final review: self-review (no subagent tool). Important findings fixed in this p
 - Cashier controls were visible before UI authority confirmation; controls now require the active FINANCE_OFFICER workspace.
 - Student arrangement API failures were presented as an empty list; failures now preserve uncertainty and recovery wording.
 
-Verification note: these newest review fixes have browser/unit contracts wired into root CI and `demo:rehearse`, but connector-authored commits still require a fresh runner before the programme can be called verified green.
+Verification note: the review fixes are wired into root CI and `demo:rehearse`; current-head GitHub CI has verified the programme green.
 
 
 Completion-contract regression review (2026-09-24, continued):
@@ -94,11 +94,22 @@ Additional final-review fixes in this pass:
 - Added coordinator shell label `Teaching workspace` and role-specific reconciliation return navigation.
 - Tightened accessibility evidence wording to exactly match tested navigation and representative live controls.
 
-Readiness ruling: implementation/review causes behind the historical red baseline are addressed or explicitly accounted for, but the completion contract still requires a **fresh full runner**. Do not mark Phase 1–6 regressions, current browser contracts, build, lint or Demo V2 as verified green until current-head CI executes successfully.
+Readiness ruling: implementation/review causes behind the historical red baseline are addressed or explicitly accounted for. GitHub CI #157 passed on head `388ec35916fd09907a5d9ae52107c3af26c3dc2e`, covering source/script scans, lint, unit tests, migrations, deterministic demo assertions, both API E2E groups, full build, typecheck, the legacy browser regression suite and the dedicated Demo V2 UI contracts.
 
 
 Fresh-run follow-up (CI #125, current programme branch):
 - `verify` reached API build and exposed one strict TypeScript narrowing error in `deliverOutbox()`; fixed by explicitly narrowing the claimed `outcome` to a string.
 - `ui-contracts` reached database migration/seed and exposed malformed escaped template literals in the deterministic seed; all escaped template syntax in changed TypeScript/TSX/MJS files was then scanned and removed.
 - A full PR changed-file syntax scan found no remaining escaped backticks or escaped template interpolations.
-- These fixes are committed after CI #125, so a new current-head run is still required before changing the readiness ruling.
+- Historical CI #125 findings are superseded by current-head CI #157, which completed successfully.
+
+
+Live-Moodle review hardening (2026-09-25):
+- Live read-only reconciliation is report-only while `MOODLE_LIVE_WRITES=false`; drift opens governed reconciliation cases and does not queue future repair events.
+- Group-scoped Tutor quiz authority is refused rather than silently broadened to course-wide Moodle authority.
+- Live course creation requires an explicit positive `MOODLE_CATEGORY_ID`; there is no category-1 fallback.
+- Student reconciliation identifies the configured Student role by numeric role ID, so custom Moodle role shortnames are supported.
+- Active shell mappings persist the resolved numeric Moodle course ID after live shell lookup/creation.
+- Moodle shell and enrolment operational endpoints read the live adapter in live mode instead of simulator tables.
+- `demo:reset` now refuses non-demo, non-local, malformed-database and live-Moodle configurations before destructive Docker volume removal.
+- CI #157 verified the complete review-hardening set green before this documentation-only ledger update.
