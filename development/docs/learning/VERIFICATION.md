@@ -307,3 +307,28 @@ orphans, start API + `next start` directly against the target DB).
 `backup:test`, full-suite shared-DB regression, manual
 screen-reader/WSL replay, remote CI, and human walkthrough remain
 **not verified**. Detail in [NOTE-PH7-002](NOTE-PH7-002.md).
+
+## Phase 7 slice 3 (2026-09-25, fresh `sis_ph7_s3_final_test` + `sis_ph7_browser_test`)
+
+Validation and missing-mark queue (TASK-PH7-003; lead Chitundu
+Milimbo, reviewer Charles Hangoma). Same Node 22.13.1 / PostgreSQL
+18 environment notes as slices 1–2. Typecheck exit 0, web lint
+clean, API lint warnings-only (pre-existing — `next build`
+typecheck additionally caught and fixed a missing ErrorSummary
+title in the new triage form), API dist via direct `tsc`, web
+production build exit 0. API e2e `grade-validation` **12/12** on
+the fresh DB (per-code findings, partial-preserves-valid, work
+item + no-zero, idempotent replay + convergence, stale/unmapped/
+scale findings, swimlanes, triage state machine, denials,
+expired-grant fail-safe, neutrals, correction-by-new-revision).
+Slice regressions held on separate fresh DBs:
+`assessment-plan` **20/20**, `grade-staging` **18/18** (two suites
+in one parallel invocation collide on shared DBs — reran
+sequentially per the standing lesson). Unit **73/73**. Browser
+`validation-queue` (finding → resolve → resubmit → clean batch)
+**1/1** on migrated + rebuilt apps (390px, keyboard/focus, no
+overflow, empty localStorage; mobile cards scoped as `li`).
+
+`backup:test`, full-suite shared-DB regression, manual
+screen-reader/WSL replay, remote CI, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH7-003](NOTE-PH7-003.md).

@@ -184,7 +184,7 @@ test("validation queue: finding to correction to clear batch", async ({
   ).toBeVisible();
   await expect(page.locator("main")).toContainText("MISSING_MARK");
   const findingRow = page
-    .locator("tr", { hasText: "MISSING_MARK" })
+    .locator("li", { hasText: "MISSING_MARK" })
     .first();
   const href =
     (await findingRow.getByRole("link", { name: "Open finding" }).getAttribute("href")) ?? "";
