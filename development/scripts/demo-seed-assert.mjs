@@ -7,6 +7,7 @@ import {
 
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
+const { verify } = require("argon2");
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is required for demo seed assertions.");
@@ -33,6 +34,41 @@ try {
       where: { username },
       include: { roles: true },
     });
+
+  for (const [username, password] of [
+    ["bwalya.m", "Seed-2026-Bwalya"],
+    ["phiri.n", "Seed-2026-Phiri"],
+    ["lombe.a", "Seed-2026-Lombe"],
+    ["mwila.t", "Seed-2026-Mwila"],
+    ["mumba.s", "Seed-2026-Mumba"],
+    ["kunda.b", "Seed-2026-Kunda"],
+    ["kabwe.f", "Seed-2026-Kabwe"],
+    ["mulenga.g", "Seed-2026-Mulenga"],
+    ["temwani.r", "Seed-2026-Temwani"],
+    ["kasonde.a", "Seed-2026-Kasonde"],
+  ]) {
+    const row = await db.account.findUnique({
+      where: { username },
+      include: {
+        credentials: {
+          where: { kind: "PASSWORD", status: "ACTIVE" },
+          take: 1,
+        },
+      },
+    });
+    const credential = row?.credentials[0];
+    const valid =
+      !!credential &&
+      (await verify(credential.secretHash, password).catch(() => false));
+    check(
+      !!row &&
+        row.status === "ACTIVE" &&
+        row.lockedUntil == null &&
+        valid,
+      `demo sign-in ${username}`,
+      "expected ACTIVE unlocked account with the published fictional password",
+    );
+  }
 
   for (const [label, username, role] of [
     ["finance officer", DEMO_SCENARIOS.finance.officerUsername, "FINANCE_OFFICER"],
