@@ -12,6 +12,17 @@ test("non-Vercel installs do not bootstrap the cloud demo", () => {
   );
 });
 
+test("the documented sis-moodle-api Vercel project bootstraps even if DEMO_MODE is missing", () => {
+  assert.deepEqual(
+    validateVercelDemoBootstrap({
+      VERCEL: "1",
+      VERCEL_PROJECT_ID: "prj_R9XRipqNatks71GYJCxOySknyxBr",
+      DATABASE_URL: "postgresql://demo:demo@ep-demo.neon.tech/demo?sslmode=require",
+    }),
+    { run: true, errors: [] },
+  );
+});
+
 test("Vercel non-demo installs do not seed", () => {
   assert.deepEqual(
     validateVercelDemoBootstrap({
