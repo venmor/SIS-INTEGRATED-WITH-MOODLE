@@ -1,6 +1,6 @@
 # Vercel demonstration deployment
 
-The public demonstration frontend is [sis-moodle.vercel.app](https://sis-moodle.vercel.app). It is a fictional review environment for the implemented Phase 0, Phase 1, and Phase 2 applicant slices. It is not an institutional applicant service and must never receive real applicant, identity, academic, or document data.
+The public demonstration frontend is [sis-moodle.vercel.app](https://sis-moodle.vercel.app). It is the unauthenticated review surface for the fictional demo. Git branch previews such as `sis-moodle-git-<branch>-...` are protected by Vercel Authentication in the current project settings and are not suitable as public SIS login links unless the viewer first passes Vercel protection. It is not an institutional applicant service and must never receive real applicant, identity, academic, or document data.
 
 ## What is configured
 
@@ -20,6 +20,15 @@ flowchart LR
 ```
 
 The browser calls the frontend's same-site proxy. Server-rendered pages and that proxy use `API_INTERNAL_URL` to reach Nest. Session cookies stay on the frontend domain, and neither a database URL nor an API credential is sent to the browser.
+
+## Review URLs and deployment protection
+
+- Public SIS demo and fictional-account sign-in: `https://sis-moodle.vercel.app`.
+- Public API used by the same-origin web proxy: `https://sis-moodle-api.vercel.app/api`.
+- Pull-request/branch previews are Vercel-protected. A `302` to `vercel.com/sso-api` or a Vercel `Protected deployment` response happens **before** SIS authentication and must not be interpreted as a bad SIS username/password.
+- To share a branch preview with reviewers, use Vercel's deployment share/bypass link or change Preview Deployment Protection in the Vercel project. Do not weaken SIS authentication to work around Vercel protection.
+
+The CI deployment probes preserve this boundary: the branch preview must remain Vercel-protected, while the public demo frontend/API must answer the public auth-policy read. A second smoke probe signs into the public demo using fictional seeded accounts and requires a session cookie.
 
 ## API deployment behavior
 
