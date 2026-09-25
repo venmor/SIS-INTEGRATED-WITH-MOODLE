@@ -20,9 +20,11 @@ import {
   DraftGradeMappingDto,
   DraftPlanDto,
   ListBatchesQuery,
+  ListFindingsQuery,
   ListMappingsQuery,
   ListPlansQuery,
   StageBatchDto,
+  TransitionFindingDto,
 } from './dto.js';
 import { KeyDto } from '../admissions/dto.js';
 
@@ -130,5 +132,49 @@ export class AssessmentController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.assessment.batchDetail(r.auth, id);
+  }
+
+  @Post('batches/:id/validate')
+  @UseGuards(CsrfGuard)
+  validateBatch(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: KeyDto,
+  ) {
+    return this.assessment.validateBatch(r.auth, dto.idempotencyKey, id);
+  }
+
+  @Get('findings')
+  findings(@Req() r: AuthRequest, @Query() q: ListFindingsQuery) {
+    return this.assessment.listFindings(r.auth, {
+      batchId: q.batchId,
+      code: q.code,
+      status: q.status,
+    });
+  }
+
+  @Get('findings/:id')
+  finding(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.assessment.findingDetail(r.auth, id);
+  }
+
+  @Post('findings/:id/transition')
+  @UseGuards(CsrfGuard)
+  transitionFinding(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TransitionFindingDto,
+  ) {
+    return this.assessment.transitionFinding(
+      r.auth,
+      dto.idempotencyKey,
+      id,
+      dto.version,
+      dto.to,
+      dto.reason,
+    );
   }
 }

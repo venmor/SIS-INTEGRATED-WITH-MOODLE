@@ -412,7 +412,10 @@ const SEED: SeedAccount[] = [
   // Phase 7 slice 1 assessment governance (TASK-PH7-001, GAP-022 interim).
   // Fictional scoped capabilities: school-scoped plan/mapping approval for
   // the coordinator, period-scoped result validation for the examinations
-  // officer. MOODLE_ADMIN (mumba.s, Phase 6) is reused for technical
+  // officer, offering-scoped capture/staging for the demonstration
+  // lecturer (mutinta.l predates Phase 7 and stays scoped to
+  // SWE101-2026S1; chisenga.l covers the SWE-2026S1 assessment demo).
+  // MOODLE_ADMIN (mumba.s, Phase 6) is reused for technical
   // mapping only — it never approves. Not UNZA policy.
   {
     username: "chisela.k",
@@ -453,6 +456,27 @@ const SEED: SeedAccount[] = [
         capabilities: ["validate-results"],
         employmentType: "PERMANENT",
         reason: "Demonstration examinations officer",
+      },
+    ],
+  },
+  {
+    username: "chisenga.l",
+    personName: "Chisenga L.",
+    email: "chisenga.l@demo.invalid",
+    phone: "+260950000018",
+    password: "Seed-2026-Chisenga",
+    roles: [
+      {
+        role: "LEC",
+        scopeType: "OFFERING",
+        scopeRef: "SWE-2026S1",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "HR-2026-021",
+        authoritySource: "University Appointments (demonstration)",
+        capabilities: ["teach", "stage-marks"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration assessment lecturer (SWE-2026S1)",
       },
     ],
   },

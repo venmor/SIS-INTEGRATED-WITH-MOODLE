@@ -51,6 +51,23 @@ hard-coded policy values outside versioned config. This gap blocks any
 claim of complete §15.6/DS5 compliance or production assessment
 authority.
 
+## Slice 3 demo queue values (2026-09-25, fictional, SUP-009)
+
+- Missing-mark escalation deadline: 7 days from validation
+  (`ESCALATION_DAYS` in the assessment service; Africa/Lusaka
+  wall-clock via ISO timestamps).
+- Work-item owners: academic findings → the batch offering reference;
+  enrolment truth → `REGISTRY`; technical errors → `MOODLE_ADMIN`.
+- No Registry demo role exists, so enrolment-truth findings surface in
+  the operating examinations-officer lane labelled `REGISTRY`. A
+  Registry role/capability/scope needs institutional approval before
+  the lane can be separated.
+- Validation is synchronous (no worker): pause/resume and retry
+  budgets do not apply; replay is the idempotency-key replay of
+  validate/transition, which converges instead of duplicating. No
+  notifications are sent, so notification-failure recovery is
+  not applicable to this slice.
+
 ## Resolve by
 
 Institution approves (or amends) the interim chain, scheme values,

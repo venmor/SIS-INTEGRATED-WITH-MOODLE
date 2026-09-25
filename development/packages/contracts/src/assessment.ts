@@ -75,5 +75,31 @@ export interface GradeBatchView {
   planVersion: number;
   policyVersion: string;
   sourceResponse: unknown;
+  resultState: string | null;
+  validatedAt: string | null;
+  validatedByAccountId: string | null;
   lines: GradeLineView[];
+  findings: GradeFindingView[];
+}
+/** Phase 7 slice 3: immutable validation findings (TASK-PH7-003).
+ * Findings triage OPEN→ACKNOWLEDGED→RESOLVED/DISMISSED; lanes scope
+ * queue visibility (TECHNICAL/ACADEMIC/ENROLMENT). Missing marks carry
+ * the owned, deadline-bound work item; nothing is stored as zero. */
+export interface GradeFindingView {
+  id: string;
+  batchId: string;
+  lineId: string | null;
+  code: string;
+  lane: string;
+  status: string;
+  version: number;
+  ownerUnit: string | null;
+  escalationDeadline: string | null;
+  createdAt: string;
+}
+export interface GradeValidationView {
+  id: string;
+  resultState: string | null;
+  validatedAt: string;
+  findings: GradeFindingView[];
 }

@@ -830,6 +830,9 @@ export class AssessmentService {
     planVersion: number;
     policyVersion: string;
     sourceResponse: unknown;
+    resultState: string | null;
+    validatedAt: Date | null;
+    validatedByAccountId: string | null;
     lines: Array<{
       id: string;
       studentRef: string;
@@ -841,6 +844,18 @@ export class AssessmentService {
       resolvedAccountId: string | null;
       status: string;
       flagCode: string | null;
+    }>;
+    findings: Array<{
+      id: string;
+      batchId: string;
+      lineId: string | null;
+      code: string;
+      lane: string;
+      status: string;
+      version: number;
+      ownerUnit: string | null;
+      escalationDeadline: Date | null;
+      createdAt: Date;
     }>;
   }) {
     return {
@@ -859,7 +874,11 @@ export class AssessmentService {
       planVersion: row.planVersion,
       policyVersion: row.policyVersion,
       sourceResponse: row.sourceResponse ?? null,
+      resultState: row.resultState,
+      validatedAt: row.validatedAt ? row.validatedAt.toISOString() : null,
+      validatedByAccountId: row.validatedByAccountId,
       lines: row.lines.map((l) => this.lineView(l)),
+      findings: row.findings.map((f) => this.findingView(f)),
     };
   }
 
@@ -919,7 +938,7 @@ export class AssessmentService {
             sourceRevision: input.sourceRevision,
           },
         },
-        include: { lines: true },
+        include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
       });
       if (replay) return { body: this.batchView(replay) };
       try {
@@ -1031,7 +1050,7 @@ export class AssessmentService {
             }),
             lines: { create: [...unique.values()] },
           },
-          include: { lines: true },
+          include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
         });
         await db.outboxEvent.create({
           data: {
@@ -1079,7 +1098,7 @@ export class AssessmentService {
                 sourceRevision: input.sourceRevision,
               },
             },
-            include: { lines: true },
+            include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
           });
           return { body: this.batchView(stored) };
         }
@@ -1094,7 +1113,10 @@ export class AssessmentService {
       where: { mappingId: filter.mappingId ?? undefined },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: { lines: true },
+      include: {
+        lines: true,
+        findings: { orderBy: { createdAt: 'asc' } },
+      },
     });
     return { items: rows.map((r) => this.batchView(r)) };
   }
@@ -1103,9 +1125,351 @@ export class AssessmentService {
     await this.reader(auth);
     const row = await this.prisma.gradeBatch.findUnique({
       where: { id },
-      include: { lines: true },
+      include: {
+        lines: true,
+        findings: { orderBy: { createdAt: 'asc' } },
+      },
     });
     if (!row) this.fail('NOT_FOUND', 'Grade batch not found.', 404);
     return this.batchView(row);
+  }
+
+  // Phase 7 slice 3: validation and missing-mark queue (TASK-PH7-003,
+  // GAP-022 interim). Validation writes immutable findings, never edits
+  // source rows; corrections stage new revisions. Lanes scope queue
+  // visibility: TECHNICAL (Moodle Admin), ACADEMIC (lecturer/
+  // coordinator), ENROLMENT (Registry truth via the operating
+  // examinations office until a Registry demo role is approved).
+  private static readonly LANES: Record<string, string> = {
+    UNMAPPED: 'TECHNICAL',
+    STALE_MAPPING: 'TECHNICAL',
+    SCALE_MISMATCH: 'TECHNICAL',
+    STRUCTURALLY_INVALID: 'TECHNICAL',
+    MISSING_MARK: 'ACADEMIC',
+    DUPLICATE: 'ACADEMIC',
+    OUT_OF_RANGE: 'ACADEMIC',
+    MOODLE_ONLY: 'ENROLMENT',
+  };
+
+  // Demo escalation budget for missing-mark work items (DS5 §17, GAP-022).
+  private static readonly ESCALATION_DAYS = 7;
+
+  private async examiner(auth: AssessmentAuthority, periodCode?: string) {
+    const assignment = await this.liveAssignment(
+      auth,
+      'EXAMINATIONS_OFFICER',
+      'validate-results',
+    );
+    if (
+      !assignment ||
+      auth.activeRole !== 'EXAMINATIONS_OFFICER' ||
+      assignment.scopeType !== 'PERIOD' ||
+      (periodCode !== undefined && assignment.scopeRef !== periodCode)
+    ) {
+      this.denied();
+    }
+  }
+
+  private async queueLanes(
+    auth: AssessmentAuthority,
+  ): Promise<string[] | null> {
+    // Null means no queue access at all (403). Lane filtering below stays
+    // neutral (404) so one lane never confirms another lane's findings.
+    if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'EXAMINATIONS_OFFICER',
+        'validate-results',
+      );
+      if (assignment && assignment.scopeType === 'PERIOD') {
+        return ['TECHNICAL', 'ACADEMIC', 'ENROLMENT'];
+      }
+      return null;
+    }
+    if (auth.activeRole === 'LEC') {
+      const assignment = await this.liveAssignment(auth, 'LEC', 'stage-marks');
+      return assignment ? ['ACADEMIC'] : null;
+    }
+    if (auth.activeRole === 'COORDINATOR') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'COORDINATOR',
+        'approve-assessment',
+      );
+      return assignment ? ['ACADEMIC'] : null;
+    }
+    if (auth.activeRole === 'MOODLE_ADMIN') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'MOODLE_ADMIN',
+        'manage-mapping',
+      );
+      return assignment ? ['TECHNICAL'] : null;
+    }
+    return null;
+  }
+
+  private findingView(row: {
+    id: string;
+    batchId: string;
+    lineId: string | null;
+    code: string;
+    lane: string;
+    status: string;
+    version: number;
+    ownerUnit: string | null;
+    escalationDeadline: Date | null;
+    createdAt: Date;
+  }) {
+    return {
+      id: row.id,
+      batchId: row.batchId,
+      lineId: row.lineId,
+      code: row.code,
+      lane: row.lane,
+      status: row.status,
+      version: row.version,
+      ownerUnit: row.ownerUnit,
+      escalationDeadline: row.escalationDeadline
+        ? row.escalationDeadline.toISOString()
+        : null,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  async validateBatch(auth: AssessmentAuthority, key: string, id: string) {
+    const batch = await this.prisma.gradeBatch.findUnique({
+      where: { id },
+      include: { mapping: { include: { component: { include: { plan: true } } } } },
+    });
+    if (!batch) this.fail('NOT_FOUND', 'Grade batch not found.', 404);
+    await this.examiner(auth, batch.mapping.component.plan.periodCode);
+    return this.command(auth, key, 'ValidateGradeBatch', { id }, async (db) => {
+      // Serialize concurrent validations of one batch; the open-code
+      // check below then converges instead of duplicating findings.
+      await db.$queryRaw`SELECT id FROM "GradeBatch" WHERE id = ${id} FOR UPDATE`;
+      const live = await db.gradeBatch.findUniqueOrThrow({
+        where: { id },
+        include: {
+          lines: { orderBy: { studentRef: 'asc' } },
+          mapping: { include: { component: { include: { plan: true } } } },
+        },
+      });
+      const plan = live.mapping.component.plan;
+      const desired: Array<{ lineId: string | null; code: string }> = [];
+      // Batch-level: plan membership (UNMAPPED strands lines outside
+      // any approved component), mapping freshness, and scale drift.
+      // Each is an independent fact; all present findings are reported
+      // together with the line-level ones.
+      if (plan.status !== 'APPROVED') {
+        desired.push({ lineId: null, code: 'UNMAPPED' });
+      }
+      if (live.mapping.status !== 'ACTIVE') {
+        desired.push({ lineId: null, code: 'STALE_MAPPING' });
+      }
+      if (
+        live.mapping.component.scaleRef !==
+        (policy.scale as unknown as string)
+      ) {
+        desired.push({ lineId: null, code: 'SCALE_MISMATCH' });
+      }
+      for (const line of live.lines) {
+        if (line.flagCode === 'DUPLICATE') {
+          desired.push({ lineId: line.id, code: 'DUPLICATE' });
+        } else if (line.flagCode === 'OUT_OF_RANGE') {
+          desired.push({ lineId: line.id, code: 'OUT_OF_RANGE' });
+        } else if (line.flagCode === 'STRUCTURALLY_INVALID') {
+          desired.push({ lineId: line.id, code: 'STRUCTURALLY_INVALID' });
+        } else if (line.flagCode === 'MOODLE_ONLY') {
+          desired.push({ lineId: line.id, code: 'MOODLE_ONLY' });
+        }
+        // Missing marks are declared outcomes, never stored as zero:
+        // the finding carries the work item, the line stays as staged.
+        if (line.outcome === 'MISSING_MARK') {
+          desired.push({ lineId: line.id, code: 'MISSING_MARK' });
+        }
+      }
+      const open = await db.gradeFinding.findMany({
+        where: { batchId: id, status: 'OPEN' },
+      });
+      const openKeys = new Set(
+        open.map((f) => `${f.code}:${f.lineId ?? ''}`),
+      );
+      const now = new Date();
+      let created = 0;
+      for (const item of desired) {
+        if (openKeys.has(`${item.code}:${item.lineId ?? ''}`)) continue;
+        const lane =
+          AssessmentService.LANES[item.code] ?? 'TECHNICAL';
+        const missing = item.code === 'MISSING_MARK';
+        await db.gradeFinding.create({
+          data: {
+            batchId: id,
+            lineId: item.lineId,
+            code: item.code,
+            lane,
+            status: 'OPEN',
+            detail: json(
+              missing
+                ? {
+                    outcome: 'MISSING_MARK',
+                    note: 'Mandatory mark missing: assigned to the responsible unit, never stored as zero.',
+                  }
+                : { code: item.code },
+            ),
+            ownerUnit:
+              lane === 'ACADEMIC'
+                ? plan.offeringRef
+                : lane === 'ENROLMENT'
+                  ? 'REGISTRY'
+                  : 'MOODLE_ADMIN',
+            escalationDeadline: missing
+              ? new Date(
+                  now.getTime() +
+                    AssessmentService.ESCALATION_DAYS * 24 * 3600 * 1000,
+                )
+              : null,
+            createdByAccountId: auth.accountId,
+          },
+        });
+        created += 1;
+      }
+      // DS5 §17: mandatory missing marks set the result MISSING_MARKS.
+      const openMissing = await db.gradeFinding.count({
+        where: { batchId: id, status: 'OPEN', code: 'MISSING_MARK' },
+      });
+      const updated = await db.gradeBatch.update({
+        where: { id },
+        data: {
+          resultState: openMissing > 0 ? 'MISSING_MARKS' : null,
+          validatedAt: now,
+          validatedByAccountId: auth.accountId,
+        },
+      });
+      await this.audit(db, auth, 'GradeBatchValidated', id, key, {
+        newFindings: created,
+        resultState: updated.resultState,
+      });
+      const findings = await db.gradeFinding.findMany({
+        where: { batchId: id },
+        orderBy: { createdAt: 'asc' },
+      });
+      return {
+        body: {
+          id,
+          resultState: updated.resultState,
+          validatedAt: now.toISOString(),
+          findings: findings.map((f) => this.findingView(f)),
+        },
+      };
+    });
+  }
+
+  async listFindings(
+    auth: AssessmentAuthority,
+    filter: { batchId?: string; code?: string; status?: string },
+  ) {
+    const lanes = await this.queueLanes(auth);
+    if (!lanes) this.denied();
+    const rows = await this.prisma.gradeFinding.findMany({
+      where: {
+        lane: { in: lanes ?? [] },
+        batchId: filter.batchId ?? undefined,
+        code: filter.code ?? undefined,
+        status: filter.status ?? undefined,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return { items: rows.map((r) => this.findingView(r)) };
+  }
+
+  async findingDetail(auth: AssessmentAuthority, id: string) {
+    const lanes = await this.queueLanes(auth);
+    if (!lanes) this.denied();
+    const row = await this.prisma.gradeFinding.findUnique({ where: { id } });
+    if (!row || !lanes?.includes(row.lane)) {
+      this.fail('NOT_FOUND', 'Grade finding not found.', 404);
+    }
+    return this.findingView(row);
+  }
+
+  async transitionFinding(
+    auth: AssessmentAuthority,
+    key: string,
+    id: string,
+    version: number,
+    to: string,
+    reason?: string,
+  ) {
+    const finding = await this.prisma.gradeFinding.findUnique({
+      where: { id },
+      include: { batch: true },
+    });
+    if (!finding) this.fail('NOT_FOUND', 'Grade finding not found.', 404);
+    await this.examiner(auth, finding.batch.periodCode);
+    const targets = ['ACKNOWLEDGED', 'RESOLVED', 'DISMISSED'];
+    if (!targets.includes(to)) {
+      this.fail(
+        'INVALID_TRANSITION',
+        'Findings move to ACKNOWLEDGED, RESOLVED or DISMISSED only.',
+        400,
+      );
+    }
+    if (
+      (to === 'RESOLVED' || to === 'DISMISSED') &&
+      !reason?.trim()
+    ) {
+      this.fail(
+        'REASON_REQUIRED',
+        'Resolving or dismissing a finding demands a recorded reason.',
+        400,
+      );
+    }
+    return this.command(
+      auth,
+      key,
+      'TransitionGradeFinding',
+      { id, version, to },
+      async (db) => {
+        const live = await db.gradeFinding.findUniqueOrThrow({
+          where: { id },
+        });
+        this.checkVersion(live, version);
+        const allowed: Record<string, string[]> = {
+          OPEN: ['ACKNOWLEDGED', 'RESOLVED', 'DISMISSED'],
+          ACKNOWLEDGED: ['RESOLVED', 'DISMISSED'],
+          RESOLVED: [],
+          DISMISSED: [],
+        };
+        if (!allowed[live.status].includes(to)) {
+          this.fail(
+            'REQUEST_CLOSED',
+            'Decided findings keep their outcome. Operate on the open finding instead.',
+            409,
+          );
+        }
+        const terminal = to === 'RESOLVED' || to === 'DISMISSED';
+        const updated = await db.gradeFinding.update({
+          where: { id: live.id },
+          data: {
+            status: to,
+            version: { increment: 1 },
+            ...(terminal
+              ? {
+                  resolvedByAccountId: auth.accountId,
+                  resolvedAt: new Date(),
+                  resolveReason: reason?.trim() ?? null,
+                }
+              : {}),
+          },
+        });
+        await this.audit(db, auth, 'GradeFindingTransitioned', live.id, key, {
+          from: live.status,
+          to,
+        });
+        return { body: this.findingView(updated) };
+      },
+    );
   }
 }

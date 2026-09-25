@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeBatchView } from "@sis/contracts";
 import { DataTable, Notice, StatusChip } from "@sis/ui";
+import { ValidateBatchButton } from "../../batches/forms";
 import styles from "../../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -150,6 +151,66 @@ export default async function GradeBatchDetailPage({
           keyOf={(line) => line.id}
           emptyText="No lines in this batch."
         />
+        <h2>Validation findings (read-only)</h2>
+        <p>
+          Findings are evidence for the result package. Resolving one
+          never edits these lines; corrections stage a new revision.{" "}
+          <Link href="/admin/assessment/findings">Open validation queue</Link>
+        </p>
+        {item.resultState ? (
+          <p>
+            Result state: <StatusChip tone="attention">{item.resultState}</StatusChip>
+          </p>
+        ) : null}
+        <DataTable
+          hideTitle
+          title="Batch findings"
+          description="Immutable validation findings for this batch."
+          columns={[
+            {
+              heading: "Code",
+              render: (finding: GradeBatchView["findings"][number]) =>
+                finding.code,
+            },
+            {
+              heading: "Lane",
+              render: (finding: GradeBatchView["findings"][number]) =>
+                finding.lane,
+            },
+            {
+              heading: "State",
+              render: (finding: GradeBatchView["findings"][number]) => (
+                <StatusChip
+                  tone={finding.status === "OPEN" ? "attention" : "neutral"}
+                >
+                  {finding.status}
+                </StatusChip>
+              ),
+            },
+            {
+              heading: "Owner",
+              render: (finding: GradeBatchView["findings"][number]) =>
+                finding.ownerUnit ?? "—",
+            },
+            {
+              heading: "Detail",
+              render: (finding: GradeBatchView["findings"][number]) => (
+                <Link href={`/admin/assessment/findings/${finding.id}`}>
+                  Open finding
+                </Link>
+              ),
+            },
+          ]}
+          rows={item.findings}
+          keyOf={(finding) => finding.id}
+          emptyText="No validation findings. Run validation to check this batch."
+        />
+        <h2>Run validation</h2>
+        <p>
+          Examinations only. Writes immutable findings; staged marks stay
+          exactly as captured.
+        </p>
+        <ValidateBatchButton batchId={item.id} />
       </main>
     </div>
   );

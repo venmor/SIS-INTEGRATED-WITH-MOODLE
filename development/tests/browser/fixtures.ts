@@ -763,6 +763,77 @@ export async function ensureAssessmentShell() {
   }
 }
 
+/** Phase 7 slice 3: examinations officer (period-scoped validation). */
+export async function createExaminationsOfficer() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.exam.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser examinations officer",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "EXAMINATIONS_OFFICER",
+        scopeType: "PERIOD",
+        scopeRef: "2026S1",
+        capabilities: ["validate-results"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Phase 7 slice 3: API session cookies for setup driving (mirrors the
+ * Phase 6 privileged-session pattern). UI sign-in still uses the
+ * username/password fixtures above. */
+export const assessmentLecturerSid = (offeringRef: string) =>
+  mintSid("LEC", ["stage-marks"], "OFFERING", offeringRef, "assesslec");
+
+export const assessmentCoordinatorSid = () =>
+  mintSid(
+    "COORDINATOR",
+    ["approve-assessment"],
+    "SCHOOL",
+    "Computing",
+    "assesscoord",
+  );
+
+export const examinationsOfficerSid = () =>
+  mintSid(
+    "EXAMINATIONS_OFFICER",
+    ["validate-results"],
+    "PERIOD",
+    "2026S1",
+    "examofficer",
+  );
+
 /** Phase 7 slice 2: staged student with a genuine SIS student number, so
  * staged marks resolve instead of flagging MOODLE_ONLY. */
 export async function ensureStagedStudent() {

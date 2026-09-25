@@ -150,3 +150,57 @@ export function BatchForms() {
     </>
   );
 }
+
+// Examinations validation trigger: runs validation for one staged batch
+// and writes immutable findings. Replays carry a fresh key and converge
+// on the stored result instead of duplicating findings.
+export function ValidateBatchButton({ batchId }: { batchId: string }) {
+  const router = useRouter();
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  return (
+    <>
+      {notice ? (
+        <Notice severity="success" title="Done" message={notice} />
+      ) : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="The batch was not validated" errors={errors} />
+      ) : null}
+      <p>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            if (pending) return;
+            setPending(true);
+            setErrors([]);
+            setNotice(null);
+            postAssessment(`/batches/${batchId}/validate`, {
+              idempotencyKey: crypto.randomUUID(),
+            })
+              .then((out) => {
+                const findings = (out as { findings?: unknown[] }).findings ?? [];
+                const state = (out as { resultState?: string | null }).resultState;
+                setNotice(
+                  `Validation complete (${findings.length} findings${state ? `, result ${state}` : ""}). Lines unchanged.`,
+                );
+                router.refresh();
+              })
+              .catch((error: unknown) => {
+                setErrors([
+                  { fieldId: "validate-batch", message: failure(error) },
+                ]);
+              })
+              .finally(() => {
+                setPending(false);
+              });
+          }}
+        >
+          {pending ? "Validating…" : "Run validation"}
+        </button>
+      </p>
+    </>
+  );
+}

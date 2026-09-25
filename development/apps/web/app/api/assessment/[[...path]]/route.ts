@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOriginMutation } from "../../../../lib/same-origin";
 
-// Same-origin proxy to the NestJS assessment API (TASK-PH7-001/002). The
-// browser never talks to the API directly (no CORS), cookies stay httpOnly,
-// and this layer always sets the CSRF marker the API requires. Only
-// assessment plan, grade-mapping and grade-batch paths are proxied;
-// everything else is refused. Non-GET/POST methods are refused.
+// Same-origin proxy to the NestJS assessment API (TASK-PH7-001/002/003).
+// The browser never talks to the API directly (no CORS), cookies stay
+// httpOnly, and this layer always sets the CSRF marker the API requires.
+// Only assessment plan, grade-mapping, grade-batch and validation-finding
+// paths are proxied; everything else is refused. Non-GET/POST methods
+// are refused.
 const uuid = "[a-fA-F0-9-]{36}";
 const reads = new RegExp(
-  `^(plans|plans/${uuid}|mappings|mappings/${uuid}|batches|batches/${uuid})$`,
+  `^(plans|plans/${uuid}|mappings|mappings/${uuid}|batches|batches/${uuid}|findings|findings/${uuid})$`,
 );
 const writes = new RegExp(
-  `^(plans|plans/${uuid}/approve|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|batches)$`,
+  `^(plans|plans/${uuid}/approve|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|batches|batches/${uuid}/validate|findings/${uuid}/transition)$`,
 );
 
 async function proxy(

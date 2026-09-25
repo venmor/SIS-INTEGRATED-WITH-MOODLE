@@ -1553,7 +1553,14 @@ model GradeBatch {
   planVersion Int @default(1)
   policyVersion String @default("ASSESSMENT-DEMO-v1")
   sourceResponse Json @default("{}")
+  // Phase 7 slice 3: validation outcome (TASK-PH7-003). resultState carries
+  // MISSING_MARKS while missing-mark findings stay open, else null.
+  // Validation never edits lines; corrections stage new revisions.
+  resultState String?
+  validatedAt DateTime?
+  validatedByAccountId String?
   lines GradeLine[]
+  findings GradeFinding[]
   @@unique([mappingId, sourceRevision])
   @@index([mappingId, status])
 }
@@ -1574,7 +1581,36 @@ model GradeLine {
   status String @default("STAGED")
   flagCode String?
   createdAt DateTime @default(now())
+  findings GradeFinding[]
   @@unique([batchId, studentRef])
   @@index([batchId, status])
   @@index([resolvedStudentId])
+}
+
+// Phase 7 slice 3: immutable validation findings per staged batch
+// (TASK-PH7-003). Findings triage OPEN→ACKNOWLEDGED→RESOLVED/DISMISSED
+// with version checks; resolve/dismiss demand a reason. Lanes scope
+// queue visibility: TECHNICAL (Moodle Admin), ACADEMIC
+// (lecturer/coordinator), ENROLMENT (Registry truth via the operating
+// examinations office until a Registry demo role is approved).
+model GradeFinding {
+  id String @id @default(uuid())
+  batchId String
+  batch GradeBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  lineId String?
+  line GradeLine? @relation(fields: [lineId], references: [id], onDelete: Restrict)
+  code String
+  lane String
+  status String @default("OPEN")
+  version Int @default(1)
+  detail Json @default("{}")
+  ownerUnit String?
+  escalationDeadline DateTime?
+  createdByAccountId String
+  resolvedByAccountId String?
+  resolvedAt DateTime?
+  resolveReason String?
+  createdAt DateTime @default(now())
+  @@index([batchId, status])
+  @@index([status, code])
 }

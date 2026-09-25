@@ -100,6 +100,15 @@ export default async function AdminLayout({
         role === "MOODLE_ADMIN",
     },
     {
+      href: "/admin/assessment/findings",
+      label: "Validation queue",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "MOODLE_ADMIN" ||
+        role === "EXAMINATIONS_OFFICER",
+    },
+    {
       href: "/admin/moodle",
       label: "Moodle administration",
       show: role === "MOODLE_ADMIN",

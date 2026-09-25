@@ -116,3 +116,32 @@ export class ListBatchesQuery {
   @IsUUID()
   mappingId?: string;
 }
+
+export class TransitionFindingDto extends KeyDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  version!: number;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(16)
+  to!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class ListFindingsQuery {
+  @IsOptional()
+  @IsUUID()
+  batchId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  code?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  status?: string;
+}
