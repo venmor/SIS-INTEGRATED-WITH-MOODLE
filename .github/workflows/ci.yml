@@ -124,19 +124,6 @@ jobs:
             development/test-results/
 
 
-  preview-auth-smoke:
-    if: github.event_name == 'pull_request' && github.head_ref == 'demo-v2-readiness'
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: development/.nvmrc
-      - name: Probe public demo authentication
-        run: PREVIEW_BASE_URL=https://sis-moodle.vercel.app node scripts/preview-auth-smoke.mjs
-
-
   preview-protection-smoke:
     if: github.event_name == 'pull_request' && github.head_ref == 'demo-v2-readiness'
     continue-on-error: true
