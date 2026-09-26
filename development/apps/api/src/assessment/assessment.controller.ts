@@ -17,13 +17,17 @@ import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { AssessmentService } from './assessment.service.js';
 import {
   ApprovePlanDto,
+  CandidateListDto,
+  DecideCaseDto,
   DraftGradeMappingDto,
   DraftPlanDto,
   ListBatchesQuery,
   ListFindingsQuery,
   ListMappingsQuery,
+  ListModerationQuery,
   ListPlansQuery,
   StageBatchDto,
+  SubmitBatchDto,
   TransitionFindingDto,
 } from './dto.js';
 import { KeyDto } from '../admissions/dto.js';
@@ -176,5 +180,78 @@ export class AssessmentController {
       dto.to,
       dto.reason,
     );
+  }
+
+  @Post('candidate-lists')
+  @UseGuards(CsrfGuard)
+  provisionCandidateList(@Req() r: AuthRequest, @Body() dto: CandidateListDto) {
+    return this.assessment.provisionCandidateList(r.auth, dto.idempotencyKey, {
+      offeringRef: dto.offeringRef,
+      periodCode: dto.periodCode,
+      studentRefs: dto.studentRefs,
+    });
+  }
+
+  @Get('candidate-lists')
+  candidateLists(@Req() r: AuthRequest, @Query() q: ListPlansQuery) {
+    return this.assessment.listCandidateLists(r.auth, {
+      offeringRef: q.offeringRef,
+      periodCode: q.periodCode,
+    });
+  }
+
+  @Post('batches/:id/submit')
+  @UseGuards(CsrfGuard)
+  submitBatch(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitBatchDto,
+  ) {
+    return this.assessment.submitBatch(
+      r.auth,
+      dto.idempotencyKey,
+      id,
+      dto.declaration,
+    );
+  }
+
+  @Post('moderation/:id/begin')
+  @UseGuards(CsrfGuard)
+  beginReview(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: KeyDto,
+  ) {
+    return this.assessment.beginReview(r.auth, dto.idempotencyKey, id);
+  }
+
+  @Post('moderation/:id/decide')
+  @UseGuards(CsrfGuard)
+  decideCase(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DecideCaseDto,
+  ) {
+    return this.assessment.decideCase(
+      r.auth,
+      dto.idempotencyKey,
+      id,
+      dto.version,
+      dto.to,
+      dto.reason,
+    );
+  }
+
+  @Get('moderation')
+  moderation(@Req() r: AuthRequest, @Query() q: ListModerationQuery) {
+    return this.assessment.listModeration(r.auth, { status: q.status });
+  }
+
+  @Get('moderation/:id')
+  moderationCase(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.assessment.moderationDetail(r.auth, id);
   }
 }

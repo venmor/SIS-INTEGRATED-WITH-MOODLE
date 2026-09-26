@@ -332,3 +332,33 @@ overflow, empty localStorage; mobile cards scoped as `li`).
 `backup:test`, full-suite shared-DB regression, manual
 screen-reader/WSL replay, remote CI, and human walkthrough remain
 **not verified**. Detail in [NOTE-PH7-003](NOTE-PH7-003.md).
+
+## Phase 7 slice 4 (2026-09-25, fresh `sis_ph7_s4_final_test` + `sis_ph7_browser_test`)
+
+Lecturer correction and moderation handoff (TASK-PH7-004; lead
+Chitundu Milimbo, reviewer Charles Hangoma). Same Node 22.13.1 /
+PostgreSQL 18 environment notes as slices 1–3. Typecheck exit 0,
+web lint clean, API lint warnings-only (pre-existing), API dist via
+direct `tsc`, web production build exit 0. API e2e
+`grade-moderation` **14/14** on the fresh DB (submit checklist,
+idempotent submit, submitter denials, approval with exact CA rows
++ lock, same-account SoD refusal, return loop with history and CA
+supersession, clarify/refer lanes, write denials + closed
+decisions, racing-decision convergence, component lock + release
+on return, post-approval staging guard, neutrals, swimlane
+reads). Slice regressions held on separate fresh DBs:
+`assessment-plan` **20/20**, `grade-staging` **18/18**,
+`grade-validation` **13/13** (incl. the new concurrent-triage
+test locking the row-lock fix). Unit **73/73**. Browser
+`moderation` (submit → approve + returned correction) **1/1** on
+migrated + rebuilt apps (390px, keyboard/focus, no overflow, empty
+localStorage; `Cases` heading scoped exact). Seed `mushota.m`
+verified on scratch `sis_ph7_seed2_test` (19/19/21 twice,
+idempotent, correct assignment).
+
+A real lost-update bug (racing decisions both 201) was caught by
+the concurrency test and fixed with row locking on moderation
+cases and findings. `backup:test`, full-suite shared-DB
+regression, manual screen-reader/WSL replay, remote CI, and human
+walkthrough remain **not verified**. Detail in
+[NOTE-PH7-004](NOTE-PH7-004.md).

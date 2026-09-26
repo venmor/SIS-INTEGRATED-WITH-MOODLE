@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  Equals,
   IsArray,
   IsInt,
   IsNotEmpty,
@@ -13,6 +14,11 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { KeyDto, VersionDto } from '../admissions/dto.js';
+
+// Phase 7 slice 4: the exact submission declaration (UI-DECISION-001
+// pattern). The server refuses any other wording before storing.
+export const SUBMISSION_DECLARATION =
+  'I confirm that this batch is complete for its scope and I submit it for moderation within my assigned authority.';
 
 // Phase 7 slices 1–2 assessment DTOs (TASK-PH7-001/002). Plans carry the
 // demo scheme components; batches carry staged lines with outcome codes;
@@ -143,5 +149,50 @@ export class ListFindingsQuery {
   @IsOptional()
   @IsString()
   @MaxLength(16)
+  status?: string;
+}
+
+export class SubmitBatchDto extends KeyDto {
+  @IsString()
+  @Equals(SUBMISSION_DECLARATION)
+  declaration!: string;
+}
+
+export class DecideCaseDto extends KeyDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  version!: number;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  to!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class CandidateListDto extends KeyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  offeringRef!: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(16)
+  periodCode!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  studentRefs!: string[];
+}
+
+export class ListModerationQuery {
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
   status?: string;
 }

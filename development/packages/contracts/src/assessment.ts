@@ -103,3 +103,29 @@ export interface GradeValidationView {
   validatedAt: string;
   findings: GradeFindingView[];
 }
+/** Phase 7 slice 4: moderation handoff views (TASK-PH7-004). Cases move
+ * SUBMITTED→UNDER_MODERATION→APPROVED/RETURNED/CLARIFICATION_REQUESTED/
+ * REFERRED; approval writes immutable official CA records (versioned per
+ * student+component). Candidate lists carry expected participants. */
+export interface ModerationCaseView {
+  id: string;
+  batchId: string;
+  status: string;
+  version: number;
+  declaration: string;
+  submittedBy: string;
+  submittedAt: string;
+  reviewer: string | null;
+  reviewedAt: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+}
+export interface CandidateListView {
+  id: string;
+  offeringRef: string;
+  periodCode: string;
+  version: number;
+  status: string;
+  studentRefs: string[];
+}

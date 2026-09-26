@@ -514,6 +514,34 @@ describe('Phase 7 validation and missing-mark queue', () => {
     expect(row.resolveReason).toBeTruthy();
   });
 
+  it('finding-concurrent: racing triage converges on one outcome', async () => {
+    const { mappingId } = await activeMappingFor('CA-QUIZ1');
+    const staged = await stage(lecA, {
+      mappingId,
+      sourceRevision: `mdl-rev-${key()}`,
+      lines: [{ studentRef: known2, outcome: 'MISSING_MARK' }],
+    }).expect(201);
+    const batchId = (staged.body as { id: string }).id;
+    const validated = await validate(exam, batchId).expect(201);
+    const finding = (
+      validated.body as { findings: Array<{ id: string }> }
+    ).findings[0];
+    const transition = (cookie: string, body: object) =>
+      post(`/findings/${finding.id}/transition`, {
+        idempotencyKey: key(),
+        ...body,
+      }, cookie);
+    const [a, b] = await Promise.all([
+      transition(exam, { version: 1, to: 'ACKNOWLEDGED' }),
+      transition(exam, {
+        version: 1,
+        to: 'RESOLVED',
+        reason: 'Concurrent second look.',
+      }),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+  });
+
   it('validate-denied: staging roles, admins and students validate nothing', async () => {
     const { mappingId } = await activeMappingFor('CA-QUIZ1');
     const staged = await stage(lecA, {

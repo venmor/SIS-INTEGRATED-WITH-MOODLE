@@ -1559,8 +1559,12 @@ model GradeBatch {
   resultState String?
   validatedAt DateTime?
   validatedByAccountId String?
+  // Phase 7 slice 4: moderation lock (TASK-PH7-004). Set on approval;
+  // corrections stage new revisions, never edits.
+  lockedAt DateTime?
   lines GradeLine[]
   findings GradeFinding[]
+  moderationCase ModerationCase?
   @@unique([mappingId, sourceRevision])
   @@index([mappingId, status])
 }
@@ -1613,4 +1617,64 @@ model GradeFinding {
   createdAt DateTime @default(now())
   @@index([batchId, status])
   @@index([status, code])
+}
+
+// Phase 7 slice 4: lecturer correction and moderation handoff
+// (TASK-PH7-004). Validated batches submit with a recorded declaration;
+// cases move SUBMITTED→UNDER_MODERATION→APPROVED/RETURNED/
+// CLARIFICATION_REQUESTED/REFERRED with version checks. The moderator is
+// never the stager. Approval locks the batch and writes immutable
+// official CA records (versioned per student+component; re-moderation
+// supersedes). The candidate list carries expected participants per
+// offering+period (seed-managed demo; Registry owns it in production).
+model AssessmentCandidateList {
+  id String @id @default(uuid())
+  offeringRef String
+  periodCode String
+  version Int @default(1)
+  status String @default("ACTIVE")
+  studentRefs String[]
+  createdByAccountId String
+  createdAt DateTime @default(now())
+  @@unique([offeringRef, periodCode, version])
+  @@index([offeringRef, periodCode, status])
+}
+
+model ModerationCase {
+  id String @id @default(uuid())
+  batchId String @unique
+  batch GradeBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  status String @default("SUBMITTED")
+  version Int @default(1)
+  declaration String
+  submittedByAccountId String
+  submittedAt DateTime @default(now())
+  reviewerAccountId String?
+  reviewedAt DateTime?
+  decidedByAccountId String?
+  decidedAt DateTime?
+  decisionReason String?
+  createdAt DateTime @default(now())
+  officialCA OfficialCARecord[]
+  @@index([status])
+}
+
+model OfficialCARecord {
+  id String @id @default(uuid())
+  offeringRef String
+  periodCode String
+  componentCode String
+  planVersion Int @default(1)
+  studentRef String
+  resolvedStudentId String?
+  mark Float?
+  outcome String @default("MARK_RECORDED")
+  policyVersion String @default("ASSESSMENT-DEMO-v1")
+  caseId String
+  moderationCase ModerationCase @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  version Int @default(1)
+  status String @default("APPROVED")
+  createdAt DateTime @default(now())
+  @@unique([offeringRef, periodCode, componentCode, studentRef, version])
+  @@index([offeringRef, periodCode, componentCode, status])
 }

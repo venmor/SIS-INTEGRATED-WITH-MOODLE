@@ -480,6 +480,30 @@ const SEED: SeedAccount[] = [
       },
     ],
   },
+  // Phase 7 slice 4 moderation (TASK-PH7-004, GAP-022 interim). The
+  // moderator is explicitly assigned per offering and must differ from
+  // the batch stager (server-enforced SoD). Not UNZA policy.
+  {
+    username: "mushota.m",
+    personName: "Mushota M.",
+    email: "mushota.m@demo.invalid",
+    phone: "+260950000019",
+    password: "Seed-2026-Mushota",
+    roles: [
+      {
+        role: "MODERATOR",
+        scopeType: "OFFERING",
+        scopeRef: "SWE-2026S1",
+        startsAt: "2026-01-15T00:00:00Z",
+        endsAt: null,
+        appointmentRef: "ACA-2026-103",
+        authoritySource: "School board (demonstration)",
+        capabilities: ["moderate-results"],
+        employmentType: "PERMANENT",
+        reason: "Demonstration assessment moderator (SWE-2026S1)",
+      },
+    ],
+  },
 ];
 
 async function ensureAccount(

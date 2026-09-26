@@ -1,14 +1,14 @@
 # Phase 7 Implementation Review — Assessment and Official Results (slices 1–2)
 
 Release v0.8.0 track. Roadmap
-`11-…/09-phase-7-assessment-and-official-results.md` slices 1–3
+`11-…/09-phase-7-assessment-and-official-results.md` slices 1–4
 implemented in `development/` on local `main` (uncommitted; human
 review pending). Simulator-only (`MOODLE-SIM-v1` provenance);
-`ASSESSMENT-DEMO-v1` is fictional (SUP-009, GAP-022). Slices 4–7
-(moderation, board, release, amendment) are not started — no
-moderation, board, release, or amendment code exists. Team (user
-correction 2026-09-25): Chitundu Milimbo leads the Phase 7 slices;
-Charles Hangoma reviews.
+`ASSESSMENT-DEMO-v1` is fictional (SUP-009, GAP-022). Slices 5–7
+(board, release, amendment) are not started — no board, release,
+or amendment code exists. Team (user correction 2026-09-25):
+Chitundu Milimbo leads the Phase 7 slices; Charles Hangoma
+reviews.
 
 ## Slice map (requirement → code → test)
 
@@ -16,13 +16,15 @@ Charles Hangoma reviews.
 |---|---|---|---|
 | 1 scheme + mapping plan | REQ-ASM-001/002; REQ-LRN-001; DS5 §§1–2,14; Lecturer/Tutor I §6.4 + II §§1–5; §§15.6–15.7; UI-DECISION-001; SCR-REC-LEC-001 | `assessment` plans/mappings, four-eyes, closed scheme; plans/mappings/decide pages + proxy | `assessment-plan` 20/20 |
 | 2 staging snapshot | REQ-LRN-004/005; REQ-OPS-004; ACT-ASM-001; DS5 §4; Lecturer/Tutor II §§6–7; Journey C steps 2–3; INT-MDL-001; SCR-REC-LEC-001 + SCR-OPS-LRN-001 | frozen provenance, outage guard, chained outbox; batches pages + detail | `grade-staging` 18/18 |
-| 3 validation queue | REQ-ASM-002/003; REQ-OPS-003/005; DS5 §§3,12,17; Lecturer/Tutor II §§6,8; Journey C steps 3–4; MOD-GRD-03 §§12.28–12.30; §§15.6–15.7,15.19; SCR-DEC-ASM-001; recovery §§16.5,16.14 | immutable findings, swimlane queue, version-checked triage, MISSING_MARKS work items; findings pages + batch findings section | `grade-validation` 12/12 |
+| 3 validation queue | REQ-ASM-002/003; REQ-OPS-003/005; DS5 §§3,12,17; Lecturer/Tutor II §§6,8; Journey C steps 3–4; MOD-GRD-03 §§12.28–12.30; §§15.6–15.7,15.19; SCR-DEC-ASM-001; recovery §§16.5,16.14 | immutable findings, swimlane queue, version-checked triage, MISSING_MARKS work items; findings pages + batch findings section | `grade-validation` 13/13 |
+| 4 moderation handoff | Lecturer/Tutor II §§6,8 + III §§3–4,6; DS5 §§11–12; Journey C steps 4–5; recovery §§16.5,16.7; §§15.6–15.7,15.19 | checklist submit, version-checked cases, SoD moderator, immutable official CA, correction loop; moderation queue + case pages | `grade-moderation` 14/14 |
 
-Total: 50/50 API e2e on fresh isolated DBs (20 + 18 + 12, each
-suite on its own DB — parallel shared-DB runs collide); unit
-73/73; browser plan→map→activate→stage journey and validation
-finding→resolve→resubmit→clear journey 1/1 each at 390px with
-keyboard, focus, no overflow, empty localStorage.
+Total: 65/65 API e2e on fresh isolated DBs (20 + 18 + 13 + 14,
+each suite on its own DB — parallel shared-DB runs collide); unit
+73/73; browser plan→map→activate→stage, validation
+finding→resolve→resubmit→clear, and moderation submit→approve
+journeys 1/1 each at 390px with keyboard, focus, no overflow, empty
+localStorage.
 
 ## Authority notes
 
@@ -58,9 +60,9 @@ detail page. Moodle alone publishes nothing (no release path exists).
 
 ## Remaining gates
 
-Slices 4–7 unimplemented; `backup:test`, manual screen-reader/WSL
+Slices 5–7 unimplemented; `backup:test`, manual screen-reader/WSL
 replay, remote CI, Vercel route check, production policy approval,
 human walkthrough (both developers must explain every slice). Detail:
 [NOTE-PH7-001](NOTE-PH7-001.md), [NOTE-PH7-002](NOTE-PH7-002.md),
-[NOTE-PH7-003](NOTE-PH7-003.md),
-[VERIFICATION](VERIFICATION.md) Phase 7 slices 1–3.
+[NOTE-PH7-003](NOTE-PH7-003.md), [NOTE-PH7-004](NOTE-PH7-004.md),
+[VERIFICATION](VERIFICATION.md) Phase 7 slices 1–4.

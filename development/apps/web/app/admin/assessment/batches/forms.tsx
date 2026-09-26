@@ -151,6 +151,88 @@ export function BatchForms() {
   );
 }
 
+// Moderation submission: sends a validated batch for moderation with the
+// exact declaration. The checklist (validated, no open findings,
+// reconciled candidate list) is enforced server-side; replays converge
+// on the stored case.
+export function SubmitBatchButton({ batchId }: { batchId: string }) {
+  const router = useRouter();
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  return (
+    <>
+      {notice ? (
+        <Notice severity="success" title="Done" message={notice} />
+      ) : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="The batch was not submitted" errors={errors} />
+      ) : null}
+      <form
+        aria-label="Submit batch for moderation"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (pending) return;
+          setPending(true);
+          setErrors([]);
+          setNotice(null);
+          const data = new FormData(e.currentTarget);
+          const confirmed = data.get("submit-batch-confirm");
+          if (!confirmed) {
+            setErrors([
+              {
+                fieldId: "submit-batch-confirm",
+                message:
+                  "Confirm that you have reviewed the stated evidence before submitting.",
+              },
+            ]);
+            setPending(false);
+            return;
+          }
+          postAssessment(`/batches/${batchId}/submit`, {
+            declaration:
+              "I confirm that this batch is complete for its scope and I submit it for moderation within my assigned authority.",
+            idempotencyKey: crypto.randomUUID(),
+          })
+            .then(() => {
+              setNotice(
+                "Batch submitted for moderation. The batch version is locked; corrections stage a new revision.",
+              );
+              router.refresh();
+            })
+            .catch((error: unknown) => {
+              setErrors([
+                { fieldId: "submit-batch-confirm", message: failure(error) },
+              ]);
+            })
+            .finally(() => {
+              setPending(false);
+            });
+        }}
+      >
+        <p>
+          <input
+            id="submit-batch-confirm"
+            name="submit-batch-confirm"
+            type="checkbox"
+            value="yes"
+          />{" "}
+          <label htmlFor="submit-batch-confirm">
+            I confirm that I have reviewed the stated evidence and make this
+            submission within my assigned authority.
+          </label>
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending ? "Submitting…" : "Submit for moderation"}
+          </button>
+        </p>
+      </form>
+    </>
+  );
+}
+
 // Examinations validation trigger: runs validation for one staged batch
 // and writes immutable findings. Replays carry a fresh key and converge
 // on the stored result instead of duplicating findings.

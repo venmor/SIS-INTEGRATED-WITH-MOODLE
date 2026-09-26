@@ -83,6 +83,9 @@ export const SECURITY_V1: SecurityConfig = {
       // demo values, NOT institutional policy.
       'COORDINATOR',
       'EXAMINATIONS_OFFICER',
+      // Phase 7 slice 4 (TASK-PH7-004): moderation demo account, same
+      // sign-in UX reason.
+      'MODERATOR',
     ],
     'iam.me.read': [
       'SYSADMIN',
@@ -96,6 +99,8 @@ export const SECURITY_V1: SecurityConfig = {
       // Phase 7 slice 1 (TASK-PH7-001, GAP-022): same sign-in UX reason.
       'COORDINATOR',
       'EXAMINATIONS_OFFICER',
+      // Phase 7 slice 4 (TASK-PH7-004): same sign-in UX reason.
+      'MODERATOR',
     ],
   },
   sodPairs: [],

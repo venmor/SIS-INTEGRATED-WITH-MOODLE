@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeBatchView } from "@sis/contracts";
 import { DataTable, Notice, StatusChip } from "@sis/ui";
-import { ValidateBatchButton } from "../../batches/forms";
+import { SubmitBatchButton, ValidateBatchButton } from "../../batches/forms";
 import styles from "../../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -211,6 +211,12 @@ export default async function GradeBatchDetailPage({
           exactly as captured.
         </p>
         <ValidateBatchButton batchId={item.id} />
+        <h2>Submit for moderation</h2>
+        <p>
+          Lecturers and coordinators only. Requires a validated batch
+          with no open findings and a reconciled candidate list.
+        </p>
+        <SubmitBatchButton batchId={item.id} />
       </main>
     </div>
   );

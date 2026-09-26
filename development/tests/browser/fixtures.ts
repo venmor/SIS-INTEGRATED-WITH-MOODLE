@@ -834,6 +834,53 @@ export const examinationsOfficerSid = () =>
     "examofficer",
   );
 
+/** Phase 7 slice 4: moderator fixture scoped to the assessment demo offering. */
+export async function createModerator() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.mod.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser moderator",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "MODERATOR",
+        scopeType: "OFFERING",
+        scopeRef: "SWE-2026S1",
+        capabilities: ["moderate-results"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password, offeringRef: "SWE-2026S1", periodCode: "2026S1" };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 7 slice 2: staged student with a genuine SIS student number, so
  * staged marks resolve instead of flagging MOODLE_ONLY. */
 export async function ensureStagedStudent() {

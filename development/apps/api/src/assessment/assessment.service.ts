@@ -135,6 +135,7 @@ export class AssessmentService {
       ['COORDINATOR', 'approve-assessment'],
       ['MOODLE_ADMIN', 'manage-mapping'],
       ['EXAMINATIONS_OFFICER', 'validate-results'],
+      ['MODERATOR', 'moderate-results'],
     ];
     for (const [role, capability] of candidates) {
       const assignment = await this.liveAssignment(auth, role, capability);
@@ -930,7 +931,9 @@ export class AssessmentService {
       // transaction, so concurrent stages converge on one snapshot.
       await db.$queryRaw`SELECT id FROM "GradeActivityMapping" WHERE id = ${input.mappingId} FOR UPDATE`;
       // Resource-idempotent: the same mapping+revision returns the stored
-      // batch, so a lost response never creates a second snapshot.
+      // batch, so a lost response never creates a second snapshot. The
+      // moderation lock below applies to new revisions only, never to a
+      // replay of an already-stored batch.
       const replay = await db.gradeBatch.findUnique({
         where: {
           mappingId_sourceRevision: {
@@ -941,6 +944,24 @@ export class AssessmentService {
         include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
       });
       if (replay) return { body: this.batchView(replay) };
+      // Moderation lock: no new revisions while a case for this component
+      // is open. Returned, referred, and decided cases never block;
+      // corrections flow through new revisions after a return.
+      const openCase = await db.moderationCase.findFirst({
+        where: {
+          status: { in: ['SUBMITTED', 'UNDER_MODERATION', 'CLARIFICATION_REQUESTED'] },
+          batch: { mapping: { componentId: mapping.componentId } },
+        },
+        select: { id: true },
+      });
+      if (openCase) {
+        this.fail(
+          'CASE_OPEN',
+          'Finish or return the open moderation case before staging a new revision.',
+          409,
+          { caseId: openCase.id },
+        );
+      }
       try {
         const seen = new Set<string>();
         const prepared = [];
@@ -1432,6 +1453,9 @@ export class AssessmentService {
       'TransitionGradeFinding',
       { id, version, to },
       async (db) => {
+        // Serialize racing triage so concurrent transitions conflict
+        // instead of silently overwriting (TEST-REC-005).
+        await db.$queryRaw`SELECT id FROM "GradeFinding" WHERE id = ${id} FOR UPDATE`;
         const live = await db.gradeFinding.findUniqueOrThrow({
           where: { id },
         });
@@ -1471,5 +1495,612 @@ export class AssessmentService {
         return { body: this.findingView(updated) };
       },
     );
+  }
+
+  // Phase 7 slice 4: lecturer correction and moderation handoff
+  // (TASK-PH7-004, GAP-022 interim). Validated batches submit with a
+  // recorded declaration; moderation cases move SUBMITTED (claim) →
+  // UNDER_MODERATION → APPROVED/RETURNED/CLARIFICATION_REQUESTED/
+  // REFERRED with version checks. The moderator is never the stager.
+  // Approval locks the batch and writes immutable official CA records;
+  // corrections stage new revisions and re-moderate (supersede).
+  private async submitter(auth: AssessmentAuthority, offeringRef: string) {
+    if (auth.activeRole === 'LEC') {
+      await this.lecturer(auth, offeringRef);
+      return;
+    }
+    if (auth.activeRole === 'COORDINATOR') {
+      await this.coordinator(auth);
+      return;
+    }
+    this.denied();
+  }
+
+  private async moderator(auth: AssessmentAuthority, offeringRef: string) {
+    const assignment = await this.liveAssignment(
+      auth,
+      'MODERATOR',
+      'moderate-results',
+    );
+    if (
+      !assignment ||
+      auth.activeRole !== 'MODERATOR' ||
+      assignment.scopeType !== 'OFFERING' ||
+      assignment.scopeRef !== offeringRef
+    ) {
+      this.denied();
+    }
+  }
+
+  private caseView(row: {
+    id: string;
+    batchId: string;
+    status: string;
+    version: number;
+    declaration: string;
+    submittedByAccountId: string;
+    submittedAt: Date;
+    reviewerAccountId: string | null;
+    reviewedAt: Date | null;
+    decidedByAccountId: string | null;
+    decidedAt: Date | null;
+    decisionReason: string | null;
+  }) {
+    return {
+      id: row.id,
+      batchId: row.batchId,
+      status: row.status,
+      version: row.version,
+      declaration: row.declaration,
+      submittedBy: row.submittedByAccountId,
+      submittedAt: row.submittedAt.toISOString(),
+      reviewer: row.reviewerAccountId,
+      reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
+      decidedBy: row.decidedByAccountId,
+      decidedAt: row.decidedAt ? row.decidedAt.toISOString() : null,
+      decisionReason: row.decisionReason,
+    };
+  }
+
+  async provisionCandidateList(
+    auth: AssessmentAuthority,
+    key: string,
+    input: { offeringRef: string; periodCode: string; studentRefs: string[] },
+  ) {
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    await this.coordinator(auth);
+    const offeringRef = input.offeringRef.trim();
+    const periodCode = input.periodCode.trim();
+    const refs = [...new Set(input.studentRefs.map((r) => r.trim()))]
+      .filter((r) => r.length > 0)
+      .sort();
+    if (refs.length === 0) {
+      this.fail(
+        'EMPTY_CANDIDATE_LIST',
+        'The candidate list names at least one expected participant.',
+        400,
+      );
+    }
+    return this.command(
+      auth,
+      key,
+      'ProvisionCandidateList',
+      { offeringRef, periodCode, studentRefs: refs },
+      async (db) => {
+        const max = await db.assessmentCandidateList.aggregate({
+          where: { offeringRef, periodCode },
+          _max: { version: true },
+        });
+        try {
+          await db.assessmentCandidateList.updateMany({
+            where: { offeringRef, periodCode, status: 'ACTIVE' },
+            data: { status: 'SUPERSEDED' },
+          });
+          const created = await db.assessmentCandidateList.create({
+            data: {
+              offeringRef,
+              periodCode,
+              version: (max._max.version ?? 0) + 1,
+              status: 'ACTIVE',
+              studentRefs: refs,
+              createdByAccountId: auth.accountId,
+            },
+          });
+          await this.audit(db, auth, 'CandidateListProvisioned', created.id, key, {
+            version: created.version,
+          });
+          return {
+            body: {
+              id: created.id,
+              offeringRef,
+              periodCode,
+              version: created.version,
+              studentRefs: refs,
+            },
+          };
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            const current = await db.assessmentCandidateList.findFirstOrThrow({
+              where: { offeringRef, periodCode, status: 'ACTIVE' },
+            });
+            return {
+              body: {
+                id: current.id,
+                offeringRef,
+                periodCode,
+                version: current.version,
+                studentRefs: current.studentRefs,
+              },
+            };
+          }
+          throw error;
+        }
+      },
+    );
+  }
+
+  async listCandidateLists(
+    auth: AssessmentAuthority,
+    filter: { offeringRef?: string; periodCode?: string },
+  ) {
+    await this.reader(auth);
+    const rows = await this.assessmentCandidateList(auth, filter);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        offeringRef: r.offeringRef,
+        periodCode: r.periodCode,
+        version: r.version,
+        status: r.status,
+        studentRefs: r.studentRefs,
+      })),
+    };
+  }
+
+  private async assessmentCandidateList(
+    auth: AssessmentAuthority,
+    filter: { offeringRef?: string; periodCode?: string },
+  ) {
+    void auth;
+    return this.prisma.assessmentCandidateList.findMany({
+      where: {
+        offeringRef: filter.offeringRef ?? undefined,
+        periodCode: filter.periodCode ?? undefined,
+      },
+      orderBy: { version: 'desc' },
+      take: 200,
+    });
+  }
+
+  async submitBatch(
+    auth: AssessmentAuthority,
+    key: string,
+    batchId: string,
+    declaration: string,
+  ) {
+    const batch = await this.prisma.gradeBatch.findUnique({
+      where: { id: batchId },
+      include: {
+        lines: true,
+        mapping: { include: { component: { include: { plan: true } } } },
+      },
+    });
+    if (!batch) this.fail('NOT_FOUND', 'Grade batch not found.', 404);
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    const offeringRef = batch.mapping.component.plan.offeringRef;
+    await this.submitter(auth, offeringRef);
+    return this.command(
+      auth,
+      key,
+      'SubmitBatchForModeration',
+      { batchId },
+      async (db) => {
+        await db.$queryRaw`SELECT id FROM "GradeBatch" WHERE id = ${batchId} FOR UPDATE`;
+        const live = await db.gradeBatch.findUniqueOrThrow({
+          where: { id: batchId },
+          include: {
+            lines: true,
+            mapping: { include: { component: { include: { plan: true } } } },
+          },
+        });
+        // Checklist, in handbook order: validated, no open findings,
+        // candidate reconciliation, recorded declaration.
+        if (!live.validatedAt) {
+          this.fail(
+            'CHECKLIST_UNVALIDATED',
+            'Validate the batch before submitting it for moderation.',
+            409,
+          );
+        }
+        const openFindings = await db.gradeFinding.count({
+          where: { batchId, status: 'OPEN' },
+        });
+        if (openFindings > 0) {
+          this.fail(
+            'CHECKLIST_OPEN_FINDINGS',
+            'Resolve or classify every open finding before submitting.',
+            409,
+          );
+        }
+        const list = await db.assessmentCandidateList.findFirst({
+          where: {
+            offeringRef: live.mapping.component.plan.offeringRef,
+            periodCode: live.mapping.component.plan.periodCode,
+            status: 'ACTIVE',
+          },
+        });
+        const staged = new Set(live.lines.map((l) => l.studentRef));
+        const expected = new Set(list?.studentRefs ?? []);
+        const missing = [...expected].filter((r) => !staged.has(r));
+        const extra = [...staged].filter((r) => !expected.has(r));
+        if (!list || missing.length > 0 || extra.length > 0) {
+          this.fail(
+            'CHECKLIST_UNRECONCILED',
+            'Reconcile the staged lines against the official candidate list before submitting.',
+            409,
+            { missing: missing.length, extra: extra.length },
+          );
+        }
+        const prior = await db.moderationCase.findUnique({
+          where: { batchId },
+        });
+        if (prior) return { body: this.caseView(prior) };
+        const created = await db.moderationCase.create({
+          data: {
+            batchId,
+            status: 'SUBMITTED',
+            declaration,
+            submittedByAccountId: auth.accountId,
+          },
+        });
+        await this.audit(db, auth, 'BatchSubmittedForModeration', created.id, key, {
+          batchId,
+        });
+        return { body: this.caseView(created) };
+      },
+    );
+  }
+
+  async beginReview(auth: AssessmentAuthority, key: string, caseId: string) {
+    const found = await this.prisma.moderationCase.findUnique({
+      where: { id: caseId },
+      include: {
+        batch: {
+          include: { mapping: { include: { component: { include: { plan: true } } } } },
+        },
+      },
+    });
+    if (!found) this.fail('NOT_FOUND', 'Moderation case not found.', 404);
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    const offeringRef = found.batch.mapping.component.plan.offeringRef;
+    await this.moderator(auth, offeringRef);
+    // Separation of duties: the stager never reviews their own batch,
+    // in any workspace.
+    if (found.submittedByAccountId === auth.accountId) {
+      throw new HttpException(
+        {
+          code: 'SOD_VIOLATION',
+          message: 'An independent moderator must review this batch.',
+          supportReference: randomUUID(),
+        },
+        403,
+      );
+    }
+    return this.command(auth, key, 'BeginModerationReview', { id: caseId }, async (db) => {
+      const live = await db.moderationCase.findUniqueOrThrow({
+        where: { id: caseId },
+      });
+      if (live.status !== 'SUBMITTED') {
+        this.fail(
+          'REQUEST_CLOSED',
+          'Only submitted cases begin review. Decided cases keep their outcome.',
+          409,
+        );
+      }
+      const updated = await db.moderationCase.update({
+        where: { id: live.id },
+        data: {
+          status: 'UNDER_MODERATION',
+          reviewerAccountId: auth.accountId,
+          reviewedAt: new Date(),
+        },
+      });
+      await this.audit(db, auth, 'ModerationReviewBegun', live.id, key, {
+        batchId: live.batchId,
+      });
+      return { body: this.caseView(updated) };
+    });
+  }
+
+  async decideCase(
+    auth: AssessmentAuthority,
+    key: string,
+    caseId: string,
+    version: number,
+    to: string,
+    reason?: string,
+  ) {
+    const found = await this.prisma.moderationCase.findUnique({
+      where: { id: caseId },
+      include: {
+        batch: {
+          include: {
+            lines: true,
+            mapping: { include: { component: { include: { plan: true } } } },
+          },
+        },
+      },
+    });
+    if (!found) this.fail('NOT_FOUND', 'Moderation case not found.', 404);
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    const offeringRef = found.batch.mapping.component.plan.offeringRef;
+    await this.moderator(auth, offeringRef);
+    if (found.submittedByAccountId === auth.accountId) {
+      throw new HttpException(
+        {
+          code: 'SOD_VIOLATION',
+          message: 'An independent moderator must decide this batch.',
+          supportReference: randomUUID(),
+        },
+        403,
+      );
+    }
+    const targets = ['APPROVED', 'RETURNED', 'CLARIFICATION_REQUESTED', 'REFERRED'];
+    if (!targets.includes(to)) {
+      this.fail(
+        'INVALID_TRANSITION',
+        'Moderation decides APPROVED, RETURNED, CLARIFICATION_REQUESTED or REFERRED only.',
+        400,
+      );
+    }
+    if (to !== 'APPROVED' && !reason?.trim()) {
+      this.fail(
+        'REASON_REQUIRED',
+        'Returning, clarifying or referring a batch demands a recorded reason.',
+        400,
+      );
+    }
+    return this.command(
+      auth,
+      key,
+      'DecideModerationCase',
+      { id: caseId, version, to },
+      async (db) => {
+        // Serialize racing decisions: the version check below must see
+        // rows committed by a concurrent decision, never a stale read.
+        await db.$queryRaw`SELECT id FROM "ModerationCase" WHERE id = ${caseId} FOR UPDATE`;
+        const live = await db.moderationCase.findUniqueOrThrow({
+          where: { id: caseId },
+          include: {
+            batch: {
+              include: {
+                lines: true,
+                mapping: { include: { component: { include: { plan: true } } } },
+              },
+            },
+          },
+        });
+        this.checkVersion(live, version);
+        if (live.status !== 'UNDER_MODERATION') {
+          this.fail(
+            'REQUEST_CLOSED',
+            'Begin review before deciding. Decided cases keep their outcome.',
+            409,
+          );
+        }
+        const now = new Date();
+        const updated = await db.moderationCase.update({
+          where: { id: live.id },
+          data: {
+            status: to,
+            version: { increment: 1 },
+            decidedByAccountId: auth.accountId,
+            decidedAt: now,
+            decisionReason: reason?.trim() ?? null,
+          },
+        });
+        // Approval locks the batch and writes immutable official CA
+        // records; lines without a converted mark carry no official
+        // value and are skipped, never zero-filled.
+        if (to === 'APPROVED') {
+          await db.gradeBatch.update({
+            where: { id: live.batchId },
+            data: { lockedAt: now },
+          });
+          const plan = live.batch.mapping.component.plan;
+          for (const line of live.batch.lines) {
+            if (line.convertedValue === null) continue;
+            const max = await db.officialCARecord.aggregate({
+              where: {
+                offeringRef: plan.offeringRef,
+                periodCode: plan.periodCode,
+                componentCode: live.batch.mapping.component.code,
+                studentRef: line.studentRef,
+              },
+              _max: { version: true },
+            });
+            await db.officialCARecord.create({
+              data: {
+                offeringRef: plan.offeringRef,
+                periodCode: plan.periodCode,
+                componentCode: live.batch.mapping.component.code,
+                planVersion: plan.version,
+                studentRef: line.studentRef,
+                resolvedStudentId: line.resolvedStudentId,
+                mark: line.convertedValue,
+                outcome: line.outcome,
+                policyVersion: policy.version,
+                caseId: live.id,
+                version: (max._max.version ?? 0) + 1,
+              },
+            });
+          }
+        }
+        await this.audit(db, auth, 'ModerationCaseDecided', live.id, key, {
+          from: live.status,
+          to,
+        });
+        return { body: this.caseView(updated) };
+      },
+    );
+  }
+
+  async listModeration(
+    auth: AssessmentAuthority,
+    filter: { status?: string },
+  ) {
+    const status = filter.status ?? undefined;
+    if (auth.activeRole === 'MODERATOR') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'MODERATOR',
+        'moderate-results',
+      );
+      if (
+        !assignment ||
+        assignment.scopeType !== 'OFFERING'
+      ) {
+        this.denied();
+      }
+      const rows = await this.prisma.moderationCase.findMany({
+        where: {
+          status,
+          batch: {
+            mapping: {
+              component: { plan: { offeringRef: assignment.scopeRef } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      });
+      return { items: rows.map((r) => this.caseView(r)) };
+    }
+    if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'EXAMINATIONS_OFFICER',
+        'validate-results',
+      );
+      if (!assignment || assignment.scopeType !== 'PERIOD') this.denied();
+      // Examinations owns the referred lane only in this slice.
+      const rows = await this.prisma.moderationCase.findMany({
+        where: { status: 'REFERRED' },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      });
+      return { items: rows.map((r) => this.caseView(r)) };
+    }
+    if (auth.activeRole === 'LEC' || auth.activeRole === 'COORDINATOR') {
+      const capability =
+        auth.activeRole === 'LEC' ? 'stage-marks' : 'approve-assessment';
+      const assignment = await this.liveAssignment(
+        auth,
+        auth.activeRole,
+        capability,
+      );
+      if (!assignment) this.denied();
+      const rows = await this.prisma.moderationCase.findMany({
+        where: { status, submittedByAccountId: auth.accountId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      });
+      return { items: rows.map((r) => this.caseView(r)) };
+    }
+    this.denied();
+  }
+
+  async moderationDetail(auth: AssessmentAuthority, id: string) {
+    const row = await this.prisma.moderationCase.findUnique({
+      where: { id },
+      include: {
+        batch: {
+          include: { mapping: { include: { component: { include: { plan: true } } } } },
+        },
+      },
+    });
+    if (!row) this.fail('NOT_FOUND', 'Moderation case not found.', 404);
+    const entitled = await this.moderationEntitled(auth, row);
+    if (!entitled) {
+      // No queue access at all denies loudly; out-of-scope reads stay
+      // neutral so one lane never confirms another lane's cases.
+      const lanes = await this.moderationLanes(auth);
+      if (!lanes) this.denied();
+      this.fail('NOT_FOUND', 'Moderation case not found.', 404);
+    }
+    return this.caseView(row);
+  }
+
+  private async moderationLanes(
+    auth: AssessmentAuthority,
+  ): Promise<string[] | null> {
+    if (auth.activeRole === 'MODERATOR') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'MODERATOR',
+        'moderate-results',
+      );
+      return assignment && assignment.scopeType === 'OFFERING'
+        ? ['MODERATOR']
+        : null;
+    }
+    if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'EXAMINATIONS_OFFICER',
+        'validate-results',
+      );
+      return assignment && assignment.scopeType === 'PERIOD'
+        ? ['EXAMINATIONS']
+        : null;
+    }
+    if (auth.activeRole === 'LEC') {
+      const assignment = await this.liveAssignment(auth, 'LEC', 'stage-marks');
+      return assignment ? ['SUBMITTER'] : null;
+    }
+    if (auth.activeRole === 'COORDINATOR') {
+      const assignment = await this.liveAssignment(
+        auth,
+        'COORDINATOR',
+        'approve-assessment',
+      );
+      return assignment ? ['SUBMITTER'] : null;
+    }
+    return null;
+  }
+
+  private async moderationEntitled(
+    auth: AssessmentAuthority,
+    row: {
+      status: string;
+      submittedByAccountId: string;
+      batch: {
+        mapping: { component: { plan: { offeringRef: string } } };
+      };
+    } | null,
+  ): Promise<boolean> {
+    if (!row) return false;
+    const lanes = await this.moderationLanes(auth);
+    if (!lanes) return false;
+    const offeringRef = row.batch.mapping.component.plan.offeringRef;
+    if (lanes.includes('MODERATOR')) {
+      const assignment = await this.liveAssignment(
+        auth,
+        'MODERATOR',
+        'moderate-results',
+      );
+      return (
+        !!assignment &&
+        assignment.scopeType === 'OFFERING' &&
+        assignment.scopeRef === offeringRef
+      );
+    }
+    if (lanes.includes('EXAMINATIONS')) {
+      return row.status === 'REFERRED';
+    }
+    return row.submittedByAccountId === auth.accountId;
   }
 }

@@ -68,6 +68,37 @@ authority.
   notifications are sent, so notification-failure recovery is
   not applicable to this slice.
 
+## Slices 4–5 interim values (2026-09-25, fictional, SUP-009)
+
+- Moderator demo role: `MODERATOR` + `moderate-results`, scope
+  `OFFERING` (one assignment per offering, explicitly assigned).
+  Separation of duties: the moderator must differ from the batch
+  stager (and from the plan creator); coordinators do not moderate.
+- Board path: no demo board entity is invented. The handbook allows
+  "board or authorized examinations authority": the
+  EXAMINATIONS_OFFICER (PERIOD scope, period-matched) records board
+  decisions with four-eyes (decider ≠ preparer). Release authority
+  itself stays closed until slice 6.
+- Candidate list: lightweight expected-participants list per
+  offering+period (`AssessmentCandidateList`, seeded demo rows).
+  Maintenance belongs to Registry in production; the demo list is
+  seed-managed and versioned, never hand-edited.
+- Result formula: `weighted-total-v1` — weighted total from approved
+  component weights, pass 50, half-up 2dp (extends
+  ASSESSMENT-DEMO-v1). Computed as a preview with trace fields; no
+  stored proposed-result entity. GPA/progression untouched.
+- Clarification is answered by correction resubmission only (no Q&A
+  entity). Referred moderation cases surface in the examinations
+  lane of the moderation queue. Conditional approvals store
+  conditions; enforcement belongs to slice 6. DEFERRED packages
+  re-submit as new versions.
+- Deferred with rationale: tutor TG-scoped component submission
+  (slice 2 denies tutors staging; Part 3 §4.2 TG submission needs a
+  separate TG-scope grant design), manual non-Moodle mark entry
+  (gates say simulator-sourced only), staff notifications (none
+  exist; audit covers the trail), external-examiner sampling
+  (moderators review full demo batches).
+
 ## Resolve by
 
 Institution approves (or amends) the interim chain, scheme values,
