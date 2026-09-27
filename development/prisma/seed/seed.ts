@@ -26,6 +26,8 @@ const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { hash } = require("argon2");
+// Use dynamic import for local ESM module
+const { seedCapabilitiesScopesSod } = await import("./capabilities-scopes-sod.ts");
 
 // Prisma 7 connects through a driver adapter (no built-in engine).
 const adapter = new PrismaPg({
@@ -980,6 +982,9 @@ async function ensureStudentDemo(): Promise<void> {
 }
 
 async function main(): Promise<void> {  // Identity administrator first so later grants reference a granter/approver.
+  // Seed capabilities, scopes, approver authority, and SoD pairs (GAP-003, GAP-004, GAP-006, GAP-012)
+  await seedCapabilitiesScopesSod(prisma);
+  
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
   await ensureAccount(admin, null);
   const granter = await prisma.account.findUniqueOrThrow({

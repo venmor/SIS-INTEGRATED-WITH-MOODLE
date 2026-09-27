@@ -84,6 +84,9 @@ model RoleAssignment {
   role        String
   scopeType   String
   scopeRef    String
+  // New: link to Scope entity for institutional hierarchy (Task 1.3)
+  scopeId     String?
+  scope       Scope?   @relation(fields: [scopeId], references: [id], onDelete: SetNull)
   startsAt    DateTime @default(now())
   endsAt      DateTime?
   grantedById String?
@@ -106,6 +109,89 @@ model RoleAssignment {
   @@index([accountId])
   @@index([role, scopeType, scopeRef])
   @@index([accountId, role, scopeType, scopeRef])
+  @@index([scopeId])
+}
+
+// Capability registry (GAP-003): allowed capabilities + metadata
+model Capability {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  category    String   // e.g., 'TEACHING', 'ADMIN', 'FINANCE', 'ADMISSIONS'
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  scopes      CapabilityScope[]
+  authorities ApproverAuthority[]
+  scopeLinks  Scope[]  // Direct capabilityId on Scope
+
+  @@index([category, isActive])
+}
+
+// Scope hierarchy (GAP-004): institutional org units with parent-child relationships
+model Scope {
+  id              String    @id @default(uuid())
+  name            String    @unique // e.g., 'SYSTEM:GLOBAL', 'SCHOOL:ENGINEERING', 'DEPARTMENT:CS'
+  description     String?
+  parentScopeId   String?
+  parentScope     Scope?    @relation("ScopeHierarchy", fields: [parentScopeId], references: [id], onDelete: Restrict)
+  childScopes     Scope[]   @relation("ScopeHierarchy")
+  capabilityId    String?
+  capability      Capability? @relation(fields: [capabilityId], references: [id], onDelete: SetNull)
+  effectiveFrom   DateTime  @default(now())
+  effectiveTo     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  capabilityLinks CapabilityScope[]
+  authorities     ApproverAuthority[]
+  roleAssignments RoleAssignment[] // Back-reference from RoleAssignment.scopeId
+
+  @@index([parentScopeId])
+  @@index([capabilityId])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+// Junction: Capability <-> Scope (many-to-many for capabilities applicable to scopes)
+model CapabilityScope {
+  capabilityId String
+  capability   Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  scopeId      String
+  scope        Scope      @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([capabilityId, scopeId])
+}
+
+// ApproverAuthority: which role holds authority over which scope + capability (GAP-006)
+model ApproverAuthority {
+  id              String      @id @default(uuid())
+  approverRoleId  String      // Role name that holds authority (e.g., 'DEAN', 'HOD', 'SYSADMIN')
+  targetScopeId   String      // Scope they have authority over
+  targetScope     Scope       @relation(fields: [targetScopeId], references: [id], onDelete: Restrict)
+  capabilityId    String      // Capability this authority applies to
+  capability      Capability  @relation(fields: [capabilityId], references: [id], onDelete: Restrict)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([approverRoleId, targetScopeId, capabilityId])
+  @@index([approverRoleId])
+  @@index([targetScopeId])
+}
+
+// SoDPair: mutually exclusive role pairs (GAP-012)
+model SoDPair {
+  id        String   @id @default(uuid())
+  roleAId   String   // First role name (alphabetically first for consistency)
+  roleBId   String   // Second role name
+  reason    String   // Business justification
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleAId, roleBId])
+  @@index([roleAId])
+  @@index([roleBId])
 }
 
 model Session {
