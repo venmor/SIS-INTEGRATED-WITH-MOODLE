@@ -196,3 +196,63 @@ export class ListModerationQuery {
   @MaxLength(32)
   status?: string;
 }
+
+// Phase 7 slice 5: the exact board-package declaration (UI-DECISION-001
+// pattern). The server refuses any other wording before storing.
+export const PACKAGE_DECLARATION =
+  'I confirm that this result package is complete for its offering and period and I submit it for board decision within my assigned authority.';
+
+// Phase 7 slice 5 board outcomes (TASK-PH7-005): approve-for-release,
+// return, clarify, condition, defer, refer — with reasons, date and
+// authority. Stored UPPER_SNAKE; presented to staff in board wording.
+export const BOARD_DECISIONS = [
+  'APPROVE_FOR_RELEASE',
+  'RETURN',
+  'CLARIFY',
+  'CONDITION',
+  'DEFER',
+  'REFER',
+] as const;
+
+export class AssemblePackageDto extends KeyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  offeringRef!: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(16)
+  periodCode!: string;
+  @IsString()
+  @Equals(PACKAGE_DECLARATION)
+  declaration!: string;
+}
+
+export class DecidePackageDto extends KeyDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  version!: number;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  to!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+  @IsOptional()
+  @IsArray()
+  conditions?: Array<Record<string, unknown>>;
+}
+
+export class ListPackagesQuery {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  offeringRef?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  periodCode?: string;
+}

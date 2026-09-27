@@ -362,3 +362,44 @@ cases and findings. `backup:test`, full-suite shared-DB
 regression, manual screen-reader/WSL replay, remote CI, and human
 walkthrough remain **not verified**. Detail in
 [NOTE-PH7-004](NOTE-PH7-004.md).
+
+## Phase 7 slice 5 (2026-09-27, fresh `sis_ph7_s5_test` + `sis_ph7_browser_test`)
+
+Board/decision package (TASK-PH7-005; lead Chitundu Milimbo,
+reviewer Charles Hangoma). Same Node 22.13.1 / PostgreSQL 18
+environment notes as slices 1–4. Typecheck exit 0, web lint clean,
+API lint exit 0 warnings-only (two new warnings fixed: unused
+import, array-sort compare), API dist via direct `tsc`, web
+production build exit 0 (new `/admin/assessment/packages` routes).
+API e2e `grade-board` **15/15** on the fresh DB (assembly
+refusals: unmoderated/missing-list/open-MISSING/superseded-
+provenance/bad-declaration, each proving nothing stored;
+happy-path hash + weighted-total-v1 trace + reconciliation;
+idempotent replay + key conflict; SoD; reason/condition demands
+with stored conditions; five-role denials + student-read refusal;
+neutrals; racing-decision VERSION_CONFLICT; expired-grant 403
+with zero decision rows; DEFER/REFER/CLARIFY with REQUEST_CLOSED
++ new-version resubmission; genuine-zero preview). Slice
+regressions held on separate fresh DBs: `assessment-plan`
+**20/20** (seeded), `grade-staging` **18/18**, `grade-validation`
+**13/13**, `grade-moderation` **14/14**. Unit **73/73**. Browser
+`board-packages` (moderate 3 cases → assemble → approve for
+release) **1/1** on fresh migrated + seeded browser DB with
+rebuilt apps (390px, keyboard/focus, no overflow, empty
+localStorage; hidden-`h2` scoped `.first()`, form label scoped
+`exact`).
+
+Environment notes (recorded, not hidden): the per-account general
+budget (180 req/min) 429'd the 15th test — fixed by alternating
+preparers across `lecA`/`lecB`, never by raising the budget;
+browser `.env` points API_INTERNAL_URL at dead port 3001 —
+override to 3101/3100 in the shell; prior failed browser runs
+pollute the shared browser DB (stale CA rows vs the new candidate
+list → honest UNRECONCILED refusal) — recreate + migrate + seed
+before final runs; an accidental `demo:reset` destroyed the local
+pgdata volume mid-slice (fictional data only) — recovered `sis`
+via direct migrate + seed, and tmp helper scripts stay untracked
+for deletion before commit. `backup:test`, full-suite shared-DB
+regression, manual screen-reader/WSL replay, remote CI, and human
+walkthrough remain **not verified**. Detail in
+[NOTE-PH7-005](NOTE-PH7-005.md).

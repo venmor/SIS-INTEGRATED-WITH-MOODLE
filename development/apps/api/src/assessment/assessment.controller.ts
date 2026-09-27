@@ -17,14 +17,17 @@ import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { AssessmentService } from './assessment.service.js';
 import {
   ApprovePlanDto,
+  AssemblePackageDto,
   CandidateListDto,
   DecideCaseDto,
+  DecidePackageDto,
   DraftGradeMappingDto,
   DraftPlanDto,
   ListBatchesQuery,
   ListFindingsQuery,
   ListMappingsQuery,
   ListModerationQuery,
+  ListPackagesQuery,
   ListPlansQuery,
   StageBatchDto,
   SubmitBatchDto,
@@ -253,5 +256,49 @@ export class AssessmentController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.assessment.moderationDetail(r.auth, id);
+  }
+
+  @Post('packages')
+  @UseGuards(CsrfGuard)
+  assemblePackage(@Req() r: AuthRequest, @Body() dto: AssemblePackageDto) {
+    return this.assessment.assemblePackage(r.auth, dto.idempotencyKey, {
+      offeringRef: dto.offeringRef,
+      periodCode: dto.periodCode,
+      declaration: dto.declaration,
+    });
+  }
+
+  @Get('packages')
+  packages(@Req() r: AuthRequest, @Query() q: ListPackagesQuery) {
+    return this.assessment.listPackages(r.auth, {
+      offeringRef: q.offeringRef,
+      periodCode: q.periodCode,
+    });
+  }
+
+  @Get('packages/:id')
+  package(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.assessment.packageDetail(r.auth, id);
+  }
+
+  @Post('packages/:id/decide')
+  @UseGuards(CsrfGuard)
+  decidePackage(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DecidePackageDto,
+  ) {
+    return this.assessment.decidePackage(
+      r.auth,
+      dto.idempotencyKey,
+      id,
+      dto.version,
+      dto.to,
+      dto.reason,
+      dto.conditions,
+    );
   }
 }

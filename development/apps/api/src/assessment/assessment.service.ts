@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { ASSESSMENT_DEMO_V1 as policy, MOODLE_DEMO_V1 as moodle } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import { BOARD_DECISIONS, PACKAGE_DECLARATION } from './dto.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
@@ -2102,5 +2103,369 @@ export class AssessmentService {
       return row.status === 'REFERRED';
     }
     return row.submittedByAccountId === auth.accountId;
+  }
+
+  private packageView(row: {
+    id: string;
+    offeringRef: string;
+    periodCode: string;
+    version: number;
+    status: string;
+    packageHash: string;
+    trace: unknown;
+    candidateListId: string;
+    declaration: string;
+    preparedByAccountId: string;
+    createdAt: Date;
+  }) {
+    return {
+      id: row.id,
+      offeringRef: row.offeringRef,
+      periodCode: row.periodCode,
+      version: row.version,
+      status: row.status,
+      packageHash: row.packageHash,
+      trace: row.trace,
+      candidateListId: row.candidateListId,
+      declaration: row.declaration,
+      preparedBy: row.preparedByAccountId,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  // Phase 7 slice 5: board/decision package (TASK-PH7-005, GAP-022
+  // interim). Result packages freeze approved official CA refs, the
+  // weighted-total-v1 preview + trace, moderation refs, candidate-list
+  // reconciliation, declarations and a SHA-256 hash. The examinations
+  // authority records the board decision with four-eyes; conditions
+  // store for slice-6 enforcement. No release effects here.
+  async assemblePackage(
+    auth: AssessmentAuthority,
+    key: string,
+    input: { offeringRef: string; periodCode: string; declaration: string },
+  ) {
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    const offeringRef = input.offeringRef.trim();
+    const periodCode = input.periodCode.trim();
+    await this.submitter(auth, offeringRef);
+    if (input.declaration !== PACKAGE_DECLARATION) {
+      this.fail(
+        'DECLARATION_REQUIRED',
+        'Accept the exact board-package declaration before assembling.',
+        400,
+      );
+    }
+    return this.command(
+      auth,
+      key,
+      'AssembleResultPackage',
+      { offeringRef, periodCode },
+      async (db) => {
+        const components = policy.components as unknown as Array<{
+          code: string;
+          maxMark: number;
+          weight: number;
+        }>;
+        // Gate 1: every demo component carries a moderated-approved case
+        // whose batch came through SIS-governed provenance (an APPROVED
+        // plan), never Moodle-direct.
+        const approvedCases = await db.moderationCase.findMany({
+          where: {
+            status: 'APPROVED',
+            batch: {
+              mapping: {
+                component: {
+                  plan: { offeringRef, periodCode, status: 'APPROVED' },
+                },
+              },
+            },
+          },
+          include: {
+            batch: {
+              include: {
+                mapping: { include: { component: true } },
+              },
+            },
+          },
+        });
+        const approvedCodes = new Set(
+          approvedCases.map((c) => c.batch.mapping.component.code),
+        );
+        for (const component of components) {
+          if (!approvedCodes.has(component.code)) {
+            this.fail(
+              'UNMODERATED_COMPONENT',
+              `Component ${component.code} is not moderated-approved for this offering and period.`,
+              409,
+            );
+          }
+        }
+        // Gate 2: no OPEN missing-mark findings remain in scope.
+        const openMissing = await db.gradeFinding.count({
+          where: {
+            status: 'OPEN',
+            code: 'MISSING_MARK',
+            batch: { offeringRef, periodCode },
+          },
+        });
+        if (openMissing > 0) {
+          this.fail(
+            'OPEN_FINDINGS',
+            'Open missing-mark findings remain for this offering and period.',
+            409,
+          );
+        }
+        // Gate 3: an ACTIVE candidate list reconciles the frozen lines.
+        const list = await db.assessmentCandidateList.findFirst({
+          where: { offeringRef, periodCode, status: 'ACTIVE' },
+          orderBy: { version: 'desc' },
+        });
+        if (!list) {
+          this.fail(
+            'CANDIDATE_LIST_REQUIRED',
+            'An active candidate list is required before assembling.',
+            409,
+          );
+        }
+        const caRows = await db.officialCARecord.findMany({
+          where: { offeringRef, periodCode, status: 'APPROVED' },
+          orderBy: [{ studentRef: 'asc' }, { version: 'desc' }],
+        });
+        // Latest approved version per component+student (re-moderation
+        // supersedes; history is preserved in earlier versions).
+        const latest = new Map<string, (typeof caRows)[number]>();
+        for (const row of caRows) {
+          const slot = `${row.componentCode}::${row.studentRef}`;
+          if (!latest.has(slot)) latest.set(slot, row);
+        }
+        const staged = new Set([...latest.values()].map((r) => r.studentRef));
+        const expected = new Set(list.studentRefs);
+        const missing = [...expected].filter((r) => !staged.has(r));
+        const extra = [...staged].filter((r) => !expected.has(r));
+        if (missing.length > 0 || extra.length > 0) {
+          this.fail(
+            'UNRECONCILED_CANDIDATES',
+            'Reconcile the approved results against the official candidate list before assembling.',
+            409,
+            { missing: missing.length, extra: extra.length },
+          );
+        }
+        // weighted-total-v1 preview: contribution = mark/maxMark*weight,
+        // rounded half-up to 2dp. Null marks stay absent, never zero-fill.
+        const byStudent = new Map<
+          string,
+          {
+            parts: Array<{
+              componentCode: string;
+              raw: number | null;
+              normalised: number | null;
+              weighted: number;
+            }>;
+            total: number;
+          }
+        >();
+        for (const row of latest.values()) {
+          const component = components.find((c) => c.code === row.componentCode);
+          if (!component) continue;
+          const entry = byStudent.get(row.studentRef) ?? {
+            parts: [] as Array<{
+              componentCode: string;
+              raw: number | null;
+              normalised: number | null;
+              weighted: number;
+            }>,
+            total: 0,
+          };
+          const normalised =
+            row.mark === null ? null : row.mark / component.maxMark;
+          const weighted =
+            row.mark === null ? 0 : (row.mark / component.maxMark) * component.weight;
+          entry.parts.push({
+            componentCode: row.componentCode,
+            raw: row.mark,
+            normalised,
+            weighted,
+          });
+          entry.total += weighted;
+          byStudent.set(row.studentRef, entry);
+        }
+        const students = [...byStudent].map(([studentRef, v]) => ({
+          studentRef,
+          parts: v.parts,
+          preRounded: v.total,
+          rounded: Math.round((v.total + Number.EPSILON) * 100) / 100,
+        }));
+        const trace = {
+          formulaVersion: 'weighted-total-v1',
+          passMark: policy.passMark,
+          policyVersion: policy.version,
+          students,
+          moderationRefs: approvedCases.map((c) => c.id),
+          candidateListId: list.id,
+        };
+        const packageHash = createHash('sha256')
+          .update(
+            JSON.stringify({
+              offeringRef,
+              periodCode,
+              trace,
+              caRefs: [...latest.values()].map((r) => r.id).sort(),
+            }),
+          )
+          .digest('hex');
+        const max = await db.resultPackage.aggregate({
+          where: { offeringRef, periodCode },
+          _max: { version: true },
+        });
+        const created = await db.resultPackage.create({
+          data: {
+            offeringRef,
+            periodCode,
+            version: (max._max.version ?? 0) + 1,
+            status: 'ASSEMBLED',
+            packageHash,
+            trace: json(trace),
+            candidateListId: list.id,
+            declaration: input.declaration,
+            preparedByAccountId: auth.accountId,
+          },
+        });
+        await this.audit(db, auth, 'ResultPackageAssembled', created.id, key, {
+          offeringRef,
+          periodCode,
+        });
+        return { status: 201, body: this.packageView(created) };
+      },
+    );
+  }
+
+  async listPackages(
+    auth: AssessmentAuthority,
+    filter: { offeringRef?: string; periodCode?: string },
+  ) {
+    await this.reader(auth);
+    const rows = await this.prisma.resultPackage.findMany({
+      where: {
+        offeringRef: filter.offeringRef ?? undefined,
+        periodCode: filter.periodCode ?? undefined,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return { items: rows.map((r) => this.packageView(r)) };
+  }
+
+  async packageDetail(auth: AssessmentAuthority, id: string) {
+    const row = await this.prisma.resultPackage.findUnique({
+      where: { id },
+      include: { decisions: { orderBy: { version: 'asc' } } },
+    });
+    if (!row) this.fail('NOT_FOUND', 'Result package not found.', 404);
+    await this.reader(auth);
+    return {
+      ...this.packageView(row),
+      decisions: row.decisions.map((d) => ({
+        version: d.version,
+        to: d.to,
+        reason: d.reason,
+        conditions: d.conditions,
+        decidedBy: d.decidedByAccountId,
+        decidedAt: d.decidedAt.toISOString(),
+      })),
+    };
+  }
+
+  async decidePackage(
+    auth: AssessmentAuthority,
+    key: string,
+    id: string,
+    version: number,
+    to: string,
+    reason?: string,
+    conditions?: Array<Record<string, unknown>>,
+  ) {
+    const found = await this.prisma.resultPackage.findUnique({
+      where: { id },
+    });
+    if (!found) this.fail('NOT_FOUND', 'Result package not found.', 404);
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    // Board path per GAP-022: the examinations authority records board
+    // decisions inside its period scope; no demo board is invented.
+    await this.examiner(auth, found.periodCode);
+    // Four-eyes: the decider is never the preparer.
+    if (found.preparedByAccountId === auth.accountId) {
+      throw new HttpException(
+        {
+          code: 'SOD_VIOLATION',
+          message: 'Board decisions require four-eyes: the decider must differ from the preparer.',
+          supportReference: randomUUID(),
+        },
+        403,
+      );
+    }
+    if (!(BOARD_DECISIONS as readonly string[]).includes(to)) {
+      this.fail(
+        'INVALID_TRANSITION',
+        'Board decides APPROVE_FOR_RELEASE, RETURN, CLARIFY, CONDITION, DEFER or REFER only.',
+        400,
+      );
+    }
+    if (to !== 'APPROVE_FOR_RELEASE' && !reason?.trim()) {
+      this.fail(
+        'REASON_REQUIRED',
+        'Returning, clarifying, conditioning, deferring or referring a package demands a recorded reason.',
+        400,
+      );
+    }
+    if (to === 'CONDITION' && (!conditions || conditions.length === 0)) {
+      this.fail(
+        'CONDITION_REQUIRED',
+        'Conditional board decisions demand stored conditions for release enforcement.',
+        400,
+      );
+    }
+    return this.command(
+      auth,
+      key,
+      'DecideResultPackage',
+      { id, version, to },
+      async (db) => {
+        // Serialize racing decisions: the version check below must see
+        // rows committed by a concurrent decision, never a stale read.
+        await db.$queryRaw`SELECT id FROM "ResultPackage" WHERE id = ${id} FOR UPDATE`;
+        const live = await db.resultPackage.findUniqueOrThrow({
+          where: { id },
+        });
+        this.checkVersion(live, version);
+        if (live.status !== 'ASSEMBLED') {
+          this.fail(
+            'REQUEST_CLOSED',
+            'Decided packages keep their outcome. Deferrals re-submit as new versions.',
+            409,
+          );
+        }
+        const status =
+          to === 'APPROVE_FOR_RELEASE' ? 'APPROVED_FOR_RELEASE' : to;
+        const updated = await db.resultPackage.update({
+          where: { id: live.id },
+          data: { status, version: { increment: 1 } },
+        });
+        await db.boardDecision.create({
+          data: {
+            packageId: live.id,
+            version: live.version,
+            to,
+            reason: reason?.trim() ?? null,
+            conditions: json(conditions ?? []),
+            decidedByAccountId: auth.accountId,
+          },
+        });
+        await this.audit(db, auth, 'BoardDecisionRecorded', live.id, key, {
+          from: live.status,
+          to,
+        });
+        return { body: this.packageView(updated) };
+      },
+    );
   }
 }

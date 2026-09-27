@@ -1678,3 +1678,45 @@ model OfficialCARecord {
   @@unique([offeringRef, periodCode, componentCode, studentRef, version])
   @@index([offeringRef, periodCode, componentCode, status])
 }
+
+// Phase 7 slice 5: board/decision package (TASK-PH7-005). Result packages
+// assemble frozen inputs per offering+period: approved official CA refs,
+// weighted-total-v1 computed preview + DS5 §11 trace, moderation refs,
+// exception cases with authorized handling, candidate-list reconciliation,
+// declarations, and a SHA-256 integrity hash. Assembly is blocked unless
+// every component is moderated-approved, no OPEN MISSING findings remain,
+// and no input comes Moodle-direct. The examinations authority records the
+// board decision (four-eyes, decider ≠ preparer): APPROVE_FOR_RELEASE,
+// RETURN, CLARIFY, CONDITION, DEFER or REFER with reasons, date and
+// authority. Conditions store for slice-6 enforcement; deferrals re-submit
+// as new versions. No release effects, no student view, no amendment.
+model ResultPackage {
+  id String @id @default(uuid())
+  offeringRef String
+  periodCode String
+  version Int @default(1)
+  status String @default("ASSEMBLED")
+  packageHash String
+  trace Json @default("{}")
+  candidateListId String
+  declaration String
+  preparedByAccountId String
+  createdAt DateTime @default(now())
+  decisions BoardDecision[]
+  @@unique([offeringRef, periodCode, version])
+  @@index([offeringRef, periodCode, status])
+}
+
+model BoardDecision {
+  id String @id @default(uuid())
+  packageId String
+  package ResultPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  version Int @default(1)
+  to String
+  reason String?
+  conditions Json @default("[]")
+  decidedByAccountId String
+  decidedAt DateTime @default(now())
+  @@unique([packageId, version])
+  @@index([packageId])
+}

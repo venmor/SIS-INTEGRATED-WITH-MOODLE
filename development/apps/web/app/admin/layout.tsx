@@ -118,6 +118,15 @@ export default async function AdminLayout({
         role === "EXAMINATIONS_OFFICER",
     },
     {
+      href: "/admin/assessment/packages",
+      label: "Board packages",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "MODERATOR" ||
+        role === "EXAMINATIONS_OFFICER",
+    },
+    {
       href: "/admin/moodle",
       label: "Moodle administration",
       show: role === "MOODLE_ADMIN",

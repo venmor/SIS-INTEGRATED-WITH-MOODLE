@@ -129,3 +129,32 @@ export interface CandidateListView {
   status: string;
   studentRefs: string[];
 }
+/** Phase 7 slice 5: board/decision package views (TASK-PH7-005). Packages
+ * freeze approved official CA refs, the weighted-total-v1 preview + trace,
+ * moderation refs, candidate-list reconciliation, declarations and a
+ * SHA-256 hash. Board decisions record one of six outcomes with reasons
+ * and stored conditions (slice-6 enforcement). ISO date strings. */
+export interface ResultPackageView {
+  id: string;
+  offeringRef: string;
+  periodCode: string;
+  version: number;
+  status: string;
+  packageHash: string;
+  trace: unknown;
+  candidateListId: string;
+  declaration: string;
+  preparedBy: string;
+  createdAt: string;
+}
+export interface BoardDecisionView {
+  version: number;
+  to: string;
+  reason: string | null;
+  conditions: unknown;
+  decidedBy: string;
+  decidedAt: string;
+}
+export interface ResultPackageDetailView extends ResultPackageView {
+  decisions: BoardDecisionView[];
+}
