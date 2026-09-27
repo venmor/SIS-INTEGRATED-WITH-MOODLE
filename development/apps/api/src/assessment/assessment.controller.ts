@@ -29,6 +29,7 @@ import {
   ListModerationQuery,
   ListPackagesQuery,
   ListPlansQuery,
+  ReleaseResultsDto,
   StageBatchDto,
   SubmitBatchDto,
   TransitionFindingDto,
@@ -300,5 +301,28 @@ export class AssessmentController {
       dto.reason,
       dto.conditions,
     );
+  }
+
+  @Post('releases')
+  @UseGuards(CsrfGuard)
+  releaseResults(@Req() r: AuthRequest, @Body() dto: ReleaseResultsDto) {
+    return this.assessment.releaseResults(
+      r.auth,
+      dto.idempotencyKey,
+      dto.packageId,
+    );
+  }
+
+  @Get('releases/:id')
+  release(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.assessment.releaseDetail(r.auth, id);
+  }
+
+  @Get('results/mine')
+  myResults(@Req() r: AuthRequest) {
+    return this.assessment.studentResults(r.auth);
   }
 }

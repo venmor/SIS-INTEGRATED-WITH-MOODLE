@@ -256,3 +256,87 @@ export function BoardDecisionForm({
     </>
   );
 }
+
+// Official release (TASK-PH7-006): the examinations authority publishes
+// an approved-for-release package into immutable official results.
+// Blocked server-side unless the frozen trace still governs (no stale
+// approvals, no blocking conditions, every subject resolved). Every
+// submit carries a fresh idempotency key; concurrent releases converge
+// instead of duplicating. Delivery failure never rolls back the
+// release; students see only their own published rows.
+export function ReleaseResultsForm({ packageId }: { packageId: string }) {
+  const router = useRouter();
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  return (
+    <>
+      {notice ? (
+        <Notice severity="success" title="Done" message={notice} />
+      ) : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="The results were not released" errors={errors} />
+      ) : null}
+      <form
+        aria-label="Release official results"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (pending) return;
+          setPending(true);
+          setErrors([]);
+          setNotice(null);
+          const data = new FormData(e.currentTarget);
+          if (!data.get("release-results-confirm")) {
+            setErrors([
+              {
+                fieldId: "release-results-confirm",
+                message:
+                  "Confirm that the board approved this package for release before publishing.",
+              },
+            ]);
+            setPending(false);
+            return;
+          }
+          postAssessment("/releases", {
+            packageId,
+            idempotencyKey: crypto.randomUUID(),
+          })
+            .then((out) => {
+              const count = (out as { studentCount?: number }).studentCount ?? 0;
+              setNotice(
+                `Released. ${count} official results published; students see only their own.`,
+              );
+              router.refresh();
+            })
+            .catch((error: unknown) => {
+              setErrors([
+                { fieldId: "release-results-confirm", message: failure(error) },
+              ]);
+            })
+            .finally(() => {
+              setPending(false);
+            });
+        }}
+      >
+        <p>
+          <input
+            id="release-results-confirm"
+            name="release-results-confirm"
+            type="checkbox"
+            value="yes"
+          />{" "}
+          <label htmlFor="release-results-confirm">
+            I confirm that the board approved this package for release and I
+            publish these official results within my assigned authority.
+          </label>
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending ? "Releasing…" : "Release results"}
+          </button>
+        </p>
+      </form>
+    </>
+  );
+}

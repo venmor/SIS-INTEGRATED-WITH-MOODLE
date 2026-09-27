@@ -158,3 +158,22 @@ export interface BoardDecisionView {
 export interface ResultPackageDetailView extends ResultPackageView {
   decisions: BoardDecisionView[];
 }
+/** Phase 7 slice 6: official release views (TASK-PH7-006). Students see
+ * only their own RELEASED rows; outcome PASS/FAIL derives from the demo
+ * pass mark (interim, SUP-009). ISO date strings. */
+export interface OfficialResultView {
+  offeringRef: string;
+  periodCode: string;
+  studentRef: string;
+  total: number;
+  outcome: string;
+  publishedAt: string;
+}
+export interface ReleaseView {
+  packageId: string;
+  version: number;
+  status: string;
+  studentCount: number;
+  releaseHash: string;
+  publishedAt: string;
+}

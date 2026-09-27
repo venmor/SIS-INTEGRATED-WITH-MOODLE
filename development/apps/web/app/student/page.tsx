@@ -48,6 +48,11 @@ export default async function StudentPage() {
       title: "Finance and clearance",
       body: "Invoice, payments, clearance status and what blocks registration.",
     },
+    {
+      href: "/student/results",
+      title: "Official results",
+      body: "Your officially released course results. Provisional marks never appear here.",
+    },
   ];
   return (
     <>
@@ -85,7 +90,9 @@ export default async function StudentPage() {
                       ? "Review registration"
                       : task.title === "Course changes"
                         ? "Request changes"
-                        : "Open finance"}
+                        : task.title === "Official results"
+                          ? "View results"
+                          : "Open finance"}
               </Link>
             </p>
           </Card>

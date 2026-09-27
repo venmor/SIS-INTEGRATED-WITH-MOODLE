@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import type { ResultPackageDetailView } from "@sis/contracts";
+import type { ReleaseView, ResultPackageDetailView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
-import { BoardDecisionForm } from "../forms";
+import { BoardDecisionForm, ReleaseResultsForm } from "../forms";
 import styles from "../../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,12 @@ export default async function BoardPackagePage({
           <dt>Status</dt>
           <dd>
             <StatusChip
-              tone={item.status === "APPROVED_FOR_RELEASE" ? "success" : "attention"}
+              tone={
+                item.status === "RELEASED" ||
+                item.status === "APPROVED_FOR_RELEASE"
+                  ? "success"
+                  : "attention"
+              }
             >
               {item.status}
             </StatusChip>
@@ -119,14 +124,54 @@ export default async function BoardPackagePage({
         <p>
           Only the examinations authority records board decisions, and never
           for a package it prepared. Approval for release never publishes to
-          students; the official release is later work.
+          students by itself; publishing happens only through the official
+          release below.
         </p>
         <BoardDecisionForm
           packageId={item.id}
           version={item.version}
           decided={decided}
         />
+        <h2>Official release</h2>
+        {item.status === "RELEASED" ? (
+          <ReleaseSummary packageId={item.id} />
+        ) : item.status === "APPROVED_FOR_RELEASE" ? (
+          <>
+            <p>
+              Only the examinations authority releases approved packages.
+              Release publishes immutable official results; students see
+              only their own. Delivery failure never rolls back the
+              release.
+            </p>
+            <ReleaseResultsForm packageId={item.id} />
+          </>
+        ) : (
+          <p>
+            Release unlocks once the board approves this package for
+            release. Nothing is published to students before then.
+          </p>
+        )}
       </main>
     </div>
+  );
+}
+
+async function ReleaseSummary({ packageId }: { packageId: string }) {
+  const res = await loadStaff<ReleaseView>(`/releases/${packageId}`);
+  if (!res.ok) return null;
+  const release = res.data;
+  return (
+    <dl>
+      <dt>Release status</dt>
+      <dd>
+        <StatusChip tone="success">{release.status}</StatusChip>
+      </dd>
+      <dt>Students published</dt>
+      <dd>{release.studentCount}</dd>
+      <dt>Release hash</dt>
+      <dd>{release.releaseHash}</dd>
+      <dt>Published</dt>
+      <dd>{release.publishedAt}</dd>
+    </dl>
   );
 }

@@ -1720,3 +1720,24 @@ model BoardDecision {
   @@unique([packageId, version])
   @@index([packageId])
 }
+
+// Phase 7 slice 6: official release (TASK-PH7-006). Immutable official
+// course results, one per student per package version; re-release
+// converges on the stored rows, later packages release independently
+// (slice-7 amendment supersedes, never edits).
+model OfficialCourseResult {
+  id String @id @default(uuid())
+  offeringRef String
+  periodCode String
+  studentRef String
+  total Float
+  outcome String @default("PASS")
+  trace Json @default("{}")
+  packageId String
+  version Int @default(1)
+  status String @default("RELEASED")
+  publishedAt DateTime @default(now())
+  @@unique([offeringRef, periodCode, studentRef, version])
+  @@index([packageId])
+  @@index([studentRef, status])
+}

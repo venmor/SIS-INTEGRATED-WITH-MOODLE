@@ -1,6 +1,6 @@
 import pg from 'pg';
 const { Client } = pg;
-const name = process.argv[2] ?? 'sis_ph7_s5_test';
+const name = process.argv[2] ?? 'sis_ph7_s6_test';
 const base = new URL(process.env.DATABASE_URL);
 const admin = new Client({
   host: base.hostname,

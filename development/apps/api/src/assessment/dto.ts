@@ -256,3 +256,10 @@ export class ListPackagesQuery {
   @MaxLength(16)
   periodCode?: string;
 }
+
+// Phase 7 slice 6: official release (TASK-PH7-006). Release targets one
+// board-approved package; all release inputs freeze at assembly time.
+export class ReleaseResultsDto extends KeyDto {
+  @IsUUID()
+  packageId!: string;
+}

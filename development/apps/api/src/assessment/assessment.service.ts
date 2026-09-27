@@ -2468,4 +2468,275 @@ export class AssessmentService {
       },
     );
   }
+
+  private releaseView(
+    pkg: {
+      id: string;
+      version: number;
+      status: string;
+    },
+    rows: Array<{ id: string }>,
+    publishedAt: Date,
+  ) {
+    const releaseHash = createHash('sha256')
+      .update(JSON.stringify({ packageId: pkg.id, rows: rows.map((r) => r.id).sort() }))
+      .digest('hex');
+    return {
+      packageId: pkg.id,
+      version: pkg.version,
+      status: pkg.status,
+      studentCount: rows.length,
+      releaseHash,
+      publishedAt: publishedAt.toISOString(),
+    };
+  }
+
+  // Phase 7 slice 6: official result release (TASK-PH7-006, GAP-022
+  // interim). Release is a distinct authorised action on an
+  // APPROVED_FOR_RELEASE package: blocking board conditions, stale
+  // frozen inputs and unresolvable students refuse fail-closed.
+  // Immutable OfficialCourseResult rows + the release outbox event
+  // commit in one TX; delivery failure never rolls back the release.
+  // Concurrent releases converge on the stored rows.
+  async releaseResults(auth: AssessmentAuthority, key: string, packageId: string) {
+    const found = await this.prisma.resultPackage.findUnique({
+      where: { id: packageId },
+    });
+    if (!found) this.fail('NOT_FOUND', 'Result package not found.', 404);
+    if (auth.activeRole === 'SYSADMIN') this.denied();
+    await this.examiner(auth, found.periodCode);
+    // All release gates live INSIDE command() below: the idempotency
+    // replay lookup runs before the guarded write, so a retried key
+    // returns the stored release even after the status flipped. Only
+    // identity (404), role gates and scope matching stay outside.
+    return this.command(
+      auth,
+      key,
+      'ReleaseOfficialCourseResults',
+      { packageId },
+      async (db) => {
+        // Serialize racing releases: the second transaction sees the
+        // flipped row and converges instead of writing twice.
+        await db.$queryRaw`SELECT id FROM "ResultPackage" WHERE id = ${packageId} FOR UPDATE`;
+        const live = await db.resultPackage.findUniqueOrThrow({
+          where: { id: packageId },
+        });
+        if (live.status === 'RELEASED') {
+          const existing = await db.officialCourseResult.findMany({
+            where: { packageId },
+            orderBy: { studentRef: 'asc' },
+          });
+          const publishedAt =
+            existing
+              .map((r) => r.publishedAt.getTime())
+              .sort((a, b) => b - a)
+              .map((t) => new Date(t))[0] ?? new Date();
+          return { body: this.releaseView(live, existing, publishedAt) };
+        }
+        // Slice-5 conditions first (plain JS, no DB JSON predicates): a
+        // blocking condition is the most actionable diagnosis, ahead of
+        // the generic board-approval gate below.
+        const decisions = await db.boardDecision.findMany({
+          where: { packageId },
+        });
+        let conditionCount = 0;
+        for (const d of decisions) {
+          const list = Array.isArray(d.conditions)
+            ? (d.conditions as Array<{ blocksRelease?: boolean }>)
+            : [];
+          conditionCount += list.length;
+          if (list.some((c) => c.blocksRelease === true)) {
+            this.fail(
+              'CONDITION_BLOCKS_RELEASE',
+              'A blocking board condition must be cleared by a new decision first.',
+              409,
+            );
+          }
+        }
+        if (live.status !== 'APPROVED_FOR_RELEASE') {
+          this.fail(
+            'NOT_BOARD_APPROVED',
+            'Release needs an approved-for-release board decision.',
+            409,
+          );
+        }
+        const trace = (live.trace ?? {}) as {
+          formulaVersion?: string;
+          students?: Array<{
+            studentRef: string;
+            rounded: number;
+            parts?: unknown;
+          }>;
+        };
+        const students = [...(trace.students ?? [])].sort((a, b) =>
+          a.studentRef < b.studentRef ? -1 : 1,
+        );
+        // Frozen-input guard: current approved CA must still match the
+        // frozen trace exactly (students and per-part marks); any drift
+        // forces a fresh assembly version instead of stale release.
+        const caRows = await db.officialCARecord.findMany({
+          where: {
+            offeringRef: live.offeringRef,
+            periodCode: live.periodCode,
+            status: 'APPROVED',
+          },
+        });
+        const latest = new Map<string, (typeof caRows)[number]>();
+        for (const row of [...caRows].sort((a, b) => b.version - a.version)) {
+          const slot = `${row.componentCode}::${row.studentRef}`;
+          if (!latest.has(slot)) latest.set(slot, row);
+        }
+        const frozenRefs = new Set(students.map((s) => s.studentRef));
+        const currentRefs = new Set(
+          [...latest.values()].map((r) => r.studentRef),
+        );
+        const sameRefs =
+          frozenRefs.size === currentRefs.size &&
+          [...frozenRefs].every((r) => currentRefs.has(r));
+        let marksMatch = true;
+        for (const s of students) {
+          for (const part of (s.parts ?? []) as Array<{
+            componentCode: string;
+            raw: number | null;
+          }>) {
+            if (latest.get(`${part.componentCode}::${s.studentRef}`)?.mark !== part.raw) {
+              marksMatch = false;
+            }
+          }
+        }
+        if (!sameRefs || !marksMatch) {
+          this.fail(
+            'STALE_PACKAGE',
+            'Approved results changed since assembly. Assemble a new package version first.',
+            409,
+          );
+        }
+        // Fail-closed identity: every trace student must resolve to a
+        // Student record. Registry corrects dangling subjects; the
+        // release never publishes a silent partial.
+        const resolved = await db.student.findMany({
+          where: { studentNumber: { in: [...frozenRefs] } },
+          select: { studentNumber: true },
+        });
+        const resolvedRefs = new Set(resolved.map((s) => s.studentNumber));
+        const dangling = [...frozenRefs].filter((r) => !resolvedRefs.has(r));
+        if (dangling.length > 0) {
+          this.fail(
+            'UNRESOLVED_STUDENTS',
+            'Some result subjects have no student record. Registry must correct this first.',
+            409,
+            { count: dangling.length },
+          );
+        }
+        const now = new Date();
+        const created = [];
+        for (const s of students) {
+          created.push(
+            await db.officialCourseResult.create({
+              data: {
+                offeringRef: live.offeringRef,
+                periodCode: live.periodCode,
+                studentRef: s.studentRef,
+                total: s.rounded,
+                outcome:
+                  s.rounded >= (policy.passMark as unknown as number)
+                    ? 'PASS'
+                    : 'FAIL',
+                trace: json({
+                  parts: s.parts ?? [],
+                  formulaVersion: trace.formulaVersion ?? 'weighted-total-v1',
+                }),
+                packageId: live.id,
+                version: live.version,
+                status: 'RELEASED',
+                publishedAt: now,
+              },
+            }),
+          );
+        }
+        const updated = await db.resultPackage.update({
+          where: { id: live.id },
+          data: { status: 'RELEASED', version: { increment: 1 } },
+        });
+        const view = this.releaseView(updated, created, now);
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'ResultPackage',
+            aggregateId: live.id,
+            type: 'OfficialResultsReleased',
+            payload: json({
+              packageId: live.id,
+              version: live.version,
+              studentCount: created.length,
+              releaseHash: view.releaseHash,
+              conditionCount,
+              policyVersion: policy.version,
+              // Canonical chain (GAP-022 interim): the release command
+              // and event travel in the payload; the stored type stays
+              // the short implementation reference per DESIGN-INDEX.
+              chain: {
+                command: 'ReleaseOfficialCourseResults',
+                event: 'OfficialResultsReleased-v1',
+              },
+            }),
+          },
+        });
+        await this.audit(db, auth, 'OfficialResultsReleased', live.id, key, {
+          packageId: live.id,
+          studentCount: created.length,
+        });
+        return { status: 201, body: view };
+      },
+    );
+  }
+
+  async releaseDetail(auth: AssessmentAuthority, id: string) {
+    const row = await this.prisma.resultPackage.findUnique({
+      where: { id },
+    });
+    if (!row) this.fail('NOT_FOUND', 'Result package not found.', 404);
+    await this.reader(auth);
+    const rows = await this.prisma.officialCourseResult.findMany({
+      where: { packageId: id },
+      orderBy: { studentRef: 'asc' },
+    });
+    if (row.status !== 'RELEASED' || rows.length === 0) {
+      this.fail('NOT_FOUND', 'Result package not found.', 404);
+    }
+    const publishedAt =
+      rows
+        .map((r) => r.publishedAt.getTime())
+        .sort((a, b) => b - a)
+        .map((t) => new Date(t))[0] ?? row.createdAt;
+    return this.releaseView(row, rows, publishedAt);
+  }
+
+  // Phase 7 slice 6 student view (TASK-PH7-006). The caller sees only
+  // their own RELEASED rows, resolved through Account → Person →
+  // Student. Anyone without a released row gets a neutral empty set:
+  // unreleased means "not yet released", never a leak.
+  async studentResults(auth: AssessmentAuthority) {
+    if (auth.activeRole !== 'STUDENT') this.denied();
+    const account = await this.prisma.account.findUniqueOrThrow({
+      where: { id: auth.accountId },
+    });
+    const student = await this.prisma.student.findUnique({
+      where: { personId: account.personId },
+    });
+    if (!student || student.status !== 'ACTIVE') return { items: [] };
+    const rows = await this.prisma.officialCourseResult.findMany({
+      where: { studentRef: student.studentNumber, status: 'RELEASED' },
+      orderBy: { publishedAt: 'desc' },
+    });
+    return {
+      items: rows.map((r) => ({
+        offeringRef: r.offeringRef,
+        periodCode: r.periodCode,
+        studentRef: r.studentRef,
+        total: r.total,
+        outcome: r.outcome,
+        publishedAt: r.publishedAt.toISOString(),
+      })),
+    };
+  }
 }
