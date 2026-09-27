@@ -3,6 +3,12 @@
  * Fictional demo values, NOT institutional policy. Effective 2026-01-01,
  * owner: Lead Charles. Code reads these values; nothing security-related is
  * hardcoded in controllers or components (policy-literal scan enforces this).
+ * 
+ * @deprecated As of Task 1.3 (GAP-003, GAP-004, GAP-006, GAP-012):
+ * - Capabilities, scopes, and SoD pairs now live in the database (Prisma models:
+ *   Capability, Scope, CapabilityScope, ApproverAuthority, SoDPair).
+ * - This config is retained as a fallback for development/demo purposes only.
+ * - Use the migration helper in security-legacy.ts to sync config → DB.
  */
 export interface SecurityConfig {
   version: "SECURITY-v1";
