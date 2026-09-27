@@ -274,3 +274,43 @@ Task 3 is the fail-closed configuration gate: the first place an operator's envi
 *Why:* a manufactured red is a false verification claim, and this ledger already carries one ruling about never asserting enforcement that does not exist. *Cost if wrong:* none — it is a reporting requirement.
 
 **Also carried into this task:** `normalizeHost` imposes no length or multi-label bound, so `localhost` and a 300-character label are accepted (Task 2 finding). Harmless for an allowlist comparison, but **Task 3 owns the "is this an HTTPS origin to a real tenant" judgement.** Task 3 must therefore not delegate that judgement to `normalizeHost`, and must not document `normalizeHost` as making it. Additionally, the plan's `4.5.6` fixtures and example-zone values are **example-zone** and stay byte-identical — the confirmed target is a different release (R14), and correcting the fixtures to match the target is forbidden.
+
+## R18 — commit and push authorised; commit discipline fixed
+
+**Ruling: the user authorised committing and pushing on 2026-09-27. One commit per plan task. Every commit must typecheck on its own. Stage explicit paths only. Never force-push.**
+
+**What changed.** Standing rule "no git writes" is lifted. The repository remote is `origin` = `github.com/venmor/SIS-INTEGRATED-WITH-MOODLE.git` — the second session is the same person on the same account, not a third party, so pushing does not publish anyone else's private work.
+
+**Why one commit per task, and why each must typecheck alone.** Committing at task boundaries is what makes the history readable as the plan. But a commit that does not typecheck is worse than no commit: it is a broken state that someone can check out, and the next task's green run would then be evidence about a tree nobody can build. This is not hypothetical here — Task 1 renamed the `MoodleBackend` type in `moodle-adapter.ts` while `integration.service.ts` compares against the new label, so those two files are not separable.
+
+**Consequences, all binding on every remaining task:**
+
+- **Stage explicit paths. Never `git add -A`, never `git add .`, never `git add development/`.** A second session has uncommitted work in `apps/api/src/admissions/**`, `packages/config/src/applications.ts`, `applications.production.ts`, and three untracked docs. A blanket add would sweep their unreviewed work into our commits and attribute it to this workstream.
+- **No partial commits of a task.** If a task's files are being edited by a running subagent, the commit waits for that subagent to report. Committing mid-edit captures a half-written file that may still typecheck.
+- **Never `--force` or `--force-with-lease`.** The other session commits to `main` from this same worktree. A force-push would destroy their work, and no convenience is worth that.
+- **Re-read `git status -sb` immediately before every push.** If the branch is behind, or another session has added commits since our last check, stop and re-verify.
+- **Commit messages follow the repository's existing convention** — `feat(scope):`, `fix(scope):`, `docs(scope):` — with a body that states behaviour and the reason, and a `Co-Authored-By` trailer. A subject line alone is not a record of a ruling.
+
+**Cost if wrong.** A task boundary occasionally falls mid-file, so one commit may carry a small adjacent hunk. That is visible in `git show` and costs nothing. The cost of the alternative — a commit that does not build — is a false green that survives into Plan 5.
+
+## R19 — Task 3's Step D is amended: it is not a rename, and one call site is a fail-open
+
+**Ruling: Task 3 owns the four `integration.service.ts` call sites. Plan line 472 ("leave that to Task 9") is superseded. A `live-test-disabled` selection must never resolve to `SimulatorAdapter` and must never be reported as `simulator`.**
+
+**What the subagent proved, causally.** Step D replaces the adapter's local resolver with `export { selectBackend } from './moodle-live-config.js'`. `selectBackend` now returns `BackendSelection` — an object union — instead of `MoodleBackend`, a string union. Four comparison sites in `integration.service.ts` therefore fail with `TS2367`, and the count goes 4 → 0 when the re-export is reverted. Three instructions collided: Step D mandates that exact line, the file list forbids touching `integration.service.ts`, and the bar is zero errors under `src/integration/`. No adapter-local workaround exists — a wrapper returning `MoodleBackend` is the second, laxer resolver Step D exists to delete, and collapsing `live-test-disabled` to `'simulator'` is a fail-open.
+
+**Why this is a semantic decision and not a type fix.** The obvious mechanical repair is `=== 'live-test'` → `.kind === 'live-test'` at all four sites. That compiles, and it is wrong. At `adapter()` (`:521`) the `else` branch returns `SimulatorAdapter`, so an operator who sets `MOODLE_INTEGRATION_MODE=live-test` with an invalid configuration gets **a silent simulator** — the exact outcome spec §"never a silent simulator fallback" and Global Constraint 17 forbid, and the exact failure this whole plan exists to prevent. The same applies at `setSimulatorMode()` (`:537`), where a refused live-test would fall through and let simulator scenarios be set on a site that was meant to be live.
+
+**The three rules, binding:**
+
+- **`adapter()` — refuse.** A `live-test-disabled` selection throws a fail-closed error carrying the reason codes and no environment value. It never returns `SimulatorAdapter`. `kind === 'simulator'` still returns it; `kind === 'live-test'` still returns `LiveMoodleAdapter`.
+- **`setSimulatorMode()` — refuse.** A `live-test-disabled` selection fails the same way, so simulator controls cannot be driven on a site whose live configuration was refused.
+- **`health()` — report honestly, and leak nothing.** It must **project** the selection to a kind label, never return the descriptor: `health()` is served over HTTP at `integration.controller.ts:42` (`@Get('health')`), and the descriptor carries the token, so returning it would defeat R17c at the one place a response body is built. When the kind is `live-test-disabled`, make **no** Moodle call and report `status: 'Failing'` with the reason codes. The `backend` field's type widens to include `'live-test-disabled'`.
+
+**Cost if wrong.** `health()` gains a third backend label that no UI currently renders — the admin Moodle page does not read `health().backend` today. So the visible cost is zero now, and Task 9 owns rendering it. The cost of the alternative is a permanent silent simulator, which is the failure the plan exists to eliminate.
+
+**R19b–R19h — the subagent's seven recorded gaps, all accepted with conditions.** None is a defect; each is a place the plan was silent and the implementer chose. Accepted: `CATEGORY_INVALID` = positive integer, mirroring `SITE_ID_INVALID`; a URL **fragment** refused under `URL_HAS_QUERY` (condition: the `.env.example` comment for that line must say it covers a query *or* a fragment, so the code is not a lie); a **port** preserved in `baseUrl` rather than dropped, because dropping it would connect to a host the operator never configured; absent or unparseable `MOODLE_API_URL` reported as `URL_NOT_HTTPS`; `RUN_ID_MISSING` remains presence-only, inventing no run-id format; and strict raw-string matching with no silent rewriting, so `' 2 '`, `'2.0'`, `'+2'`, `'0x2'`, `'1e3'`, `'01'` are all refused.
+
+**R19i — plan line 1397 (Task 10) is unreachable as written and is amended.** It expects `selectBackend` to resolve to `live-test-disabled` "for the empty `.env.example` values", but `MOODLE_INTEGRATION_MODE=` is empty and an absent mode returns `{ kind: 'simulator' }` before any other check. Task 10 must set the mode to `live-test` explicitly to observe the refusal.
+
+**R19j — R16 has now materialised, and it is not hypothetical.** Commit `526a0e3` by the concurrent session absorbed our one-line `packages/config/src/index.ts` export. The content is preserved and correct — they built on our line — but `MOODLE_LIVE_V1` is *defined* in `packages/config/src/moodle.ts`, which remains uncommitted. **The committed tree alone does not compile.** No attempt is made to undo their commit; the correct repair is to commit `moodle.ts`, which the pending Task 1–3 code commit does. This is the concrete cost of a commit that does not build, arriving one commit earlier than predicted.
