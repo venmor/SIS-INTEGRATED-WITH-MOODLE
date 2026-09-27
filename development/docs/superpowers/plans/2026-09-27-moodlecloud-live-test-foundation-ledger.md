@@ -314,3 +314,28 @@ Task 3 is the fail-closed configuration gate: the first place an operator's envi
 **R19i — plan line 1397 (Task 10) is unreachable as written and is amended.** It expects `selectBackend` to resolve to `live-test-disabled` "for the empty `.env.example` values", but `MOODLE_INTEGRATION_MODE=` is empty and an absent mode returns `{ kind: 'simulator' }` before any other check. Task 10 must set the mode to `live-test` explicitly to observe the refusal.
 
 **R19j — R16 has now materialised, and it is not hypothetical.** Commit `526a0e3` by the concurrent session absorbed our one-line `packages/config/src/index.ts` export. The content is preserved and correct — they built on our line — but `MOODLE_LIVE_V1` is *defined* in `packages/config/src/moodle.ts`, which remains uncommitted. **The committed tree alone does not compile.** No attempt is made to undo their commit; the correct repair is to commit `moodle.ts`, which the pending Task 1–3 code commit does. This is the concrete cost of a commit that does not build, arriving one commit earlier than predicted.
+
+## R20 — push to origin/main stopped: remote has diverged, and the overlap is real
+
+**Ruling: do not force-push, and do not guess the integration method. Escalated to the user.**
+
+**What happened.** `git push origin main` was rejected — `origin/main` contains work we do not have. `git fetch` shows we are **ahead 5, behind 6**. The six remote commits we lack are an assessment / grade-board line of work: *"Commenced phas 7 slice 3-4"*, *"Implementation of Phase 7 slice 1 and 2 concluded"*, *"candidate lists, submit/begin/decide endpoints … official-CA writer, moderation queue"*, *"Fix validation-queue browser locator"*, *"Implementation of board decision package slice 5."* They also pushed several `palette/…` branches.
+
+**It is real divergence, not a stale ref.** `git merge-base --is-ancestor origin/main HEAD` returns false — our five commits do not contain the remote's six, and the remote's do not contain ours. Most likely the other session pushed from a different clone or a prior pull, and `main` advanced independently of this worktree.
+
+**The overlap is real and must not be waved through.** `git diff --name-only HEAD...origin/main` shows the remote touches two files we also touched in Task 1–3:
+- `development/.env.example` — we rewrote the `MOODLE_*` block; they changed unrelated lines.
+- `development/packages/config/src/index.ts` — this one already contains our `export { MOODLE_DEMO_V1, MOODLE_LIVE_V1 }` line, because `526a0e3` (their commit) absorbed it. `moodle.ts`, where `MOODLE_LIVE_V1` is *defined*, is ours and now committed in `6e4ef9a`.
+
+They do **not** touch `apps/api/src/integration/**`, `moodle-target.ts`, `moodle-live-config.ts`, `apps/web/app/admin/moodle/**`, or any of our plan/ledger/spec files. The assessment slice is disjoint from the Moodle live work.
+
+**Why this stops rather than proceeding.** Force-push is forbidden and would destroy six commits. The two legitimate methods — `git merge origin/main` (a merge commit) and `git rebase origin/main` (replays our five on top of theirs, rewrites our hashes) — are both repo-wide, both touch the shared `main` the other session is actively pushing to, and neither is trivially reversible once the merge lands. The two files that overlap (`.env.example`, `index.ts`) make a plain fast-forward impossible, so a real merge or rebase is required and could surface a content conflict in `index.ts` that only shows up at resolution time. This is the "irreversible / repo-wide / outside this worktree" class of action, not a task-scoped edit.
+
+**What is already safely committed and NOT lost.** All work is committed locally on `main` ahead of origin: `2a5f9b7` (docs), `6e4ef9a` (Tasks 1–3 code), `7067eb4` (ledger R16–R19), plus their own `eb28602`/`526a0e3` already in our history. The committed tree **typechecks under `src/integration/` (0 errors), passes all 100 integration tests, and web `tsc` exits 0** — verified before the push was attempted. Nothing is at risk of loss while we decide.
+
+**Options put to the user** (R20 is this decision):
+1. `git merge origin/main` — one merge commit, preserves every original hash on both sides, the conventional choice on a shared main. Cost: an extra merge commit; possible manual resolution if `index.ts` conflicts.
+2. `git rebase origin/main` — linear history, our five commits get new hashes on top of theirs. Cost: rewrites our (unpushed) commit hashes; a conflict in `index.ts`/`moodle.ts` must be resolved during replay.
+3. Hold the push; let the other session reconcile `main` first, then we push cleanly on top. Cost: our work sits on local `main` meanwhile (it is committed, so it is safe).
+
+**Cost if we guess wrong.** On a shared branch, a bad rebase or a force-push can cost the other session real work. The three commits that matter to us are committed and verified regardless, so waiting is cheap; guessing is not. Recorded before the user decides.
