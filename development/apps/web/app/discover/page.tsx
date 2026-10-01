@@ -40,11 +40,10 @@ async function loadProgrammes(
     if (first) search.set(key, first);
   }
   try {
-    // Public catalogue data changes only with seed/migrations, so cache per
-    // URL for 5 minutes instead of hitting the API and database on every
-    // visit. Search variations cache under their own query string.
+    // Offering availability and deadlines can change during a live intake.
+    // Do not retain a published offering from a previous database/release.
     const res = await fetch(`${api}/catalogue/programmes?${search}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     return (await res.json()) as CataloguePage;

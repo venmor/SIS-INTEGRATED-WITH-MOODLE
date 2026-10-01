@@ -62,6 +62,18 @@ describe('review (e2e)', () => {
     await app.init();
     server = app.getHttpServer();
     prisma = app.get(PrismaService);
+    const root = await prisma.scope.findUniqueOrThrow({
+      where: { name: 'SYSTEM:GLOBAL' },
+    });
+    await prisma.scope.upsert({
+      where: { name: 'TUTORIAL_GROUP:E2E-REV-SCHED' },
+      update: {},
+      create: {
+        name: 'TUTORIAL_GROUP:E2E-REV-SCHED',
+        description: 'Isolated review schedule test scope',
+        parentScopeId: root.id,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -102,6 +114,9 @@ describe('review (e2e)', () => {
         displayName: { startsWith: 'E2E review ' },
         accounts: { none: {} },
       },
+    });
+    await prisma.scope.delete({
+      where: { name: 'TUTORIAL_GROUP:E2E-REV-SCHED' },
     });
     await app.close();
   }, 60000);

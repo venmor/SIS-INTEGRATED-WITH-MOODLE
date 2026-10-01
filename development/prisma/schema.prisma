@@ -579,6 +579,8 @@ model ApplicationDocument {
   fileName String
   mimeType String
   size Int
+  // Restricted demo storage; null only when a reviewed object-store copy owns the bytes.
+  content Bytes?
   bucket String
   key String
   sha256 String

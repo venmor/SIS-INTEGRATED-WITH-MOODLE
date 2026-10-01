@@ -1,10 +1,10 @@
 # Module maturity — 2026-10-01
 
-Maturity is per journey: designed → scaffolded → functional demo → operational. A feature may have several different levels inside one module. This inventory is for `9ffed61` plus the uncommitted Phase7 continuation; OpenCode fixes are separately in progress on primary main.
+Maturity is per journey: designed → scaffolded → functional demo → operational. A feature may have several different levels inside one module. This inventory now includes the OpenCode merge on the separate `review/phase7-completion` branch at `eef552e`; it does not imply that main was merged or that the combined implementation passed release acceptance.
 
 | Module/journey | Current evidence level | Requirement for operational maturity |
 |---|---|---|
-| Identity/access | Functional demo; MFA/recovery enhancements on other agent's worktree | Approved appointments/scope/capability policy; integrated MFA/step-up; recovery/abuse/access review drills |
+| Identity/access | Functional demo; merged MFA/recovery/challenge code, with a corrected scope-hierarchy grant query | Approved appointments/scope/capability policy; session-and-command-bound step-up; recovery/abuse/access review drills |
 | Catalogue/admissions | Functional demo | Versioned institutional rules; private safe document providers; complete review/UAT and intake operation |
 | Academic records/registration | Functional initial journey | Actual offering/version registry, full rules, transitions/appeals and concurrency/migration evidence |
 | Finance | Functional simulator and ledger workflows | Governed step-up; approved money/clearance policy; real provider/refund/reconciliation/restore evidence |
@@ -25,4 +25,4 @@ Maturity is per journey: designed → scaffolded → functional demo → operati
 
 Update a row only with links to code, allow/deny/recovery tests, browser evidence and the approving human's record. Do not mark operational because a route or model exists.
 
-Final integration checkpoint: OpenCode advanced primary main to `b9fa96d` on 2026-10-01. Its commit title does not change this table's evidence tier; review and combined regression remain required. The main-only browser findings remain untracked.
+Final integration checkpoint: OpenCode advanced primary main to `b9fa96d` on 2026-10-01 and the separate review branch incorporated it at `eef552e`. The title does not change this table's evidence tier. The full post-fix browser run passed 44/44 on a fresh isolated database; complete API regression, real result-release policy/step-up, and human acceptance remain open. The main-only browser findings file remains untracked in the primary checkout.

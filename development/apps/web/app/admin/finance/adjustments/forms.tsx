@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { AdjustmentView } from "@sis/contracts";
 
 interface FieldError {
   fieldId: string;
@@ -32,6 +33,27 @@ async function postFinance(path: string, body: unknown): Promise<unknown> {
   return data;
 }
 
+async function createChallenge(targetAction: string): Promise<string> {
+  const res = await fetch("/api/auth/step-up/challenge", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-requested-with": "XMLHttpRequest",
+    },
+    body: JSON.stringify({ targetAction }),
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    challengeId?: string;
+    message?: string;
+  };
+  if (!res.ok || !data.challengeId) {
+    throw new Error(data.message ?? "Could not start identity verification.");
+  }
+  return data.challengeId;
+}
+
 function failure(error: unknown): string {
   if (error instanceof Error) {
     const detail = (error as { detail?: { supportReference?: string; code?: string } })
@@ -44,7 +66,13 @@ function failure(error: unknown): string {
 // Adjustment workspace: officers request with reason and evidence;
 // approvers decide elsewhere-in-role (maker/checker). Approved credits
 // post compensating lines; refunds record payout references.
-export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
+export function AdjustmentForms({
+  attemptId,
+  adjustments,
+}: {
+  attemptId?: string;
+  adjustments: AdjustmentView[];
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -68,13 +96,30 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
         });
         setNotice("Adjustment requested. A separate approver must decide it.");
       } else {
+        const adjustment = adjustments.find(
+          (item) => item.id === String(data.get("decide-id") ?? ""),
+        );
+        if (!adjustment) throw new Error("Choose an adjustment from the current queue.");
+        const approve = String(data.get("decide-outcome") ?? "") === "approve";
+        const targetAction =
+          adjustment.kind === "REFUND"
+            ? "finance.refund.approve"
+            : adjustment.kind === "WAIVER"
+              ? "finance.waiver.approve"
+              : "finance.adjustment.approve";
+        const code = String(data.get("decide-code") ?? "").trim();
+        if (approve && !code) throw new Error("Enter the code from your authenticator.");
+        const challengeId = approve ? await createChallenge(targetAction) : undefined;
         const out = (await postFinance(
-          `/adjustments/${String(data.get("decide-id") ?? "")}/decide`,
+          `/adjustments/${adjustment.id}/decide`,
           {
-            approve: String(data.get("decide-outcome") ?? "") === "approve",
+            approve,
             note: String(data.get("decide-note") ?? "") || undefined,
             payoutReference:
               String(data.get("decide-payout") ?? "") || undefined,
+            challengeId,
+            code: approve ? code : undefined,
+            codeType: approve ? "TOTP" : undefined,
             idempotencyKey: crypto.randomUUID(),
           },
         )) as { status?: string };
@@ -83,7 +128,7 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
       form.reset();
       router.refresh();
     } catch (error) {
-      setErrors([{ fieldId: "adjust-kind", message: failure(error) }]);
+      setErrors([{ fieldId: kind === "decide" ? "decide-id" : "adjust-kind", message: failure(error) }]);
     } finally {
       setPending(false);
     }
@@ -149,7 +194,14 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
       >
         <p>
           <label htmlFor="decide-id">Adjustment ID</label>{" "}
-          <input id="decide-id" name="decide-id" type="text" required />
+          <select id="decide-id" name="decide-id" required>
+            <option value="">Choose…</option>
+            {adjustments.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.kind} · {item.amountMinor} tambala · {item.id}
+              </option>
+            ))}
+          </select>
         </p>
         <p>
           <label htmlFor="decide-outcome">Decision</label>{" "}
@@ -168,6 +220,10 @@ export function AdjustmentForms({ attemptId }: { attemptId?: string }) {
             Payout reference (required for refunds)
           </label>{" "}
           <input id="decide-payout" name="decide-payout" type="text" maxLength={64} />
+        </p>
+        <p>
+          <label htmlFor="decide-code">Authenticator code (required to approve)</label>{" "}
+          <input id="decide-code" name="decide-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" />
         </p>
         <p>
           <button type="submit" disabled={pending}>

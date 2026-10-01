@@ -23,11 +23,12 @@ describe('Phase 2 owned applicant journey', () => {
       .fn<
         (
           content: Uint8Array,
-        ) => Promise<{ status: string; scanner: string | null }>
+        ) => Promise<{ status: string; scanner: string | null; correlationId: string }>
       >()
       .mockResolvedValue({
         status: 'AwaitingQualityCheck',
         scanner: 'TEST-ADAPTER',
+        correlationId: randomUUID(),
       }),
   };
   const post = (path: string, body: object, c = cookie) =>
@@ -168,6 +169,9 @@ describe('Phase 2 owned applicant journey', () => {
     draft = results[0].body;
     expect(results[1].body.id).toBe(draft.id);
     expect((await post('', body)).body.id).toBe(draft.id);
+    const review = (await get(`/${draft.id}/review`)).body;
+    expect(review.policy.fee.explanation).toBeTruthy();
+    expect(review.policy.maxActivePerIntake).toBeGreaterThan(0);
     await post('', { ...body, confirmed: false }).expect(409);
     expect(await db.application.count({ where: { accountId } })).toBe(1);
   });
@@ -312,11 +316,17 @@ describe('Phase 2 owned applicant journey', () => {
     ).body;
     const doc = draft.documents.at(-1)!;
     expect(doc.status).toBe('SecurityScanPending');
+    const stored = await db.applicationDocument.findUniqueOrThrow({
+      where: { id: doc.id },
+    });
+    expect(stored.bucket).toBe('demo-postgres');
+    expect(Buffer.from(stored.content ?? [])).toEqual(bytes);
     await get(`/${draft.id}/documents/${doc.id}/content`).expect(404);
     await get(`/${draft.id}/documents/${doc.id}/content`, other).expect(404);
     scanner.scan.mockResolvedValueOnce({
       status: 'SecurityScanPending',
       scanner: null,
+      correlationId: key(),
     });
     draft = (
       await post(`/${draft.id}/documents/${doc.id}/scan`, {
@@ -367,6 +377,7 @@ describe('Phase 2 owned applicant journey', () => {
     scanner.scan.mockResolvedValueOnce({
       status: 'SecurityScanFailed',
       scanner: 'TEST-ADAPTER',
+      correlationId: key(),
     });
     draft = (
       await post(`/${draft.id}/documents/${replacement.id}/scan`, {

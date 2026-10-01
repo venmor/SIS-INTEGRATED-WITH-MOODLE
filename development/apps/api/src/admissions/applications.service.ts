@@ -2,7 +2,7 @@ import { Injectable, HttpException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { Readable } from 'node:stream';
-import { policy } from './policy.provider.js';
+import { getPolicySync, policy } from './policy.provider.js';
 import type {
   ApplicationView,
   ApplicationSection,
@@ -115,7 +115,7 @@ export class ApplicationsService {
   }
   policy() {
     return {
-      ...policy,
+      ...getPolicySync(),
       upload: {
         ...policy.upload,
         scanner:
@@ -880,9 +880,15 @@ export class ApplicationsService {
             data: { status: 'Withdrawn' },
           });
 
-        // Upload to MinIO
-        const bucket = this.objectStorage.getBucketForCategory(dto.category);
-        const key = this.objectStorage.generateKey(id, dto.category, file.originalname);
+        // The approved presentation adapter keeps quarantined bytes in the
+        // restricted database. Object storage remains a separate live gate.
+        const demoStorage = process.env.DEMO_MODE === 'true';
+        const bucket = demoStorage
+          ? 'demo-postgres'
+          : this.objectStorage.getBucketForCategory(dto.category);
+        const key = demoStorage
+          ? `${id}/${randomUUID()}`
+          : this.objectStorage.generateKey(id, dto.category, file.originalname);
         const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
         const metadata: UploadMetadata = {
@@ -898,9 +904,16 @@ export class ApplicationsService {
           uploadedAt: new Date().toISOString(),
         };
 
-        await this.objectStorage.uploadBuffer(bucket, key, file.buffer, metadata);
+        if (!demoStorage) {
+          await this.objectStorage.uploadBuffer(
+            bucket as ReturnType<ObjectStorageService['getBucketForCategory']>,
+            key,
+            file.buffer,
+            metadata,
+          );
+        }
 
-        // Save document record with bucket/key reference (no content)
+        // Store the private demo bytes or the object-store reference.
         await db.applicationDocument.create({
           data: {
             applicationId: id,
@@ -910,6 +923,7 @@ export class ApplicationsService {
               .slice(-120),
             mimeType: mime,
             size: file.size,
+            content: demoStorage ? new Uint8Array(file.buffer) : null,
             bucket,
             key,
             sha256: checksum,
@@ -951,17 +965,9 @@ export class ApplicationsService {
     const doc = row.documents.find((d) => d.id === docId);
     if (!doc) this.fail('NOT_FOUND', 'Document not found.', 404);
 
-    // Download from MinIO for scanning
-    const { stream } = await this.objectStorage.download(doc.bucket as any, doc.key);
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    const content = Buffer.concat(chunks);
-
     const result =
       doc.status === 'SecurityScanPending'
-        ? await this.scanner.scan(content)
+        ? await this.scanner.scan(await this.documentBytes(doc))
         : null;
     return this.command(
       actor,
@@ -979,7 +985,9 @@ export class ApplicationsService {
           );
         await db.applicationDocument.update({
           where: { id: docId },
-          data: result ?? { status: 'SecurityScanPending' },
+          data: result
+            ? { status: result.status, scanner: result.scanner }
+            : { status: 'SecurityScanPending' },
         });
         const updated = await db.application.update({
           where: { id },
@@ -1022,13 +1030,27 @@ export class ApplicationsService {
       'ALLOW',
       { documentId: doc.id },
     );
-    // Return a streamable object instead of the doc with content
-    const { stream, metadata } = await this.objectStorage.download(doc.bucket as any, doc.key);
+    const bytes = await this.documentBytes(doc);
+    const { content: _content, ...safeDoc } = doc;
     return {
-      ...doc,
-      stream,
-      metadata,
+      ...safeDoc,
+      stream: Readable.from([bytes]),
     };
+  }
+
+  private async documentBytes(doc: {
+    content: Uint8Array | null;
+    bucket: string;
+    key: string;
+  }): Promise<Buffer> {
+    if (doc.content) return Buffer.from(doc.content);
+    if (doc.bucket === 'demo-postgres') {
+      this.fail('DOCUMENT_UNAVAILABLE', 'This document is unavailable.', 503);
+    }
+    const { stream } = await this.objectStorage.download(doc.bucket as any, doc.key);
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
   }
   async review(actor: ActiveAuthority, id: string) {
     const application = await this.get(actor, id);

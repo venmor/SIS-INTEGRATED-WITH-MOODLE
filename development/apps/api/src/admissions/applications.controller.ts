@@ -168,7 +168,7 @@ export class ApplicationsController {
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
     });
-    // Stream the content from MinIO
+    // Stream the authorized, safety-checked bytes from the selected adapter.
     for await (const chunk of doc.stream) {
       res.write(chunk);
     }

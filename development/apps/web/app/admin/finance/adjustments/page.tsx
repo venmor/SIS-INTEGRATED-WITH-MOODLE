@@ -55,7 +55,7 @@ export default async function AdjustmentsPage() {
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
-        <AdjustmentForms />
+        <AdjustmentForms adjustments={list.data.items} />
         <h2>Awaiting decision</h2>
         <DataTable
           hideTitle

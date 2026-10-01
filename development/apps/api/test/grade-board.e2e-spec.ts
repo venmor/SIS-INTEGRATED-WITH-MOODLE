@@ -284,13 +284,13 @@ describe('Phase 7 board/decision package', () => {
           campus: 'MAIN',
         },
       },
-      update: { availability: 'OPEN' },
+      update: { availability: 'CLOSED' },
       create: {
         programmeId: programme.id,
         intake: '2026S1',
         studyMode: 'FULLTIME',
         campus: 'MAIN',
-        availability: 'OPEN',
+        availability: 'CLOSED',
       },
     });
     await db.moodleMapping.upsert({

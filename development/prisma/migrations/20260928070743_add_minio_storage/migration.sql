@@ -5,8 +5,8 @@
   1. Adds bucket and key columns (nullable initially)
   2. Creates a temporary function to migrate existing BYTEA content to MinIO
   3. Migrates all existing documents
-  4. Makes bucket and key required
-  5. Drops the content column
+  4. Makes bucket and key required while retaining the private bytes
+  5. Allows a later approved object-store copy to omit database bytes
   6. Creates index on bucket, key
 */
 
@@ -31,8 +31,9 @@ WHERE "bucket" IS NULL;
 ALTER TABLE "ApplicationDocument" ALTER COLUMN "bucket" SET NOT NULL;
 ALTER TABLE "ApplicationDocument" ALTER COLUMN "key" SET NOT NULL;
 
--- Step 4: Drop the content column
-ALTER TABLE "ApplicationDocument" DROP COLUMN "content";
+-- Step 4: Preserve existing evidence. A database migration cannot upload
+-- bytes to an object store; dropping them here would destroy the only copy.
+ALTER TABLE "ApplicationDocument" ALTER COLUMN "content" DROP NOT NULL;
 
 -- Step 5: Create index on bucket, key
 CREATE INDEX "ApplicationDocument_bucket_key_idx" ON "ApplicationDocument"("bucket", "key");

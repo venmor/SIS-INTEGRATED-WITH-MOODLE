@@ -14,3 +14,7 @@ These gates do not remove the approved requirements. They distinguish implementa
 ## Final checkpoint — 2026-10-01
 
 OpenCode independently committed primary changes as `b9fa96d`; main and this review baseline remain divergent (7 main-only/6 review-only commits). The earlier uncommitted description records the initial scan. This continuation has not incorporated or certified that new commit. Review its IAM/policy interfaces and migration history before connecting the fail-closed ports; primary's remaining browser-findings file is still untracked.
+
+## Integrated checkpoint — 2026-10-01
+
+The separate review branch merged `b9fa96d` at `eef552e` without changing main. Migration, seed, unit, applicant and full browser checks were rerun against isolated PostgreSQL; the full browser suite passed 44/44. The Phase7 policy and step-up gates above remain open: the merged IAM challenge records action and account but has no session/target/version/digest-bound, transactionally consumed proof. Do not connect it to official-result publication on the strength of an action-only challenge. The finance API approval path passed its focused 20/20 suite with TOTP and the adjustment screen now requests approval challenges; staff enrollment and connected browser proof remain. The shared API suite is still red from cross-suite state and integration worker recovery, so complete CI is not yet proven. This supersedes only the earlier worktree-divergence status, not the source authority or safety requirements.

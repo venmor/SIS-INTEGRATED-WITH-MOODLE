@@ -41,10 +41,10 @@ export class GrantsService {
   private async getScopeHierarchy(scopeId: string): Promise<string[]> {
     const result = await this.prisma.$queryRaw<{ id: string }[]>`
       WITH RECURSIVE scope_hierarchy AS (
-        SELECT id, parent_scope_id FROM "Scope" WHERE id = ${scopeId}
+        SELECT id, "parentScopeId" FROM "Scope" WHERE id = ${scopeId}
         UNION ALL
-        SELECT s.id, s.parent_scope_id FROM "Scope" s
-        INNER JOIN scope_hierarchy sh ON s.id = sh.parent_scope_id
+        SELECT s.id, s."parentScopeId" FROM "Scope" s
+        INNER JOIN scope_hierarchy sh ON s.id = sh."parentScopeId"
       )
       SELECT id FROM scope_hierarchy
     `;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ActionButton, ErrorSummary, Field, PasswordField } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
@@ -11,6 +11,10 @@ interface FieldError {
   fieldId: string;
   message: string;
 }
+
+const subscribeHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 // Sign-in form: uncontrolled inputs (values live in the DOM, preserved across
 // failures), submit via fetch to the same-origin proxy. Double-submit blocked
@@ -36,6 +40,10 @@ export function SignInForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
   const [filledAccount, setFilledAccount] = useState<string | null>(null);
+  const ready = useSyncExternalStore(subscribeHydration, clientReady, serverReady);
+
+  // A server-rendered form has no submit handler until React hydrates it.
+  // Keep the native form from posting credentials to the page in that gap.
 
   function fillDetails(account: { username: string; password: string }) {
     if (pending) return;
@@ -80,17 +88,14 @@ export function SignInForm({
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
         // Only local applicant/discovery/admin routes survive authentication.
-        const isStaffAccount = demoStaff?.some((s) => s.username === filledAccount);
         const target =
           returnTo &&
           /^\/(applicant|discover|admin)(\/|\?|$)/.test(returnTo) &&
           !/[\\\r\n]/.test(returnTo)
             ? returnTo
-            : filledAccount && filledAccount === demoAccount?.username
+            : data.get("username") === demoAccount?.username
               ? "/applicant"
-              : isStaffAccount
-                ? "/admin/admissions/queue"
-                : "/applicant";
+              : "/";
         await router.replace(target);
         return;
       }
@@ -136,7 +141,7 @@ export function SignInForm({
             <div><dt>Username</dt><dd><code>{demoAccount.username}</code></dd></div>
             <div><dt>Password</dt><dd><code>{demoAccount.password}</code></dd></div>
           </dl>
-          <ActionButton type="button" kind="secondary" onClick={fillDemoDetails} disabled={pending}>
+          <ActionButton type="button" kind="secondary" onClick={fillDemoDetails} disabled={!ready || pending}>
             Fill demo applicant details
           </ActionButton>
           <p className={signInStyles.demoNote}>
@@ -169,7 +174,7 @@ export function SignInForm({
                 type="button"
                 kind="secondary"
                 onClick={() => fillDetails(staff)}
-                disabled={pending}
+                disabled={!ready || pending}
               >
                 Fill {staff.role.toLowerCase()} details
               </ActionButton>
@@ -199,11 +204,13 @@ export function SignInForm({
         <ActionButton
           kind="primary"
           pending={pending}
+          disabled={!ready}
           loadingText="Signing in…"
         >
           Sign in
         </ActionButton>
       </div>
+      {!ready ? <p role="status">Preparing secure sign-in…</p> : null}
       <p className={styles.supporting}>
         <a href="/recovery">Need help signing in?</a>
       </p>

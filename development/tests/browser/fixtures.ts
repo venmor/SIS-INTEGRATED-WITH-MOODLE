@@ -547,7 +547,12 @@ export async function createCheckpointStudent() {
         },
       },
     });
-    return { username, password, studentNumber: student.studentNumber };
+    return {
+      username,
+      password,
+      studentNumber: student.studentNumber,
+      outboxId: eventId,
+    };
   } finally {
     await db.$disconnect();
   }

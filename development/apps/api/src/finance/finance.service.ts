@@ -1517,7 +1517,14 @@ export class FinanceService {
           return { body: { id: declined.id, status: declined.status } };
         }
 
-        // Step-up verification required for approval of high-impact actions
+        if (row.kind === 'REFUND' && !input.payoutReference?.trim()) {
+          this.fail(
+            'PAYOUT_REQUIRED',
+            'Approved refunds record a payout reference.',
+            400,
+          );
+        }
+        // Validate the requested decision before consuming its one-use proof.
         const stepUpAction = this.stepUpActionForAdjustment(row.kind);
         if (stepUpAction) {
           await this.verifyStepUp(
@@ -1526,14 +1533,6 @@ export class FinanceService {
             input.challengeId,
             input.code,
             input.codeType,
-          );
-        }
-
-        if (row.kind === 'REFUND' && !input.payoutReference?.trim()) {
-          this.fail(
-            'PAYOUT_REQUIRED',
-            'Approved refunds record a payout reference.',
-            400,
           );
         }
         // Approved credits post compensating lines; history is never edited.

@@ -5,6 +5,8 @@ import { randomUUID, createHash, createHmac } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/identity-access/prisma.service.js';
 import { DocumentScanner } from '../src/admissions/scanner.js';
+import { MFAService } from '../src/identity-access/mfa.service.js';
+import { generateSecret, generateSync } from 'otplib';
 
 /**
  * TASK-PH5-006 finance reconciliation queue and governance e2e (RED first).
@@ -23,6 +25,7 @@ describe('Phase 5 reconciliation queue and governance', () => {
   let records: string;
   let finance: string;
   let finApprover: string;
+  let finApproverSecret: string;
   let offeringId: string;
   const csrf = { 'x-requested-with': 'XMLHttpRequest' };
   const key = () => randomUUID();
@@ -69,6 +72,20 @@ describe('Phase 5 reconciliation queue and governance', () => {
       .set(csrf)
       .set('Cookie', c)
       .send(body);
+
+  async function approvalProof(targetAction: string) {
+    const challenge = await request(app.getHttpServer())
+      .post('/auth/step-up/challenge')
+      .set(csrf)
+      .set('Cookie', finApprover)
+      .send({ targetAction })
+      .expect(200);
+    return {
+      challengeId: challenge.body.challengeId as string,
+      code: generateSync({ secret: finApproverSecret }),
+      codeType: 'TOTP' as const,
+    };
+  }
 
   function sign(body: Record<string, unknown>): string {
     const canonical = [
@@ -370,9 +387,12 @@ describe('Phase 5 reconciliation queue and governance', () => {
         'GLOBAL',
       )
     ).cookie;
-    finApprover = (
-      await user('FINANCE_APPROVER', ['approve-adjustment'], 'FINANCE', 'GLOBAL')
-    ).cookie;
+    const approverUser = await user(
+      'FINANCE_APPROVER', ['approve-adjustment'], 'FINANCE', 'GLOBAL',
+    );
+    finApprover = approverUser.cookie;
+    finApproverSecret = generateSecret();
+    await app.get(MFAService).enrollTOTP(approverUser.accountId, finApproverSecret);
     const seeded = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: 'SWE' }, availability: 'OPEN' },
     });
@@ -490,7 +510,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
     const id = (requested.body as { id: string }).id;
     const decided = await finPost(
       `/adjustments/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Verified.' },
+      {
+        idempotencyKey: key(), approve: true, note: 'Verified.',
+        ...await approvalProof('finance.adjustment.approve'),
+      },
       finApprover,
     ).expect(201);
     expect((decided.body as { status: string }).status).toBe('APPROVED');
@@ -622,7 +645,9 @@ describe('Phase 5 reconciliation queue and governance', () => {
     // Payout reference is mandatory for refunds.
     await finPost(
       `/adjustments/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Ok.' },
+      {
+        idempotencyKey: key(), approve: true, note: 'Ok.',
+      },
       finApprover,
     ).expect(400);
     const paid = await finPost(
@@ -632,6 +657,7 @@ describe('Phase 5 reconciliation queue and governance', () => {
         approve: true,
         note: 'Verified overpayment.',
         payoutReference: 'PAYOUT-2026-001',
+        ...await approvalProof('finance.refund.approve'),
       },
       finApprover,
     ).expect(201);
@@ -700,7 +726,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
     ).toBe(true);
     await finPost(
       `/arrangements/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Affordable.' },
+      {
+        idempotencyKey: key(), approve: true, note: 'Affordable.',
+        ...await approvalProof('finance.arrangement.approve'),
+      },
       finApprover,
     ).expect(201);
     const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
