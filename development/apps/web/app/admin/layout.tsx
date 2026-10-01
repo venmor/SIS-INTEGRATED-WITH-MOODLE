@@ -55,6 +55,7 @@ export default async function AdminLayout({
   const role = active?.role;
 
   const items: Array<{ href: string; label: string; show: boolean }> = [
+    { href: "/admin/assessment/publications", label: "Results and amendments", show: role === "EXAMINATIONS_OFFICER" },
     {
       href: "/admin/admissions/queue",
       label: "Admissions queue",

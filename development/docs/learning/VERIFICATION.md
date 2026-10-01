@@ -403,3 +403,7 @@ for deletion before commit. `backup:test`, full-suite shared-DB
 regression, manual screen-reader/WSL replay, remote CI, and human
 walkthrough remain **not verified**. Detail in
 [NOTE-PH7-005](NOTE-PH7-005.md).
+
+## Phase7 continuation — 2026-10-01
+
+See [fresh continuation evidence](PHASE-7-CONTINUATION-VERIFICATION.md). The isolated worktree is based on `9ffed61`, not the primary `01a53ba` plus OpenCode fixes. Existing slices1–5 reran at 80/80 on fresh separately seeded PostgreSQL databases. Publication/amendment tests and browser projection/gate/recovery checks are recorded separately from real IAM/policy/provider and human acceptance, which remain pending.

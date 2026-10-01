@@ -9,10 +9,10 @@ import { isSameOriginMutation } from "../../../../lib/same-origin";
 // everything else is refused. Non-GET/POST methods are refused.
 const uuid = "[a-fA-F0-9-]{36}";
 const reads = new RegExp(
-  `^(plans|plans/${uuid}|mappings|mappings/${uuid}|batches|batches/${uuid}|findings|findings/${uuid}|candidate-lists|moderation|moderation/${uuid}|packages|packages/${uuid})$`,
+  `^(amendments/${uuid}|publications|me/results|plans|plans/${uuid}|mappings|mappings/${uuid}|batches|batches/${uuid}|findings|findings/${uuid}|candidate-lists|moderation|moderation/${uuid}|packages|packages/${uuid})$`,
 );
 const writes = new RegExp(
-  `^(plans|plans/${uuid}/approve|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|batches|batches/${uuid}/validate|batches/${uuid}/submit|findings/${uuid}/transition|candidate-lists|moderation/${uuid}/begin|moderation/${uuid}/decide|packages|packages/${uuid}/decide)$`,
+  `^(amendments|amendments/${uuid}/approve|packages/${uuid}/release|plans|plans/${uuid}/approve|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|batches|batches/${uuid}/validate|batches/${uuid}/submit|findings/${uuid}/transition|candidate-lists|moderation/${uuid}/begin|moderation/${uuid}/decide|packages|packages/${uuid}/decide)$`,
 );
 
 async function proxy(

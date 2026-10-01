@@ -37,7 +37,7 @@ export interface GradeMappingView {
 }
 export interface GradeMappingTestView {
   id: string;
-  result: 'PASS' | 'FAIL';
+  result: "PASS" | "FAIL";
   reasons: string[];
   conditions: Array<{ condition: string; passed: boolean }>;
 }
@@ -157,4 +157,48 @@ export interface BoardDecisionView {
 }
 export interface ResultPackageDetailView extends ResultPackageView {
   decisions: BoardDecisionView[];
+}
+
+/** Published student projection: never includes board discussion or peer data. */
+export interface StudentResultsView {
+  items: Array<{
+    courseCode: string;
+    courseTitle: string;
+    courseType: string;
+    periodCode: string;
+    mark: number | null;
+    outcome: string;
+    version: number;
+    publishedAt: string;
+    progressionReadiness: "NOT_EVALUATED" | "REVIEW_REQUIRED";
+    reviewInstructions: string;
+    history: Array<{
+      version: number;
+      mark: number | null;
+      outcome: string;
+      publishedAt: string;
+    }>;
+  }>;
+  notices: Array<{ message: string; href: string; createdAt: string }>;
+}
+export interface ResultPublicationWorkspace {
+  nextReleaseCursor: string | null;
+  nextAmendmentCursor: string | null;
+  releases: Array<{
+    id: string;
+    packageId: string;
+    offeringRef: string;
+    periodCode: string;
+    publishedAt: string;
+    current: boolean;
+  }>;
+  amendments: Array<{
+    id: string;
+    releaseId: string;
+    packageId: string;
+    reason: string;
+    evidenceRef: string;
+    version: number;
+    status: string;
+  }>;
 }

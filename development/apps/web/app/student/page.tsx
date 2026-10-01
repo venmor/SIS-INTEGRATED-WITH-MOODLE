@@ -70,6 +70,7 @@ export default async function StudentPage() {
           )}
         </p>
       </Card>
+      <p><Link href="/student/results">View official results</Link></p>
       <h2 className={styles.sectionTitle}>Required tasks</h2>
       <div className={styles.grid}>
         {tasks.map((task) => (

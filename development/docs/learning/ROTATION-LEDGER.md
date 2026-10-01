@@ -48,3 +48,10 @@ On 2026-09-20 the user explicitly authorized committing this review and integrat
 | Phase 6 slice 4 queues/workspaces | Chitundu (proposed) | Charles (proposed) | Two workspaces, maintenance | [TASK-PH6-004](../task-packets/TASK-PH6-004.md) | [NOTE-PH6-004](NOTE-PH6-004.md) | Human review pending |
 | Phase 6 slice 5 replay/incidents | Chitundu (proposed) | Charles (proposed) | Dead letter, replay page, incidents | [TASK-PH6-005](../task-packets/TASK-PH6-005.md) | [NOTE-PH6-005](NOTE-PH6-005.md) | Human review pending |
 | Phase 6 slice 6 reconciliation | Charles (proposed) | Chitundu (proposed) | Recon engine, cases, checkpoint | [TASK-PH6-006](../task-packets/TASK-PH6-006.md) | [NOTE-PH6-006](NOTE-PH6-006.md) | Human review pending |
+
+## Phase7 continuation (separate review worktree)
+
+| Work | Lead | Reviewer | Evidence | Status |
+|---|---|---|---|---|
+| Slices6–7 official publication and amendments | Chitundu Milimbo (existing Phase7 assignment) | Charles Hangoma | [Task](../task-packets/TASK-PH7-006-007.md), [verification](PHASE-7-CONTINUATION-VERIFICATION.md) | Implementation under isolated verification; policy/IAM integration and human review pending |
+| MVP audit and expansion plan | Pair ownership; lead/reviewer selected per future slice | Independent peer per slice | [Audit](MVP-AUDIT-2026-09-30.md), [plan](../../plan/feature-sis-expansion-2.0.md) | Proposed executable backlog; no institutional policy approval implied |

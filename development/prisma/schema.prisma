@@ -1703,7 +1703,8 @@ model ResultPackage {
   preparedByAccountId String
   createdAt DateTime @default(now())
   decisions BoardDecision[]
-  @@unique([offeringRef, periodCode, version])
+  release ResultRelease?
+  @@index([offeringRef, periodCode, version])
   @@index([offeringRef, periodCode, status])
 }
 
@@ -1719,4 +1720,89 @@ model BoardDecision {
   decidedAt DateTime @default(now())
   @@unique([packageId, version])
   @@index([packageId])
+}
+
+// Publication records are immutable in SQL. Supersession is a new linked row.
+model ResultRelease {
+  id String @id @default(uuid())
+  packageId String @unique
+  package ResultPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  offeringRef String
+  periodCode String
+  packageHash String
+  policySnapshot Json
+  releasedByAccountId String
+  assignmentId String
+  declaration String
+  previousReleaseId String? @unique
+  previousRelease ResultRelease? @relation("ReleaseHistory", fields: [previousReleaseId], references: [id], onDelete: Restrict)
+  nextRelease ResultRelease? @relation("ReleaseHistory")
+  amendmentId String? @unique
+  publishedAt DateTime @default(now())
+  results OfficialResultVersion[]
+  @@index([offeringRef, periodCode])
+}
+
+model OfficialResultVersion {
+  id String @id @default(uuid())
+  releaseId String
+  release ResultRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  studentId String
+  studentRef String
+  courseId String
+  courseCode String
+  courseTitle String
+  courseType String
+  periodCode String
+  version Int
+  mark Float
+  outcome String
+  previousVersionId String? @unique
+  previousVersion OfficialResultVersion? @relation("ResultHistory", fields: [previousVersionId], references: [id], onDelete: Restrict)
+  nextVersion OfficialResultVersion? @relation("ResultHistory")
+  calculationSnapshot Json
+  publishedAt DateTime @default(now())
+  impacts ResultAcademicImpact[]
+  @@unique([releaseId, studentId])
+  @@unique([studentId, courseId, periodCode, version])
+  @@index([studentId, publishedAt])
+}
+
+model ResultAmendment {
+  id String @id @default(uuid())
+  releaseId String
+  packageId String
+  version Int @default(1)
+  status String @default("SUBMITTED")
+  reason String
+  evidenceRef String
+  requestedByAccountId String
+  decidedByAccountId String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([releaseId, status])
+}
+
+// Durable handoff to the owning domain. REVIEW_REQUIRED never means evaluated.
+model ResultAcademicImpact {
+  id String @id @default(uuid())
+  resultId String
+  result OfficialResultVersion @relation(fields: [resultId], references: [id], onDelete: Restrict)
+  domain String
+  status String @default("REVIEW_REQUIRED")
+  sourceVersion Int
+  createdAt DateTime @default(now())
+  @@unique([resultId, domain])
+  @@index([domain, status])
+}
+
+model ResultNotice {
+  id String @id @default(uuid())
+  releaseId String
+  studentId String
+  message String
+  href String
+  createdAt DateTime @default(now())
+  @@unique([releaseId, studentId])
+  @@index([studentId, createdAt])
 }

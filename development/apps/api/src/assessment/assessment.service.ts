@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { ASSESSMENT_DEMO_V1 as policy, MOODLE_DEMO_V1 as moodle } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import { packageDigest } from './package-integrity.js';
 import { BOARD_DECISIONS, PACKAGE_DECLARATION } from './dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -430,6 +431,7 @@ export class AssessmentService {
       'ApproveAssessmentPlan',
       { id, version },
       async (db) => {
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${row.offeringRef + ":" + row.periodCode}, 0))`;
         const live = await db.assessmentPlan.findUniqueOrThrow({
           where: { id },
           include: { components: true },
@@ -1588,6 +1590,7 @@ export class AssessmentService {
       'ProvisionCandidateList',
       { offeringRef, periodCode, studentRefs: refs },
       async (db) => {
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ":" + periodCode}, 0))`;
         const max = await db.assessmentCandidateList.aggregate({
           where: { offeringRef, periodCode },
           _max: { version: true },
@@ -1870,6 +1873,7 @@ export class AssessmentService {
       'DecideModerationCase',
       { id: caseId, version, to },
       async (db) => {
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ":" + found.batch.mapping.component.plan.periodCode}, 0))`;
         // Serialize racing decisions: the version check below must see
         // rows committed by a concurrent decision, never a stale read.
         await db.$queryRaw`SELECT id FROM "ModerationCase" WHERE id = ${caseId} FOR UPDATE`;
@@ -2166,6 +2170,8 @@ export class AssessmentService {
           maxMark: number;
           weight: number;
         }>;
+        // Lock this offering/period while freezing inputs and allocating a version.
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ':' + periodCode}, 0))`;
         // Gate 1: every demo component carries a moderated-approved case
         // whose batch came through SIS-governed provenance (an APPROVED
         // plan), never Moodle-direct.
@@ -2250,6 +2256,23 @@ export class AssessmentService {
             { missing: missing.length, extra: extra.length },
           );
         }
+        // A component existing somewhere in the batch does not prove that
+        // every candidate has it. Never manufacture zero for missing evidence.
+        for (const studentRef of expected) {
+          for (const component of components) {
+            const row = latest.get(`${component.code}::${studentRef}`);
+            if (!row || row.mark === null || row.outcome !== 'MARK_RECORDED') {
+              this.fail('INCOMPLETE_COMPONENTS', 'Every candidate needs every approved numeric component. Exceptional outcomes require an authorized route.', 409);
+            }
+            if (!Number.isFinite(row.mark) || row.mark < 0 || row.mark > component.maxMark) {
+              this.fail('INVALID_COMPONENT', 'An approved component is outside its permitted range. Return it for correction.', 409);
+            }
+            if (!approvedCases.some((c) => c.id === row.caseId)) {
+              this.fail('STALE_COMPONENT', 'An input does not belong to the current moderated assessment plan.', 409);
+            }
+          }
+        }
+        if (!expected.size) this.fail('EMPTY_PACKAGE', 'A result package must contain eligible candidates.', 409);
         // weighted-total-v1 preview: contribution = mark/maxMark*weight,
         // rounded half-up to 2dp. Null marks stay absent, never zero-fill.
         const byStudent = new Map<
@@ -2296,6 +2319,8 @@ export class AssessmentService {
           rounded: Math.round((v.total + Number.EPSILON) * 100) / 100,
         }));
         const trace = {
+          caRefs: [...latest.values()].map((r) => r.id).sort(),
+          components,
           formulaVersion: 'weighted-total-v1',
           passMark: policy.passMark,
           policyVersion: policy.version,
@@ -2303,16 +2328,7 @@ export class AssessmentService {
           moderationRefs: approvedCases.map((c) => c.id),
           candidateListId: list.id,
         };
-        const packageHash = createHash('sha256')
-          .update(
-            JSON.stringify({
-              offeringRef,
-              periodCode,
-              trace,
-              caRefs: [...latest.values()].map((r) => r.id).sort(),
-            }),
-          )
-          .digest('hex');
+        const packageHash = packageDigest({ offeringRef, periodCode, trace, caRefs: [...latest.values()].map((r) => r.id).sort() });
         const max = await db.resultPackage.aggregate({
           where: { offeringRef, periodCode },
           _max: { version: true },
@@ -2339,13 +2355,32 @@ export class AssessmentService {
     );
   }
 
+  private async packageScope(auth: AssessmentAuthority): Promise<Prisma.ResultPackageWhereInput> {
+    if (auth.activeRole === 'LEC') {
+      const grant = await this.liveAssignment(auth, 'LEC', 'stage-marks');
+      if (grant?.scopeType === 'OFFERING') return { offeringRef: grant.scopeRef };
+    }
+    if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
+      const grant = await this.liveAssignment(auth, 'EXAMINATIONS_OFFICER', 'validate-results');
+      if (grant?.scopeType === 'PERIOD') return { periodCode: grant.scopeRef };
+    }
+    // School-to-offering registry is not yet authoritative on this branch.
+    // Own preparation only; no cross-school detailed mark browsing.
+    if (auth.activeRole === 'COORDINATOR') {
+      const grant = await this.liveAssignment(auth, 'COORDINATOR', 'approve-assessment');
+      if (grant?.scopeType === 'SCHOOL') return { preparedByAccountId: auth.accountId };
+    }
+    this.denied();
+  }
+
   async listPackages(
     auth: AssessmentAuthority,
     filter: { offeringRef?: string; periodCode?: string },
   ) {
-    await this.reader(auth);
+    const scope = await this.packageScope(auth);
     const rows = await this.prisma.resultPackage.findMany({
       where: {
+        AND: [scope],
         offeringRef: filter.offeringRef ?? undefined,
         periodCode: filter.periodCode ?? undefined,
       },
@@ -2356,12 +2391,12 @@ export class AssessmentService {
   }
 
   async packageDetail(auth: AssessmentAuthority, id: string) {
-    const row = await this.prisma.resultPackage.findUnique({
-      where: { id },
+    const scope = await this.packageScope(auth);
+    const row = await this.prisma.resultPackage.findFirst({
+      where: { id, AND: [scope] },
       include: { decisions: { orderBy: { version: 'asc' } } },
     });
     if (!row) this.fail('NOT_FOUND', 'Result package not found.', 404);
-    await this.reader(auth);
     return {
       ...this.packageView(row),
       decisions: row.decisions.map((d) => ({
@@ -2428,7 +2463,7 @@ export class AssessmentService {
       auth,
       key,
       'DecideResultPackage',
-      { id, version, to },
+      { id, version, to, reason: reason?.trim() ?? null, conditions: conditions ?? [] },
       async (db) => {
         // Serialize racing decisions: the version check below must see
         // rows committed by a concurrent decision, never a stale read.

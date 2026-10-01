@@ -30,3 +30,9 @@ Store application-local task packets, ADRs, learning records and evidence in the
 - [Phase 7 slices 1–2 review (2026-09-25, uncommitted)](docs/learning/PHASE-7-IMPLEMENTATION-REVIEW.md): assessment scheme + mapping plan ([note](docs/learning/NOTE-PH7-001.md)), staging snapshot with frozen provenance ([note](docs/learning/NOTE-PH7-002.md)); validation queue (slice 3) not started. Lead Chitundu Milimbo, reviewer Charles Hangoma.
 
 `REQ-ADM-002`/`ACT-APP-001` map to owned draft/section saving. `REQ-ADM-003` maps to current-section/document readiness. `REQ-ADM-004`/`ACT-APP-002` map to immutable, idempotent submission. Exact Blueprint 1 Parts 4–8 supply detailed actions without invented handbook identifiers. Endpoint names and test titles are implementation references, not new institutional requirement IDs.
+
+## Phase7 continuation and expansion review — 2026-10-01
+
+- [Continuation task](docs/task-packets/TASK-PH7-006-007.md), [verification](docs/learning/PHASE-7-CONTINUATION-VERIFICATION.md) and [gates](docs/gaps/GAP-PH7-CONTINUATION.md): controlled publication, own student results and amendment history in the separate review worktree. Lead Chitundu Milimbo; reviewer Charles Hangoma; human signoff pending.
+- [Repository-wide MVP audit](docs/learning/MVP-AUDIT-2026-09-30.md): implemented journeys, OpenCode integration boundary and acceptance evidence still missing.
+- [Detailed v1.1–v2.0 implementation plan](plan/feature-sis-expansion-2.0.md): includes dedicated timetable, examination, student support and student-AI workstreams, with [maturity](docs/roadmap/MODULE-MATURITY.md) and [source authority](docs/roadmap/SOURCE-MAP.md).

@@ -115,11 +115,12 @@ export default async function BoardPackagePage({
             ))}
           </ul>
         )}
+        <p><Link href={`/admin/assessment/packages/${item.id}/release`}>Review official release</Link></p>
         <h2>Record board decision</h2>
         <p>
           Only the examinations authority records board decisions, and never
           for a package it prepared. Approval for release never publishes to
-          students; the official release is later work.
+          students; publication is a separate authorized action.
         </p>
         <BoardDecisionForm
           packageId={item.id}
