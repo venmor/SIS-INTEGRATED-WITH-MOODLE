@@ -1,4 +1,4 @@
-import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
+import { policy } from './policy.provider.js';
 import type { ApplicationSection } from '@sis/contracts';
 export type Fields = Record<string, unknown>;
 const required: Record<ApplicationSection, string[]> = {

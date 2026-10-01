@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
               "connect-src 'self'",
@@ -32,6 +32,46 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  // Prevent Node.js built-ins from being bundled for the browser
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        path: false,
+        os: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        util: false,
+        "util/types": false,
+        assert: false,
+        buffer: false,
+        process: false,
+        pg: false,
+        "pg-connection-string": false,
+        "pgpass": false,
+        "@prisma/adapter-pg": false,
+        dns: false,
+        child_process: false,
+      };
+      // Explicitly alias problematic modules
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "util/types": false,
+        "pg": false,
+        "@prisma/adapter-pg": false,
+        "pg-connection-string": false,
+        "pgpass": false,
+      };
+    }
+    return config;
   },
 };
 

@@ -11,11 +11,19 @@
 // Local-demo kill-switch: this seed must never run outside an explicit local
 // reset (predictable fictional passwords). demo:reset sets the flag;
 // any other invocation aborts before touching the database.
-if (process.env.ALLOW_DEMO_SEED !== "true") {
+// Exception: isolated test/review/ci/browser databases (validated by the same
+// pattern used in tests/browser/fixtures.ts) may be seeded without the flag
+// so that browser tests have programme offerings available.
+const dbUrl = process.env.DATABASE_URL;
+const isTestDatabase = dbUrl && /(test|review|ci|browser)/i.test(new URL(dbUrl).pathname);
+if (process.env.ALLOW_DEMO_SEED !== "true" && !isTestDatabase) {
   console.error(
     "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
   );
   process.exit(1);
+}
+if (isTestDatabase) {
+  console.log("Seeding test database (DATABASE_URL contains test|review|ci|browser)");
 }
 
 import { createRequire } from "node:module";

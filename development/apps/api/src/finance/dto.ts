@@ -225,6 +225,18 @@ export class DecideAdjustmentDto extends KeyDto {
   @IsString()
   @MaxLength(64)
   payoutReference?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  challengeId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  codeType?: 'TOTP' | 'BACKUP_CODE';
 }
 
 export class RequestArrangementDto extends KeyDto {
@@ -249,6 +261,18 @@ export class DecideArrangementDto extends KeyDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  challengeId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  codeType?: 'TOTP' | 'BACKUP_CODE';
 }
 
 export class CashIntakeDto extends KeyDto {

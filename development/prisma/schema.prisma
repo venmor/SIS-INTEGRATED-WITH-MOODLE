@@ -50,8 +50,11 @@ model Account {
   credentials  Credential[]
   sessions     Session[]
   recoveryTokens RecoveryToken[]
+  recoverySuspicions RecoverySuspicion[]
+  recoveryReviewQueue RecoveryReviewQueue[]
   applications Application[]
   teachingAssignments TeachingAssignment[]
+  recoveryMethods RecoveryMethod[]
 
   @@index([personId])
 }
@@ -219,15 +222,64 @@ model Session {
 // the raw token is shown once to the requester (demo path) or sent via the
 // future delivery provider. Expired or used tokens are rejected.
 model RecoveryToken {
-  id         String    @id @default(uuid())
-  tokenHash  String    @unique
-  accountId  String
-  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  tokenHash          String    @unique
+  accountId          String
+  account            Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt          DateTime
+  usedAt             DateTime?
+  createdAt          DateTime  @default(now())
+  recoverySuspicions RecoverySuspicion[]
 
   @@index([accountId])
+}
+
+// Recovery suspicion detection (GAP-011): records when a recovery attempt
+// triggers suspicion signals (failed attempts, geo anomaly, device change,
+// rate limiting). Risk score determines if routed to security review queue.
+model RecoverySuspicion {
+  id              String   @id @default(uuid())
+  recoveryTokenId String?  // Null if suspicion detected before token creation
+  recoveryToken   RecoveryToken? @relation(fields: [recoveryTokenId], references: [id], onDelete: SetNull)
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  signalType      String   // 'FAILED_ATTEMPTS' | 'GEO_ANOMALY' | 'DEVICE_CHANGE' | 'RATE_LIMIT' | 'MULTIPLE_SIGNALS'
+  signalDetails   Json     // Structured details about the signal
+  riskScore       Int      // 0-100, higher = more suspicious
+  status          String   @default("PENDING") // 'PENDING' | 'QUEUED' | 'REVIEWED' | 'RESOLVED'
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewDecision  String?  // 'APPROVE' | 'DENY' | 'ESCALATE'
+  reviewNote      String?
+  reviewQueue     RecoveryReviewQueue?
+
+  @@index([accountId, status])
+  @@index([recoveryTokenId])
+  @@index([createdAt])
+}
+
+// Security review queue for suspicious recoveries (GAP-011).
+// Security Administrators review and decide on paused recoveries.
+model RecoveryReviewQueue {
+  id             String   @id @default(uuid())
+  suspicionId    String   @unique
+  suspicion      RecoverySuspicion @relation(fields: [suspicionId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  priority       String   @default("HIGH") // 'HIGH' | 'MEDIUM' | 'LOW'
+  status         String   @default("PENDING") // 'PENDING' | 'CLAIMED' | 'DECIDED'
+  assignedTo     String?
+  createdAt      DateTime @default(now())
+  claimedAt      DateTime?
+  decidedAt      DateTime?
+  decidedBy      String?
+  decision       String?  // 'APPROVE' | 'DENY' | 'ESCALATE'
+  decisionReason String?
+
+  @@index([accountId, status])
+  @@index([status, priority, createdAt])
+  @@index([assignedTo, status])
 }
 
 model AuditEvent {
@@ -524,7 +576,8 @@ model ApplicationDocument {
   fileName String
   mimeType String
   size Int
-  content Bytes
+  bucket String
+  key String
   sha256 String
   status String @default("SecurityScanPending")
   scanner String?
@@ -535,6 +588,7 @@ model ApplicationDocument {
   replacementReason String?
   createdAt DateTime @default(now())
   @@index([applicationId, category, createdAt])
+  @@index([bucket, key])
 }
 model ApplicationSubmission {
   id String @id @default(uuid())
@@ -1545,4 +1599,68 @@ model WaitlistEntry {
   createdAt DateTime @default(now())
   @@unique([attemptId, periodId, courseId])
   @@index([courseId, status])
+}
+
+// Task 1.2: Contact Verification & MFA/Step-up Authentication (GAP-015 Row 1, GAP-020)
+// Contact verification for self-registration (email/SMS codes)
+model ContactVerification {
+  id            String    @id @default(uuid())
+  personId      String
+  contactType   String    // EMAIL | PHONE
+  contactValue  String
+  codeHash      String
+  expiresAt     DateTime
+  verifiedAt    DateTime?
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([personId, contactType, contactValue])
+  @@index([expiresAt])
+}
+
+// MFA enrollment for staff (TOTP + backup codes)
+model MFAEnrollment {
+  id                  String    @id @default(uuid())
+  accountId           String    @unique
+  type                String    // TOTP | BACKUP_CODES
+  secretEncrypted     String?   // TOTP secret (encrypted at rest)
+  backupCodesEncrypted String?  // JSON array of hashed backup codes
+  enrolledAt          DateTime  @default(now())
+  lastUsedAt          DateTime?
+  disabledAt          DateTime?
+
+  @@index([accountId])
+}
+
+// Step-up authentication challenges for high-risk actions
+model StepUpChallenge {
+  id            String    @id @default(uuid())
+  accountId     String
+  challengeId   String    @unique
+  type          String    // TOTP | PUSH | CODE
+  targetAction  String    // e.g., 'finance.adjustment.approve', 'admissions.decision.release'
+  ipAddress     String?
+  userAgent     String?
+  expiresAt     DateTime
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([accountId, targetAction])
+  @@index([expiresAt])
+}
+
+// Multiple recovery methods (accessible alternatives, not just email)
+model RecoveryMethod {
+  id          String    @id @default(uuid())
+  accountId   String
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type        String    // EMAIL | PHONE | SECURITY_QUESTION | RECOVERY_CODE
+  valueHash   String    // hashed contact value or security answer
+  priority    Int       @default(1)
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([accountId, type, priority])
+  @@index([accountId])
 }

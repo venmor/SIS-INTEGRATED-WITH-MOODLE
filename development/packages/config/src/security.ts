@@ -30,6 +30,10 @@ export interface SecurityConfig {
     // guidance budget. The handbook threat model requires search abuse limits
     // but names no anonymous row — this fills it, labelled as demo.
     catalogueSearch: { maxAttempts: number; windowMinutes: number };
+    // Task 1.2: Contact verification and MFA/Step-up
+    contactVerification: { maxAttempts: number; windowMinutes: number };
+    mfaEnrollment: { maxAttempts: number; windowMinutes: number };
+    stepUp: { maxAttempts: number; windowMinutes: number };
   };
   lockout: { failuresBeforeLock: number; lockMinutes: number };
   // Demo mapping of the handbook's IAM Administrator grantor (the handbook
@@ -44,6 +48,31 @@ export interface SecurityConfig {
   sodPairs: [string, string][];
   passwordPolicy: { minLength: number; guidance: string };
   recoveryTokenMinutes: number;
+  // Task 1.2: Contact verification
+  contactVerificationCodeLength: number;
+  contactVerificationExpiryMinutes: number;
+  contactVerificationMaxAttempts: number;
+  // Task 1.2: MFA
+  mfaTotpIssuer: string;
+  mfaBackupCodesCount: number;
+  mfaBackupCodeLength: number;
+  // Task 1.2: Step-up authentication
+  stepUpExpiryMinutes: number;
+  // High-risk actions requiring step-up (config-driven)
+  stepUpActions: string[];
+  // GAP-011: Suspicious recovery detection thresholds
+  suspicion: {
+    failedAttemptsThreshold: number;
+    failedAttemptsWindowMinutes: number;
+    geoAnomalyEnabled: boolean;
+    geoAnomalyRiskScore: number;
+    deviceChangeEnabled: boolean;
+    deviceChangeRiskScore: number;
+    rateLimitProximityThreshold: number; // Percentage of rate limit (0-100)
+    rateLimitRiskScore: number;
+    riskScoreThreshold: number; // Score >= this triggers review queue
+    maxRiskScore: number; // Cap for risk score
+  };
 }
 
 export const SECURITY_V1: SecurityConfig = {
@@ -69,6 +98,10 @@ export const SECURITY_V1: SecurityConfig = {
     read: { maxAttempts: 120, windowMinutes: 1 },
     // Public catalogue search/evaluate budget per IP (demo value, packet-local).
     catalogueSearch: { maxAttempts: 60, windowMinutes: 1 },
+    // Task 1.2: Contact verification and MFA/Step-up
+    contactVerification: { maxAttempts: 5, windowMinutes: 15 },
+    mfaEnrollment: { maxAttempts: 3, windowMinutes: 60 },
+    stepUp: { maxAttempts: 3, windowMinutes: 15 },
   },
   lockout: { failuresBeforeLock: 5, lockMinutes: 15 },
   grantorRoles: ['SYSADMIN'],
@@ -103,4 +136,46 @@ export const SECURITY_V1: SecurityConfig = {
       "Use at least 12 characters. A phrase with several words is easier to remember and stronger than a short complex word.",
   },
   recoveryTokenMinutes: 60,
+  // Task 1.2: Contact verification
+  contactVerificationCodeLength: 6,
+  contactVerificationExpiryMinutes: 10,
+  contactVerificationMaxAttempts: 3,
+  // Task 1.2: MFA
+  mfaTotpIssuer: "SIS",
+  mfaBackupCodesCount: 10,
+  mfaBackupCodeLength: 8,
+  // Task 1.2: Step-up authentication
+  stepUpExpiryMinutes: 5,
+  // High-risk actions requiring step-up (config-driven)
+  stepUpActions: [
+    // Finance
+    'finance.adjustment.approve',
+    'finance.waiver.approve',
+    'finance.refund.approve',
+    'finance.arrangement.approve',
+    // Admissions
+    'admissions.decision.release',
+    'admissions.offer.release',
+    // Results
+    'results.mark.approve',
+    'results.progression.decide',
+    // Counselling
+    'counselling.restricted-notes.access',
+    // Identity
+    'identity.grant.revoke',
+    'identity.break-glass',
+  ],
+  // GAP-011: Suspicious recovery detection thresholds (demo values)
+  suspicion: {
+    failedAttemptsThreshold: 3,
+    failedAttemptsWindowMinutes: 60,
+    geoAnomalyEnabled: true,
+    geoAnomalyRiskScore: 30,
+    deviceChangeEnabled: true,
+    deviceChangeRiskScore: 25,
+    rateLimitProximityThreshold: 80,
+    rateLimitRiskScore: 20,
+    riskScoreThreshold: 50,
+    maxRiskScore: 100,
+  },
 };

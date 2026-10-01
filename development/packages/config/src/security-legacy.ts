@@ -108,7 +108,7 @@ export async function migrateSecurityConfigToDb(prisma: PrismaClient): Promise<v
   // 3. Create SoD pairs from sodPairs config
   for (const [roleA, roleB] of SECURITY_V1.sodPairs) {
     const [sortedA, sortedB] = [roleA, roleB].sort();
-    await prisma.sodPair.upsert({
+    await prisma.soDPair.upsert({
       where: { roleAId_roleBId: { roleAId: sortedA, roleBId: sortedB } },
       update: { isActive: true },
       create: {

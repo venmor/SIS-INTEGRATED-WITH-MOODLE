@@ -17,36 +17,41 @@ export async function createApplicant() {
   const username = `browser.${randomUUID()}`;
   const password = "Fictional-browser-2026!";
   try {
-    const person = await db.person.create({
-      data: {
-        displayName: "Fictional browser applicant",
-        email: `${username}@demo.invalid`,
-        emailVerifiedAt: new Date(),
-      },
+    // Use a transaction to ensure all operations succeed or fail together
+    const result = await db.$transaction(async (tx) => {
+      const person = await tx.person.create({
+        data: {
+          displayName: "Fictional browser applicant",
+          email: `${username}@demo.invalid`,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const account = await tx.account.create({
+        data: { personId: person.id, username },
+      });
+      await tx.credential.create({
+        data: {
+          accountId: account.id,
+          kind: "PASSWORD",
+          secretHash: await hash(password),
+          status: "ACTIVE",
+        },
+      });
+      // Use a proper offering code as scopeRef (matching demo accounts like bwalya.m -> BWL-2026-001)
+      await tx.roleAssignment.create({
+        data: {
+          accountId: account.id,
+          role: "APP",
+          scopeType: "APPLICATION",
+          scopeRef: "BWL-2026-001",
+          capabilities: ["apply"],
+          reason: "Isolated browser fixture",
+          startsAt: new Date("2020-01-01"),
+        },
+      });
+      return { username, password };
     });
-    const account = await db.account.create({
-      data: { personId: person.id, username },
-    });
-    await db.credential.create({
-      data: {
-        accountId: account.id,
-        kind: "PASSWORD",
-        secretHash: await hash(password),
-        status: "ACTIVE",
-      },
-    });
-    await db.roleAssignment.create({
-      data: {
-        accountId: account.id,
-        role: "APP",
-        scopeType: "APPLICATION",
-        scopeRef: account.id,
-        capabilities: ["apply"],
-        reason: "Isolated browser fixture",
-        startsAt: new Date("2020-01-01"),
-      },
-    });
-    return { username, password };
+    return result;
   } finally {
     await db.$disconnect();
   }

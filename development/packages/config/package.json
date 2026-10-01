@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./applications.production.js": {
+      "types": "./dist/applications.production.d.ts",
+      "import": "./dist/applications.production.js",
+      "default": "./dist/applications.production.js"
     }
   },
   "files": ["dist"],

@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { execSync } from 'node:child_process';
 
 // Use a test database URL
 const TEST_DATABASE_URL = process.env.DATABASE_URL || 'postgresql://sis:sis_local_only@localhost:5432/sis';
@@ -9,19 +8,6 @@ const adapter = new PrismaPg({ connectionString: TEST_DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 describe('Scope Hierarchy (GAP-004)', () => {
-  beforeAll(async () => {
-    // Ensure migrations are applied
-    try {
-      execSync('npx prisma migrate deploy', {
-        cwd: '/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/development',
-        env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
-        stdio: 'ignore',
-      });
-    } catch {
-      // Migrations may already be applied
-    }
-  });
-
   afterAll(async () => {
     await prisma.$disconnect();
   });

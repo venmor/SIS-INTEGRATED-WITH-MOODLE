@@ -3,6 +3,7 @@ import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { FINANCE_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
+import { StepUpService } from '../identity-access/step-up.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
@@ -21,7 +22,10 @@ interface FinanceAuthority extends ActiveAuthority {
 // integer minor units + ZMW throughout; no floating point anywhere.
 @Injectable()
 export class FinanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stepUpService: StepUpService,
+  ) {}
 
   private fail(
     code: string,
@@ -1459,7 +1463,14 @@ export class FinanceService {
     auth: FinanceAuthority,
     key: string,
     id: string,
-    input: { approve: boolean; note?: string; payoutReference?: string },
+    input: {
+      approve: boolean;
+      note?: string;
+      payoutReference?: string;
+      challengeId?: string;
+      code?: string;
+      codeType?: 'TOTP' | 'BACKUP_CODE';
+    },
   ) {
     await this.financeApprover(auth);
     const result = await this.command(
@@ -1505,6 +1516,19 @@ export class FinanceService {
           });
           return { body: { id: declined.id, status: declined.status } };
         }
+
+        // Step-up verification required for approval of high-impact actions
+        const stepUpAction = this.stepUpActionForAdjustment(row.kind);
+        if (stepUpAction) {
+          await this.verifyStepUp(
+            auth,
+            stepUpAction,
+            input.challengeId,
+            input.code,
+            input.codeType,
+          );
+        }
+
         if (row.kind === 'REFUND' && !input.payoutReference?.trim()) {
           this.fail(
             'PAYOUT_REQUIRED',
@@ -1715,7 +1739,13 @@ export class FinanceService {
     auth: FinanceAuthority,
     key: string,
     id: string,
-    input: { approve: boolean; note?: string },
+    input: {
+      approve: boolean;
+      note?: string;
+      challengeId?: string;
+      code?: string;
+      codeType?: 'TOTP' | 'BACKUP_CODE';
+    },
   ) {
     await this.financeApprover(auth);
     const result = await this.command(
@@ -1748,6 +1778,18 @@ export class FinanceService {
         if (!input.approve && !input.note?.trim()) {
           this.fail('NOTE_REQUIRED', 'Declines require a reason.', 400);
         }
+
+        // Step-up verification required for approval of high-impact actions
+        if (input.approve) {
+          await this.verifyStepUp(
+            auth,
+            'finance.arrangement.approve',
+            input.challengeId,
+            input.code,
+            input.codeType,
+          );
+        }
+
         const decided = await db.financeArrangement.update({
           where: { id: row.id },
           data: {
@@ -1970,6 +2012,72 @@ export class FinanceService {
         403,
       );
     }
+  }
+
+  /**
+   * Map adjustment kind to the corresponding step-up action.
+   * Returns the action name if step-up is required, null otherwise.
+   */
+  private stepUpActionForAdjustment(kind: string): string | null {
+    switch (kind) {
+      case 'CREDIT_NOTE':
+        return 'finance.adjustment.approve';
+      case 'WAIVER':
+        return 'finance.waiver.approve';
+      case 'REFUND':
+        return 'finance.refund.approve';
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Verify step-up challenge for high-risk finance actions.
+   * Throws if verification fails or challenge is not provided when required.
+   */
+  private async verifyStepUp(
+    auth: FinanceAuthority,
+    targetAction: string,
+    challengeId: string | undefined,
+    code: string | undefined,
+    codeType: 'TOTP' | 'BACKUP_CODE' = 'TOTP',
+  ): Promise<string> {
+    if (!this.stepUpService.requiresStepUp(targetAction)) {
+      return ''; // No step-up required for this action
+    }
+
+    if (!challengeId || !code) {
+      throw new HttpException(
+        {
+          code: 'STEP_UP_REQUIRED',
+          message: 'Step-up authentication required for this action. Provide a valid challenge ID and verification code.',
+          supportReference: randomUUID(),
+          stepUpAction: targetAction,
+        },
+        403,
+      );
+    }
+
+    const result = await this.stepUpService.verifyChallenge(
+      auth.accountId,
+      challengeId,
+      code,
+      codeType,
+    );
+
+    if (!result.ok) {
+      throw new HttpException(
+        {
+          code: 'STEP_UP_FAILED',
+          message: result.message ?? 'Step-up verification failed.',
+          supportReference: result.reference,
+          stepUpAction: targetAction,
+        },
+        403,
+      );
+    }
+
+    return result.reference;
   }
 
   private caseView(

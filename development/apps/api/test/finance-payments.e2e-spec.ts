@@ -416,7 +416,7 @@ describe('Phase 5 payment initiation and request state', () => {
       .filter((r) => r.status === 201)
       .map((r) => (r.body as { reference: string }).reference);
     // Exactly one wins; the loser is refused against the open request.
-    const statuses = [left.status, right.status].sort();
+    const statuses = [left.status, right.status].sort((a, b) => a - b);
     expect(statuses).toEqual([201, 409]);
     expect(refs).toHaveLength(1);
     const count = await db.financePaymentRequest.count({

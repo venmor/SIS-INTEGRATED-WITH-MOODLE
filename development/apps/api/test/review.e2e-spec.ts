@@ -312,7 +312,7 @@ describe('review (e2e)', () => {
         .set(CSRF)
         .send({ decision: 'confirm', reason: 'still required' });
     const [first, second] = await Promise.all([decide(), decide()]);
-    const statuses = [first.status, second.status].sort();
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
     expect(statuses).toEqual([200, 409]);
     const audits = await prisma.auditEvent.count({
       where: {
