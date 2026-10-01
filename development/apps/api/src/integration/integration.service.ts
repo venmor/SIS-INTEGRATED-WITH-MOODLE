@@ -7,6 +7,7 @@ import { ensureSimShell } from './moodle-simulator.js';
 import {
   selectBackend,
   type MoodleAdapter,
+  type MoodleBackend,
   type ShellHandle,
 } from './moodle-adapter.js';
 import { SimulatorAdapter } from './moodle-sim-adapter.js';
@@ -17,6 +18,26 @@ import type { ActiveAuthority } from '../identity-access/active-authority.js';
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
   JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
+
+/**
+ * The `backend` label this service reports over HTTP.
+ *
+ * It is `MoodleBackend` plus the refusal label, because a health response
+ * must be able to say "a live-test was asked for and refused" without
+ * reporting the simulator it did not use. It is deliberately *not*
+ * `BackendSelection`: that value carries the descriptor, and the
+ * descriptor carries the Moodle token, so returning it from an HTTP
+ * handler would serialise the credential into a response body.
+ */
+type HealthBackend = MoodleBackend | 'live-test-disabled';
+
+/**
+ * Operator-facing sentence for a refused live-test configuration. It
+ * names the problem and the next step, and no value: no host, no URL, no
+ * token, no environment value. The reason codes carry what to correct.
+ */
+const LIVE_TEST_REFUSED_DETAIL =
+  'The live-test Moodle backend is not configured. The refusal codes name what to correct.';
 
 interface IntegrationAuthority extends ActiveAuthority {
   scopeType?: string | null;
@@ -227,14 +248,39 @@ export class IntegrationService {
     }
     const connection = await this.ensureConnection(this.prisma);
     const inMaintenance = await this.maintenanceActive(this.prisma);
-    const backend = selectBackend();
+    const selection = selectBackend();
     // Live health performs a real version call; simulator answers locally.
     // Either way the response carries state, never secret values.
+    //
+    // The selection is *projected* to a kind label and is never returned
+    // as it stands. This method is served over HTTP at
+    // `integration.controller.ts` (`@Get('health')`), and a `live-test`
+    // selection carries the descriptor — which carries the Moodle token.
+    // Returning it here would put the credential in a response body, the
+    // one place the descriptor's non-enumerable `token` cannot protect.
+    if (selection.kind === 'live-test-disabled') {
+      // No Moodle call at all: a refused configuration names no target to
+      // call, and a health check must not act on a target the operator
+      // never proved. Reporting `backend: 'simulator'` here would repeat
+      // the adapter's silent fall-back in a different field, so the
+      // refusal is named, the status is `Failing`, and the reason codes
+      // are returned so a front end can show them.
+      return {
+        provider: connection.provider,
+        backend: 'live-test-disabled' as const,
+        version: null,
+        status: 'Failing',
+        detail: LIVE_TEST_REFUSED_DETAIL,
+        reasons: selection.reasons,
+        lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
+      };
+    }
+    const backend: HealthBackend = selection.kind;
     let version: string | null = null;
-    if (backend === 'live') {
+    if (selection.kind === 'live-test') {
       const checked = await this.adapter().validateConnection().catch(() => ({
         ok: false as const,
-        backend: 'live' as const,
+        backend: 'live-test' as const,
         version: null,
         detail: 'Live validation failed.',
       }));
@@ -253,7 +299,7 @@ export class IntegrationService {
     return {
       provider: connection.provider,
       backend,
-      version: backend === 'live' ? version : 'MOODLE-SIM-v1',
+      version: selection.kind === 'live-test' ? version : 'MOODLE-SIM-v1',
       status: inMaintenance ? 'MAINTENANCE' : connection.status,
       lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
     };
@@ -518,8 +564,23 @@ export class IntegrationService {
   }
 
   adapter(): MoodleAdapter {
-    if (selectBackend() === 'live') {
+    const selection = selectBackend();
+    if (selection.kind === 'live-test') {
       return new LiveMoodleAdapter(this.prisma);
+    }
+    if (selection.kind === 'live-test-disabled') {
+      // A refused live-test resolves to *no* adapter. Falling through to
+      // `SimulatorAdapter` here would hand an operator who asked for a
+      // live test a silent simulator — the exact failure the fail-closed
+      // configuration exists to prevent. The error carries the reason
+      // codes and no environment value, so it is safe to log, audit and
+      // return over HTTP.
+      this.fail(
+        'LIVE_BACKEND_REFUSED',
+        'The live-test Moodle backend is not configured, so no Moodle connection is available. Correct the configuration and restart.',
+        503,
+        { reasons: selection.reasons },
+      );
     }
     return new SimulatorAdapter(this.prisma);
   }
@@ -534,7 +595,20 @@ export class IntegrationService {
     if (process.env.DEMO_MODE !== 'true') {
       throw new HttpException({ message: 'Not found.' }, 404);
     }
-    if (selectBackend() === 'live') {
+    const selection = selectBackend();
+    if (selection.kind === 'live-test-disabled') {
+      // Refused is not live and is not the simulator either: falling
+      // through would let a simulator scenario be set on a deployment
+      // whose live configuration did not validate. The error names the
+      // refusal and carries the reason codes, and no environment value.
+      this.fail(
+        'LIVE_BACKEND',
+        'Simulator controls do not apply while the live-test Moodle backend is not configured. Correct the configuration and restart.',
+        400,
+        { reasons: selection.reasons },
+      );
+    }
+    if (selection.kind === 'live-test') {
       this.fail(
         'LIVE_BACKEND',
         'Simulator controls do not apply to a live connection.',
@@ -1598,7 +1672,7 @@ export class IntegrationService {
       for (const shell of shells) {
         // Key space matches the backend: SIS row ids for the simulator,
         // Moodle idnumbers (student numbers) for live.
-        const live = adapter.backend === 'live';
+        const live = adapter.backend === 'live-test';
         const attempts = await this.prisma.programmeAttempt.findMany({
           where: { offeringId: shell.offeringId },
           select: { id: true, studentId: true },
@@ -1970,7 +2044,7 @@ export class IntegrationService {
             );
           }
           const suspendAdapter = this.adapter();
-          if (suspendAdapter.backend === 'live') {
+          if (suspendAdapter.backend === 'live-test') {
             // Live shells address by the Moodle course id on the case;
             // the student travels as the Moodle idnumber in evidence.
             const detail = (row.detail ?? {}) as Record<string, unknown>;

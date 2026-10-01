@@ -22,20 +22,28 @@ export function StartForm({
   offeringId: string;
   policy: ApplicationPolicy;
 }) {
+  console.log('[STARTFORM DEBUG] Component mounted, offeringId:', offeringId);
   const router = useRouter(),
     key = useRef(crypto.randomUUID());
   const [offering, setOffering] = useState<Details | null>(null),
     [error, setError] = useState(""),
     [pending, setPending] = useState(false);
   useEffect(() => {
+    console.log('[STARTFORM DEBUG] Fetching offering:', offeringId);
     fetch(`/api/catalogue/offerings/${encodeURIComponent(offeringId)}`, {
       cache: "no-store",
     })
       .then(async (r) => {
+        console.log('[STARTFORM DEBUG] Offering response status:', r.status);
         if (!r.ok) throw new Error("Choose a published programme first.");
-        setOffering(await r.json());
+        const data = await r.json();
+        console.log('[STARTFORM DEBUG] Offering data:', data);
+        setOffering(data);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        console.log('[STARTFORM DEBUG] Offering fetch error:', e);
+        setError(e.message);
+      });
   }, [offeringId]);
   async function start() {
     if (pending) return;
@@ -57,6 +65,7 @@ export function StartForm({
     <>
       <h1>Start an application</h1>
       <p className={styles.eyebrow}>Application policy version {policy.version}</p>
+      <p data-testid="debug-offering-id">DEBUG offeringId: {offeringId}</p>
       {error && (
         <ErrorSummary
           title="We could not start your application"
@@ -69,7 +78,7 @@ export function StartForm({
           {String(offering?.intake ?? "")} · {String(offering?.studyMode ?? "")}{" "}
           · {String(offering?.campus ?? "")}
         </p>
-        <p>{policy.fee.explanation}</p>
+        {policy.fee?.explanation && <p>{policy.fee.explanation}</p>}
         <p>
           Up to {policy.maxActivePerIntake} active applications are permitted
           per intake, with {policy.maxChoices} programme choice per application.

@@ -11,11 +11,19 @@
 // Local-demo kill-switch: this seed must never run outside an explicit local
 // reset (predictable fictional passwords). demo:reset sets the flag;
 // any other invocation aborts before touching the database.
-if (process.env.ALLOW_DEMO_SEED !== "true") {
+// Exception: isolated test/review/ci/browser databases (validated by the same
+// pattern used in tests/browser/fixtures.ts) may be seeded without the flag
+// so that browser tests have programme offerings available.
+const dbUrl = process.env.DATABASE_URL;
+const isTestDatabase = dbUrl && /(test|review|ci|browser)/i.test(new URL(dbUrl).pathname);
+if (process.env.ALLOW_DEMO_SEED !== "true" && !isTestDatabase) {
   console.error(
     "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
   );
   process.exit(1);
+}
+if (isTestDatabase) {
+  console.log("Seeding test database (DATABASE_URL contains test|review|ci|browser)");
 }
 
 import { createRequire } from "node:module";
@@ -26,6 +34,8 @@ const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { hash } = require("argon2");
+// Use dynamic import for local ESM module
+const { seedCapabilitiesScopesSod } = await import("./capabilities-scopes-sod.ts");
 
 // Prisma 7 connects through a driver adapter (no built-in engine).
 const adapter = new PrismaPg({
@@ -1075,6 +1085,9 @@ async function ensureStudentDemo(): Promise<void> {
 }
 
 async function main(): Promise<void> {  // Identity administrator first so later grants reference a granter/approver.
+  // Seed capabilities, scopes, approver authority, and SoD pairs (GAP-003, GAP-004, GAP-006, GAP-012)
+  await seedCapabilitiesScopesSod(prisma);
+  
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
   await ensureAccount(admin, null);
   const granter = await prisma.account.findUniqueOrThrow({

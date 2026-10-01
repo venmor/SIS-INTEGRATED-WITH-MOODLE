@@ -241,6 +241,9 @@ export class FinanceController {
       approve: dto.approve,
       note: dto.note,
       payoutReference: dto.payoutReference,
+      challengeId: dto.challengeId,
+      code: dto.code,
+      codeType: dto.codeType,
     });
   }
 
@@ -274,6 +277,9 @@ export class FinanceController {
     return this.finance.decideArrangement(r.auth, dto.idempotencyKey, id, {
       approve: dto.approve,
       note: dto.note,
+      challengeId: dto.challengeId,
+      code: dto.code,
+      codeType: dto.codeType,
     });
   }
 

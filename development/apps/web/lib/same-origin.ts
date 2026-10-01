@@ -19,5 +19,6 @@ export function isSameOriginMutation(request: {
   }
   // Some same-origin clients omit Origin. Browser-controlled Fetch Metadata
   // is acceptable proof; missing proof fails closed, including curl scripts.
-  return request.headers.get("sec-fetch-site") === "same-origin";
+  if (request.headers.get("sec-fetch-site") === "same-origin") return true;
+  return false;
 }

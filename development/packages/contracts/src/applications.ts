@@ -26,16 +26,16 @@ export interface ApplicationPolicy {
   timezone: string;
   maxActivePerIntake: number;
   maxChoices: number;
-  fee: { status: "NOT_REQUIRED"; explanation: string };
+  fee: { status: "NOT_REQUIRED" | "REQUIRED"; explanation: string; amountMinor?: number; currency?: string };
   contactRequirement: string;
   upload: {
     maxBytes: number;
-    mimeTypes: string[];
-    extensions: string[];
+    mimeTypes: readonly string[];
+    extensions: readonly string[];
     minimumStage: string;
     scanner: string;
   };
-  declarations: {
+  declarations: readonly {
     id: string;
     version: string;
     text: string;
@@ -50,14 +50,41 @@ export interface ApplicationPolicy {
     windowMinutes: number;
   };
   autosaveDelayMs: number;
-  routes: { code: string; label: string }[];
+  routes: readonly { code: string; label: string; eligibility?: Record<string, unknown> }[];
   qualifications: {
-    subjects: string[];
-    grades: number[];
+    subjects: readonly string[];
+    grades: readonly number[];
     minimumYear: number;
     allowAwaiting: boolean;
+    awaitingExpiryMonths?: number;
   };
   help: string;
+  /** Phase 2 slice 6: post-submit case policy */
+  case?: {
+    statusPollMs: number;
+    clarificationResponseDays: number;
+    correctionReviewNote: string;
+    withdrawalConfirmation: string;
+    supportChannels: readonly string[];
+    notificationRetentionDays: number;
+  };
+  /** Phase 3 slice 4: production review criteria with weighted scoring */
+  review?: {
+    criteriaVersion: string;
+    criteria: readonly { key: string; label: string; weight: number; description: string }[];
+    scoring?: { maxScore: number; eligibleThreshold: number; favourableThreshold: number; needsInfoThreshold: number };
+    eligibilityOutcomes: readonly string[];
+    recommendations: readonly string[];
+  };
+  /** Phase 3 slice 6: onboarding tasks created when an offer is accepted */
+  onboarding?: {
+    tasks: readonly { key: string; title: string; owner: string; required: boolean; description?: string }[];
+  };
+  /** Phase 3 slice 6: production offer-acceptance declarations */
+  offer?: {
+    version: string;
+    acceptanceDeclarations: readonly { key: string; text: string }[];
+  };
 }
 export interface ApplicationOffering {
   id: string;

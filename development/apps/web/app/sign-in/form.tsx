@@ -90,9 +90,8 @@ export function SignInForm({
               ? "/applicant"
               : isStaffAccount
                 ? "/admin/admissions/queue"
-                : "/";
-        router.replace(target);
-        router.refresh();
+                : "/applicant";
+        await router.replace(target);
         return;
       }
       if (res.status === 429) {
@@ -124,7 +123,7 @@ export function SignInForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} noValidate={false} className={signInStyles.form}>
+    <form ref={formRef} onSubmit={onSubmit} method="POST" noValidate={false} className={signInStyles.form}>
       {demoAccount ? (
         <section className={signInStyles.demoPanel} aria-labelledby="demo-applicant-heading">
           <p className={signInStyles.demoLabel}>Fictional applicant demo</p>

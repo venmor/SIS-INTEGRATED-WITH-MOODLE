@@ -1,4 +1,4 @@
-import { MOODLE_DEMO_V1 as policy } from '@sis/config';
+import { MOODLE_LIVE_V1 } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type {
   ActualEnrolment,
@@ -32,11 +32,12 @@ function liveConfig(): LiveConfig | null {
   const baseUrl = (process.env.MOODLE_API_URL ?? '').trim().replace(/\/+$/, '');
   const token = (process.env.MOODLE_API_TOKEN ?? '').trim();
   if (baseUrl === '' || token === '') return null;
-  const live = policy.live as unknown as {
-    timeoutMs: number;
-    restPath: string;
+  return {
+    baseUrl,
+    token,
+    timeoutMs: MOODLE_LIVE_V1.timeoutMs,
+    restPath: MOODLE_LIVE_V1.restPath,
   };
-  return { baseUrl, token, timeoutMs: live.timeoutMs, restPath: live.restPath };
 }
 
 function roleIds(): Record<string, number> {
@@ -64,7 +65,7 @@ function roleIds(): Record<string, number> {
  *   numeric ids differ per Moodle site and cannot be guessed).
  */
 export class LiveMoodleAdapter implements MoodleAdapter {
-  readonly backend: MoodleBackend = 'live';
+  readonly backend: MoodleBackend = 'live-test';
   private readonly config: LiveConfig;
 
   constructor(
@@ -115,18 +116,14 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     wsfunction: string,
     params: Record<string, unknown>,
   ): Promise<T> {
-    const live = policy.live as unknown as {
-      tokenParam: string;
-      formatParam: Record<string, string>;
-    };
     const url = new URL(
       this.config.restPath,
       this.config.baseUrl + '/',
     );
     // Token travels as a request parameter per Moodle REST convention;
     // it is never written to logs, audit metadata, or the database.
-    url.searchParams.set(live.tokenParam, this.config.token);
-    for (const [k, v] of Object.entries(live.formatParam)) {
+    url.searchParams.set(MOODLE_LIVE_V1.tokenParam, this.config.token);
+    for (const [k, v] of Object.entries(MOODLE_LIVE_V1.formatParam)) {
       url.searchParams.set(k, v);
     }
     url.searchParams.set('wsfunction', wsfunction);
@@ -429,14 +426,14 @@ export class LiveMoodleAdapter implements MoodleAdapter {
       );
       return {
         ok: true,
-        backend: 'live',
+        backend: 'live-test',
         version: site.version ?? null,
         detail: `Connected to ${site.sitename ?? 'Moodle'}. Live enrolments affect real courses.`,
       };
     } catch (error) {
       return {
         ok: false,
-        backend: 'live',
+        backend: 'live-test',
         version: null,
         detail: `Live connection failed: ${(error as Error).message}`,
       };

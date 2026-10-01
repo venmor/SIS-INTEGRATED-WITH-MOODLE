@@ -67,7 +67,7 @@ describe('LiveMoodleAdapter contract', () => {
       });
       const out = await adapter.validateConnection();
       expect(out.ok).toBe(true);
-      expect(out.backend).toBe('live');
+      expect(out.backend).toBe('live-test');
       expect(seen.wsfunction).toBe('core_webservice_get_site_info');
       expect(seen.token).toBe('test-token-never-real');
     } finally {
@@ -121,7 +121,7 @@ describe('LiveMoodleAdapter contract', () => {
       });
       await expect(adapter.validateConnection()).resolves.toMatchObject({
         ok: false,
-        backend: 'live',
+        backend: 'live-test',
       });
     } finally {
       server.close();

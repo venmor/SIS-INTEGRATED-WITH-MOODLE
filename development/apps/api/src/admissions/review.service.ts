@@ -1,13 +1,34 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
+import { policy } from './policy.provider.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
   JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
+
+// Type for application row with included relations
+interface ApplicationRow {
+  id: string;
+  reference: string;
+  accountId: string;
+  offering?: {
+    id: string;
+    intake: string;
+    studyMode: string;
+    campus: string;
+    programme?: { id: string; name: string; code: string; rules: unknown[] };
+  } | null;
+  personal: {
+    givenName?: string;
+    familyName?: string;
+    otherNames?: string;
+    preferredName?: string;
+    dateOfBirth?: string;
+  } | null;
+}
 
 interface ReviewerAuthority extends ActiveAuthority {
   scopeType?: string | null;
@@ -673,7 +694,7 @@ export class ReviewService {
             400,
           );
         }
-        const days = deadlineDays ?? policy.case.clarificationResponseDays;
+        const days = deadlineDays ?? (policy as { case?: { clarificationResponseDays: number } }).case?.clarificationResponseDays ?? 14;
         const open = await db.applicationClarification.findFirst({
           where: { applicationId, question: question.trim(), status: 'OPEN' },
         });
@@ -720,6 +741,40 @@ export class ReviewService {
           key,
         );
         await this.bump(db, applicationId);
+
+        // Emit OutboxEvent for notification delivery
+        const correlationId = randomUUID();
+        const applicantName = `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`;
+        const programmeName = row.offering?.programme?.name ?? '';
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'ApplicationClarificationRequested',
+            payload: json({
+              applicationId,
+              clarificationId: clar.id,
+              clarificationQuestion: question.trim(),
+              deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+              applicantName,
+              reference: row.reference,
+              programmeName,
+              recipientAccountId: row.accountId,
+              templateKey: 'CLARIFICATION_REQUESTED',
+              templateVars: {
+                applicantName,
+                reference: row.reference,
+                programmeName,
+                clarificationQuestion: question.trim(),
+                deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              channels: ['email', 'internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         return { body: { id: clar.id, status: clar.status } };
       },
     );
@@ -894,12 +949,13 @@ export class ReviewService {
             400,
           );
         }
-        const allowed = policy.review.criteria as string[];
+        const reviewPolicy = policy.review;
+        const allowed = reviewPolicy?.criteria?.map((c) => c.key) ?? [];
         for (const criterion of input.criteria ?? []) {
           if (!allowed.includes(criterion)) {
             this.fail(
               'UNKNOWN_CRITERION',
-              `Criterion ${criterion} is not part of ${policy.review.criteriaVersion}.`,
+              `Criterion ${criterion} is not part of ${reviewPolicy?.criteriaVersion ?? 'unknown'}.`,
               400,
             );
           }
@@ -938,7 +994,7 @@ export class ReviewService {
             version: nextVersion,
             eligibilityOutcome: input.eligibilityOutcome,
             recommendation: input.recommendation,
-            criteriaVersion: policy.review.criteriaVersion as string,
+            criteriaVersion: (policy.review as { criteriaVersion?: string } | undefined)?.criteriaVersion ?? '',
             criteria:
               input.criteria === undefined ? undefined : json(input.criteria),
             rationale: input.rationale.trim(),
@@ -1114,6 +1170,83 @@ export class ReviewService {
             criteriaVersion: pkg.criteriaVersion,
           },
         );
+
+        // Emit OutboxEvent for ApplicationDecisionReleased
+        const correlationId = randomUUID();
+        const applicantName = `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`;
+        const programmeName = row.offering?.programme?.name ?? '';
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'ApplicationDecisionReleased',
+            payload: json({
+              applicationId,
+              decisionId: decision.id,
+              outcome: input.outcome,
+              message: input.message.trim(),
+              acceptBy: input.acceptBy,
+              conditions: conditions.map((c) => c.text).join('; '),
+              applicantName,
+              reference: row.reference,
+              programmeName,
+              recipientAccountId: row.accountId,
+              templateKey: 'DECISION_RELEASED',
+              templateVars: {
+                applicantName,
+                reference: row.reference,
+                programmeName,
+                outcome: input.outcome,
+                message: input.message.trim(),
+                acceptBy: new Date(input.acceptBy).toISOString().split('T')[0],
+              },
+              channels: ['email', 'internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
+        // Emit OutboxEvent for ApplicationOfferReleased if outcome is ADMIT or ADMIT_WITH_CONDITIONS
+        if (offered) {
+          const applicantName = `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`;
+          const programmeName = row.offering?.programme?.name ?? '';
+          await db.outboxEvent.create({
+            data: {
+              aggregate: 'Application',
+              aggregateId: applicationId,
+              type: 'ApplicationOfferReleased',
+              payload: json({
+                applicationId,
+                decisionId: decision.id,
+                outcome: input.outcome,
+                acceptBy: input.acceptBy,
+                intake: row.offering?.intake ?? '',
+                studyMode: row.offering?.studyMode ?? '',
+                campus: row.offering?.campus ?? '',
+                conditions: conditions.map((c) => c.text).join('; '),
+                applicantName,
+                reference: row.reference,
+                programmeName,
+                recipientAccountId: row.accountId,
+                templateKey: 'OFFER_RELEASED',
+                templateVars: {
+                  applicantName,
+                  reference: row.reference,
+                  programmeName,
+                  intake: row.offering?.intake ?? '',
+                  studyMode: row.offering?.studyMode ?? '',
+                  campus: row.offering?.campus ?? '',
+                  acceptBy: new Date(input.acceptBy).toISOString().split('T')[0],
+                },
+                channels: ['email', 'internal'],
+                correlationId: randomUUID(),
+                idempotencyKey: key,
+              }),
+            },
+          });
+        }
+
         return {
           body: {
             id: decision.id,
@@ -1240,6 +1373,43 @@ export class ReviewService {
           'ALLOW',
           { acceptBy: updated.acceptBy?.toISOString(), reason: reason.trim(), version: updated.version, priorDeadline: decision.acceptBy?.toISOString() },
         );
+
+        // Emit OutboxEvent for ApplicationOfferReleased (updated offer)
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'ApplicationOfferReleased',
+            payload: json({
+              applicationId,
+              decisionId: decision.id,
+              outcome: decision.outcome,
+              acceptBy: newDeadline,
+              intake: row.offering?.intake ?? '',
+              studyMode: row.offering?.studyMode ?? '',
+              campus: row.offering?.campus ?? '',
+              conditions: (decision.conditions as unknown as Array<{ text: string }>)?.map((c) => c.text).join('; ') ?? '',
+              applicantName: `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`,
+              reference: row.reference,
+              programmeName: row.offering?.programme?.name ?? '',
+              recipientAccountId: row.accountId,
+              templateKey: 'OFFER_RELEASED',
+              templateVars: {
+                applicantName: `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`,
+                reference: row.reference,
+                programmeName: row.offering?.programme?.name ?? '',
+                intake: row.offering?.intake ?? '',
+                studyMode: row.offering?.studyMode ?? '',
+                campus: row.offering?.campus ?? '',
+                acceptBy: new Date(newDeadline).toISOString().split('T')[0],
+              },
+              channels: ['email', 'internal'],
+              correlationId: randomUUID(),
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         return {
           body: {
             applicationId,
@@ -1343,7 +1513,7 @@ export class ReviewService {
       async (db) => {
         const row = await db.application.findFirst({
           where: { id: applicationId },
-          include: { offering: true },
+          include: { offering: { include: { programme: true } } },
         });
         if (!row) this.fail('NOT_FOUND', 'Review case not found.', 404);
         // Neutral: out-of-scope intakes look like missing cases.
@@ -1382,6 +1552,42 @@ export class ReviewService {
           label: 'Case claimed for review',
         });
         await this.audit(db, auth, 'ReviewCaseClaimed', applicationId, key);
+
+        // Emit OutboxEvent for StaffAssessmentAssigned
+        const correlationId = randomUUID();
+        const applicantName = `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`;
+        const programmeName = row.offering?.programme?.name ?? '';
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'StaffAssessmentAssigned',
+            payload: json({
+              applicationId,
+              assigneeAccountId: auth.accountId,
+              applicantName,
+              reference: row.reference,
+              programmeName,
+              intake: row.offering?.intake ?? '',
+              assignedAt: new Date().toISOString(),
+              dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days default
+              recipientAccountId: auth.accountId,
+              templateKey: 'STAFF_ASSESSMENT_ASSIGNED',
+              templateVars: {
+                reference: row.reference,
+                applicantName,
+                programmeName,
+                intake: row.offering?.intake ?? '',
+                assignedAt: new Date().toISOString().split('T')[0],
+                dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              channels: ['internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         return { body: { applicationId, status: 'CLAIMED' } };
       },
     );
