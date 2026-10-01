@@ -280,16 +280,16 @@ describe('Phase 7 board/decision package', () => {
         programmeId_intake_studyMode_campus: {
           programmeId: programme.id,
           intake: '2026S1',
-          studyMode: 'FULLTIME',
-          campus: 'MAIN',
+          studyMode: 'Full-time',
+          campus: 'Main Campus',
         },
       },
       update: { availability: 'OPEN' },
       create: {
         programmeId: programme.id,
         intake: '2026S1',
-        studyMode: 'FULLTIME',
-        campus: 'MAIN',
+        studyMode: 'Full-time',
+        campus: 'Main Campus',
         availability: 'OPEN',
       },
     });
