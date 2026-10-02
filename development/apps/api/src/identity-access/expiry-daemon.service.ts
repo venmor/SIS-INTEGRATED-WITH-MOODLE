@@ -120,19 +120,11 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
         take: 100,
       });
       for (const candidate of nearing) {
-        const open = await this.prisma.expiryWarning.findFirst({
-          where: { assignmentId: candidate.id, acknowledgedAt: null },
-        });
-        if (!open) {
-          try {
-            await this.prisma.expiryWarning.create({
-              data: { assignmentId: candidate.id, warnedAt: now },
-            });
-          } catch {
-            // Lost the race with a concurrent tick (partial unique on open
-            // warnings): the other tick's warning stands, nothing duplicates.
-          }
-        }
+        await this.prisma.$executeRaw`
+          INSERT INTO "ExpiryWarning" ("id", "assignmentId", "warnedAt")
+          VALUES (${randomUUID()}, ${candidate.id}, ${now})
+          ON CONFLICT ("assignmentId") WHERE "acknowledgedAt" IS NULL DO NOTHING
+        `;
       }
 
       // Revoke lapsed assignments in deterministic batches (oldest expiry
@@ -256,18 +248,11 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
         // One open warning per assignment (replay-safe: never duplicate an
         // unacknowledged warning for the same assignment; the partial
         // unique index is the final guard under concurrent ticks).
-        const openWarning = await tx.expiryWarning.findFirst({
-          where: { assignmentId: assignment.id, acknowledgedAt: null },
-        });
-        if (!openWarning) {
-          try {
-            await tx.expiryWarning.create({
-              data: { assignmentId: assignment.id, warnedAt: now },
-            });
-          } catch {
-            // Concurrent tick won the race; its warning stands.
-          }
-        }
+        await tx.$executeRaw`
+          INSERT INTO "ExpiryWarning" ("id", "assignmentId", "warnedAt")
+          VALUES (${randomUUID()}, ${assignment.id}, ${now})
+          ON CONFLICT ("assignmentId") WHERE "acknowledgedAt" IS NULL DO NOTHING
+        `;
 
         // Emergency access ends completely on expiry (the justified
         // exception to null-workspace degradation): sessions bound to the
