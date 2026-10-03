@@ -919,3 +919,73 @@ export async function ensureStagedStudent() {
     await db.$disconnect();
   }
 }
+
+/** Phase 8 slice 2: white-box result package with a board decision, an
+ * official row and an audit row (writes proven by Phase 7 suites; the
+ * timeline endpoint's job is gating + joining). */
+export async function ensureTimelinePackage() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const pkg = await db.resultPackage.create({
+      data: {
+        offeringRef: "SWE-2026S1",
+        periodCode: "2026S1",
+        version: 1,
+        status: "APPROVED_FOR_RELEASE",
+        packageHash: "fictional-hash",
+        trace: {},
+        candidateListId: randomUUID(),
+        declaration: "fictional declaration",
+        preparedByAccountId: randomUUID(),
+      },
+    });
+    await db.boardDecision.create({
+      data: {
+        packageId: pkg.id,
+        version: 1,
+        to: "APPROVE_FOR_RELEASE",
+        reason: "Board minute 12.",
+        conditions: [],
+        decidedByAccountId: randomUUID(),
+      },
+    });
+    await db.officialCourseResult.create({
+      data: {
+        offeringRef: "SWE-2026S1",
+        periodCode: "2026S1",
+        studentRef: "STU-2026-0001",
+        total: 68.8,
+        outcome: "PASS",
+        trace: {},
+        packageId: pkg.id,
+        version: 2,
+        status: "RELEASED",
+        publishedAt: new Date(),
+      },
+    });
+    await db.auditEvent.create({
+      data: {
+        action: "BoardDecisionRecorded",
+        actorAccountId: randomUUID(),
+        activeRole: "EXAMINATIONS_OFFICER",
+        scope: `ASSESSMENT:${pkg.id}`,
+        targetRef: pkg.id,
+        outcome: "ALLOW",
+        correlationId: randomUUID(),
+        idempotencyRef: randomUUID(),
+        policyVersion: "ASSESSMENT-DEMO-v1",
+        purpose: "Assessment governance",
+        metadata: {},
+      },
+    });
+    return pkg.id;
+  } finally {
+    await db.$disconnect();
+  }
+}

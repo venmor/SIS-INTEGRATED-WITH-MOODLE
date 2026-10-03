@@ -32,7 +32,7 @@ export type {
   BreakGlassReviewResponse,
   ExpiryWarningView,
 } from "./review.js";
-export type { AuditTimelineRow, AuditTimelineResponse } from "./audit.js";
+export type { AuditTimelineRow, AuditTimelineResponse, EntityTimelineItem, EntityTimelineResponse } from "./audit.js";
 export type {
   AvailabilityStatus,
   CataloguePage,

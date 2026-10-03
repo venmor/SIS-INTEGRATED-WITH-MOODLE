@@ -307,3 +307,14 @@ export class AuditTimelineQueryDto {
   @Max(100)
   take?: number;
 }
+
+// Slice-8 entity timeline (TASK-PH8-002): kind + id travel in the
+// path; pagination only. Unknown keys are refused (whitelist).
+export class EntityTimelineQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  take?: number;
+}

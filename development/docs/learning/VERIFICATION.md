@@ -514,3 +514,24 @@ follow-up, not done here.
 Manual screen-reader/WSL replay, remote CI, Vercel route check,
 production provider + policy approval, and human walkthrough remain
 **not verified**. Detail in [NOTE-PH8-001](NOTE-PH8-001.md).
+
+## Phase 8 slice 2 (2026-10-03, fresh `sis_ph8_e2_test` + `sis_ph8_browser_test`)
+
+Cross-domain audit timeline (TASK-PH8-002; lead/reviewer
+unassigned). Typecheck exit 0, web lint clean, API lint
+warnings-only (no new warnings), API dist via direct `tsc`, web
+production build exit 0 (package History section). API e2e
+`audit-entity-timeline` **10/10** on the fresh DB (applicant own
+with staff rows filtered + both sources present, foreign applicant
+404, officer full view, approver view, tutor 404, package staff
+view with all three sources, student package 404, unknown kind
+400, unknown ids 404, invalid query 400; white-box seeds, writes
+proven by Phase 2/7 suites). No schema changes. Unit **73/73**.
+Browser `entity-timeline` (lecturer sees joined package history:
+decision + version + audit row) **1/1** on fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage).
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production retention + policy approval, and human walkthrough
+remain **not verified**. Detail in [NOTE-PH8-002](NOTE-PH8-002.md).

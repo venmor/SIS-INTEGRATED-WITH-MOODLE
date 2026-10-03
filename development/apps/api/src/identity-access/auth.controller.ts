@@ -26,6 +26,7 @@ import {
   AuditTimelineQueryDto,
   BreakGlassDto,
   DecideReviewDto,
+  EntityTimelineQueryDto,
   ReinstateDto,
   ReviewBreakGlassDto,
   ReviewQueryDto,
@@ -341,6 +342,36 @@ export class AuthController {
         scope: req.auth.scope,
       },
       query,
+    );
+  }
+
+  @Get('audit/timeline/entity/:kind/:id')
+  @UseGuards(SessionGuard)
+  async getEntityTimeline(
+    @Param('kind') kind: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: EntityTimelineQueryDto,
+    @Req() req: ProxyRequest,
+    @Res({ passthrough: true }) res: PassthroughResponse,
+  ) {
+    if (!req.auth) throw new UnauthorizedException();
+    await this.enforceRateLimit(
+      req,
+      res,
+      'timeline',
+      RateLimiter.readLimit(),
+      'CMD-IAM-EntityTimeline',
+    );
+    return this.auditTimeline.getEntityTimeline(
+      {
+        accountId: req.auth.accountId,
+        assignmentId: req.auth.assignmentId,
+        activeRole: req.auth.activeRole,
+        scope: req.auth.scope,
+      },
+      kind,
+      id,
+      query.take ?? 100,
     );
   }
 

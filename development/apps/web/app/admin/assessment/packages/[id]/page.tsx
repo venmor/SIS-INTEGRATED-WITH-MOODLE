@@ -3,6 +3,7 @@ import Link from "next/link";
 import type {
   AmendmentCaseDetailView,
   AmendmentCaseView,
+  EntityTimelineResponse,
   ReleaseView,
   ResultPackageDetailView,
 } from "@sis/contracts";
@@ -171,8 +172,44 @@ export default async function BoardPackagePage({
             overwritten.
           </p>
         )}
+        <h2>History</h2>
+        <PackageHistory packageId={item.id} />
       </main>
     </div>
+  );
+}
+
+// Cross-domain history (TASK-PH8-002): every source the caller may
+// already read — audit rows, board decisions, official versions —
+// newest first. Same allow-lists as the direct endpoints, joined.
+async function PackageHistory({ packageId }: { packageId: string }) {
+  const sid = (await cookies()).get("sid")?.value;
+  if (!sid) return null;
+  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
+  let timeline: EntityTimelineResponse | null = null;
+  try {
+    const res = await fetch(
+      `${api}/auth/audit/timeline/entity/result-package/${packageId}?take=100`,
+      {
+        headers: { cookie: `sid=${encodeURIComponent(sid)}` },
+        cache: "no-store",
+      },
+    );
+    if (res.ok) timeline = (await res.json()) as EntityTimelineResponse;
+  } catch {
+    timeline = null;
+  }
+  if (!timeline || timeline.items.length === 0)
+    return <p>No history recorded for this package yet.</p>;
+  return (
+    <ul>
+      {timeline.items.map((entry, index) => (
+        <li key={`${entry.source}-${entry.occurredAt}-${index}`}>
+          {entry.summary} ({entry.source},{" "}
+          {entry.occurredAt.slice(0, 10)})
+        </li>
+      ))}
+    </ul>
   );
 }
 
