@@ -211,7 +211,8 @@ async function AmendmentSection({ packageId }: { packageId: string }) {
         Only released results are amended, and only through a case:
         approval publishes a new immutable official version and queues
         a progression-recalculation task. The original stays in
-        history.
+        history. Escalations and deadline signals for your scope live
+        in the <Link href="/admin/notifications">staff signals queue</Link>.
       </p>
       <h3>Request amendment</h3>
       <RequestAmendmentForm packageId={packageId} />

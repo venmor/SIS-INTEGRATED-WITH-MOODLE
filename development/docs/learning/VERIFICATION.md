@@ -478,3 +478,39 @@ follow-up, not done here.
 route check, production policy approval, and human walkthrough remain
 **not verified** (backup covered by the manual drill above, not by
 the script itself). Detail in [NOTE-PH7-007](NOTE-PH7-007.md).
+
+## Phase 8 slice 1 (2026-10-03, fresh `sis_ph8_n2_test` + `sis_ph8_browser_test`)
+
+Notification record and delivery status (TASK-PH8-001; lead/reviewer
+unassigned). Typecheck exit 0, web lint clean, API lint
+warnings-only (no new warnings), API dist via direct `tsc`, web
+production build exit 0 (new `/notifications`,
+`/admin/notifications` routes). API e2e `notifications` **16/16**
+on the fresh DB (template versioning + supersede, OPEN + QUEUED
+happy path, unknown-template/bad-recipient refusals, worker
+QUEUED→DELIVERED + READ, armed-failure retry→dead-letter +
+mandatory escalation, suppression rules, recipient isolation +
+staff-scope signals, role denials, neutrals, racing-tick
+convergence, idempotent replay + key conflict, expired-grant 403 +
+restore, template reads, student signal refusal, release/amendment
+fan-out in-TX). Slice regressions held on separate fresh DBs:
+`grade-release` **15/15**, `grade-amendment` **12/12**. Unit
+**73/73**. Browser `notifications` (mandatory notice → centre →
+read receipt, no mute control) **1/1** on fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage).
+
+Backup drill (2026-10-03, `sis_ph8_n2_test` notification + fan-out
+data): `pg_dump` → restore into scratch → per-table counts match on
+all 9 checked tables (NotificationTemplate 14, NotificationRecord
+16, NotificationDelivery 16, OfficialCourseResult 5, ResultPackage
+2, Person 11, Account 11, OutboxEvent 19, AuditEvent 88) with zero
+orphans (deliveries, records, assignments). Scratch dropped
+afterwards. Note: `npm run backup:test` itself cannot run on this
+Windows box (no local pg tools; its TABLES list predates Phase 3–8)
+— the drill above used the container tools. Widening the script is a
+follow-up, not done here.
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production provider + policy approval, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH8-001](NOTE-PH8-001.md).

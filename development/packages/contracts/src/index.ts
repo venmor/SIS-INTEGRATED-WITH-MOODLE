@@ -52,3 +52,4 @@ export type * from "./finance.js";
 export type * from "./teaching.js";
 export type * from "./integration.js";
 export type * from "./assessment.js";
+export type * from "./notifications.js";

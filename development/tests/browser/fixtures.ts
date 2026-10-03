@@ -127,6 +127,7 @@ export async function createStudent() {
       password,
       studentNumber: student.studentNumber,
       attemptId: attempt.id,
+      accountId: account.id,
     };
   } finally {
     await db.$disconnect();
@@ -823,6 +824,16 @@ export const assessmentCoordinatorSid = () =>
     "SCHOOL",
     "Computing",
     "assesscoord",
+  );
+
+/** Phase 8 slice 1: governance session for notification template setup. */
+export const sysadminSid = () =>
+  mintSid(
+    "SYSADMIN",
+    ["administer-identity"],
+    "SYSTEM",
+    "GLOBAL",
+    "sysadmin",
   );
 
 export const examinationsOfficerSid = () =>

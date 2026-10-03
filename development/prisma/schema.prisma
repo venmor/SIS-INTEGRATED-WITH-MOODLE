@@ -1781,3 +1781,64 @@ model AcademicImpactTask {
   @@index([amendmentCaseId])
   @@index([studentRef, status])
 }
+
+// Phase 8 slice 1: notification record and delivery status
+// (TASK-PH8-001). Versioned templates (supersede, never edit);
+// authoritative in-system records; per-channel delivery states.
+// Staff signals are a scoped projection over NotificationRecord,
+// not a parallel table (GAP-016 design note).
+model NotificationTemplate {
+  id String @id @default(uuid())
+  event String
+  version Int @default(1)
+  status String @default("ACTIVE")
+  title String
+  body String
+  actionLabel String?
+  office String
+  category String
+  mandatory Boolean @default(false)
+  @@unique([event, version])
+}
+
+model NotificationRecord {
+  id String @id @default(uuid())
+  templateId String
+  templateVersion Int
+  event String
+  title String
+  body String
+  actionPath String?
+  deadlineAt DateTime?
+  office String
+  category String
+  mandatory Boolean @default(false)
+  recipientKind String
+  recipientAccountId String?
+  recipientRole String?
+  scopeType String?
+  scopeRef String?
+  dedupeKey String @unique
+  status String @default("OPEN")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  @@index([recipientAccountId, status])
+  @@index([recipientRole, scopeType, scopeRef, status])
+}
+
+model NotificationDelivery {
+  id String @id @default(uuid())
+  recordId String
+  channel String
+  state String @default("CREATED")
+  attempts Int @default(0)
+  nextRunAt DateTime?
+  lastError String?
+  providerRef String?
+  sentAt DateTime?
+  deliveredAt DateTime?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([state, nextRunAt])
+  @@index([recordId])
+}

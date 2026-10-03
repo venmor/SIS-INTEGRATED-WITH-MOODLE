@@ -5,6 +5,7 @@ import { ASSESSMENT_DEMO_V1 as policy, MOODLE_DEMO_V1 as moodle } from '@sis/con
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { BOARD_DECISIONS, PACKAGE_DECLARATION, AMENDMENT_DECLARATION } from './dto.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
@@ -29,7 +30,57 @@ interface AssessmentAuthority extends ActiveAuthority {
 // sysadmins never write.
 @Injectable()
 export class AssessmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  /**
+   * Phase 8 slice 1 fan-out (TASK-PH8-001): authoritative in-system
+   * notice for one released/amended student, written in the caller's
+   * transaction (audit + notification together). Resolves the
+   * studentNumber → Student → Person → Account chain; skips (never
+   * fails the domain write) when the template or account is missing
+   * and reports the skip for audit metadata.
+   */
+  private async fanOutResultNotice(
+    db: Tx,
+    input: {
+      event: string;
+      title: string;
+      body: string;
+      studentRef: string;
+      dedupeKey: string;
+    },
+  ): Promise<{ notified: boolean; skipped: string | null }> {
+    const template = await db.notificationTemplate.findFirst({
+      where: { event: input.event, status: 'ACTIVE' },
+      orderBy: { version: 'desc' },
+    });
+    if (!template) return { notified: false, skipped: 'NO_TEMPLATE' };
+    const student = await db.student.findUnique({
+      where: { studentNumber: input.studentRef },
+    });
+    const account = student
+      ? await db.account.findFirst({ where: { personId: student.personId } })
+      : null;
+    if (!account) return { notified: false, skipped: 'NO_ACCOUNT' };
+    await this.notifications.createFromEvent(db, {
+      templateId: template.id,
+      templateVersion: template.version,
+      event: input.event,
+      title: input.title,
+      body: input.body,
+      actionPath: '/student/results',
+      office: template.office,
+      category: 'RESULT',
+      mandatory: true,
+      recipientAccountId: account.id,
+      dedupeKey: input.dedupeKey,
+      channels: ['IN_SYSTEM'],
+    });
+    return { notified: true, skipped: null };
+  }
 
   private fail(
     code: string,
@@ -2691,6 +2742,24 @@ export class AssessmentService {
           packageId: live.id,
           studentCount: created.length,
         });
+        // Phase 8 slice 1 fan-out: one authoritative notice per
+        // released student, same transaction (skips never fail release).
+        const skipped: string[] = [];
+        for (const row of created) {
+          const outcome = await this.fanOutResultNotice(db, {
+            event: 'RESULT_RELEASED',
+            title: 'Official results released',
+            body: 'Your official results are available securely in the portal.',
+            studentRef: row.studentRef,
+            dedupeKey: `release:${live.id}:${row.studentRef}`,
+          });
+          if (outcome.skipped) skipped.push(`${row.studentRef}:${outcome.skipped}`);
+        }
+        if (skipped.length > 0) {
+          await this.audit(db, auth, 'ResultNoticeSkipped', live.id, key, {
+            skipped,
+          });
+        }
         return { status: 201, body: view };
       },
     );
@@ -3078,6 +3147,20 @@ export class AssessmentService {
           nextVersion,
           resultId: created.id,
         });
+        // Phase 8 slice 1 fan-out: amended-result notice, same
+        // transaction (a skip never fails the amendment).
+        const amended = await this.fanOutResultNotice(db, {
+          event: 'RESULT_AMENDED',
+          title: 'Official result updated',
+          body: 'An official result was updated after an authorized review. Sign in to view the current result.',
+          studentRef: live.studentRef,
+          dedupeKey: `amend:${live.id}`,
+        });
+        if (amended.skipped) {
+          await this.audit(db, auth, 'ResultNoticeSkipped', live.id, key, {
+            skipped: [`${live.studentRef}:${amended.skipped}`],
+          });
+        }
         return { status: 201, body: this.amendmentView(decided) };
       },
     );
