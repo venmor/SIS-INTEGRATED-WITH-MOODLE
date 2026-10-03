@@ -481,8 +481,8 @@ the script itself). Detail in [NOTE-PH7-007](NOTE-PH7-007.md).
 
 ## Phase 8 slice 1 (2026-10-03, fresh `sis_ph8_n2_test` + `sis_ph8_browser_test`)
 
-Notification record and delivery status (TASK-PH8-001; lead/reviewer
-unassigned). Typecheck exit 0, web lint clean, API lint
+Notification record and delivery status (TASK-PH8-001; lead
+unassigned, reviewer Charles Hangoma). Typecheck exit 0, web lint clean, API lint
 warnings-only (no new warnings), API dist via direct `tsc`, web
 production build exit 0 (new `/notifications`,
 `/admin/notifications` routes). API e2e `notifications` **16/16**
@@ -517,8 +517,8 @@ production provider + policy approval, and human walkthrough remain
 
 ## Phase 8 slice 2 (2026-10-03, fresh `sis_ph8_e2_test` + `sis_ph8_browser_test`)
 
-Cross-domain audit timeline (TASK-PH8-002; lead/reviewer
-unassigned). Typecheck exit 0, web lint clean, API lint
+Cross-domain audit timeline (TASK-PH8-002; lead
+unassigned, reviewer Charles Hangoma). Typecheck exit 0, web lint clean, API lint
 warnings-only (no new warnings), API dist via direct `tsc`, web
 production build exit 0 (package History section). API e2e
 `audit-entity-timeline` **10/10** on the fresh DB (applicant own
@@ -535,3 +535,61 @@ empty localStorage).
 Manual screen-reader/WSL replay, remote CI, Vercel route check,
 production retention + policy approval, and human walkthrough
 remain **not verified**. Detail in [NOTE-PH8-002](NOTE-PH8-002.md).
+
+## Phase 8 slice 3 (2026-10-03, fresh `sis_ph8_s3_final2_test` + `sis_ph8_browser_s3_test`)
+
+Operations health and incident queue (TASK-PH8-003; lead
+Chitundu Milimbo, reviewer Charles Hangoma). Node **22.13.1** /
+PostgreSQL **18** environment notes as slices 1–2 (direct-`node`
+CLI invocations; API dist via direct `tsc`; full demo seed
+unrunnable — min-seed + curriculum-version seeder used for the
+browser DB). Typecheck exit 0 (API + web), web lint clean, API
+lint warnings-only (no errors; 5 new `no-base-to-string` notes
+in the ops forms match the identical pre-existing
+`String(data.get(...) ?? "")` pattern), API dist via direct
+`tsc`, web production build exit 0 (new `/admin/ops`,
+`/api/ops` routes). API e2e `ops-incidents` **15/15** on the
+fresh DB (manual open + owner, severity/title refusals,
+ack/resolve/close lifecycle, notification dead-letter auto-open
+with dedupe, integration sweep dedupe, mandatory lane stays
+examinations-only, role denials, moodle reads + neutrals, list
+scoping via `status`/`openOnly` filters + detail happy path,
+target-response persistence, racing-resolve convergence,
+idempotent replay + key conflict, expired-grant 403 +
+restore). The list coverage caught a real bug: `openOnly=false`
+never filtered (`Boolean('false')` is `true`) — replaced with
+an explicit coercion, proven by a CLOSED incident excluded
+under `openOnly=true` but returned under `openOnly=false`. Slice regression held on a
+separate fresh DB: `notifications` **16/16**. Unit **73/73**.
+Browser `ops-queue` (armed SMS_SIM failure → dead-letter →
+incident → ack → resolve with evidence → CLOSED) **1/1** on
+fresh migrated + seeded browser DB with rebuilt apps (390px,
+keyboard/focus, no overflow, empty localStorage).
+
+Backup drill (2026-10-03, `sis_ph8_s3_test` ops + notification
+data): `pg_dump` → restore into scratch
+`sis_ph8_s3_backup_scratch` → per-table counts match on all 10
+checked tables (OpsIncident 8, NotificationTemplate 2,
+NotificationRecord 3, NotificationDelivery 3,
+IntegrationDeliveryAttempt 1, OutboxEvent 3, AuditEvent 17,
+ApplicationCommand 17, Person 9, Account 9) with zero orphans
+(deliveries, records). Scratch dropped afterwards. Note: `npm
+run backup:test` itself cannot run on this Windows box (no
+local pg tools; its TABLES list predates Phase 3–8) — the drill
+above used the container tools. Widening the script is a
+follow-up, not done here.
+
+First browser attempt (22:04) timed out waiting for the Close
+button: the served web build predated the Recently-resolved
+close form (stale build, not a code bug) — rebuilt both apps
+and reran on a fresh browser DB → green; the failed trace is
+kept in `test-results/`. Phase 6 `integration-ops`/`replay`
+suites fail identically on clean HEAD with our changes stashed
+(min-seed lacks the curriculum/courses for the
+applicant→student journey) — pre-existing environment limit,
+not a slice-3 regression; full-seed rerun needs a Node 24 box.
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production provider + policy approval (GAP-009 paging/RPO/RTO),
+and human walkthrough remain **not verified**. Detail in
+[NOTE-PH8-003](NOTE-PH8-003.md).

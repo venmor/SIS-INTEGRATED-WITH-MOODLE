@@ -920,6 +920,27 @@ export async function ensureStagedStudent() {
   }
 }
 
+/** Phase 8 slice 3: advance the worker clock by making all pending
+ * notification deliveries due now (backoff schedules them ahead;
+ * browser setup resets between ticks, like the e2e clock advance). */
+export async function resetNotificationDueDates() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    await db.notificationDelivery.updateMany({
+      where: { state: { in: ["QUEUED", "RETRIED"] } },
+      data: { nextRunAt: new Date(Date.now() - 1000) },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 8 slice 2: white-box result package with a board decision, an
  * official row and an audit row (writes proven by Phase 7 suites; the
  * timeline endpoint's job is gating + joining). */

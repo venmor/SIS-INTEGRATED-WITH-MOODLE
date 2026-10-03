@@ -278,7 +278,9 @@ describe('Phase 8 ops incident queue', () => {
     });
     expect(escalations).toBeGreaterThanOrEqual(1);
     expect(
-      await db.opsIncident.count({ where: { sourceKind: 'NOTIFICATION_DELIVERY' } }),
+      await db.opsIncident.count({
+        where: { sourceKind: 'NOTIFICATION_DELIVERY', sourceRef: delivery.id },
+      }),
     ).toBe(0);
   });
 
@@ -309,6 +311,79 @@ describe('Phase 8 ops incident queue', () => {
     expect(missing.status).toBe(404);
     const outsider = await get('/queue', studentCookie);
     expect([403, 404]).toContain(outsider.status);
+  });
+
+  it('reads-list: status and openOnly filters scope the incident list', async () => {
+    const opened = (await post('/incidents', openBody(), supportCookie).expect(201))
+      .body as { id: string; version: number };
+    const acked = (await post(
+      `/incidents/${opened.id}/acknowledge`,
+      { idempotencyKey: key(), version: opened.version },
+      supportCookie,
+    ).expect(201)).body as { version: number };
+    const openOnly = (await get('/incidents?openOnly=true', supportCookie).expect(200))
+      .body as { items: Array<{ id: string }> };
+    expect(openOnly.items.map((i) => i.id)).toContain(opened.id);
+    const openStatus = (await get('/incidents?status=OPEN', supportCookie).expect(200))
+      .body as { items: Array<{ id: string }> };
+    expect(openStatus.items.map((i) => i.id)).not.toContain(opened.id);
+    const ackedList = (await get('/incidents?status=ACKNOWLEDGED', supportCookie).expect(200))
+      .body as { items: Array<{ id: string }> };
+    expect(ackedList.items.map((i) => i.id)).toContain(opened.id);
+    const resolved = (await post(
+      `/incidents/${opened.id}/resolve`,
+      {
+        idempotencyKey: key(),
+        version: acked.version,
+        rootCause: 'Simulator provider timed out under retry storm.',
+        recoveryEvidence: 'Provider recovered; deliveries drained and reconciled against the outbox.',
+      },
+      supportCookie,
+    ).expect(201)).body as { version: number };
+    await post(
+      `/incidents/${opened.id}/close`,
+      { idempotencyKey: key(), version: resolved.version },
+      supportCookie,
+    ).expect(201);
+    // A closed incident leaves the open set but stays listable:
+    // this is the case Boolean('false')===true got wrong.
+    const stillOpen = (await get('/incidents?openOnly=true', supportCookie).expect(200))
+      .body as { items: Array<{ id: string }> };
+    expect(stillOpen.items.map((i) => i.id)).not.toContain(opened.id);
+    const all = (await get('/incidents?openOnly=false', supportCookie).expect(200))
+      .body as { items: Array<{ id: string }> };
+    expect(all.items.map((i) => i.id)).toContain(opened.id);
+    const moodle = (await get('/incidents?openOnly=true', moodleCookie).expect(200))
+      .body as { items: unknown[] };
+    expect(Array.isArray(moodle.items)).toBe(true);
+    const outsider = await get('/incidents?openOnly=true', studentCookie);
+    expect([403, 404]).toContain(outsider.status);
+  });
+
+  it('reads-detail: opened incident detail returns the owned row', async () => {
+    const opened = (await post('/incidents', openBody(), supportCookie).expect(201))
+      .body as { id: string; title: string };
+    const detail = (await get(`/incidents/${opened.id}`, supportCookie).expect(200))
+      .body as { id: string; title: string; status: string };
+    expect(detail.id).toBe(opened.id);
+    expect(detail.title).toBe(opened.title);
+    expect(detail.status).toBe('OPEN');
+  });
+
+  it('lifecycle-target: acknowledge stores the target response time', async () => {
+    const opened = (await post('/incidents', openBody(), supportCookie).expect(201))
+      .body as { id: string; version: number };
+    await post(
+      `/incidents/${opened.id}/acknowledge`,
+      {
+        idempotencyKey: key(),
+        version: opened.version,
+        targetResponseAt: '2026-11-01T00:00:00.000Z',
+      },
+      supportCookie,
+    ).expect(201);
+    const row = await db.opsIncident.findUniqueOrThrow({ where: { id: opened.id } });
+    expect(row.targetResponseAt?.toISOString()).toBe('2026-11-01T00:00:00.000Z');
   });
 
   it('neutral: unknown incidents are 404 without disclosure', async () => {

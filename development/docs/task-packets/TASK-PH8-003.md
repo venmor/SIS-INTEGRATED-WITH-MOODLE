@@ -3,7 +3,7 @@
 ## Authority and ownership
 
 User authorization: Phase 8 slice 3 implementation request, 2026-10-03.
-Release v0.9.0 track. Lead Chitundu Milimbo; reviewer unassigned.
+Release v0.9.0 track. Lead Chitundu Milimbo; reviewer Charles Hangoma.
 Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 3 (`11-…/10-phase-8-
@@ -70,8 +70,8 @@ job failure retains certified state + reconcile/retry.
 
 ## Proof and documentation
 
-API (`ops-incidents.e2e-spec.ts`, ~12 tests): manual open + list
-scoping, ack ownership, resolve demands evidence + root cause,
+API (`ops-incidents.e2e-spec.ts`, 15 tests): manual open + list
+scoping (status/openOnly filters, detail, target response), ack ownership, resolve demands evidence + root cause,
 close immutability, auto-open on notification dead-letter (dedupe:
 two dead-letters → one incident), auto-open on integration
 dead-letter, mandatory lane stays examinations-only (no duplicate
@@ -89,4 +89,14 @@ production incident ownership. Gates: GAP-009, open decisions
 
 ## Completion
 
-Pending; see VERIFICATION. Human review pending.
+Implemented in the worktree 2026-10-03 (uncommitted, human
+review pending): migration `20261003120000_ph8_ops_queue`,
+`ops` module + controller + DTOs, worker auto-open hooks in
+both domains, `/admin/ops` console + `/api/ops` proxy +
+contracts, `ops-incidents` 15/15 on fresh `sis_ph8_s3_final2_test`
+(incl. `openOnly` coercion fix + list/detail/target-response
+coverage),
+`notifications` 16/16 regression, unit 73/73, browser
+`ops-queue` 1/1 on fresh `sis_ph8_browser_s3_test`, backup
+drill incl. OpsIncident; see VERIFICATION Phase 8 slice 3 and
+NOTE-PH8-003. Human review pending.

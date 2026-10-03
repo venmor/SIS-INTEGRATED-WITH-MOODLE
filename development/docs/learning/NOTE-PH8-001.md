@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH8-001 (notification record and delivery status)
 
 - Lead developer: unassigned (assign at kickoff)
-- Reviewer: unassigned
+- Reviewer: Charles Hangoma
 - Date/release: 2026-10-03 / v0.9.0 track Phase 8 slice 1
 - Branch: worktree (human review pending)
 

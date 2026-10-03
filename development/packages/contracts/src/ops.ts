@@ -22,4 +22,7 @@ export interface OpsQueueView {
   openEscalations: number;
   openReconCases: number;
   latest: OpsIncidentView[];
+  recentlyResolved: Array<
+    OpsIncidentView & { rootCause: string | null; recoveryEvidence: string | null }
+  >;
 }

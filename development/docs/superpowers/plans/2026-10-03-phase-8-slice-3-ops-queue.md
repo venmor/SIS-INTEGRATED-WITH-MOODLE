@@ -16,7 +16,7 @@
 - No Tailwind, microservices, Redis, Kafka/RabbitMQ, Kubernetes, native mobile, AI chatbot, real student data, real production credentials without approved ADR.
 - Server-side authz: role + scope + relationship + state + purpose + time-bound authority; denials 403 + audit; neutrals 404.
 - Immutable history for high-impact decisions; idempotency keys + row locks + outbox where external effects occur (transitions here are internal + audited only, per packet).
-- Demo data only (SUP-009). Release v0.9.0 track. Lead Chitundu Milimbo; reviewer unassigned.
+- Demo data only (SUP-009). Release v0.9.0 track. Lead Chitundu Milimbo; reviewer Charles Hangoma.
 
 ---
 

@@ -3,9 +3,10 @@
 Release v0.9.0 track. Roadmap
 `11-…/10-phase-8-hardening-operations-and-evidence.md` slices 1–3
 (TASK-PH8-001 approved 2026-10-03 for slice 1; TASK-PH8-002 approved
-2026-10-03 for slice 2; slice 3 planned, packet pending). Simulator-only (`SIM-NOTIFY-v1` provider);
-`NOTIFY-DEMO-v1` is fictional (SUP-009, GAP-008). Team: unassigned
-(assign at kickoff).
+2026-10-03 for slice 2; TASK-PH8-003 approved 2026-10-03 for slice
+3). Simulator-only (`SIM-NOTIFY-v1` provider);
+`NOTIFY-DEMO-v1` is fictional (SUP-009, GAP-008). Lead Chitundu
+Milimbo (slice 3); reviewer Charles Hangoma.
 
 ## Slice map (requirement → code → test)
 
@@ -13,10 +14,10 @@ Release v0.9.0 track. Roadmap
 |---|---|---|---|
 | 1 notification record + delivery | §§16.11–16.14; UX §12.13; applicant §9; student §8; quality §11.39; §§15.6–15.7,15.19; TEST-REC-005/010 shapes | versioned templates, records + per-channel deliveries, worker + SIM provider, retry/dead-letter/escalation, staff-signal projection, assessment fan-out; centre + signals pages + proxy | `notifications` 16/16 |
 | 2 cross-domain audit timeline | §16.14; §15.19; UI-TIMELINE-001; visibleTimeline/caseHistory contracts; TEST-E2E shapes | kind-dispatched entity endpoint, gate-first joins, audited reads; package History section + contracts | `audit-entity-timeline` 10/10 |
-| 3 ops health + incident queue | §16.13; §§16.5,16.7; TEST-REC shapes | _planned_ — generic OpsIncident + console over existing integration ops | — |
+| 3 ops health + incident queue | §16.13; §§16.5,16.7,16.10; §§15.6–15.7,15.19; incident-lifecycle + worker-recovery clauses; TEST-REC shapes | generic `OpsIncident` (partial-unique one-OPEN-per-source) + dead-letter auto-open hooks in both domain workers + console (`/admin/ops`) over existing integration ops | `ops-incidents` 15/15 |
 
-Total: 26/26 API e2e on fresh isolated DBs (16 + 10); unit 73/73; browser
-notification centre + package history journeys 1/1 each at 390px with
+Total: 41/41 API e2e on fresh isolated DBs (16 + 10 + 15); unit 73/73; browser
+notification centre + package history + ops queue journeys 1/1 each at 390px with
 keyboard, focus, no overflow, empty localStorage.
 
 ## Authority notes
@@ -39,10 +40,14 @@ per-student RESULT notices.
 
 ## Remaining gates
 
-Slices 2–3 unimplemented (packets pending); `backup:test` script
-still predates Phase 3–8 tables (manual drill covers them —
-follow-up to widen the script); manual screen-reader/WSL replay,
-remote CI, Vercel route check, production provider + policy
-approval, human walkthrough (both developers must explain the
-slice). Detail: [NOTE-PH8-001](NOTE-PH8-001.md),
-[VERIFICATION](VERIFICATION.md) Phase 8 slice 1.
+All three slices implemented (human review pending for each);
+`backup:test` script still predates Phase 3–8 tables (manual
+drills cover them — follow-up to widen the script); manual
+screen-reader/WSL replay, remote CI, Vercel route check,
+production provider + policy approval, Phase 6 full-seed
+regression on a Node 24 box (min-seed insufficient for the
+applicant→student journey; reproduced on clean HEAD, not a
+slice-3 regression), human walkthrough (both developers must
+explain the slice). Detail: [NOTE-PH8-001](NOTE-PH8-001.md),
+[NOTE-PH8-002](NOTE-PH8-002.md), [NOTE-PH8-003](NOTE-PH8-003.md),
+[VERIFICATION](VERIFICATION.md) Phase 8 slices 1–3.

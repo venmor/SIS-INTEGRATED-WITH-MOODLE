@@ -13,6 +13,7 @@ import { SimulatorAdapter } from './moodle-sim-adapter.js';
 import { LiveMoodleAdapter, MoodleApiError } from './moodle-live.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import { OpsService } from '../ops/ops.service.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
@@ -30,7 +31,10 @@ interface IntegrationAuthority extends ActiveAuthority {
 // reconciliation to this module.
 @Injectable()
 export class IntegrationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ops: OpsService,
+  ) {}
 
   fail(
     code: string,
@@ -725,6 +729,16 @@ export class IntegrationService {
       await db.integrationDeliveryAttempt.update({
         where: { id: attemptRowId },
         data: { state: 'DEAD_LETTER', lastError: error },
+      });
+      // Phase 8 slice 3 auto-open (TASK-PH8-003): dead-lettered
+      // integration deliveries open a generic ops incident
+      // convergently, in the same transaction.
+      await this.ops.openFromDeadLetter(db, {
+        sourceKind: 'INTEGRATION_DELIVERY',
+        sourceRef: attemptRowId,
+        title: `Integration delivery dead-lettered (${outboxId})`,
+        severity: 'HIGH',
+        detail: { outboxId, lastError: error },
       });
       return;
     }

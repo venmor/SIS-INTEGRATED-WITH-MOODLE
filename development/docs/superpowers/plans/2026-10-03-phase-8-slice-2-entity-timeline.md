@@ -16,7 +16,7 @@
 - No Tailwind, microservices, Redis, Kafka/RabbitMQ, Kubernetes, native mobile, AI chatbot, real student data, real production credentials without approved ADR.
 - Server-side authz: role + scope + relationship + state + purpose + time-bound authority; denials 403 + audit; neutrals 404.
 - No new PII surface: same allow-lists and filters as the direct endpoints, joined — never widened.
-- Demo data only (SUP-009). Release v0.9.0 track. Lead/reviewer unassigned.
+- Demo data only (SUP-009). Release v0.9.0 track. Lead unassigned (assign at kickoff); reviewer Charles Hangoma.
 
 ---
 

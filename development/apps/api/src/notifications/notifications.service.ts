@@ -31,7 +31,10 @@ const STAFF_WRITERS: Array<[string, string]> = [
 // never mutates the underlying workflow state.
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ops: OpsService,
+  ) {}
 
   private fail(
     code: string,
@@ -768,6 +771,23 @@ export class NotificationsService {
               }),
             },
           });
+          // Non-mandatory dead-letters open a generic ops incident
+          // convergently (TASK-PH8-003). Mandatory notices stay on the
+          // examinations lane below; the ops console links them
+          // read-only instead of duplicating.
+          if (!record.mandatory) {
+            await this.ops.openFromDeadLetter(db, {
+              sourceKind: 'NOTIFICATION_DELIVERY',
+              sourceRef: delivery.id,
+              title: `Notification delivery dead-lettered (${record.event})`,
+              severity: 'MEDIUM',
+              detail: {
+                recordId: record.id,
+                channel: delivery.channel,
+                attempts,
+              },
+            });
+          }
           // Mandatory notices escalate to a staff follow-up record
           // (§16.12: the workflow may create one under policy).
           if (record.mandatory && attempts >= (policy.escalation.afterFailures as unknown as number)) {

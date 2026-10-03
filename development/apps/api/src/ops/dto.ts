@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -87,7 +87,9 @@ export class ListIncidentsQuery {
   @MaxLength(16)
   status?: string;
   @IsOptional()
-  @Type(() => Boolean)
+  // Query strings arrive as text: Boolean('false') is true, so
+  // coerce explicitly instead of @Type(() => Boolean).
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   openOnly?: boolean;
 }

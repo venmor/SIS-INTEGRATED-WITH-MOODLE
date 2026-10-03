@@ -4,7 +4,7 @@
 
 User authorization: Phase 8 slice 1 implementation request, 2026-10-03.
 Release v0.9.0 track. Lead unassigned (assign at kickoff); reviewer
-unassigned. Rehearsal duties only. Human review pending.
+Charles Hangoma. Rehearsal duties only. Human review pending.
 
 Controlling sources: roadmap slice 1 (`11-…/10-phase-8-
 hardening-operations-and-evidence.md`); recovery/notification

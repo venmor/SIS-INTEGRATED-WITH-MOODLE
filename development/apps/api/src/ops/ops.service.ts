@@ -450,7 +450,7 @@ export class OpsService {
 
   async queueOverview(auth: OpsAuthority) {
     await this.queueReader(auth);
-    const [open, acknowledged, notificationDead, integrationDead, pendingReplays, escalations, reconCases, latest] =
+    const [open, acknowledged, notificationDead, integrationDead, pendingReplays, escalations, reconCases, latest, recent] =
       await Promise.all([
         this.prisma.opsIncident.count({ where: { status: 'OPEN' } }),
         this.prisma.opsIncident.count({ where: { status: 'ACKNOWLEDGED' } }),
@@ -466,6 +466,11 @@ export class OpsService {
           orderBy: { createdAt: 'desc' },
           take: 20,
         }),
+        this.prisma.opsIncident.findMany({
+          where: { status: { in: ['RESOLVED', 'CLOSED'] } },
+          orderBy: { updatedAt: 'desc' },
+          take: 10,
+        }),
       ]);
     return {
       openIncidents: open,
@@ -476,6 +481,11 @@ export class OpsService {
       openEscalations: escalations,
       openReconCases: reconCases,
       latest: latest.map((r) => this.incidentView(r)),
+      recentlyResolved: recent.map((r) => ({
+        ...this.incidentView(r),
+        rootCause: r.rootCause,
+        recoveryEvidence: r.recoveryEvidence,
+      })),
     };
   }
 }

@@ -18,7 +18,7 @@
 - Immutable history for high-impact decisions; idempotency keys + row locks + outbox where external effects occur.
 - Demo-only: `NOTIFY-DEMO-v1` + `SIM-NOTIFY-v1` (SUP-009); no real providers, contacts, or thresholds claimed.
 - Never weaken policy/tests to make build pass; record gaps, fail closed.
-- Release v0.9.0 track. Lead/reviewer unassigned (assign at kickoff).
+- Release v0.9.0 track. Lead unassigned (assign at kickoff); reviewer Charles Hangoma.
 
 ---
 
