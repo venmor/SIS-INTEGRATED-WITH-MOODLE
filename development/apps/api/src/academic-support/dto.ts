@@ -26,6 +26,7 @@ export class AcademicRequestPageDto {
   @IsOptional()
   @IsIn([
     'ALL',
+    'OPEN',
     'NEEDS_REPLY',
     'RECEIVED',
     'STUDENT_REPLIED',

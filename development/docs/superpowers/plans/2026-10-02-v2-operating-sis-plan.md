@@ -162,6 +162,8 @@ The existing `feature-sis-expansion-2.0.md` remains the subsystem inventory and 
 
 **Public discovery increment, 2026-10-02:** [TASK-V2-UI-004](../../task-packets/TASK-V2-UI-004.md) exposes real catalogue paging, preserves URL search context, shows intake and progressively reveals detailed filters. [Verification and limits](../../learning/NOTE-V2-UI-004.md) record the connected synthetic browser check. The next presentation reviews should follow actual user tasks through programme detail/eligibility, applicant submission, student support and the dense staff case/finance screens; they remain open until verified individually.
 
+**Workspace shell increment, 2026-10-04:** [TASK-V2-UI-005](../../task-packets/TASK-V2-UI-005.md) and the [region map](../../design/WORKSPACE-SHELL-V2.md) establish stable staff sidebar/top bar and focused portal navigation. Future workspaces occupy reserved positions only when their scoped journeys work; search, notification counts, profile controls and period selection remain separate source-owned tasks. [Implementation note](../../learning/NOTE-V2-UI-005.md).
+
 ### Task 8: Reproducible institutional reporting and exports
 
 - [ ] Execute TASK-071–075 and source-owned read models with definitions for denominator, cohort/census date, exclusions, missing data, source version and freshness.

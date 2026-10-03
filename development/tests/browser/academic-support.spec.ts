@@ -61,6 +61,21 @@ test("student sends a real academic request and exchanges secure replies with th
     await expect(
       adviser.getByRole("heading", { name: "Assigned support requests" }),
     ).toBeVisible();
+    await expect(
+      adviser.getByRole("complementary", {
+        name: "Staff workspace navigation",
+      }),
+    ).toBeVisible();
+    await expect(
+      adviser
+        .getByRole("navigation", { name: "Workspace sections" })
+        .getByRole("link", { name: "Assigned support requests" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      adviser
+        .getByRole("region", { name: "Assigned workload" })
+        .getByRole("link", { name: /Needs reply/ }),
+    ).toBeVisible();
     expect(
       await adviser
         .getByRole("form", { name: "Filter assigned requests" })

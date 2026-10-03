@@ -80,6 +80,10 @@ export class AcademicSupportController {
     return this.support.assignedActions(request.auth, query);
   }
 
+  @Get('assigned/overview') assignedOverview(@Req() request: AuthRequest) {
+    return this.support.assignedOverview(request.auth);
+  }
+
   @Get('assigned/:id')
   assignedCase(
     @Req() request: AuthRequest,

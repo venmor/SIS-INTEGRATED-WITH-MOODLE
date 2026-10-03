@@ -1,5 +1,6 @@
 import Link from "next/link";
 import shell from "./student-shell.module.css";
+import { PortalNav } from "../portal-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -49,20 +50,7 @@ export default function StudentLayout({
           Switch workspace
         </Link>
       </header>
-      <nav
-        aria-label="Student navigation"
-        className="flex flex-wrap gap-1 border-b border-sis-border py-2"
-      >
-        {navigation.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`${shell.navLink} inline-flex min-h-11 items-center text-sm font-semibold transition-colors duration-150 motion-reduce:transition-none`}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <PortalNav label="Student navigation" links={navigation} />
       <main
         id="main-content"
         tabIndex={-1}

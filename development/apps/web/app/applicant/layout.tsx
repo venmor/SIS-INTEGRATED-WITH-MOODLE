@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ApplicantSignOut } from "./sign-out";
 import styles from "./applicant.module.css";
+import { PortalNav } from "../portal-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -40,29 +41,21 @@ export default function ApplicantLayout({
         </Link>
         <nav
           className="flex w-full flex-wrap items-center gap-1 sm:w-auto"
-          aria-label="Applicant navigation"
+          aria-label="Applicant account"
         >
-          <Link
-            className="inline-flex min-h-11 items-center rounded-sis px-3 font-semibold text-sis-muted no-underline transition-colors duration-150 hover:bg-sis-sunken hover:text-sis-text motion-reduce:transition-none"
-            href="/applicant"
-          >
-            My applications
-          </Link>
-          <Link
-            className="inline-flex min-h-11 items-center rounded-sis px-3 font-semibold text-sis-muted no-underline transition-colors duration-150 hover:bg-sis-sunken hover:text-sis-text motion-reduce:transition-none"
-            href="/discover"
-          >
-            Find a programme
-          </Link>
-          <Link
-            className="inline-flex min-h-11 items-center rounded-sis px-3 font-semibold text-sis-muted no-underline transition-colors duration-150 hover:bg-sis-sunken hover:text-sis-text motion-reduce:transition-none"
-            href="/applicant/help"
-          >
-            Help
-          </Link>
+          <Link href="/">Switch workspace</Link>
           <ApplicantSignOut />
         </nav>
       </header>
+      <PortalNav
+        label="Applicant navigation"
+        links={[
+          { href: "/applicant", label: "My applications" },
+          { href: "/discover", label: "Find a programme" },
+          { href: "/applicant/notifications", label: "Notifications" },
+          { href: "/applicant/help", label: "Help" },
+        ]}
+      />
       <main id="applicant-content" className={styles.main} tabIndex={-1}>
         {children}
       </main>

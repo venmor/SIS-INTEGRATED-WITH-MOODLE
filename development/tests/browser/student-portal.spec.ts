@@ -25,6 +25,13 @@ test("student portal: home, contact update, correction request", async ({
     page.getByRole("link", { name: "Student portal" }),
   ).toBeVisible();
   await page.goto("/student");
+  await expect(page.getByText("Portal sections")).toBeVisible();
+  await page.getByText("Portal sections").click();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Student navigation" })
+      .getByRole("link", { name: "Home" }),
+  ).toHaveAttribute("aria-current", "page");
   await expect(
     page.getByRole("heading", { name: "Welcome to the student portal" }),
   ).toBeVisible();

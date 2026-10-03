@@ -24,6 +24,7 @@ export function SupportQueueFilters({
           className="min-h-11 rounded-sis border border-sis-border bg-sis-surface px-3 text-base font-normal text-sis-text"
         >
           <option value="ALL">All assigned</option>
+          <option value="OPEN">Open cases</option>
           <option value="NEEDS_REPLY">Needs reply</option>
           <option value="RECEIVED">New requests</option>
           <option value="STUDENT_REPLIED">Student replied</option>

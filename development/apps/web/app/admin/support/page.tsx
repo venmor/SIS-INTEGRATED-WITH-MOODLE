@@ -26,6 +26,20 @@ type AssignedSummary = Pick<
   | "student"
 >;
 
+interface WorkloadOverview {
+  source: string;
+  definitionsVersion: string;
+  asOf: string;
+  targetDateZone: string;
+  counts: {
+    openCases: number;
+    needsReply: number;
+    needsConfirmation: number;
+    pastTarget: number;
+    completedCases: number;
+  };
+}
+
 export default async function AssignedSupportPage({
   searchParams,
 }: {
@@ -44,10 +58,13 @@ export default async function AssignedSupportPage({
   if (status) filters.set("status", status);
   if (reference) filters.set("reference", reference);
   const firstPage = `/admin/support${filters.size ? `?${filters}` : ""}`;
-  const loaded = await loadSupport<{
-    items: AssignedSummary[];
-    nextCursor: string | null;
-  }>(`assigned?${query}`, "/admin/support");
+  const [loaded, overview] = await Promise.all([
+    loadSupport<{
+      items: AssignedSummary[];
+      nextCursor: string | null;
+    }>(`assigned?${query}`, "/admin/support"),
+    loadSupport<WorkloadOverview>("assigned/overview", "/admin/support"),
+  ]);
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-8">
       <PageHeader
@@ -55,6 +72,63 @@ export default async function AssignedSupportPage({
         title="Assigned support requests"
         lede="Requests sent to your selected adviser appointment. Open a case to reply in the secure portal."
       />
+      {overview.data ? (
+        <section aria-label="Assigned workload" className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                label: "Open cases",
+                count: overview.data.counts.openCases,
+                href: "/admin/support?status=OPEN",
+              },
+              {
+                label: "Needs reply",
+                count: overview.data.counts.needsReply,
+                href: "/admin/support?status=NEEDS_REPLY",
+              },
+              {
+                label: "Needs confirmation",
+                count: overview.data.counts.needsConfirmation,
+                href: "/admin/support/follow-ups?view=NEEDS_CONFIRMATION",
+              },
+              {
+                label: "Past target",
+                count: overview.data.counts.pastTarget,
+                href: "/admin/support/follow-ups?view=PAST_TARGET",
+              },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="grid gap-1 rounded-sis border border-sis-border bg-sis-surface p-4 no-underline hover:border-sis-brand"
+              >
+                <span className="text-sm font-semibold text-sis-muted">
+                  {item.label}
+                </span>
+                <strong className="text-2xl text-sis-text">{item.count}</strong>
+                <span className="text-sm">View work →</span>
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs text-sis-muted">
+            Assigned academic-support records · As of{" "}
+            {formatLusaka(overview.data.asOf)} ·{" "}
+            {overview.data.definitionsVersion}. Past target means an open action
+            whose agreed date has passed in Zambia; it is not a service-level
+            breach.{" "}
+            <Link href="/admin/support?status=CLOSED">
+              Completed cases: {overview.data.counts.completedCases}
+            </Link>
+            .
+          </p>
+        </section>
+      ) : (
+        <Notice
+          severity="warning"
+          title="Workload summary unavailable"
+          message={overview.message}
+        />
+      )}
       <Link
         className="inline-flex min-h-11 w-fit items-center rounded-sis border border-sis-border bg-sis-surface px-4 font-semibold"
         href="/admin/support/follow-ups"

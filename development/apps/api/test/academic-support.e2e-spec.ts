@@ -746,6 +746,125 @@ describe('Academic support request and receiver', () => {
     ).toContain(guidance.body.id);
   });
 
+  it('reports exact academic-support workload for the selected adviser appointment', async () => {
+    const initial = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(initial).toMatchObject({
+      source: 'ACADEMIC_SUPPORT',
+      definitionsVersion: 'SUPPORT-WORKLOAD-v1',
+    });
+    expect(initial.asOf).toBeTruthy();
+    const created = await post(
+      '/me/requests',
+      {
+        category: 'ACADEMIC_ADVISING',
+        contactMethod: 'PORTAL',
+        acknowledged: true,
+        idempotencyKey: key(),
+      },
+      student.cookie,
+    ).expect(201);
+    const id = created.body.id as string;
+    const received = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(received.counts.openCases).toBe(initial.counts.openCases + 1);
+    expect(received.counts.needsReply).toBe(initial.counts.needsReply + 1);
+    await post(
+      `/assigned/${id}/replies`,
+      { body: 'Let us review your courses.', idempotencyKey: key() },
+      adviser.cookie,
+    ).expect(201);
+    const replied = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(replied.counts.needsReply).toBe(initial.counts.needsReply);
+    const proposed = await post(
+      `/assigned/${id}/actions`,
+      {
+        title: 'Review course choices',
+        explanation: 'Open your current course list and note questions.',
+        routeKey: 'COURSES',
+        dueOn: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        idempotencyKey: key(),
+      },
+      adviser.cookie,
+    ).expect(201);
+    const actionId = proposed.body.id as string;
+    await db.academicSupportAction.update({
+      where: { id: actionId },
+      data: { dueOn: '2020-01-01' },
+    });
+    const pastTarget = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(pastTarget.counts.pastTarget).toBe(initial.counts.pastTarget + 1);
+    await post(
+      `/me/requests/${id}/actions/${actionId}/response`,
+      { accept: true, idempotencyKey: key() },
+      student.cookie,
+    ).expect(201);
+    await post(
+      `/me/requests/${id}/actions/${actionId}/claim`,
+      { idempotencyKey: key() },
+      student.cookie,
+    ).expect(201);
+    const claimed = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(claimed.counts.needsConfirmation).toBe(
+      initial.counts.needsConfirmation + 1,
+    );
+    await post(
+      `/assigned/${id}/actions/${actionId}/confirm`,
+      { idempotencyKey: key() },
+      adviser.cookie,
+    ).expect(201);
+    await post(
+      `/assigned/${id}/close`,
+      { reason: 'AGREED_ACTION_COMPLETED', idempotencyKey: key() },
+      adviser.cookie,
+    ).expect(201);
+    const finished = (await get('/assigned/overview', adviser.cookie).expect(200))
+      .body;
+    expect(finished.counts).toMatchObject({
+      openCases: initial.counts.openCases,
+      needsReply: initial.counts.needsReply,
+      pastTarget: initial.counts.pastTarget,
+      needsConfirmation: initial.counts.needsConfirmation,
+      completedCases: initial.counts.completedCases + 1,
+    });
+    const other = await actor(
+      'ADVISER',
+      ['academic.support.receive'],
+      'PROGRAMME',
+      'OTHER',
+    );
+    expect(
+      (await get('/assigned/overview', other.cookie).expect(200)).body.counts,
+    ).toMatchObject({
+      openCases: 0,
+      needsReply: 0,
+      pastTarget: 0,
+      needsConfirmation: 0,
+      completedCases: 0,
+    });
+    await get('/assigned/overview', student.cookie).expect(403);
+    await db.roleAssignment.update({
+      where: { id: adviser.assignmentId },
+      data: { revokedAt: new Date() },
+    });
+    await get('/assigned/overview', adviser.cookie).expect(403);
+    await db.roleAssignment.update({
+      where: { id: adviser.assignmentId },
+      data: { revokedAt: null },
+    });
+    expect(
+      await db.auditEvent.count({
+        where: {
+          targetRef: adviser.assignmentId,
+          action: 'AcademicSupportWorkloadViewed',
+        },
+      }),
+    ).toBeGreaterThan(0);
+  });
+
   it('fails closed when the service, adviser relationship or demo boundary is unavailable', async () => {
     await db.academicSupportService.update({
       where: { id: serviceId },

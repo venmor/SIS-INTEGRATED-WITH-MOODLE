@@ -135,6 +135,8 @@ Exit: one split-sponsored repeating student can pay partially, receive a governe
 
 Review-worktree finance workbench increments, 2026-10-03: [TASK-V2-FIN-001](../docs/task-packets/TASK-V2-FIN-001.md) bounds reconciliation cases and supplies exact home counts; [TASK-V2-FIN-002](../docs/task-packets/TASK-V2-FIN-002.md) bounds pending arrangement review; [TASK-V2-FIN-003](../docs/task-packets/TASK-V2-FIN-003.md) bounds pending adjustment/refund review by kind and shows role-appropriate forms. These make portions of TASK-032 easier to operate but do not complete TASK-031–035, authorize live payments, or certify finance reports.
 
+The shared [v2.0 workspace shell](../docs/design/WORKSPACE-SHELL-V2.md) now fixes sidebar, top bar, mobile navigation and future module positions. Each additional workbench must add only a working, role-relevant route with its own task packet and server authority; a reserved position is not a feature-complete claim.
+
 ### Implementation Phase 5 — v1.4 Student support and protected services
 
 - **GOAL-005**: Deliver human-reviewed support with explicit ownership and deadlines while keeping confidential services separate.

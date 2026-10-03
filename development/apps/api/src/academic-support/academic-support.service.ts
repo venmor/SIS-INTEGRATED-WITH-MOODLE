@@ -476,7 +476,9 @@ export class AcademicSupportService {
             status:
               query.status === 'NEEDS_REPLY'
                 ? { in: ['RECEIVED', 'STUDENT_REPLIED'] }
-                : query.status,
+                : query.status === 'OPEN'
+                  ? { not: 'CLOSED' }
+                  : query.status,
           }
         : {}),
       ...(query.reference ? { reference: query.reference.toUpperCase() } : {}),
@@ -624,6 +626,86 @@ export class AcademicSupportService {
       items,
       nextCursor: rows.length > take ? (items.at(-1)?.id ?? null) : null,
       asOf: today,
+    };
+  }
+
+  async assignedOverview(auth: ActiveAuthority) {
+    const asOf = new Date();
+    const today = this.lusakaToday();
+    const result = await this.prisma.$transaction(
+      async (db) => {
+        const assignment = await this.activeAssignment(
+          db,
+          auth,
+          'ADVISER',
+          'academic.support.receive',
+        );
+        if (assignment.scopeType !== 'PROGRAMME')
+          throw new ForbiddenException(
+            'This adviser appointment has no programme scope.',
+          );
+        const rows = await db.academicSupportRequest.groupBy({
+          by: ['status'],
+          where: { ownerAssignmentId: assignment.id },
+          _count: { _all: true },
+        });
+        const byStatus = new Map(
+          rows.map((row) => [row.status, row._count._all]),
+        );
+        const actionBase: Prisma.AcademicSupportActionWhereInput = {
+          request: { ownerAssignmentId: assignment.id },
+        };
+        const needsConfirmation = await db.academicSupportAction.count({
+          where: { ...actionBase, status: 'CLAIMED_COMPLETE' },
+        });
+        const pastTarget = await db.academicSupportAction.count({
+          where: {
+            ...actionBase,
+            status: { in: ['PROPOSED', 'ACCEPTED', 'CLAIMED_COMPLETE'] },
+            dueOn: { lt: today },
+          },
+        });
+        return {
+          appointmentId: assignment.id,
+          counts: {
+            openCases: rows
+              .filter((row) => row.status !== 'CLOSED')
+              .reduce((total, row) => total + row._count._all, 0),
+            needsReply:
+              (byStatus.get('RECEIVED') ?? 0) +
+              (byStatus.get('STUDENT_REPLIED') ?? 0),
+            needsConfirmation,
+            pastTarget,
+            completedCases: byStatus.get('CLOSED') ?? 0,
+          },
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+    await auditAuth(this.prisma, {
+      action: 'AcademicSupportWorkloadViewed',
+      outcome: 'ALLOW',
+      actorAccountId: auth.accountId,
+      activeRole: auth.activeRole,
+      scope: auth.scope,
+      targetRef: result.appointmentId,
+    });
+    return {
+      source: 'ACADEMIC_SUPPORT',
+      definitionsVersion: 'SUPPORT-WORKLOAD-v1',
+      asOf: asOf.toISOString(),
+      targetDateZone: 'Africa/Lusaka',
+      counts: result.counts,
+      definitions: {
+        openCases: 'Assigned requests whose case status is not closed.',
+        needsReply:
+          'Assigned requests newly received or last answered by the student.',
+        needsConfirmation:
+          'Student completion claims awaiting adviser confirmation.',
+        pastTarget:
+          'Open student actions whose chosen target date has passed in Zambia.',
+        completedCases: 'Assigned cases closed since this appointment began.',
+      },
     };
   }
 
