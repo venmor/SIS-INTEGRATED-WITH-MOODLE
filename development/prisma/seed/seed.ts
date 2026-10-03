@@ -698,7 +698,7 @@ const CATALOGUE: SeedProgramme[] = [
         studyMode: "Full-time",
         campus: "Main Campus",
         availability: "OPEN",
-        deadline: "2026-09-30T23:59:00+02:00",
+        deadline: "2027-12-31T23:59:00+02:00",
         statusNote: null,
       },
       {
@@ -769,7 +769,7 @@ const CATALOGUE: SeedProgramme[] = [
         studyMode: "Full-time",
         campus: "Main Campus",
         availability: "OPEN",
-        deadline: "2026-09-30T23:59:00+02:00",
+        deadline: "2027-12-31T23:59:00+02:00",
         statusNote: null,
       },
     ],

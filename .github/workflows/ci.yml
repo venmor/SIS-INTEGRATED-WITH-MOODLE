@@ -46,6 +46,8 @@ jobs:
       - run: npx prisma validate && npx prisma migrate deploy
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
       - run: npm run test:e2e --workspace=apps/api -- --exclude '**/applications.e2e-spec.ts' --exclude '**/config-versions.e2e-spec.ts' --no-file-parallelism
+        env:
+          DISABLE_EXPIRY_DAEMON: "true"
       - run: npm run test:e2e --workspace=apps/api -- applications.e2e-spec.ts config-versions.e2e-spec.ts --no-file-parallelism
       - run: npm run build
       - run: npm run typecheck
