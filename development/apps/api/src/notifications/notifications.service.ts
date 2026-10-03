@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { NOTIFY_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import { OpsService } from '../ops/ops.service.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>

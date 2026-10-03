@@ -1842,3 +1842,30 @@ model NotificationDelivery {
   @@index([state, nextRunAt])
   @@index([recordId])
 }
+
+// Phase 8 slice 3: generic ops incidents (TASK-PH8-003). Cross-domain
+// auto-open from dead-letters plus manual operator opens; one OPEN
+// per (sourceKind, sourceRef) structurally (partial unique index in
+// SQL — Prisma cannot express it, so the service replays before
+// create inside the caller's transaction). Lifecycle
+// OPEN→ACKNOWLEDGED→RESOLVED→CLOSED with recovery evidence.
+model OpsIncident {
+  id String @id @default(uuid())
+  title String
+  severity String
+  status String @default("OPEN")
+  sourceKind String
+  sourceRef String
+  ownerAccountId String?
+  ownerRole String?
+  targetResponseAt DateTime?
+  detail Json @default("{}")
+  rootCause String?
+  recoveryEvidence String?
+  preventiveAction String?
+  linkedRef String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+}

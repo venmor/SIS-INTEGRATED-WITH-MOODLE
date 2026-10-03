@@ -13,6 +13,7 @@ import { TeachingModule } from './teaching/teaching.module.js';
 import { IntegrationModule } from './integration/integration.module.js';
 import { AssessmentModule } from './assessment/assessment.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { OpsModule } from './ops/ops.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
     IntegrationModule,
     AssessmentModule,
     NotificationsModule,
+    OpsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
