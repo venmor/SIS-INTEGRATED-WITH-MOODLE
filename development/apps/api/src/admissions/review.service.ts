@@ -1,5 +1,10 @@
 import { Injectable, HttpException } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { policy } from './policy.provider.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
@@ -34,6 +39,42 @@ interface ReviewerAuthority extends ActiveAuthority {
   scopeType?: string | null;
   scopeRef?: string | null;
 }
+
+interface ReviewQueueCursorContext {
+  version: 1;
+  accountId: string;
+  assignmentId: string;
+  scopeType: string | null;
+  scopeRef: string | null;
+  queueScope: 'mine' | 'pool';
+  state: string | null;
+  actionNeeded: boolean | null;
+  reference: string | null;
+  sort: 'oldest' | 'newest';
+}
+
+interface ReviewQueueCursor extends ReviewQueueCursorContext {
+  sortAt: string;
+  lastId: string;
+}
+
+const queueApplicationSelect = {
+  id: true,
+  reference: true,
+  state: true,
+  version: true,
+  submission: { select: { createdAt: true } },
+  clarifications: {
+    where: { status: 'OPEN' },
+    select: { id: true },
+  },
+  correctionRequests: {
+    where: { status: 'PENDING' },
+    select: { id: true },
+  },
+} satisfies Prisma.ApplicationSelect;
+
+const queueCursorDevelopmentSecret = 'sis-review-queue-cursor-development-only';
 
 // Phase 3 slice 1: assigned admissions queue (TASK-PH3-001). Staff work only
 // through claimed assignments; applicant records are never modified here.
@@ -327,12 +368,83 @@ export class ReviewService {
     });
   }
 
+  private cursorSecret(): string {
+    const configured = process.env.QUEUE_CURSOR_SECRET;
+    if (
+      process.env.NODE_ENV === 'production' &&
+      (!configured || configured.length < 32)
+    )
+      this.fail(
+        'QUEUE_UNAVAILABLE',
+        'Queue navigation is temporarily unavailable. Contact the system administrator.',
+        503,
+      );
+    return configured || queueCursorDevelopmentSecret;
+  }
+
+  private signCursor(encodedPayload: string): string {
+    return createHmac('sha256', this.cursorSecret())
+      .update(encodedPayload)
+      .digest('base64url');
+  }
+
+  private encodeCursor(cursor: ReviewQueueCursor): string {
+    const payload = Buffer.from(JSON.stringify(cursor)).toString('base64url');
+    return `${payload}.${this.signCursor(payload)}`;
+  }
+
+  private decodeCursor(
+    token: string,
+    expected: ReviewQueueCursorContext,
+  ): ReviewQueueCursor {
+    const invalid = () =>
+      this.fail(
+        'QUEUE_CURSOR_INVALID',
+        'These queue results are no longer available. Restart from the first page.',
+        400,
+      );
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra !== undefined) invalid();
+    try {
+      const actual = Buffer.from(signature, 'base64url');
+      const wanted = Buffer.from(this.signCursor(payload), 'base64url');
+      if (actual.length !== wanted.length || !timingSafeEqual(actual, wanted))
+        invalid();
+      const parsed = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      ) as Partial<ReviewQueueCursor>;
+      if (
+        parsed.version !== expected.version ||
+        parsed.accountId !== expected.accountId ||
+        parsed.assignmentId !== expected.assignmentId ||
+        parsed.scopeType !== expected.scopeType ||
+        parsed.scopeRef !== expected.scopeRef ||
+        parsed.queueScope !== expected.queueScope ||
+        parsed.state !== expected.state ||
+        parsed.actionNeeded !== expected.actionNeeded ||
+        parsed.reference !== expected.reference ||
+        parsed.sort !== expected.sort ||
+        typeof parsed.sortAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.sortAt)) ||
+        typeof parsed.lastId !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.lastId)
+      )
+        invalid();
+      return parsed as ReviewQueueCursor;
+    } catch {
+      return invalid();
+    }
+  }
+
   async queue(
     auth: ReviewerAuthority,
-    scope: string,
+    scope: 'mine' | 'pool',
     state?: string,
     actionNeeded?: boolean,
     take = 50,
+    cursorToken?: string,
+    reference?: string,
+    sort: 'oldest' | 'newest' = 'oldest',
   ) {
     const { scopeType, scopeRef } = await this.gate(auth, 'read');
     await this.audit(
@@ -342,63 +454,240 @@ export class ReviewService {
       scope,
       randomUUID(),
     ).catch(() => {});
-    // DB pre-filter keeps the candidate set small; the claim/scope filters
-    // that Prisma cannot express run in memory over a bounded window, and
-    // hasMore tells the UI when the window cut results off.
     const limit = Math.min(Math.max(take, 1), 100);
-    const window = limit * 2 + 25;
+    if (scopeType !== 'INTAKE' || !scopeRef)
+      return { items: [], nextCursor: null, hasMore: false };
+
+    const context: ReviewQueueCursorContext = {
+      version: 1,
+      accountId: auth.accountId,
+      assignmentId: auth.assignmentId!,
+      scopeType,
+      scopeRef,
+      queueScope: scope,
+      state: state ?? null,
+      actionNeeded: actionNeeded ?? null,
+      reference: reference ?? null,
+      sort,
+    };
+    const cursor = cursorToken ? this.decodeCursor(cursorToken, context) : null;
+    const cursorDate = cursor ? new Date(cursor.sortAt) : null;
+    const direction: Prisma.SortOrder = sort === 'newest' ? 'desc' : 'asc';
+    const actionFilter: Prisma.ApplicationWhereInput[] =
+      actionNeeded === true
+        ? [
+            {
+              OR: [
+                { clarifications: { some: { status: 'OPEN' } } },
+                { correctionRequests: { some: { status: 'PENDING' } } },
+              ],
+            },
+          ]
+        : actionNeeded === false
+          ? [
+              { clarifications: { none: { status: 'OPEN' } } },
+              { correctionRequests: { none: { status: 'PENDING' } } },
+            ]
+          : [];
+    const applicationWhere: Prisma.ApplicationWhereInput = {
+      ...(scope === 'pool'
+        ? { state: state ?? 'Submitted' }
+        : state
+          ? { state }
+          : {}),
+      offering: { intake: { startsWith: scopeRef } },
+      ...(reference
+        ? { reference: { equals: reference, mode: 'insensitive' as const } }
+        : {}),
+      AND: actionFilter,
+    };
+
     if (scope === 'mine') {
       const rows = await this.prisma.reviewAssignment.findMany({
-        where: { assigneeAccountId: auth.accountId, status: 'CLAIMED' },
-        include: {
-          application: {
-            include: {
-              offering: { include: { programme: true } },
-              submission: true,
-              clarifications: { where: { status: 'OPEN' } },
-              correctionRequests: { where: { status: 'PENDING' } },
-            },
-          },
+        where: {
+          assigneeAccountId: auth.accountId,
+          status: 'CLAIMED',
+          application: { is: applicationWhere },
+          ...(cursor && cursorDate
+            ? {
+                OR:
+                  sort === 'newest'
+                    ? [
+                        { claimedAt: { lt: cursorDate } },
+                        {
+                          claimedAt: cursorDate,
+                          applicationId: { lt: cursor.lastId },
+                        },
+                      ]
+                    : [
+                        { claimedAt: { gt: cursorDate } },
+                        {
+                          claimedAt: cursorDate,
+                          applicationId: { gt: cursor.lastId },
+                        },
+                      ],
+              }
+            : {}),
         },
-        orderBy: { claimedAt: 'asc' },
-        take: window,
+        select: {
+          claimedAt: true,
+          application: { select: queueApplicationSelect },
+        },
+        orderBy: [{ claimedAt: direction }, { applicationId: direction }],
+        take: limit + 1,
       });
-      let items = rows
-        .filter((r) =>
-          this.inScope(scopeType, scopeRef, r.application.offering.intake),
-        )
-        .filter((r) => !state || r.application.state === state)
-        .map((r) => this.item(r.application, r.claimedAt));
-      if (actionNeeded !== undefined)
-        items = items.filter((i) => i.actionNeeded === actionNeeded);
-      const hasMore = items.length > limit;
-      return { items: items.slice(0, limit), hasMore };
+      const page = rows.slice(0, limit);
+      const hasMore = rows.length > limit;
+      const last = page.at(-1);
+      return {
+        items: page.map((row) => this.item(row.application, row.claimedAt)),
+        nextCursor:
+          hasMore && last
+            ? this.encodeCursor({
+                ...context,
+                sortAt: last.claimedAt.toISOString(),
+                lastId: last.application.id,
+              })
+            : null,
+        hasMore,
+      };
     }
-    const claimed = await this.prisma.reviewAssignment.findMany({
-      where: { status: 'CLAIMED' },
-      select: { applicationId: true },
-      take: window,
+
+    const where: Prisma.ApplicationWhereInput = {
+      ...applicationWhere,
+      reviewAssignments: { none: { status: 'CLAIMED' } },
+      ...(cursor && cursorDate
+        ? {
+            OR:
+              sort === 'newest'
+                ? [
+                    { createdAt: { lt: cursorDate } },
+                    { createdAt: cursorDate, id: { lt: cursor.lastId } },
+                  ]
+                : [
+                    { createdAt: { gt: cursorDate } },
+                    { createdAt: cursorDate, id: { gt: cursor.lastId } },
+                  ],
+          }
+        : {}),
+    };
+    const rows = await this.prisma.application.findMany({
+      where,
+      select: { ...queueApplicationSelect, createdAt: true },
+      orderBy: [{ createdAt: direction }, { id: direction }],
+      take: limit + 1,
     });
-    const claimedIds = new Set(claimed.map((c) => c.applicationId));
-    const apps = await this.prisma.application.findMany({
-      where: { state: state ?? 'Submitted' },
-      include: {
-        offering: { include: { programme: true } },
-        submission: true,
-        clarifications: { where: { status: 'OPEN' } },
-        correctionRequests: { where: { status: 'PENDING' } },
+    const page = rows.slice(0, limit);
+    const hasMore = rows.length > limit;
+    const last = page.at(-1);
+    return {
+      items: page.map((row) => this.item(row, null)),
+      nextCursor:
+        hasMore && last
+          ? this.encodeCursor({
+              ...context,
+              sortAt: last.createdAt.toISOString(),
+              lastId: last.id,
+            })
+          : null,
+      hasMore,
+    };
+  }
+
+  async preparation(
+    auth: ReviewerAuthority,
+    items: Array<{ applicationId: string; version: number }>,
+  ) {
+    // This is a read-only inventory, but the write-mode gate intentionally
+    // restricts it to active officers rather than read-only approvers.
+    const { scopeType, scopeRef } = await this.gate(auth);
+    if (
+      !items.length ||
+      items.length > 50 ||
+      new Set(items.map((item) => item.applicationId)).size !== items.length
+    )
+      this.fail(
+        'INVALID_SELECTION',
+        'Select between 1 and 50 different cases.',
+        400,
+      );
+
+    const rows =
+      scopeType === 'INTAKE' && scopeRef
+        ? await this.prisma.reviewAssignment.findMany({
+            where: {
+              applicationId: { in: items.map((item) => item.applicationId) },
+              assigneeAccountId: auth.accountId,
+              status: 'CLAIMED',
+              application: {
+                is: {
+                  state: 'Submitted',
+                  offering: { intake: { startsWith: scopeRef } },
+                },
+              },
+            },
+            select: {
+              applicationId: true,
+              application: {
+                select: {
+                  reference: true,
+                  version: true,
+                  documents: {
+                    where: { replacedBy: null },
+                    select: { status: true },
+                  },
+                  clarifications: {
+                    where: { status: 'OPEN' },
+                    select: { id: true },
+                  },
+                  correctionRequests: {
+                    where: { status: 'PENDING' },
+                    select: { id: true },
+                  },
+                },
+              },
+            },
+          })
+        : [];
+    const assigned = new Map(
+      rows.map((row) => [row.applicationId, row.application]),
+    );
+    const preview = items.map(({ applicationId, version }) => {
+      const row = assigned.get(applicationId);
+      if (!row) return { applicationId, state: 'UNAVAILABLE' as const };
+      if (row.version !== version)
+        return { applicationId, state: 'CHANGED' as const };
+      return {
+        applicationId,
+        state: 'CURRENT' as const,
+        reference: row.reference,
+        version: row.version,
+        documents: {
+          current: row.documents.length,
+          awaitingQualityCheck: row.documents.filter(
+            (document) => document.status === 'AwaitingQualityCheck',
+          ).length,
+          securityScanPending: row.documents.filter(
+            (document) => document.status === 'SecurityScanPending',
+          ).length,
+        },
+        openClarifications: row.clarifications.length,
+        openCorrections: row.correctionRequests.length,
+      };
+    });
+    await this.audit(
+      this.prisma,
+      auth,
+      'ReviewPreparationPreviewed',
+      `COUNT:${items.length}`,
+      randomUUID(),
+      'ALLOW',
+      {
+        selectedCount: items.length,
+        currentCount: preview.filter((item) => item.state === 'CURRENT').length,
       },
-      orderBy: { createdAt: 'asc' },
-      take: window,
-    });
-    let items = apps
-      .filter((a) => !claimedIds.has(a.id))
-      .filter((a) => this.inScope(scopeType, scopeRef, a.offering.intake))
-      .map((a) => this.item(a, null));
-    if (actionNeeded !== undefined)
-      items = items.filter((i) => i.actionNeeded === actionNeeded);
-    const hasMore = items.length > limit;
-    return { items: items.slice(0, limit), hasMore };
+    );
+    return { items: preview, generatedAt: new Date().toISOString() };
   }
 
   private item(
@@ -694,7 +983,11 @@ export class ReviewService {
             400,
           );
         }
-        const days = deadlineDays ?? (policy as { case?: { clarificationResponseDays: number } }).case?.clarificationResponseDays ?? 14;
+        const days =
+          deadlineDays ??
+          (policy as { case?: { clarificationResponseDays: number } }).case
+            ?.clarificationResponseDays ??
+          14;
         const open = await db.applicationClarification.findFirst({
           where: { applicationId, question: question.trim(), status: 'OPEN' },
         });
@@ -755,7 +1048,9 @@ export class ReviewService {
               applicationId,
               clarificationId: clar.id,
               clarificationQuestion: question.trim(),
-              deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+              deadline: new Date(
+                Date.now() + days * 24 * 60 * 60 * 1000,
+              ).toISOString(),
               applicantName,
               reference: row.reference,
               programmeName,
@@ -766,7 +1061,9 @@ export class ReviewService {
                 reference: row.reference,
                 programmeName,
                 clarificationQuestion: question.trim(),
-                deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                deadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .split('T')[0],
               },
               channels: ['email', 'internal'],
               correlationId,
@@ -994,7 +1291,9 @@ export class ReviewService {
             version: nextVersion,
             eligibilityOutcome: input.eligibilityOutcome,
             recommendation: input.recommendation,
-            criteriaVersion: (policy.review as { criteriaVersion?: string } | undefined)?.criteriaVersion ?? '',
+            criteriaVersion:
+              (policy.review as { criteriaVersion?: string } | undefined)
+                ?.criteriaVersion ?? '',
             criteria:
               input.criteria === undefined ? undefined : json(input.criteria),
             rationale: input.rationale.trim(),
@@ -1237,7 +1536,9 @@ export class ReviewService {
                   intake: row.offering?.intake ?? '',
                   studyMode: row.offering?.studyMode ?? '',
                   campus: row.offering?.campus ?? '',
-                  acceptBy: new Date(input.acceptBy).toISOString().split('T')[0],
+                  acceptBy: new Date(input.acceptBy)
+                    .toISOString()
+                    .split('T')[0],
                 },
                 channels: ['email', 'internal'],
                 correlationId: randomUUID(),
@@ -1331,7 +1632,11 @@ export class ReviewService {
         }
         this.checkVersion(row, version);
         if (new Date(newDeadline) <= (decision.acceptBy ?? new Date(0))) {
-          this.fail('INVALID_DEADLINE', 'The extension must move the deadline later.', 400);
+          this.fail(
+            'INVALID_DEADLINE',
+            'The extension must move the deadline later.',
+            400,
+          );
         }
         const updated = await db.applicationDecision.update({
           where: { applicationId },
@@ -1371,7 +1676,12 @@ export class ReviewService {
           applicationId,
           key,
           'ALLOW',
-          { acceptBy: updated.acceptBy?.toISOString(), reason: reason.trim(), version: updated.version, priorDeadline: decision.acceptBy?.toISOString() },
+          {
+            acceptBy: updated.acceptBy?.toISOString(),
+            reason: reason.trim(),
+            version: updated.version,
+            priorDeadline: decision.acceptBy?.toISOString(),
+          },
         );
 
         // Emit OutboxEvent for ApplicationOfferReleased (updated offer)
@@ -1388,7 +1698,10 @@ export class ReviewService {
               intake: row.offering?.intake ?? '',
               studyMode: row.offering?.studyMode ?? '',
               campus: row.offering?.campus ?? '',
-              conditions: (decision.conditions as unknown as Array<{ text: string }>)?.map((c) => c.text).join('; ') ?? '',
+              conditions:
+                (decision.conditions as unknown as Array<{ text: string }>)
+                  ?.map((c) => c.text)
+                  .join('; ') ?? '',
               applicantName: `${(row.personal as ApplicationRow['personal'])?.givenName ?? ''} ${(row.personal as ApplicationRow['personal'])?.familyName ?? ''}`,
               reference: row.reference,
               programmeName: row.offering?.programme?.name ?? '',
@@ -1429,9 +1742,13 @@ export class ReviewService {
     const scope = await this.gate(auth, 'read');
     if (scope.readOnly) await this.approverView(this.prisma, id);
     else await this.assigned(this.prisma, auth, id, scope);
-    await this.audit(this.prisma, auth, 'ReviewHistoryViewed', id, randomUUID()).catch(
-      () => {},
-    );
+    await this.audit(
+      this.prisma,
+      auth,
+      'ReviewHistoryViewed',
+      id,
+      randomUUID(),
+    ).catch(() => {});
     const rows = await this.prisma.applicationStatusEvent.findMany({
       where: { applicationId: id },
       orderBy: { occurredAt: 'desc' },
@@ -1570,7 +1887,9 @@ export class ReviewService {
               programmeName,
               intake: row.offering?.intake ?? '',
               assignedAt: new Date().toISOString(),
-              dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days default
+              dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split('T')[0], // 14 days default
               recipientAccountId: auth.accountId,
               templateKey: 'STAFF_ASSESSMENT_ASSIGNED',
               templateVars: {
@@ -1579,7 +1898,9 @@ export class ReviewService {
                 programmeName,
                 intake: row.offering?.intake ?? '',
                 assignedAt: new Date().toISOString().split('T')[0],
-                dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                dueBy: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .split('T')[0],
               },
               channels: ['internal'],
               correlationId,

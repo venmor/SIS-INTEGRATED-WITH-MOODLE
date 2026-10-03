@@ -19,6 +19,8 @@ interface DataTableProps<T> {
   emptyText: string;
   /** Hide the visible title (e.g. nested in a Card carrying the title). */
   hideTitle?: boolean;
+  /** Use labelled cards sooner when a workspace sidebar narrows the table. */
+  wideCards?: boolean;
 }
 
 /**
@@ -34,15 +36,19 @@ export function DataTable<T>({
   keyOf,
   emptyText,
   hideTitle,
+  wideCards = false,
 }: DataTableProps<T>) {
   return (
-    <section className={styles.dataTable} aria-label={title}>
-      <h2
-        className={hideTitle ? styles.visuallyHidden : styles.dataTableTitle}
-      >
+    <section
+      className={`${styles.dataTable} ${wideCards ? styles.wideCards : ""}`}
+      aria-label={title}
+    >
+      <h2 className={hideTitle ? styles.visuallyHidden : styles.dataTableTitle}>
         {title}
       </h2>
-      {description ? <p className={styles.dataTableDescription}>{description}</p> : null}
+      {description ? (
+        <p className={styles.dataTableDescription}>{description}</p>
+      ) : null}
       {rows.length === 0 ? (
         <p className={styles.dataTableEmpty}>{emptyText}</p>
       ) : (

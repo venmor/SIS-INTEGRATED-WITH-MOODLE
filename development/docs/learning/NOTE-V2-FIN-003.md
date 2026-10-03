@@ -1,0 +1,9 @@
+# Adjustment and refund review queue — 2026-10-03
+
+[TASK-V2-FIN-003](../task-packets/TASK-V2-FIN-003.md) replaces the unbounded pending adjustment/refund list with database-limited pages and an exact count for the selected kind. Finance staff can view all pending requests or credit notes, waivers and refunds separately, sort oldest/newest and recover from a stale page without losing filters. Signed cursors bind resource, actor, selected live appointment, kind and order; tampered, changed-context or resolved anchors are refused. The `(status,kind,createdAt,id)` index supports the queue without altering any ledger record.
+
+The staff page now shows a responsive filtered table before the forms. A Finance Officer sees the request form; a Finance Approver sees the current-page individual decision form. These are affordances derived from the selected live role returned by the API, not authorization substitutes. Existing server-side maker/checker, step-up, amount and compensating-entry rules remain in place. No bulk decision is introduced.
+
+The focused API test was observed red when `take=1` returned the entire list. After implementation, the full finance governance suite passed **24/24** on the isolated review database. The connected finance browser suite passed **2/2** at 390px, including officer/approver form visibility, filters, stale-page recovery and no horizontal overflow. Prisma validation and isolated migration deployment, fresh API/web production builds, API/web lint and `git diff --check` passed. API lint retains unrelated existing warnings. No provider call or download occurred.
+
+Remaining finance work: exact account/request lookup, bounded student-owned history, approved institution finance scope and service priority, policy configuration, certified reports, real provider execution/reconciliation and operational acceptance.

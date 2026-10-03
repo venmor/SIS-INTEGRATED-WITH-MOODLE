@@ -1,5 +1,28 @@
 import styles from "./ContextBar.module.css";
 
+const roleLabels: Record<string, string> = {
+  APPLICANT: "Applicant",
+  STUDENT: "Student",
+  ADMISSIONS_OFFICER: "Admissions officer",
+  ADMISSIONS_APPROVER: "Admissions approver",
+  RECORDS_OFFICER: "Records officer",
+  EXAMINATIONS_OFFICER: "Examinations officer",
+  FINANCE_OFFICER: "Finance officer",
+  FINANCE_APPROVER: "Finance approver",
+  CASHIER: "Cashier",
+  LEC: "Lecturer",
+  COORDINATOR: "Programme coordinator",
+  MODERATOR: "Moderator",
+  MOODLE_ADMIN: "Moodle administrator",
+  INTEGRATION_SUPPORT: "Integration support",
+  SYSADMIN: "System administrator",
+};
+
+function readableLabel(value: string): string {
+  const words = value.replaceAll("_", " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /**
  * UI-CONTEXT-001 — Workspace context bar. Shows the active role, scope and
  * academic period where known. Always visible for staff (constitution 19.5);
@@ -17,11 +40,13 @@ export function ContextBar({
   scopeRef: string;
   period?: string;
 }) {
-  const context = `${role} workspace · ${scopeType}:${scopeRef}${period ? ` · ${period}` : ""}`;
+  const roleLabel = roleLabels[role] ?? readableLabel(role);
+  const scopeLabel = readableLabel(scopeType);
+  const context = `${roleLabel} workspace · ${scopeLabel} ${scopeRef}${period ? ` · ${period}` : ""}`;
   return (
-    <p className={styles.bar} role="status" aria-label={`Active workspace: ${context}`}>
-      <strong>{role} workspace</strong>
-      {` · ${scopeType}:${scopeRef}`}
+    <p className={styles.bar} aria-label={`Active workspace: ${context}`}>
+      <strong>{roleLabel} workspace</strong>
+      {` · ${scopeLabel} ${scopeRef}`}
       {period ? ` · ${period}` : null}
     </p>
   );

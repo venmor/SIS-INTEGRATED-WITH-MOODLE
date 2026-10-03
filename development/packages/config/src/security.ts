@@ -3,7 +3,7 @@
  * Fictional demo values, NOT institutional policy. Effective 2026-01-01,
  * owner: Lead Charles. Code reads these values; nothing security-related is
  * hardcoded in controllers or components (policy-literal scan enforces this).
- * 
+ *
  * @deprecated As of Task 1.3 (GAP-003, GAP-004, GAP-006, GAP-012):
  * - Capabilities, scopes, and SoD pairs now live in the database (Prisma models:
  *   Capability, Scope, CapabilityScope, ApproverAuthority, SoDPair).
@@ -104,42 +104,44 @@ export const SECURITY_V1: SecurityConfig = {
     stepUp: { maxAttempts: 3, windowMinutes: 15 },
   },
   lockout: { failuresBeforeLock: 5, lockMinutes: 15 },
-  grantorRoles: ['SYSADMIN'],
+  grantorRoles: ["SYSADMIN"],
   policyVerbs: {
-    'iam.grant.create': ['SYSADMIN'],
-    'iam.account.resolve': ['SYSADMIN'],
-    'iam.workspace.switch': [
-      'SYSADMIN',
-      'LEC',
-      'DEAN',
-      'STU',
-      'APP',
-      'TUT',
-      'ADMISSIONS_OFFICER',
-      'ADMISSIONS_APPROVER',
+    "iam.grant.create": ["SYSADMIN"],
+    "iam.account.resolve": ["SYSADMIN"],
+    "iam.workspace.switch": [
+      "SYSADMIN",
+      "LEC",
+      "DEAN",
+      "STU",
+      "APP",
+      "TUT",
+      "ADMISSIONS_OFFICER",
+      "ADMISSIONS_APPROVER",
       // Phase 7 slice 1 (TASK-PH7-001, GAP-022): assessment demo accounts
       // need deliberate workspace switching for sign-in UX. Fictional
       // demo values, NOT institutional policy.
-      'COORDINATOR',
-      'EXAMINATIONS_OFFICER',
+      "COORDINATOR",
+      "EXAMINATIONS_OFFICER",
       // Phase 7 slice 4 (TASK-PH7-004): moderation demo account, same
       // sign-in UX reason.
-      'MODERATOR',
+      "MODERATOR",
+      "ADVISER",
     ],
-    'iam.me.read': [
-      'SYSADMIN',
-      'LEC',
-      'DEAN',
-      'STU',
-      'APP',
-      'TUT',
-      'ADMISSIONS_OFFICER',
-      'ADMISSIONS_APPROVER',
+    "iam.me.read": [
+      "SYSADMIN",
+      "LEC",
+      "DEAN",
+      "STU",
+      "APP",
+      "TUT",
+      "ADMISSIONS_OFFICER",
+      "ADMISSIONS_APPROVER",
       // Phase 7 slice 1 (TASK-PH7-001, GAP-022): same sign-in UX reason.
-      'COORDINATOR',
-      'EXAMINATIONS_OFFICER',
+      "COORDINATOR",
+      "EXAMINATIONS_OFFICER",
       // Phase 7 slice 4 (TASK-PH7-004): same sign-in UX reason.
-      'MODERATOR',
+      "MODERATOR",
+      "ADVISER",
     ],
   },
   sodPairs: [],
@@ -162,21 +164,21 @@ export const SECURITY_V1: SecurityConfig = {
   // High-risk actions requiring step-up (config-driven)
   stepUpActions: [
     // Finance
-    'finance.adjustment.approve',
-    'finance.waiver.approve',
-    'finance.refund.approve',
-    'finance.arrangement.approve',
+    "finance.adjustment.approve",
+    "finance.waiver.approve",
+    "finance.refund.approve",
+    "finance.arrangement.approve",
     // Admissions
-    'admissions.decision.release',
-    'admissions.offer.release',
+    "admissions.decision.release",
+    "admissions.offer.release",
     // Results
-    'results.mark.approve',
-    'results.progression.decide',
+    "results.mark.approve",
+    "results.progression.decide",
     // Counselling
-    'counselling.restricted-notes.access',
+    "counselling.restricted-notes.access",
     // Identity
-    'identity.grant.revoke',
-    'identity.break-glass',
+    "identity.grant.revoke",
+    "identity.break-glass",
   ],
   // GAP-011: Suspicious recovery detection thresholds (demo values)
   suspicion: {

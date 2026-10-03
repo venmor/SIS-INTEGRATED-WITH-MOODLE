@@ -1,10 +1,20 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { createHash, createHmac, randomUUID } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { FINANCE_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import { StepUpService } from '../identity-access/step-up.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import type {
+  FinanceAdjustmentQueueQuery,
+  FinanceArrangementQueueQuery,
+  FinanceCaseQueueQuery,
+} from './dto.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
@@ -13,6 +23,37 @@ const json = (v: unknown) =>
 interface FinanceAuthority extends ActiveAuthority {
   scopeType?: string | null;
   scopeRef?: string | null;
+}
+
+interface CaseCursor {
+  version: 1;
+  accountId: string;
+  assignmentId: string;
+  status: 'ALL' | 'OPEN' | 'ESCALATED';
+  sort: 'oldest' | 'newest';
+  createdAt: string;
+  id: string;
+}
+
+interface ArrangementCursor {
+  version: 1;
+  resource: 'arrangements';
+  accountId: string;
+  assignmentId: string;
+  sort: 'oldest' | 'newest';
+  createdAt: string;
+  id: string;
+}
+
+interface AdjustmentCursor {
+  version: 1;
+  resource: 'adjustments';
+  accountId: string;
+  assignmentId: string;
+  kind: 'ALL' | 'CREDIT_NOTE' | 'WAIVER' | 'REFUND';
+  sort: 'oldest' | 'newest';
+  createdAt: string;
+  id: string;
 }
 
 // Phase 5 slice 1: versioned fee assessment (TASK-PH5-001). The demo fee
@@ -263,27 +304,54 @@ export class FinanceService {
   // Registration owns the roster; Finance alone appends its monetary effect.
   // Called in the same transaction as an authorized amendment, so a failed
   // reassessment rolls the amendment back instead of leaving a stale invoice.
-  async reassessRegistrationAmendment(db: Tx, registrationId: string, amendmentId: string): Promise<string> {
+  async reassessRegistrationAmendment(
+    db: Tx,
+    registrationId: string,
+    amendmentId: string,
+  ): Promise<string> {
     const registration = await db.institutionalRegistration.findUniqueOrThrow({
       where: { id: registrationId },
-      include: { roster: { where: { status: 'ENROLLED' }, include: { course: true } } },
+      include: {
+        roster: { where: { status: 'ENROLLED' }, include: { course: true } },
+      },
     });
-    const attempt = await db.programmeAttempt.findUniqueOrThrow({ where: { id: registration.attemptId } });
-    const account = await db.financeAccount.findUnique({ where: { studentId: attempt.studentId } });
+    const attempt = await db.programmeAttempt.findUniqueOrThrow({
+      where: { id: registration.attemptId },
+    });
+    const account = await db.financeAccount.findUnique({
+      where: { studentId: attempt.studentId },
+    });
     if (!account) return 'NOT_ASSESSED';
     const invoice = await db.financeInvoice.findUnique({
-      where: { accountId_periodId: { accountId: account.id, periodId: registration.periodId } },
+      where: {
+        accountId_periodId: {
+          accountId: account.id,
+          periodId: registration.periodId,
+        },
+      },
       include: { lines: { include: { course: true } } },
     });
     if (!invoice) return 'NOT_ASSESSED';
-    const enrolled = new Map(registration.roster.map((row) => [row.courseId, row.course]));
-    const known = new Set([...enrolled.keys(), ...invoice.lines.filter((line) => line.courseId).map((line) => line.courseId as string)]);
+    const enrolled = new Map(
+      registration.roster.map((row) => [row.courseId, row.course]),
+    );
+    const known = new Set([
+      ...enrolled.keys(),
+      ...invoice.lines
+        .filter((line) => line.courseId)
+        .map((line) => line.courseId as string),
+    ]);
     for (const courseId of known) {
-      const lines = invoice.lines.filter((line) => line.courseId === courseId && line.status === 'POSTED');
+      const lines = invoice.lines.filter(
+        (line) => line.courseId === courseId && line.status === 'POSTED',
+      );
       const net = lines.reduce((sum, line) => sum + line.amountMinor, 0);
-      const course = enrolled.get(courseId) ?? lines.find((line) => line.course)?.course;
+      const course =
+        enrolled.get(courseId) ?? lines.find((line) => line.course)?.course;
       if (!course) continue;
-      const desired = enrolled.has(courseId) ? this.courseFeeMinor(course.code) : 0;
+      const desired = enrolled.has(courseId)
+        ? this.courseFeeMinor(course.code)
+        : 0;
       const delta = desired - net;
       if (delta === 0) continue;
       await db.financeChargeLine.create({
@@ -294,14 +362,24 @@ export class FinanceService {
           courseId,
           amountMinor: delta,
           currency: policy.currency,
-          feeRule: delta > 0 ? 'PER_COURSE_ENROLLED_FEE' : 'COURSE_CHANGE_CREDIT',
+          feeRule:
+            delta > 0 ? 'PER_COURSE_ENROLLED_FEE' : 'COURSE_CHANGE_CREDIT',
           policyVersion: policy.version,
-          inputs: json({ registrationId, amendmentId, courseCode: course.code }),
+          inputs: json({
+            registrationId,
+            amendmentId,
+            courseCode: course.code,
+          }),
           status: 'POSTED',
         },
       });
     }
-    return this.allocateAndAssess(db, account.id, registration.periodId, `REGISTRATION_AMENDMENT:${amendmentId}`);
+    return this.allocateAndAssess(
+      db,
+      account.id,
+      registration.periodId,
+      `REGISTRATION_AMENDMENT:${amendmentId}`,
+    );
   }
 
   async assessCharges(
@@ -343,8 +421,8 @@ export class FinanceService {
           where: { code: '2026S1' },
         });
     if (!period) this.fail('NOT_FOUND', 'Academic period not found.', 404);
-    const registration =
-      await this.prisma.institutionalRegistration.findUnique({
+    const registration = await this.prisma.institutionalRegistration.findUnique(
+      {
         where: {
           attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
         },
@@ -355,7 +433,8 @@ export class FinanceService {
             orderBy: { createdAt: 'asc' },
           },
         },
-      });
+      },
+    );
     if (!registration) {
       this.fail(
         'NO_REGISTRATION',
@@ -403,11 +482,18 @@ export class FinanceService {
             },
             include: { lines: { include: { course: true } } },
           });
-          await this.audit(db, auth, 'StudentChargesAssessed', invoice.id, key, {
-            reference,
-            period: period.code,
-            policyVersion: policy.version,
-          });
+          await this.audit(
+            db,
+            auth,
+            'StudentChargesAssessed',
+            invoice.id,
+            key,
+            {
+              reference,
+              period: period.code,
+              policyVersion: policy.version,
+            },
+          );
         }
         // Append-only: every enrolled roster course without a posted
         // COURSE_FEE line gains one; posted lines are never edited.
@@ -465,10 +551,7 @@ export class FinanceService {
     return result;
   }
 
-  async readInvoice(
-    auth: FinanceAuthority,
-    periodCode?: string,
-  ) {
+  async readInvoice(auth: FinanceAuthority, periodCode?: string) {
     // Students read their own invoice; amounts never leak across students
     // or to academic roles (Part 3A field boundaries).
     const studentSession = await this.liveAssignment(auth, 'STUDENT', 'study');
@@ -506,7 +589,10 @@ export class FinanceService {
     }
     const invoice = await this.prisma.financeInvoice.findUnique({
       where: {
-        accountId_periodId: { accountId: financeAccount.id, periodId: period.id },
+        accountId_periodId: {
+          accountId: financeAccount.id,
+          periodId: period.id,
+        },
       },
       include: { lines: { include: { course: true } } },
     });
@@ -549,7 +635,10 @@ export class FinanceService {
     }
     const invoice = await this.prisma.financeInvoice.findUnique({
       where: {
-        accountId_periodId: { accountId: financeAccount.id, periodId: period.id },
+        accountId_periodId: {
+          accountId: financeAccount.id,
+          periodId: period.id,
+        },
       },
       include: { lines: { include: { course: true } } },
     });
@@ -584,7 +673,11 @@ export class FinanceService {
     }>;
   }> {
     const rows = await db.financeAllocation.findMany({
-      where: { accountId, reversal: null, chargeLine: { invoice: { accountId, periodId } } },
+      where: {
+        accountId,
+        reversal: null,
+        chargeLine: { invoice: { accountId, periodId } },
+      },
       include: {
         chargeLine: true,
         paymentTransaction: { include: { request: true } },
@@ -745,7 +838,7 @@ export class FinanceService {
 
   private scenarioKeys(): string[] {
     return [
-      ...((policy.simulator as unknown as { scenarios: string[] }).scenarios),
+      ...(policy.simulator as unknown as { scenarios: string[] }).scenarios,
     ];
   }
 
@@ -932,9 +1025,8 @@ export class FinanceService {
           data: {
             requestId: created.id,
             accountId: account.id,
-            provider: (
-              policy.simulator as unknown as { provider: string }
-            ).provider,
+            provider: (policy.simulator as unknown as { provider: string })
+              .provider,
             providerRef,
             amountMinor: amount,
             currency: policy.currency,
@@ -943,19 +1035,12 @@ export class FinanceService {
             evidence: json({ scenario: created.simulatorScenario }),
           },
         });
-        await this.audit(
-          db,
-          auth,
-          'StudentPaymentInitiated',
-          created.id,
-          key,
-          {
-            reference,
-            amountMinor: amount,
-            method: input.method,
-            scenario: created.simulatorScenario,
-          },
-        );
+        await this.audit(db, auth, 'StudentPaymentInitiated', created.id, key, {
+          reference,
+          amountMinor: amount,
+          method: input.method,
+          scenario: created.simulatorScenario,
+        });
         const partial = amount < outstanding;
         return {
           body: {
@@ -1117,7 +1202,11 @@ export class FinanceService {
         data: { studentId: attempt.studentId },
       });
     }
-    return { accountId: account.id, periodId: period.id, studentId: attempt.studentId };
+    return {
+      accountId: account.id,
+      periodId: period.id,
+      studentId: attempt.studentId,
+    };
   }
 
   async recordSponsorship(
@@ -1247,7 +1336,9 @@ export class FinanceService {
         });
         if (!row) this.fail('NOT_FOUND', 'Sponsorship not found.', 404);
         if (row.status === 'CONFIRMED') {
-          return { body: { id: row.id, status: row.status, version: row.version } };
+          return {
+            body: { id: row.id, status: row.status, version: row.version },
+          };
         }
         if (!row.evidenceNote) {
           this.fail(
@@ -1287,7 +1378,11 @@ export class FinanceService {
     auth: FinanceAuthority,
     key: string,
     id: string,
-    input: { coverageValue?: number; evidenceNote?: string; effectiveTo?: string },
+    input: {
+      coverageValue?: number;
+      evidenceNote?: string;
+      effectiveTo?: string;
+    },
   ) {
     await this.financeOfficer(auth, 'record-sponsorship');
     const result = await this.command(
@@ -1449,10 +1544,17 @@ export class FinanceService {
             requesterAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'FinanceAdjustmentRequested', created.id, key, {
-          kind: created.kind,
-          amountMinor: created.amountMinor,
-        });
+        await this.audit(
+          db,
+          auth,
+          'FinanceAdjustmentRequested',
+          created.id,
+          key,
+          {
+            kind: created.kind,
+            amountMinor: created.amountMinor,
+          },
+        );
         return { body: { id: created.id, status: created.status } };
       },
     );
@@ -1485,7 +1587,11 @@ export class FinanceService {
         });
         if (!row) this.fail('NOT_FOUND', 'Adjustment not found.', 404);
         if (row.status !== 'REQUESTED') {
-          this.fail('REQUEST_CLOSED', 'This adjustment is already decided.', 409);
+          this.fail(
+            'REQUEST_CLOSED',
+            'This adjustment is already decided.',
+            409,
+          );
         }
         // Maker/checker: the requester can never decide their own case.
         if (row.requesterAccountId === auth.accountId) {
@@ -1579,8 +1685,7 @@ export class FinanceService {
           kind: row.kind,
           amountMinor: row.amountMinor,
           note: input.note?.trim() || null,
-          chargeNote:
-            'Compensating credit posted; original lines untouched.',
+          chargeNote: 'Compensating credit posted; original lines untouched.',
         });
         return { body: { id: decided.id, status: decided.status } };
       },
@@ -1588,7 +1693,57 @@ export class FinanceService {
     return result;
   }
 
-  async listAdjustments(auth: FinanceAuthority) {
+  private encodeAdjustmentCursor(cursor: AdjustmentCursor) {
+    const payload = Buffer.from(JSON.stringify(cursor)).toString('base64url');
+    return `${payload}.${this.signCaseCursor(payload)}`;
+  }
+
+  private decodeAdjustmentCursor(
+    token: string,
+    expected: Pick<
+      AdjustmentCursor,
+      'accountId' | 'assignmentId' | 'kind' | 'sort'
+    >,
+  ): AdjustmentCursor {
+    const invalid = (): never =>
+      this.fail(
+        'ADJUSTMENT_PAGE_INVALID',
+        'This adjustment page is no longer available. Restart from the first page.',
+        400,
+      );
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra !== undefined) return invalid();
+    try {
+      const actual = Buffer.from(signature, 'base64url');
+      const wanted = Buffer.from(this.signCaseCursor(payload), 'base64url');
+      if (actual.length !== wanted.length || !timingSafeEqual(actual, wanted))
+        return invalid();
+      const parsed = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      ) as Partial<AdjustmentCursor>;
+      if (
+        parsed.version !== 1 ||
+        parsed.resource !== 'adjustments' ||
+        parsed.accountId !== expected.accountId ||
+        parsed.assignmentId !== expected.assignmentId ||
+        parsed.kind !== expected.kind ||
+        parsed.sort !== expected.sort ||
+        typeof parsed.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.createdAt)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)
+      )
+        return invalid();
+      return parsed as AdjustmentCursor;
+    } catch {
+      return invalid();
+    }
+  }
+
+  async listAdjustments(
+    auth: FinanceAuthority,
+    query: FinanceAdjustmentQueueQuery = {},
+  ) {
     const officer = await this.liveAssignment(
       auth,
       'FINANCE_OFFICER',
@@ -1600,20 +1755,81 @@ export class FinanceService {
       'approve-adjustment',
     );
     const active =
-      (officer && auth.activeRole === 'FINANCE_OFFICER') ||
-      (approver && auth.activeRole === 'FINANCE_APPROVER');
+      (officer && auth.activeRole === 'FINANCE_OFFICER' && officer) ||
+      (approver && auth.activeRole === 'FINANCE_APPROVER' && approver);
     if (!active) {
       throw new HttpException(
         { message: 'This finance workspace is unavailable.' },
         403,
       );
     }
-    const rows = await this.prisma.financeAdjustment.findMany({
-      where: { status: 'REQUESTED' },
-      orderBy: { createdAt: 'asc' },
-    });
+    const kind = query.kind ?? 'ALL';
+    const sort = query.sort ?? 'oldest';
+    const take = query.take ?? 50;
+    const base: Prisma.FinanceAdjustmentWhereInput = {
+      status: 'REQUESTED',
+      ...(kind === 'ALL' ? {} : { kind }),
+    };
+    const cursor = query.cursor
+      ? this.decodeAdjustmentCursor(query.cursor, {
+          accountId: auth.accountId,
+          assignmentId: active.id,
+          kind,
+          sort,
+        })
+      : null;
+    if (cursor) {
+      const live = await this.prisma.financeAdjustment.findFirst({
+        where: {
+          ...base,
+          id: cursor.id,
+          createdAt: new Date(cursor.createdAt),
+        },
+        select: { id: true },
+      });
+      if (!live)
+        this.fail(
+          'ADJUSTMENT_PAGE_INVALID',
+          'This adjustment page is no longer available. Restart from the first page.',
+          400,
+        );
+    }
+    const where: Prisma.FinanceAdjustmentWhereInput = cursor
+      ? {
+          AND: [
+            base,
+            {
+              OR: [
+                {
+                  createdAt:
+                    sort === 'oldest'
+                      ? { gt: new Date(cursor.createdAt) }
+                      : { lt: new Date(cursor.createdAt) },
+                },
+                {
+                  createdAt: new Date(cursor.createdAt),
+                  id: sort === 'oldest' ? { gt: cursor.id } : { lt: cursor.id },
+                },
+              ],
+            },
+          ],
+        }
+      : base;
+    const [rows, total] = await Promise.all([
+      this.prisma.financeAdjustment.findMany({
+        where,
+        orderBy: [
+          { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
+          { id: sort === 'oldest' ? 'asc' : 'desc' },
+        ],
+        take: take + 1,
+      }),
+      this.prisma.financeAdjustment.count({ where: base }),
+    ]);
+    const visible = rows.slice(0, take);
+    const last = visible.at(-1);
     return {
-      items: rows.map((r) => ({
+      items: visible.map((r) => ({
         id: r.id,
         kind: r.kind,
         amountMinor: r.amountMinor,
@@ -1621,6 +1837,24 @@ export class FinanceService {
         reason: r.reason,
         status: r.status,
       })),
+      actions: {
+        request: auth.activeRole === 'FINANCE_OFFICER',
+        decide: auth.activeRole === 'FINANCE_APPROVER',
+      },
+      total,
+      nextCursor:
+        rows.length > take && last
+          ? this.encodeAdjustmentCursor({
+              version: 1,
+              resource: 'adjustments',
+              accountId: auth.accountId,
+              assignmentId: active.id,
+              kind,
+              sort,
+              createdAt: last.createdAt.toISOString(),
+              id: last.id,
+            })
+          : null,
     };
   }
 
@@ -1680,14 +1914,67 @@ export class FinanceService {
             requesterAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'PaymentArrangementRequested', created.id, key, {});
+        await this.audit(
+          db,
+          auth,
+          'PaymentArrangementRequested',
+          created.id,
+          key,
+          {},
+        );
         return { body: { id: created.id, status: created.status } };
       },
     );
     return result;
   }
 
-  async listArrangements(auth: FinanceAuthority) {
+  private encodeArrangementCursor(cursor: ArrangementCursor) {
+    const payload = Buffer.from(JSON.stringify(cursor)).toString('base64url');
+    return `${payload}.${this.signCaseCursor(payload)}`;
+  }
+
+  private decodeArrangementCursor(
+    token: string,
+    expected: Pick<ArrangementCursor, 'accountId' | 'assignmentId' | 'sort'>,
+  ): ArrangementCursor {
+    const invalid = (): never =>
+      this.fail(
+        'ARRANGEMENT_PAGE_INVALID',
+        'This arrangement page is no longer available. Restart from the first page.',
+        400,
+      );
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra !== undefined) return invalid();
+    try {
+      const actual = Buffer.from(signature, 'base64url');
+      const wanted = Buffer.from(this.signCaseCursor(payload), 'base64url');
+      if (actual.length !== wanted.length || !timingSafeEqual(actual, wanted))
+        return invalid();
+      const parsed = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      ) as Partial<ArrangementCursor>;
+      if (
+        parsed.version !== 1 ||
+        parsed.resource !== 'arrangements' ||
+        parsed.accountId !== expected.accountId ||
+        parsed.assignmentId !== expected.assignmentId ||
+        parsed.sort !== expected.sort ||
+        typeof parsed.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.createdAt)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)
+      )
+        return invalid();
+      return parsed as ArrangementCursor;
+    } catch {
+      return invalid();
+    }
+  }
+
+  async listArrangements(
+    auth: FinanceAuthority,
+    query: FinanceArrangementQueueQuery = {},
+  ) {
     const officer = await this.liveAssignment(
       auth,
       'FINANCE_OFFICER',
@@ -1698,21 +1985,93 @@ export class FinanceService {
       'FINANCE_APPROVER',
       'approve-adjustment',
     );
-    if (
-      (officer && auth.activeRole === 'FINANCE_OFFICER') ||
-      (approver && auth.activeRole === 'FINANCE_APPROVER')
-    ) {
-      const rows = await this.prisma.financeArrangement.findMany({
-        where: { status: 'REQUESTED' },
-        orderBy: { createdAt: 'asc' },
-      });
+    const active =
+      (officer && auth.activeRole === 'FINANCE_OFFICER' && officer) ||
+      (approver && auth.activeRole === 'FINANCE_APPROVER' && approver);
+    if (active) {
+      const sort = query.sort ?? 'oldest';
+      const take = query.take ?? 50;
+      const cursor = query.cursor
+        ? this.decodeArrangementCursor(query.cursor, {
+            accountId: auth.accountId,
+            assignmentId: active.id,
+            sort,
+          })
+        : null;
+      if (cursor) {
+        const live = await this.prisma.financeArrangement.findFirst({
+          where: {
+            id: cursor.id,
+            createdAt: new Date(cursor.createdAt),
+            status: 'REQUESTED',
+          },
+          select: { id: true },
+        });
+        if (!live)
+          this.fail(
+            'ARRANGEMENT_PAGE_INVALID',
+            'This arrangement page is no longer available. Restart from the first page.',
+            400,
+          );
+      }
+      const base: Prisma.FinanceArrangementWhereInput = {
+        status: 'REQUESTED',
+      };
+      const where: Prisma.FinanceArrangementWhereInput = cursor
+        ? {
+            AND: [
+              base,
+              {
+                OR: [
+                  {
+                    createdAt:
+                      sort === 'oldest'
+                        ? { gt: new Date(cursor.createdAt) }
+                        : { lt: new Date(cursor.createdAt) },
+                  },
+                  {
+                    createdAt: new Date(cursor.createdAt),
+                    id:
+                      sort === 'oldest' ? { gt: cursor.id } : { lt: cursor.id },
+                  },
+                ],
+              },
+            ],
+          }
+        : base;
+      const [rows, total] = await Promise.all([
+        this.prisma.financeArrangement.findMany({
+          where,
+          orderBy: [
+            { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
+            { id: sort === 'oldest' ? 'asc' : 'desc' },
+          ],
+          take: take + 1,
+        }),
+        this.prisma.financeArrangement.count({ where: base }),
+      ]);
+      const visible = rows.slice(0, take);
+      const last = visible.at(-1);
       return {
-        items: rows.map((r) => ({
+        items: visible.map((r) => ({
           id: r.id,
           terms: r.terms,
           reason: r.reason,
           status: r.status,
         })),
+        total,
+        nextCursor:
+          rows.length > take && last
+            ? this.encodeArrangementCursor({
+                version: 1,
+                resource: 'arrangements',
+                accountId: auth.accountId,
+                assignmentId: active.id,
+                sort,
+                createdAt: last.createdAt.toISOString(),
+                id: last.id,
+              })
+            : null,
       };
     }
     const student = await this.studentOf(auth);
@@ -1827,7 +2186,11 @@ export class FinanceService {
   async recordCashIntake(
     auth: FinanceAuthority,
     key: string,
-    input: { requestReference: string; amountMinor: number; cashReceiptNo: string },
+    input: {
+      requestReference: string;
+      amountMinor: number;
+      cashReceiptNo: string;
+    },
   ) {
     await this.financeOfficer(auth, 'reconcile-case');
     if (!input.cashReceiptNo.trim()) {
@@ -2049,7 +2412,8 @@ export class FinanceService {
       throw new HttpException(
         {
           code: 'STEP_UP_REQUIRED',
-          message: 'Step-up authentication required for this action. Provide a valid challenge ID and verification code.',
+          message:
+            'Step-up authentication required for this action. Provide a valid challenge ID and verification code.',
           supportReference: randomUUID(),
           stepUpAction: targetAction,
         },
@@ -2105,26 +2469,200 @@ export class FinanceService {
       providerRef: row.providerRef,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
-      studentNumber: safe ? null : (row.account?.student?.studentNumber ?? null),
+      studentNumber: safe
+        ? null
+        : (row.account?.student?.studentNumber ?? null),
       safeMessage:
         (detail.safeNote as string | undefined) ??
         'Finance is reviewing this case. Do not pay again until it is resolved.',
     };
   }
 
-  async listCases(auth: FinanceAuthority) {
+  async workspaceSummary(auth: FinanceAuthority) {
+    const officer = await this.liveAssignment(
+      auth,
+      'FINANCE_OFFICER',
+      'reconcile-case',
+    );
+    const approver = await this.liveAssignment(
+      auth,
+      'FINANCE_APPROVER',
+      'approve-adjustment',
+    );
+    const canReconcile = Boolean(
+      officer && auth.activeRole === 'FINANCE_OFFICER',
+    );
+    const canApprove = Boolean(
+      approver && auth.activeRole === 'FINANCE_APPROVER',
+    );
+    if (!canReconcile && !canApprove)
+      throw new HttpException(
+        { message: 'This finance workspace is unavailable.' },
+        403,
+      );
+    const [reconciliationCases, adjustments, arrangements] = await Promise.all([
+      canReconcile
+        ? this.prisma.financeReconciliationCase.count({
+            where: { status: { in: ['OPEN', 'ESCALATED'] } },
+          })
+        : Promise.resolve(null),
+      this.prisma.financeAdjustment.count({ where: { status: 'REQUESTED' } }),
+      this.prisma.financeArrangement.count({ where: { status: 'REQUESTED' } }),
+    ]);
+    return { reconciliationCases, adjustments, arrangements };
+  }
+
+  private caseCursorSecret() {
+    const value = process.env.QUEUE_CURSOR_SECRET;
+    if (process.env.NODE_ENV === 'production' && (!value || value.length < 32))
+      throw new HttpException(
+        { message: 'Case navigation is temporarily unavailable.' },
+        503,
+      );
+    return value || 'sis-finance-case-cursor-development-only';
+  }
+
+  private signCaseCursor(payload: string) {
+    return createHmac('sha256', this.caseCursorSecret())
+      .update(payload)
+      .digest('base64url');
+  }
+
+  private encodeCaseCursor(cursor: CaseCursor) {
+    const payload = Buffer.from(JSON.stringify(cursor)).toString('base64url');
+    return `${payload}.${this.signCaseCursor(payload)}`;
+  }
+
+  private decodeCaseCursor(
+    token: string,
+    expected: Pick<
+      CaseCursor,
+      'accountId' | 'assignmentId' | 'status' | 'sort'
+    >,
+  ): CaseCursor {
+    const invalid = (): never =>
+      this.fail(
+        'CASE_PAGE_INVALID',
+        'This case page is no longer available. Restart from the first page.',
+        400,
+      );
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra !== undefined) return invalid();
+    try {
+      const actual = Buffer.from(signature, 'base64url');
+      const wanted = Buffer.from(this.signCaseCursor(payload), 'base64url');
+      if (actual.length !== wanted.length || !timingSafeEqual(actual, wanted))
+        return invalid();
+      const parsed = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      ) as Partial<CaseCursor>;
+      if (
+        parsed.version !== 1 ||
+        parsed.accountId !== expected.accountId ||
+        parsed.assignmentId !== expected.assignmentId ||
+        parsed.status !== expected.status ||
+        parsed.sort !== expected.sort ||
+        typeof parsed.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(parsed.createdAt)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)
+      )
+        return invalid();
+      return parsed as CaseCursor;
+    } catch {
+      return invalid();
+    }
+  }
+
+  async listCases(auth: FinanceAuthority, query: FinanceCaseQueueQuery = {}) {
     const officer = await this.liveAssignment(
       auth,
       'FINANCE_OFFICER',
       'reconcile-case',
     );
     if (officer && auth.activeRole === 'FINANCE_OFFICER') {
-      const rows = await this.prisma.financeReconciliationCase.findMany({
-        where: { status: { in: ['OPEN', 'ESCALATED'] } },
-        orderBy: { createdAt: 'asc' },
-        include: { account: { include: { student: true } } },
-      });
-      return { items: rows.map((r) => this.caseView(r, false)) };
+      const status = query.status ?? 'ALL';
+      const sort = query.sort ?? 'oldest';
+      const take = query.take ?? 50;
+      const base: Prisma.FinanceReconciliationCaseWhereInput = {
+        status: status === 'ALL' ? { in: ['OPEN', 'ESCALATED'] } : status,
+      };
+      const cursor = query.cursor
+        ? this.decodeCaseCursor(query.cursor, {
+            accountId: auth.accountId,
+            assignmentId: officer.id,
+            status,
+            sort,
+          })
+        : null;
+      if (cursor) {
+        const live = await this.prisma.financeReconciliationCase.findFirst({
+          where: {
+            ...base,
+            id: cursor.id,
+            createdAt: new Date(cursor.createdAt),
+          },
+          select: { id: true },
+        });
+        if (!live)
+          this.fail(
+            'CASE_PAGE_INVALID',
+            'This case page is no longer available. Restart from the first page.',
+            400,
+          );
+      }
+      const where: Prisma.FinanceReconciliationCaseWhereInput = cursor
+        ? {
+            AND: [
+              base,
+              {
+                OR: [
+                  {
+                    createdAt:
+                      sort === 'oldest'
+                        ? { gt: new Date(cursor.createdAt) }
+                        : { lt: new Date(cursor.createdAt) },
+                  },
+                  {
+                    createdAt: new Date(cursor.createdAt),
+                    id:
+                      sort === 'oldest' ? { gt: cursor.id } : { lt: cursor.id },
+                  },
+                ],
+              },
+            ],
+          }
+        : base;
+      const [rows, total] = await Promise.all([
+        this.prisma.financeReconciliationCase.findMany({
+          where,
+          orderBy: [
+            { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
+            { id: sort === 'oldest' ? 'asc' : 'desc' },
+          ],
+          take: take + 1,
+          include: { account: { include: { student: true } } },
+        }),
+        this.prisma.financeReconciliationCase.count({ where: base }),
+      ]);
+      const visible = rows.slice(0, take);
+      const last = visible.at(-1);
+      return {
+        items: visible.map((r) => this.caseView(r, false)),
+        total,
+        nextCursor:
+          rows.length > take && last
+            ? this.encodeCaseCursor({
+                version: 1,
+                accountId: auth.accountId,
+                assignmentId: officer.id,
+                status,
+                sort,
+                createdAt: last.createdAt.toISOString(),
+                id: last.id,
+              })
+            : null,
+      };
     }
     // Students see their own cases with safe wording only.
     const student = await this.studentOf(auth);
@@ -2229,11 +2767,7 @@ export class FinanceService {
         });
         if (!row) this.fail('NOT_FOUND', 'Reconciliation case not found.', 404);
         if (row.status !== 'OPEN' && row.status !== 'ESCALATED') {
-          this.fail(
-            'REQUEST_CLOSED',
-            'This case is already resolved.',
-            409,
-          );
+          this.fail('REQUEST_CLOSED', 'This case is already resolved.', 409);
         }
         if (row.accountId) {
           await db.$queryRaw`SELECT id FROM "FinanceAccount" WHERE id = ${row.accountId} FOR UPDATE`;
@@ -2243,9 +2777,16 @@ export class FinanceService {
             where: { id: row.id },
             data: { status: 'ESCALATED' },
           });
-          await this.audit(db, auth, 'ReconciliationCaseEscalated', row.id, key, {
-            note: input.note?.trim() || null,
-          });
+          await this.audit(
+            db,
+            auth,
+            'ReconciliationCaseEscalated',
+            row.id,
+            key,
+            {
+              note: input.note?.trim() || null,
+            },
+          );
           return { body: this.caseView(escalated, false) };
         }
         if (input.action === 'MARK_DUPLICATE') {
@@ -2254,9 +2795,16 @@ export class FinanceService {
             where: { id: row.id },
             data: { status: 'RESOLVED', resolvedAt: new Date() },
           });
-          await this.audit(db, auth, 'ReconciliationCaseDuplicate', row.id, key, {
-            note: input.note?.trim() || null,
-          });
+          await this.audit(
+            db,
+            auth,
+            'ReconciliationCaseDuplicate',
+            row.id,
+            key,
+            {
+              note: input.note?.trim() || null,
+            },
+          );
           return { body: this.caseView(closed, false) };
         }
         // MATCH_CONFIRM: accept provider evidence at its stated amount.
@@ -2407,7 +2955,9 @@ export class FinanceService {
     for (const tx of posted) {
       let remaining =
         tx.amountMinor -
-        tx.allocations.filter((a) => !a.reversal).reduce((sum, a) => sum + a.amountMinor, 0);
+        tx.allocations
+          .filter((a) => !a.reversal)
+          .reduce((sum, a) => sum + a.amountMinor, 0);
       if (remaining <= 0) continue;
       for (const line of lines) {
         if (remaining <= 0) break;
@@ -2577,8 +3127,8 @@ export class FinanceService {
             : row.status === 'CASHIER_RECORDED'
               ? 'Cashier recorded your payment; Finance will confirm it shortly.'
               : row.status === 'CONFIRMED'
-              ? 'Payment confirmed.'
-              : 'This request is closed. Start a new payment if you still owe this invoice.',
+                ? 'Payment confirmed.'
+                : 'This request is closed. Start a new payment if you still owe this invoice.',
     };
   }
 
@@ -2739,7 +3289,10 @@ export class FinanceService {
         };
       }
       const request = transaction.request;
-      if (input.status === 'REVERSED' && (transaction.originalReversal || transaction.status === 'REVERSED')) {
+      if (
+        input.status === 'REVERSED' &&
+        (transaction.originalReversal || transaction.status === 'REVERSED')
+      ) {
         await mark('DUPLICATE');
         return { outcome: 'DUPLICATE', reference: request.reference };
       }
@@ -2772,9 +3325,11 @@ export class FinanceService {
         await this.allocateAndAssess(
           db,
           transaction.accountId,
-          (await db.financeInvoice.findFirstOrThrow({
-            where: { id: request.invoiceId },
-          })).periodId,
+          (
+            await db.financeInvoice.findFirstOrThrow({
+              where: { id: request.invoiceId },
+            })
+          ).periodId,
           'EXPIRED_CALLBACK',
         );
         return { outcome: 'CASE_OPENED', caseId: opened.id };

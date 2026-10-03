@@ -10,3 +10,12 @@ export function formatLusaka(input: string | Date): string {
   }).format(new Date(input));
   return `${time} CAT`;
 }
+
+export function formatLusakaDate(isoDate: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(`${isoDate}T10:00:00.000Z`));
+}

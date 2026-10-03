@@ -28,22 +28,46 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("heading", { name: "Welcome to the student portal" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Not registered for this period" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Check registration readiness" }),
+  ).toBeVisible();
   await expect(page.getByText(student.studentNumber)).toBeVisible();
   await expect(page.getByText("BSc Software Engineering")).toBeVisible();
   await noOverflow(page);
 
+  await page.getByRole("link", { name: "My timetable" }).click();
+  await expect(
+    page.getByRole("heading", { name: "My timetable" }),
+  ).toBeVisible();
+  await expect(page.getByText("Complete registration first")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Review registration" }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await page.goto("/student");
+
   // Contact update with labels and focus intact.
+  await page.getByText("Update contact details").click();
   await page.getByLabel("Email address").fill("new-address@demo.invalid");
   await page.getByRole("button", { name: "Save contact details" }).click();
   await expect(page.getByText("Contact details saved.")).toBeVisible();
   await noOverflow(page);
 
   // Correction request journey with persistent errors.
+  await page.getByText("Request an official record correction").click();
   await page.getByLabel("Requested value").fill("Fictional Browser Scholar");
   await page.getByLabel("Reason").fill("Legal name order.");
   await page.getByRole("button", { name: "Request correction" }).click();
   await expect(page.getByText("Correction requested.")).toBeVisible();
   await expect(page.getByText("Fictional Browser Scholar")).toBeVisible();
+  const correctionHistory = page
+    .getByRole("heading", { name: "Correction history" })
+    .locator("..");
+  await expect(correctionHistory.getByText("Official name")).toBeVisible();
+  await expect(correctionHistory.getByText("Awaiting review")).toBeVisible();
   await noOverflow(page);
 
   // Registration readiness explains every condition with owner and next.
@@ -60,12 +84,16 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("heading", { name: "Plan your courses" }),
   ).toBeVisible();
-  await expect(page.getByText("SWE111 — Programming Fundamentals")).toBeVisible();
+  await expect(
+    page.getByText("SWE111 — Programming Fundamentals"),
+  ).toBeVisible();
   await page.getByLabel("SWE111 — Programming Fundamentals").check();
   await page.getByLabel("MTH111 — Discrete Mathematics").check();
   await page.getByRole("button", { name: "Save course plan" }).click();
   await expect(page.getByText("Draft saved as version 1.")).toBeVisible();
-  await expect(page.getByText("Planned load: 2 half-course equivalents.")).toBeVisible();
+  await expect(
+    page.getByText("Planned load: 2 half-course equivalents."),
+  ).toBeVisible();
   await noOverflow(page);
 
   // Formal registration: review, declarations, submit, receipt.
@@ -77,12 +105,42 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("heading", { name: "Review registration" }),
   ).toBeVisible();
-  await page.getByLabel("My course selection is accurate to my knowledge.").check();
-  await page.getByLabel("I understand the registration rules for this period.").check();
-  await page.getByLabel("I understand my fee obligations are handled separately.").check();
+  await page
+    .getByLabel("My course selection is accurate to my knowledge.")
+    .check();
+  await page
+    .getByLabel("I understand the registration rules for this period.")
+    .check();
+  await page
+    .getByLabel("I understand my fee obligations are handled separately.")
+    .check();
   await page.getByRole("button", { name: "Submit registration" }).click();
   await expect(page.getByText("Registration completed.")).toBeVisible();
   await expect(page.getByText(/Receipt: REG-/)).toBeVisible();
+  await noOverflow(page);
+
+  await page.goto("/student");
+  await expect(
+    page.getByRole("heading", { name: "Registration completed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Your registration covers 3 courses/),
+  ).toBeVisible();
+  await noOverflow(page);
+
+  await page.goto("/student/timetable");
+  await expect(
+    page.getByRole("heading", { name: "My timetable" }),
+  ).toBeVisible();
+  await expect(page.getByText("Timetable being prepared")).toBeVisible();
+  await expect(
+    page.getByText("SWE111 — Programming Fundamentals"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /Class times, rooms and meeting links are not published yet/,
+    ),
+  ).toBeVisible();
   await noOverflow(page);
 
   // Moodle handoff is queued: registration stays valid while sync pends.
@@ -114,9 +172,7 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("heading", { name: "Finance and clearance" }),
   ).toBeVisible();
-  await expect(
-    page.getByText(`Official reference ${reference}`),
-  ).toBeVisible();
+  await expect(page.getByText(`Official reference ${reference}`)).toBeVisible();
   // Invoice line renders in both table and mobile-card forms.
   const invoiceCard = page.locator("section", {
     has: page.getByRole("heading", { name: "Invoice for 2026S1" }),
@@ -162,9 +218,7 @@ test("student portal: home, contact update, correction request", async ({
   await page.goto("/student/finance");
   await expect(page.getByRole("heading", { name: "Receipts" })).toBeVisible();
   await expect(page.getByText(/Receipt PAY-/)).toBeVisible();
-  await expect(
-    page.getByText("Financial clearance complete"),
-  ).toBeVisible();
+  await expect(page.getByText("Financial clearance complete")).toBeVisible();
   await expect(
     page.getByText("Registration is not blocked by finance."),
   ).toBeVisible();
@@ -172,20 +226,18 @@ test("student portal: home, contact update, correction request", async ({
 
   // Reversal checkpoint: governed recalculation re-blocks with a reason.
   const payRef =
-    (await page.getByText(/Receipt PAY-/).textContent().then(
-      (text) => text?.match(/PAY-\d{4}-\d{4}/)?.[0] ?? "",
-    )) ?? "";
-  const reversal = await page.request.post(
-    "/api/finance/simulator/dispatch",
-    {
-      headers: { origin: "http://127.0.0.1:3100" },
-      data: {
-        requestReference: payRef,
-        outcome: "REVERSAL",
-        idempotencyKey: crypto.randomUUID(),
-      },
+    (await page
+      .getByText(/Receipt PAY-/)
+      .textContent()
+      .then((text) => text?.match(/PAY-\d{4}-\d{4}/)?.[0] ?? "")) ?? "";
+  const reversal = await page.request.post("/api/finance/simulator/dispatch", {
+    headers: { origin: "http://127.0.0.1:3100" },
+    data: {
+      requestReference: payRef,
+      outcome: "REVERSAL",
+      idempotencyKey: crypto.randomUUID(),
     },
-  );
+  });
   expect(reversal.ok()).toBe(true);
   await page.goto("/student/finance");
   await expect(

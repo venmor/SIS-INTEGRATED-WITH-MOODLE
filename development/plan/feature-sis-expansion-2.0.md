@@ -1,8 +1,8 @@
 ---
 goal: Deliver the handbook-defined SIS from a verified presentation MVP to operational v2.0
-version: 2.0-plan.1
+version: 2.0-plan.2
 date_created: 2026-09-30
-last_updated: 2026-10-01
+last_updated: 2026-10-02
 owner: Charles Hangoma and Chitundu Milimbo; per-slice lead and reviewer recorded before execution
 status: Planned
 tags: [architecture, feature, migration, security, accessibility, roadmap]
@@ -13,6 +13,8 @@ tags: [architecture, feature, migration, security, accessibility, roadmap]
 ![Status: Planned](https://img.shields.io/badge/status-Planned-blue)
 
 This is an executable expansion backlog, not approval to invent university policy or a claim that v1.0 has passed acceptance. It extends the original handbook roadmap without changing its approved text. The implementation audit is [MVP audit](../docs/learning/MVP-AUDIT-2026-09-30.md). Release completion requires evidence, not a page count.
+
+The 2026-10-02 operating-SIS design and detailed execution plan refine this inventory: [approved-direction design](../docs/superpowers/specs/2026-10-02-v2-operating-sis-design.md), [execution plan](../docs/superpowers/plans/2026-10-02-v2-operating-sis-plan.md), and [institution setup authority gap](../docs/gaps/GAP-V2-001-institution-configuration-authority.md). Use only generated synthetic records. The user lifted the limited-internet-data restriction on 2026-10-02; report substantial transfers and any provider charges, while keeping real institutional data and cloud Moodle deferred. Institutional configuration writes remain disabled until approved proposer, independent approver, scope and recovery authority is recorded.
 
 Paths below are relative to `development/`. New module and screen paths are proposed implementation locations, not claims that they exist. Before each slice, read its exact source records in full and confirm later supersession; the source map is [SOURCE-MAP](../docs/roadmap/SOURCE-MAP.md). A policy gate with no approved input remains blocked. Do not substitute an AI-authored numerical threshold or institutional appointment.
 
@@ -28,6 +30,10 @@ Paths below are relative to `development/`. New module and screen paths are prop
 - **SEC-002**: Counselling, disability evidence, discipline, examiner reports and sensitive exports have separate disclosure rules, audited access and configured retention. Deans and administrators do not gain blanket case access.
 - **CON-001**: Retain Next.js/TypeScript/CSS Modules, NestJS modular monolith, PostgreSQL/Prisma, Docker Compose, GitHub Actions and Playwright. New infrastructure or AI requires its own approved ADR.
 - **CON-002**: OpenCode's `b9fa96d` is integrated only in the separate review branch at `eef552e`. The primary checkout and its untracked findings remain untouched. This plan authorizes no reset, push, deployment or shared-database migration.
+- **CON-003**: Prefer installed dependencies and local synthetic fixtures. The user has authorized internet data usage as of 2026-10-02; report substantial downloads and any cost before starting. Do not download or import real student or institutional datasets.
+- **REQ-007**: Institution onboarding must configure an effective-dated organization graph, academic-calendar model, catalogue, versioned rules, approved terminology and operational readiness without arbitrary code; unapproved values remain inactive. Privileged setup is gated by GAP-V2-001.
+- **REQ-008**: High-volume admissions uses server-side scoped filters and stable navigation, clear ownership/workload, safe batch preparation and per-item audit. High-impact decisions remain separately attributable unless approved configuration delegates them.
+- **REQ-009**: Class-session attendance, proactive success, real counselling/welfare/accommodation, examination operations, persistent student AI, trusted reporting/exports and provider-backed payments are separate owned workflows with the security, consent, authority, recovery and human-review gates stated in the operating-sis plan.
 - **GUD-001**: Every task packet records lead, independent reviewer, exact evidence sections, requirement/action/permission/UI/test IDs, exclusions, dependencies and evidence paths. Charles and Chitundu rotate after each slice; no human signoff is prefilled.
 - **PAT-001**: Use optimistic versions plus transaction serialization, durable idempotency receipts, minimal outbox events and owner-module consumers. External delivery cannot reverse an official decision. Unknown outcomes retry the original request reference.
 
@@ -96,6 +102,8 @@ The user explicitly reaffirmed timetable and exam management on 2026-09-30. Thes
 
 Sequence: TASK-101→102→103→104→105; TASK-106 follows evidence from the manual workflow. Exit: a cross-school timetable change cannot double-book a room/teacher or silently alter a student's published schedule; every affected user can identify the change and next action.
 
+Read-only foundation, 2026-10-02: [TASK-V2-TIME-001](../docs/task-packets/TASK-V2-TIME-001.md) exposes official registered courses and a truthful publication-pending state on the student portal ([evidence](../docs/learning/NOTE-V2-TIME-001.md)). No TASK-101–105 row is complete; the page contains no published class session or conflict validation.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |
@@ -125,6 +133,8 @@ Sources: DS6, finance journey08, security/recovery and official-record controls.
 
 Exit: one split-sponsored repeating student can pay partially, receive a governed correction/refund and reproduce the complete statement after restore with no duplicate money movement.
 
+Review-worktree finance workbench increments, 2026-10-03: [TASK-V2-FIN-001](../docs/task-packets/TASK-V2-FIN-001.md) bounds reconciliation cases and supplies exact home counts; [TASK-V2-FIN-002](../docs/task-packets/TASK-V2-FIN-002.md) bounds pending arrangement review; [TASK-V2-FIN-003](../docs/task-packets/TASK-V2-FIN-003.md) bounds pending adjustment/refund review by kind and shows role-appropriate forms. These make portions of TASK-032 easier to operate but do not complete TASK-031–035, authorize live payments, or certify finance reports.
+
 ### Implementation Phase 5 — v1.4 Student support and protected services
 
 - **GOAL-005**: Deliver human-reviewed support with explicit ownership and deadlines while keeping confidential services separate.
@@ -140,6 +150,12 @@ Sources: exact DS8/12B, Adviser025–027, Dean journey06, services journey09 and
 | TASK-045 | Add `discipline/` report, jurisdiction, notice, response, investigation, hearing, reasoned decision, sanction and appeal. Store allegations separately from findings; COI/reassignment and student response are required. Send explicit effective-dated commands to record/registration owners after approval; never directly edit Moodle, money or grades. Test overturned sanction restoration and counselling-note isolation. | No | — |
 
 Exit: an explainable academic concern becomes an accepted or declined support invitation, with a due follow-up and no confidential leakage; an appealed disciplinary decision preserves procedural history.
+
+Review-worktree academic-support increment, 2026-10-03: [TASK-V2-SUPPORT-003](../docs/task-packets/TASK-V2-SUPPORT-003.md) supports an agreed or declined, dated follow-up within a synthetic student-initiated case. It is a partial TASK-042 building block; proactive observations, real appointment capacity, confidential services and institutional activation remain open.
+
+[TASK-V2-SUPPORT-004](../docs/task-packets/TASK-V2-SUPPORT-004.md) adds a bounded, selected-adviser worklist for those open actions and confirmation claims. It improves caseload navigation; it does not create reminders, service-level deadlines, supervisor escalation or live operation.
+
+[TASK-V2-SUPPORT-005](../docs/task-packets/TASK-V2-SUPPORT-005.md) adds evidenced, immutable closure to the synthetic academic case. It completes this case's basic student/adviser lifecycle while TASK-041/042 still require proactive observations, approved outreach/delivery, appointment capacity, reassignment, escalation and institutional activation.
 
 #### Student-facing AI assistance — staged v1.4 pilot to v2.0
 
@@ -267,9 +283,15 @@ Exit: every active provider has an owner, signed-off contract, monitoring, recov
 - **RISK-002**: Demo rules, string role aliases and free offering references can be mistaken for institutional authority. Keep gates closed until mapped/approved and verified.
 - **RISK-003**: Advanced support/reporting can leak sensitive information through joins, notifications or small aggregates even when the screen hides a field. Test API, exports, audit and reporting projections independently.
 - **RISK-004**: Cross-domain amendments can leave stale readiness. Every consumer records source version and an explicit review/recalculation outcome; absence of an acknowledgement is visible.
+- **RISK-005**: A page-size cap and synthetic happy-path are not proof of 20,000-record operations. Establish query plans, transfer/payload bounds, concurrent queue mutation behavior and institutional service targets before claiming scale.
+- **RISK-006**: A setup UI could be mistaken for authority. GAP-V2-001 blocks privileged institutional configuration writes until separate proposer/approver, scope, step-up, emergency and recovery decisions are approved.
+- **RISK-007**: Zambian language and terminology support can become misleading if translated policy is unreviewed. Keep English and approved institutional formats; activate other terminology/language packs only after named review/ownership.
 - **ASSUMPTION-001**: The approved Section22 release families remain the organising sequence; this plan adds missing detail and dependencies, not a new claim of approval or fixed delivery dates.
 
 ## 8. Related Specifications / Further Reading
+
+- [v2.0 operating SIS design](../docs/superpowers/specs/2026-10-02-v2-operating-sis-design.md) and [sequenced implementation plan](../docs/superpowers/plans/2026-10-02-v2-operating-sis-plan.md)
+- [GAP-V2-001 institutional setup authority](../docs/gaps/GAP-V2-001-institution-configuration-authority.md)
 
 - [Source map and precedence](../docs/roadmap/SOURCE-MAP.md)
 - [MVP audit](../docs/learning/MVP-AUDIT-2026-09-30.md)

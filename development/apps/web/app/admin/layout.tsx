@@ -39,6 +39,7 @@ function workspaceLabel(role: string | undefined) {
   if (role === "FINANCE_APPROVER") return "Finance approval workspace";
   if (role === "LEC") return "Lecturer workspace";
   if (role === "COORDINATOR") return "Coordinator workspace";
+  if (role === "ADVISER") return "Academic adviser workspace";
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
@@ -55,7 +56,11 @@ export default async function AdminLayout({
   const role = active?.role;
 
   const items: Array<{ href: string; label: string; show: boolean }> = [
-    { href: "/admin/assessment/publications", label: "Results and amendments", show: role === "EXAMINATIONS_OFFICER" },
+    {
+      href: "/admin/assessment/publications",
+      label: "Results and amendments",
+      show: role === "EXAMINATIONS_OFFICER",
+    },
     {
       href: "/admin/admissions/queue",
       label: "Admissions queue",
@@ -77,28 +82,24 @@ export default async function AdminLayout({
       show: role === "COORDINATOR",
     },
     {
+      href: "/admin/support",
+      label: "Assigned support requests",
+      show: role === "ADVISER",
+    },
+    {
       href: "/admin/assessment/plans",
       label: "Assessment plans",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/mappings",
       label: "Grade mappings",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/batches",
       label: "Grade batches",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/findings",
@@ -143,6 +144,11 @@ export default async function AdminLayout({
       show: role === "SYSADMIN",
     },
     {
+      href: "/admin/setup/readiness",
+      label: "Setup readiness",
+      show: role === "SYSADMIN",
+    },
+    {
       href: "/admin/grants",
       label: "Role assignments",
       show: role === "SYSADMIN",
@@ -178,9 +184,7 @@ export default async function AdminLayout({
         ) : null}
 
         <details className={styles.menu}>
-          <summary className={styles.menuToggle}>
-            Workspace sections
-          </summary>
+          <summary className={styles.menuToggle}>Workspace sections</summary>
           <nav className={styles.nav} aria-label="Workspace sections">
             <Link href="/">Workspace home</Link>
             {items
@@ -199,7 +203,9 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      <div className={styles.content} id="main-content" tabIndex={-1}>{children}</div>
+      <div className={styles.content} id="main-content" tabIndex={-1}>
+        {children}
+      </div>
     </div>
   );
 }

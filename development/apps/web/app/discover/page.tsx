@@ -27,6 +27,8 @@ const SEARCH_KEYS = [
   "intake",
   "route",
   "availability",
+  "skip",
+  "take",
 ] as const;
 
 async function loadProgrammes(
@@ -95,7 +97,9 @@ export default async function DiscoverPage({
     const first = firstParam(params, key);
     if (first) initial[key] = first;
   }
-  const hasQuery = SEARCH_KEYS.some((key) => firstParam(params, key));
+  const hasQuery = SEARCH_KEYS.some(
+    (key) => key !== "skip" && key !== "take" && firstParam(params, key),
+  );
   const schools =
     page && !hasQuery
       ? [...new Set(page.items.map((item) => item.school))].sort()
@@ -120,12 +124,25 @@ export default async function DiscoverPage({
     compareIds.length > 0
       ? `/discover/compare?ids=${encodeURIComponent(compareIds.join(","))}`
       : null;
-  const take = Number(firstParam(params, "take") ?? "12");
-  const showPager = page !== null && page.total > take;
+  function pageHref(skip: number): string {
+    const next = new URLSearchParams();
+    for (const key of SEARCH_KEYS) {
+      if (key === "skip") continue;
+      const value = firstParam(params, key);
+      if (value) next.set(key, value);
+    }
+    const compare = firstParam(params, "compare");
+    if (compare) next.set("compare", compare);
+    if (skip > 0) next.set("skip", String(skip));
+    return `/discover?${next.toString()}`;
+  }
+  const showPager = page !== null && page.total > page.take;
   return (
     <div className={discovery.page}>
-      <main className={discovery.main}>
-        <header className={discovery.heading}>
+      <main id="main-content" className={discovery.main}>
+        <header
+          className={`${discovery.heading} border-b border-sis-border pb-6`}
+        >
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Find a programme</h1>
           <p className={styles.lede}>
@@ -139,6 +156,13 @@ export default async function DiscoverPage({
             severity="error"
             title="Catalogue temporarily unavailable"
             message={`Programme listings cannot be shown right now. ${AUTH_MESSAGES.keptState.text} Or contact Admissions.`}
+          />
+        ) : page.items.length === 0 && page.total > 0 ? (
+          <Empty
+            caseVariant="nothing"
+            title="This result page has changed"
+            message="The catalogue changed since you opened this page. Return to the first page to see current results."
+            action={{ label: "First page", href: pageHref(0) }}
           />
         ) : page.items.length === 0 ? (
           <Empty
@@ -191,6 +215,7 @@ export default async function DiscoverPage({
                     name={item.programmeName}
                     awardLevel={item.awardLevel}
                     school={item.school}
+                    intake={item.intake}
                     duration={item.duration}
                     campus={item.campus}
                     studyMode={item.studyMode}
@@ -214,10 +239,37 @@ export default async function DiscoverPage({
               })}
             </div>
             {showPager ? (
-              <p className={styles.supporting}>
-                Showing {page.items.length} of {page.total}. Refine your search
-                to narrow results.
-              </p>
+              <nav
+                className={discovery.pager}
+                aria-label="Programme result pages"
+              >
+                <p className={discovery.resultCount} role="status">
+                  Showing {page.skip + 1}–{page.skip + page.items.length} of{" "}
+                  {page.total}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {page.skip > 0 ? (
+                    <Link
+                      className={discovery.pageLink}
+                      href={pageHref(Math.max(0, page.skip - page.take))}
+                    >
+                      Previous page
+                    </Link>
+                  ) : null}
+                  <span className={discovery.pageNumber}>
+                    Page {Math.floor(page.skip / page.take) + 1} of{" "}
+                    {Math.ceil(page.total / page.take)}
+                  </span>
+                  {page.skip + page.items.length < page.total ? (
+                    <Link
+                      className={discovery.pageLink}
+                      href={pageHref(page.skip + page.take)}
+                    >
+                      Next page
+                    </Link>
+                  ) : null}
+                </div>
+              </nav>
             ) : null}
           </section>
         )}

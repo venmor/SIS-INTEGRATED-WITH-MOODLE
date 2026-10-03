@@ -140,6 +140,42 @@ test("programme results expose factual view and compare actions without mobile o
   await expectNoHorizontalOverflow(page);
 });
 
+test("programme paging preserves search context and offers previous and next controls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/discover?q=BSc&take=1");
+
+  const pages = page.getByRole("navigation", {
+    name: "Programme result pages",
+  });
+  await expect(pages).toContainText("Page 1 of");
+  await expect(pages.getByRole("link", { name: "Next page" })).toBeVisible();
+  await pages.getByRole("link", { name: "Next page" }).click();
+  await expect(page).toHaveURL(/take=1/);
+  await expect(page).toHaveURL(/q=BSc/);
+  await expect(page).toHaveURL(/skip=1/);
+  await expect(
+    pages.getByRole("link", { name: "Previous page" }),
+  ).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expectNoHorizontalOverflow(page);
+});
+
+test("outdated programme page offers a route back to current results", async ({
+  page,
+}) => {
+  await page.goto("/discover?take=1&skip=1000");
+  await expect(
+    page.getByRole("status", { name: "This result page has changed" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "First page" }).click();
+  await expect(page).not.toHaveURL(/skip=/);
+  await expect(
+    page.getByRole("heading", { name: "Programme results" }),
+  ).toBeVisible();
+});
+
 test("applicant home puts the next required action before the application list", async ({
   page,
 }) => {
@@ -175,6 +211,9 @@ test("required documents always expose a clear state", async ({ page }) => {
   await page.goto(`${applicationUrl}/documents`);
 
   await expect(page.getByText("Status: Not uploaded").first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Download fictional practice document" }),
+  ).toBeVisible();
 
   await page
     .getByLabel("Choose file")
@@ -185,6 +224,56 @@ test("required documents always expose a clear state", async ({ page }) => {
     .getByRole("button", { name: "Upload document", exact: true })
     .click();
 
+  await expect(
+    page.getByText("Status: Checking file safety").first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Review application and next steps" }),
+  ).toBeVisible();
+});
+
+test("document upload shows transfer and receipt phases", async ({ page }) => {
+  const applicationUrl = await startDraft(page);
+  await page.goto(`${applicationUrl}/documents`);
+  await page
+    .getByLabel("Choose file")
+    .setInputFiles(
+      path.resolve("packages/test-fixtures/documents/fictional-result.pdf"),
+    );
+  await expect(
+    page.getByRole("button", { name: "Upload document", exact: true }),
+  ).toBeEnabled();
+  let release!: () => void;
+  let started!: () => void;
+  const requestStarted = new Promise<void>((resolve) => (started = resolve));
+  await page.route(
+    "**/api/applications/*/documents",
+    async (route) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+        started();
+      });
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
+  await requestStarted;
+  try {
+    await expect(
+      page.getByRole("progressbar", { name: "File upload progress" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Cancel upload" }),
+    ).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(
+      /Uploading document|Waiting for receipt/,
+    );
+  } finally {
+    release();
+  }
   await expect(
     page.getByText("Status: Checking file safety").first(),
   ).toBeVisible();

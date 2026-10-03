@@ -4,21 +4,21 @@ Verified in the isolated `review/phase-2-slices-2-5` worktree. Node **24.21.0**;
 
 ## Executed checks
 
-| Check | Current result | What it establishes |
-|---|---|---|
-| `npm test` | **64 tests passed, 13 files** | Existing unit/contracts plus scanner boundaries, including clean-antivirus/structural-PDF distinction |
-| Prior API suite, excluding the two new suites | **67 tests passed, 13 files** | Authentication, recovery, grants, active workspace, policy, expiry, reviews, reinstatement, break-glass, audit, configuration and public catalogue |
-| `applications.e2e-spec.ts` + `config-versions.e2e-spec.ts` | **19 tests passed, 2 files** | Real database/HTTP applicant ownership, versions, partial saves, live policy/deadline/contact checks, upload/replacement, programme change/discard/count limit, rollback/concurrent submit, SQL immutability and persisted configuration snapshot |
-| `npm run test:scripts` | **6 passed** | Same-origin boundary, scan failure exit, year/CAT date rendering, password-safe backup failures |
-| `npm run test:browser` | **2 passed** | Connected 390px mobile/keyboard journey, unsaved-navigation warning, actual save-and-continue navigation, locked qualification controls during delayed save, safe fixture preview, lost-submit-response recovery, refreshed receipt, no horizontal overflow/localStorage, foreign-origin denial |
-| `npm run build` | **Passed** | Production Next.js and NestJS builds, shared configuration build |
-| `npm run typecheck` | **Passed** | Full API source/test and web TypeScript checks |
-| `npm run lint` | **Passed with 12 warnings; no errors** | Web lint clean; API warnings described below |
-| `npm run scan` | **Passed** | No prohibited source/dependency patterns or scanned secret patterns detected; not an exhaustive security audit |
-| `prisma validate`; fresh `migrate deploy` + demo seed | **Passed on three isolated databases; 13 migrations each** | Schema validity and fresh install after duplicate catalogue-key repair |
-| `npm run backup:test` | **25 table counts matched; all seven orphan checks zero** | Actual dump/restore into a newly created scratch database, including admissions records |
-| Existing scratch-name collision | **Rejected; existing submission count unchanged** | Backup test does not erase an existing database |
-| Whitespace, local Markdown paths, source preservation and checksums | **291 Markdown documents checked; zero missing local path targets; 227 checksums matched; 70 exact record bodies preserved; whitespace clean** | Path targets checked (not every heading fragment or external URL); source/navigation consistency, not institutional approval |
+| Check                                                               | Current result                                                                                                                                 | What it establishes                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                                                          | **64 tests passed, 13 files**                                                                                                                  | Existing unit/contracts plus scanner boundaries, including clean-antivirus/structural-PDF distinction                                                                                                                                                                                           |
+| Prior API suite, excluding the two new suites                       | **67 tests passed, 13 files**                                                                                                                  | Authentication, recovery, grants, active workspace, policy, expiry, reviews, reinstatement, break-glass, audit, configuration and public catalogue                                                                                                                                              |
+| `applications.e2e-spec.ts` + `config-versions.e2e-spec.ts`          | **19 tests passed, 2 files**                                                                                                                   | Real database/HTTP applicant ownership, versions, partial saves, live policy/deadline/contact checks, upload/replacement, programme change/discard/count limit, rollback/concurrent submit, SQL immutability and persisted configuration snapshot                                               |
+| `npm run test:scripts`                                              | **6 passed**                                                                                                                                   | Same-origin boundary, scan failure exit, year/CAT date rendering, password-safe backup failures                                                                                                                                                                                                 |
+| `npm run test:browser`                                              | **2 passed**                                                                                                                                   | Connected 390px mobile/keyboard journey, unsaved-navigation warning, actual save-and-continue navigation, locked qualification controls during delayed save, safe fixture preview, lost-submit-response recovery, refreshed receipt, no horizontal overflow/localStorage, foreign-origin denial |
+| `npm run build`                                                     | **Passed**                                                                                                                                     | Production Next.js and NestJS builds, shared configuration build                                                                                                                                                                                                                                |
+| `npm run typecheck`                                                 | **Passed**                                                                                                                                     | Full API source/test and web TypeScript checks                                                                                                                                                                                                                                                  |
+| `npm run lint`                                                      | **Passed with 12 warnings; no errors**                                                                                                         | Web lint clean; API warnings described below                                                                                                                                                                                                                                                    |
+| `npm run scan`                                                      | **Passed**                                                                                                                                     | No prohibited source/dependency patterns or scanned secret patterns detected; not an exhaustive security audit                                                                                                                                                                                  |
+| `prisma validate`; fresh `migrate deploy` + demo seed               | **Passed on three isolated databases; 13 migrations each**                                                                                     | Schema validity and fresh install after duplicate catalogue-key repair                                                                                                                                                                                                                          |
+| `npm run backup:test`                                               | **25 table counts matched; all seven orphan checks zero**                                                                                      | Actual dump/restore into a newly created scratch database, including admissions records                                                                                                                                                                                                         |
+| Existing scratch-name collision                                     | **Rejected; existing submission count unchanged**                                                                                              | Backup test does not erase an existing database                                                                                                                                                                                                                                                 |
+| Whitespace, local Markdown paths, source preservation and checksums | **291 Markdown documents checked; zero missing local path targets; 227 checksums matched; 70 exact record bodies preserved; whitespace clean** | Path targets checked (not every heading fragment or external URL); source/navigation consistency, not institutional approval                                                                                                                                                                    |
 
 The API integration tests replace only the external antivirus boundary. Browser tests use the real exact-fixture scanner adapter. SQL failure injection forces an outbox insert to fail and proves submission rollback. The browser network interception processes the submit upstream and drops its response, so recovery is tested against a genuinely committed result.
 
@@ -59,18 +59,18 @@ since been committed to local `main`; pinned-stack rechecks done in this
 checkout are recorded in the docs-pass section below (scan, scripts,
 typecheck, lint, unit) — API e2e, browser, and backup reruns are still pending.
 
-| Check | Current result | What it establishes |
-|---|---|---|
-| `npx tsc --noEmit` API + web | **Passed** | Full source/test type safety incl. review service, DTOs, staff pages |
-| `npm run lint` | **Passed, warnings only, no errors** | No new lint debt |
-| `npm test` (unit) | **66 passed, 14 files** | Contracts, guards, scanner, IAM (policy.spec covers new verbs) |
-| Prior API suite (13 files, excl. admissions/review) | **67 passed** | No regression in Phases 0–1 + catalogue |
-| Admissions + case + review suites (5 files) | **64 passed** | Draft→submit→receipt intact; 13 queue + 12 evidence tests green |
-| `npm run build --workspace=apps/web` | **Passed** | Production build incl. `/admin/admissions/queue`, `/admin/admissions/case/[id]`, `/api/review` proxy |
-| API dist (`tsc -p tsconfig.build.json`) | **Passed** | Direct `tsc` used: `nest` CLI crashes on Node 22 (ora ESM cycle) |
-| `test:browser` staff queue | **1 passed** | Claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage |
-| `test:browser` applicant regression | **2 passed** | Existing applicant journeys intact |
-| `prisma migrate deploy` fresh + demo seed | **Passed, 18 migrations** | Queue, findings and index migrations apply in order; 3 demo staff seeded |
+| Check                                               | Current result                       | What it establishes                                                                                  |
+| --------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `npx tsc --noEmit` API + web                        | **Passed**                           | Full source/test type safety incl. review service, DTOs, staff pages                                 |
+| `npm run lint`                                      | **Passed, warnings only, no errors** | No new lint debt                                                                                     |
+| `npm test` (unit)                                   | **66 passed, 14 files**              | Contracts, guards, scanner, IAM (policy.spec covers new verbs)                                       |
+| Prior API suite (13 files, excl. admissions/review) | **67 passed**                        | No regression in Phases 0–1 + catalogue                                                              |
+| Admissions + case + review suites (5 files)         | **64 passed**                        | Draft→submit→receipt intact; 13 queue + 12 evidence tests green                                      |
+| `npm run build --workspace=apps/web`                | **Passed**                           | Production build incl. `/admin/admissions/queue`, `/admin/admissions/case/[id]`, `/api/review` proxy |
+| API dist (`tsc -p tsconfig.build.json`)             | **Passed**                           | Direct `tsc` used: `nest` CLI crashes on Node 22 (ora ESM cycle)                                     |
+| `test:browser` staff queue                          | **1 passed**                         | Claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage               |
+| `test:browser` applicant regression                 | **2 passed**                         | Existing applicant journeys intact                                                                   |
+| `prisma migrate deploy` fresh + demo seed           | **Passed, 18 migrations**            | Queue, findings and index migrations apply in order; 3 demo staff seeded                             |
 
 ## Docs pass + pinned-stack rechecks — 2026-09-21 (this checkout, `e44170a` + docs edits)
 
@@ -79,18 +79,18 @@ No code behavior changed in this pass except `apps/web/eslint.config.mjs`
 (ignore `.vercel/**`, which is gitignored build output); generated Prisma
 client + `@sis/config` dist were refreshed (see fixes).
 
-| Check | Current result | What it establishes |
-|---|---|---|
-| `npm run scan` | **Passed, exit 0** | No prohibited source/dependency patterns; not an exhaustive audit |
-| `npm run test:scripts` | **6 passed** | Same-origin, scan-gate, CAT/year rendering, password-safe backup |
-| `npm run typecheck` | **Passed, exit 0** | Full API + web TS checks after `prisma generate` + `@sis/config` build |
-| `npm run lint` (all workspaces) | **Passed, warnings only** | Web clean; API warnings as previously reported |
-| `npm test` (unit) | **68 passed, 15 files** | Up from 66/14 (includes `main.spec.ts` + case cover) |
-| API e2e `catalogue` alone | **12 passed, 1 file** | Seed catalogue intact on fresh `sis_ph3_review_docs` |
-| API e2e remaining 17 files | **119 passed, 17 files** | Draft→submit→case→review intact; queue + evidence + case suites green |
-| `git diff --check` | **Clean** | No whitespace errors in docs/code edits |
-| Handbook untouched | **`git status` shows no handbook paths** | 70 exact record bodies + checksums undisturbed by this docs pass |
-| New-note links | **All resolve** | NOTE-PH2-006, NOTE-PH3-001/002 linked from DESIGN-INDEX, PHASE reviews, ROTATION-LEDGER |
+| Check                           | Current result                           | What it establishes                                                                     |
+| ------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| `npm run scan`                  | **Passed, exit 0**                       | No prohibited source/dependency patterns; not an exhaustive audit                       |
+| `npm run test:scripts`          | **6 passed**                             | Same-origin, scan-gate, CAT/year rendering, password-safe backup                        |
+| `npm run typecheck`             | **Passed, exit 0**                       | Full API + web TS checks after `prisma generate` + `@sis/config` build                  |
+| `npm run lint` (all workspaces) | **Passed, warnings only**                | Web clean; API warnings as previously reported                                          |
+| `npm test` (unit)               | **68 passed, 15 files**                  | Up from 66/14 (includes `main.spec.ts` + case cover)                                    |
+| API e2e `catalogue` alone       | **12 passed, 1 file**                    | Seed catalogue intact on fresh `sis_ph3_review_docs`                                    |
+| API e2e remaining 17 files      | **119 passed, 17 files**                 | Draft→submit→case→review intact; queue + evidence + case suites green                   |
+| `git diff --check`              | **Clean**                                | No whitespace errors in docs/code edits                                                 |
+| Handbook untouched              | **`git status` shows no handbook paths** | 70 exact record bodies + checksums undisturbed by this docs pass                        |
+| New-note links                  | **All resolve**                          | NOTE-PH2-006, NOTE-PH3-001/002 linked from DESIGN-INDEX, PHASE reviews, ROTATION-LEDGER |
 
 Fixes found through this pass (stale generated artifacts, not source bugs):
 
@@ -118,11 +118,11 @@ starts API dist on 3101 + web on 3100 with `PORT=3101`,
 runs below used the same harness after migrating the browser DB with each new
 migration (P2022 otherwise) and rebuilding both apps for new routes/pages.
 
-| Spec | Current result | What it establishes |
-|---|---|---|
-| `admissions-queue.spec.ts` | **1 passed** | Officer claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage |
-| `applicant.spec.ts` | **2 passed** | Mobile keyboard journey + lost-submit recovery; cross-origin denial |
-| `applicant-case.spec.ts` (slice 6) | **1 passed** | Timeline, decision, tickets+reply, corrections, withdraw gate→receipt→`Withdrawn`, inbox; 390px, no overflow, empty localStorage |
+| Spec                               | Current result | What it establishes                                                                                                              |
+| ---------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `admissions-queue.spec.ts`         | **1 passed**   | Officer claim → finding → clarification on 390px, keyboard/focus, no overflow, no localStorage                                   |
+| `applicant.spec.ts`                | **2 passed**   | Mobile keyboard journey + lost-submit recovery; cross-origin denial                                                              |
+| `applicant-case.spec.ts` (slice 6) | **1 passed**   | Timeline, decision, tickets+reply, corrections, withdraw gate→receipt→`Withdrawn`, inbox; 390px, no overflow, empty localStorage |
 
 Fixes found through these runs (first two test-only, third app UX):
 
@@ -342,19 +342,20 @@ web lint clean, API lint warnings-only (pre-existing), API dist via
 direct `tsc`, web production build exit 0. API e2e
 `grade-moderation` **14/14** on the fresh DB (submit checklist,
 idempotent submit, submitter denials, approval with exact CA rows
-+ lock, same-account SoD refusal, return loop with history and CA
-supersession, clarify/refer lanes, write denials + closed
-decisions, racing-decision convergence, component lock + release
-on return, post-approval staging guard, neutrals, swimlane
-reads). Slice regressions held on separate fresh DBs:
-`assessment-plan` **20/20**, `grade-staging` **18/18**,
-`grade-validation` **13/13** (incl. the new concurrent-triage
-test locking the row-lock fix). Unit **73/73**. Browser
-`moderation` (submit → approve + returned correction) **1/1** on
-migrated + rebuilt apps (390px, keyboard/focus, no overflow, empty
-localStorage; `Cases` heading scoped exact). Seed `mushota.m`
-verified on scratch `sis_ph7_seed2_test` (19/19/21 twice,
-idempotent, correct assignment).
+
+- lock, same-account SoD refusal, return loop with history and CA
+  supersession, clarify/refer lanes, write denials + closed
+  decisions, racing-decision convergence, component lock + release
+  on return, post-approval staging guard, neutrals, swimlane
+  reads). Slice regressions held on separate fresh DBs:
+  `assessment-plan` **20/20**, `grade-staging` **18/18**,
+  `grade-validation` **13/13** (incl. the new concurrent-triage
+  test locking the row-lock fix). Unit **73/73**. Browser
+  `moderation` (submit → approve + returned correction) **1/1** on
+  migrated + rebuilt apps (390px, keyboard/focus, no overflow, empty
+  localStorage; `Cases` heading scoped exact). Seed `mushota.m`
+  verified on scratch `sis_ph7_seed2_test` (19/19/21 twice,
+  idempotent, correct assignment).
 
 A real lost-update bug (racing decisions both 201) was caught by
 the concurrency test and fixed with row locking on moderation
@@ -379,15 +380,16 @@ idempotent replay + key conflict; SoD; reason/condition demands
 with stored conditions; five-role denials + student-read refusal;
 neutrals; racing-decision VERSION_CONFLICT; expired-grant 403
 with zero decision rows; DEFER/REFER/CLARIFY with REQUEST_CLOSED
-+ new-version resubmission; genuine-zero preview). Slice
-regressions held on separate fresh DBs: `assessment-plan`
-**20/20** (seeded), `grade-staging` **18/18**, `grade-validation`
-**13/13**, `grade-moderation` **14/14**. Unit **73/73**. Browser
-`board-packages` (moderate 3 cases → assemble → approve for
-release) **1/1** on fresh migrated + seeded browser DB with
-rebuilt apps (390px, keyboard/focus, no overflow, empty
-localStorage; hidden-`h2` scoped `.first()`, form label scoped
-`exact`).
+
+- new-version resubmission; genuine-zero preview). Slice
+  regressions held on separate fresh DBs: `assessment-plan`
+  **20/20** (seeded), `grade-staging` **18/18**, `grade-validation`
+  **13/13**, `grade-moderation` **14/14**. Unit **73/73**. Browser
+  `board-packages` (moderate 3 cases → assemble → approve for
+  release) **1/1** on fresh migrated + seeded browser DB with
+  rebuilt apps (390px, keyboard/focus, no overflow, empty
+  localStorage; hidden-`h2` scoped `.first()`, form label scoped
+  `exact`).
 
 Environment notes (recorded, not hidden): the per-account general
 budget (180 req/min) 429'd the 15th test — fixed by alternating
@@ -407,3 +409,105 @@ walkthrough remain **not verified**. Detail in
 ## Phase7 continuation — 2026-10-01
 
 See [fresh continuation evidence](PHASE-7-CONTINUATION-VERIFICATION.md). The isolated worktree is based on `9ffed61`, not the primary `01a53ba` plus OpenCode fixes. Existing slices1–5 reran at 80/80 on fresh separately seeded PostgreSQL databases. Publication/amendment tests and browser projection/gate/recovery checks are recorded separately from real IAM/policy/provider and human acceptance, which remain pending.
+
+## v2.0 admissions queue vertical slice — 2026-10-02
+
+Implemented in the existing `review/phase7-completion` worktree, HEAD
+`8bbeb3003cdec60633fa20d5481daaa159bce7e0`. The controlling handbook was
+checked at that HEAD, including `SUP-012`/`SUP-013`, the active admissions
+role/action and permission records, UI constitution, recovery/test strategy,
+and readiness gate. See [TASK-V2-ADM-001](../task-packets/TASK-V2-ADM-001.md)
+and the v2.0 [spec](../superpowers/specs/2026-10-02-v2-operating-sis-design.md)
+and [plan](../superpowers/plans/2026-10-02-v2-operating-sis-plan.md).
+
+The admissions review queue now supports server-side keyset pagination with a
+signed cursor bound to actor, active assignment, scope and normalized filters;
+authorization and intake predicates apply before the bounded page limit. UI
+filters and page navigation are URL-addressable, with labelled mobile cards,
+page status and restart behavior. No schema changes, policy writes, Moodle
+connection or live records were involved. The environment is local-only and
+synthetic; no downloads occurred.
+
+Verification on isolated Docker PostgreSQL `sis_v2_review_20261002`:
+
+- API queue e2e: **14/14 passed** (`vitest run --config apps/api/vitest.config.e2e.ts apps/api/test/review-queue.e2e-spec.ts`), including equal-timestamp traversal, later-arriving case, actor/filter binding, revocation, tampered cursor refusal, existing claim/release and separation checks.
+- Web production build: passed; API build and API/web TypeScript checks passed during this slice.
+- Browser admissions queue: **3/3 passed** against fresh production build: claim/review/approver story, 390px URL-preserving pagination and invalid saved-link restart.
+- Targeted API `oxlint`, web-app ESLint and `git diff --check`: passed. Browser spec files are outside the web ESLint config base path.
+- `prepare-test-offerings` refreshed zero rows because the synthetic deadlines were already future-dated; all browser journeys nevertheless passed.
+- Opt-in local scale: `RUN_SYNTHETIC_LOAD=true` with `review-queue-scale.e2e-spec.ts` passed **1/1** after generating 20,000 fictional submitted applications; 200 pages of 100 were traversed with no duplicate/omitted IDs. Successful queue request p50 **30.5 ms**, p95 **46.3 ms**, max **162.1 ms** on this machine; one 429 was honored with `Retry-After`. The 64.88-second total includes that wait. This is not a production load target. The SQL immutability trigger correctly refused attempted cleanup; those synthetic submissions remain only in the isolated 51 MB test database.
+
+Still unverified: pagination during concurrent queue mutation, manual screen-reader/zoom/low-bandwidth testing, production IAM MFA and supervisor authority review, human acceptance, production deployment/rollback, real Moodle/provider integration. This slice does not close those gates or claim v2.0/MVP production readiness.
+
+## v2.0 institution setup readiness — 2026-10-02
+
+[TASK-V2-SETUP-001](../task-packets/TASK-V2-SETUP-001.md) adds a read-only
+operational report of foundational record counts and unresolved setup controls.
+The endpoint requires a live `SYSADMIN` assignment in `SYSTEM:GLOBAL`, audits
+allowed and denied authenticated reads, and returns no personal records,
+configuration values or secrets. The mobile System Operations page labels
+found records as unverified and shows why the institution is still blocked.
+The [governance proposal](../policies/INSTITUTION-CONFIGURATION-GOVERNANCE-PROPOSAL.md)
+is a decision agenda, not adopted policy or a write permission.
+
+Verification on the same isolated synthetic PostgreSQL database:
+
+- Setup API e2e first failed with 404 before implementation, then **4/4 passed**. Combined with queue e2e, **18/18 passed** across two files.
+- Setup browser test first failed with absent navigation, then **1/1 passed** at 390px. Combined with admissions queue, **4/4 passed**.
+- API and web production builds, `npm run typecheck`, `npm run scan` and `git diff --check` passed. `npm test` passed **309 tests with 13 skipped** across 32 files. Full `npm run lint` exited 0 with warnings in pre-existing API files; targeted `oxlint` for the new setup code/test and web ESLint were clean.
+- No package, browser, image or data download occurred. The existing `sis-postgres-18` Docker container hosted only the isolated `sis_v2_review_20261002` test database for this work.
+
+Still open: institutional owner/approver/publisher appointments, organisation
+scope registry, typed editable configuration, effective-dated relationships,
+historical migration reconciliation, manual accessibility/low-bandwidth
+review, live provider decisions and human acceptance. No setup write path was
+enabled. Detail: [NOTE-V2-SETUP-001](NOTE-V2-SETUP-001.md).
+
+## V2 admissions reference lookup — 2026-10-02
+
+[TASK-V2-ADM-002](../task-packets/TASK-V2-ADM-002.md) adds exact reference
+search to the current scoped reviewer queue, without new decision or write
+authority. A peer-claimed or unknown reference produces the same empty result.
+The browser retains the search in the URL and on reload. On isolated
+`sis_v2_review_20261002`, the queue API suite passed **15/15** and combined
+queue/setup suites passed **19/19**, including normalized lookup and cursor
+mismatch; the admissions browser suite passed
+**4/4** at 390px after API and web production builds and API/web typecheck
+passed. The first browser rerun exposed the old test's first-page assumption
+under a large synthetic intake; the full journey now uses reference lookup.
+The suite signs in distinct synthetic officers so the existing sign-in rate
+limit remains effective. Earlier browser harness failures were from Docker
+restarting and from `.env` port 3147 while Playwright expected 3101; the
+passing command explicitly set `PORT=3101` and used the isolated PostgreSQL
+connection. An additive `pg_trgm` index migration applied successfully in that
+isolated database; local `EXPLAIN (ANALYZE, BUFFERS)` changed the missing-reference
+case from a 20,199-row sequential scan (18.839 ms) to a bitmap index scan
+(0.660 ms). This is query-plan evidence on one machine, not a production SLO.
+[Detailed note](NOTE-V2-ADM-002.md). No download occurred.
+
+## V2 admissions ordering — 2026-10-02
+
+[TASK-V2-ADM-003](../task-packets/TASK-V2-ADM-003.md) adds oldest/newest server-side ordering to both existing reviewer views. Equal-timestamp cases traverse in both directions without duplication; a cursor from the other direction is refused. The URL and 390px browser page retain and reset the selection correctly. Combined queue/setup API suites passed **19/19**, admissions browser suite **4/4**, and API/web production builds and typecheck passed on the isolated synthetic setup. This is not workload priority or allocation. [Detail](NOTE-V2-ADM-003.md).
+
+## V2 student timetable availability — 2026-10-02
+
+[TASK-V2-TIME-001](../task-packets/TASK-V2-TIME-001.md) adds a student-owned page and an explicit pending-publication API state over the official registered-course source. Before registration the endpoint returns its existing 404; after registration it returns no made-up sessions. Foreign student access remains denied. Registration API e2e passed **13/13** and the student portal browser journey **1/1** at 390px after fresh API/web production builds; typecheck passed. Actual timetable sessions, authority and conflict validation remain GAP-021/TASK-101–105. [Detail](NOTE-V2-TIME-001.md). No download occurred.
+
+## V2 applicant document handoff repair — 2026-10-02
+
+[TASK-V2-APP-001](../task-packets/TASK-V2-APP-001.md) repairs the local applicant document step without changing the server safety gate. The browser cases were red before implementation for absent fictional-sample guidance/next-step route and a pre-hydration file selection that left Upload disabled. After implementation, focused browser cases passed **2/2** and the applicant/public applicant suites **9/9**. API unit suites passed **309 with 13 skipped**, web build, API/web typecheck, lint and source scan exited 0. Lint retains pre-existing warnings outside the edited applicant files. The running local page and sample PDF returned 200; current qualification blockers and the review route rendered. Manual assistive-technology and slow-network checks remain open. [Detail](NOTE-V2-APP-001.md). No download occurred.
+[TASK-V2-SUPPORT-001](../task-packets/TASK-V2-SUPPORT-001.md) adds an isolated synthetic academic-support route with a named adviser, owned request and secure two-way reply. Focused API e2e passed **4/4**; the connected student/adviser browser story passed **2/2** after final Tailwind presentation changes, including 390px no-overflow and unavailable-route handling. Prisma validation, API build, web production build, web/API lint and `git diff --check` exited 0. API lint retains existing unrelated warnings. This is `DEMO_MODE`/`demoOnly` only; [GAP-V2-002](../gaps/GAP-V2-002-student-support-routing-and-ownership.md) still blocks live service activation. [Detail](NOTE-V2-SUPPORT-001.md). No download occurred.
+
+[TASK-V2-SUPPORT-002](../task-packets/TASK-V2-SUPPORT-002.md) adds appointment-scoped adviser queue filters for reply need/status and exact case reference, preserving filter context across bounded pages. Focused API e2e passed **5/5** after an observed red test; the new index migration applied only to the isolated review database. Browser assertions caught and then verified the fix for a global reset that stripped Tailwind padding and for default bullets beside case cards. The combined support/admissions/student/applicant browser set passed **18/18** after restarting the local API with its existing environment loader. API/web builds, Prisma validation, lint and `git diff --check` exited 0; API lint retains existing unrelated warnings. [Detail](NOTE-V2-SUPPORT-002.md). No download occurred.
+
+[TASK-V2-FIN-001](../task-packets/TASK-V2-FIN-001.md) replaces unbounded Finance Officer case-list and finance-home counting requests with a bounded reconciliation queue and source-owned counts. The full finance governance API suite passed **22/22** with the repo environment loader; fresh API/web production builds passed. Finance browser **1/1** and student portal regression **1/1** passed at the review DB and 390px after aligning the web proxy with Playwright's API port. The first finance browser attempt selected an older synthetic case in the retained isolated database; the fixture now opens its exact seeded case. The composite queue index was applied to the isolated review DB. [Detail](NOTE-V2-FIN-001.md). No provider call or download occurred.
+
+[TASK-V2-FIN-002](../task-packets/TASK-V2-FIN-002.md) adds bounded pending-arrangement staff pages and a responsive decision worklist. The focused API test was observed red for an ignored page limit, then passed; the complete finance governance API suite passed **23/23**. The connected finance browser story passed **1/1** at 390px including arrangement ordering, selected-request visibility and no horizontal overflow. Prisma validation, isolated review migration, API/web production builds, API/web lint and `git diff --check` passed; API lint retains unrelated warnings. Student own history and the existing individual approval/decline flow remain unchanged. [Detail](NOTE-V2-FIN-002.md). No provider call or download occurred.
+
+[TASK-V2-FIN-003](../task-packets/TASK-V2-FIN-003.md) bounds pending adjustment/refund review and separates officer request from approver decision forms in the UI. The focused API test was red for an ignored page limit; the complete finance governance suite passed **24/24** after implementation. The connected finance browser suite passed **2/2** at 390px, covering both roles, filters, stale-page recovery and no horizontal overflow. Prisma validation, isolated review migration, API/web production builds, API/web lint and `git diff --check` passed; API lint retains unrelated warnings. Existing money-action authority remains server-side. [Detail](NOTE-V2-FIN-003.md). No provider call or download occurred.
+
+[TASK-V2-SUPPORT-003](../task-packets/TASK-V2-SUPPORT-003.md) adds an auditable synthetic academic follow-up from adviser proposal through student acceptance or decline, completion claim and adviser confirmation. The new API test was red with 404 before implementation; focused API e2e passed **6/6** after implementation, including wrong-role/student denial, invalid date/route, changed assignment refusal, replay, decline and complete paths. The connected student/adviser browser suite passed **3/3** at 390px. The isolated migration, Prisma validation, API/web production builds and API/web lint passed; API lint retains existing unrelated warnings. [Detail](NOTE-V2-SUPPORT-003.md). This remains demo-only under GAP-V2-002; no provider call or download occurred.
+
+[TASK-V2-SUPPORT-004](../task-packets/TASK-V2-SUPPORT-004.md) adds a selected-adviser, target-date-ordered active follow-up worklist with bounded pages, past-target and confirmation filters. The new API test was red at the missing route, then the focused support API suite passed **7/7**, including filter, paging, stale/foreign cursor and role denial. The connected support browser suite passed **3/3** at 390px, including the new confirmation worklist. The worklist index migration applied only to the isolated review DB; Prisma validation, API/web production builds, API/web lint, formatting and `git diff --check` passed. API lint retains unrelated warnings. [Detail](NOTE-V2-SUPPORT-004.md). No notification, provider call or download occurred.
+
+[TASK-V2-SUPPORT-005](../task-packets/TASK-V2-SUPPORT-005.md) adds evidenced academic-case closure with a single immutable closure row, request event and audit. The new API test was red at the absent route, then focused support API e2e passed **8/8**, including active-action and missing-evidence denial, completed-action and guidance closure, replay/conflict, wrong-role/unrelated appointment, changed adviser relationship, demo-off, closed-write denial and queue visibility. The connected student/adviser browser suite passed **3/3** at 390px, including closure and the student-visible completed state. The isolated closure migration, Prisma validation, API/web production builds, API/web lint, formatting and `git diff --check` passed; API lint retains unrelated warnings. [Detail](NOTE-V2-SUPPORT-005.md). No external notification, provider call or download occurred.

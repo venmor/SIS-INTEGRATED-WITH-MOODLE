@@ -111,6 +111,9 @@ model RoleAssignment {
   revokeReason      String?
   createdAt         DateTime  @default(now())
   sessions          Session[] @relation("ActiveAssignment")
+  academicServices  AcademicSupportService[] @relation("AcademicServiceOwner")
+  advisees          StudentAdviserAssignment[] @relation("StudentAdviser")
+  academicRequests  AcademicSupportRequest[] @relation("AcademicRequestOwner")
 
   @@index([accountId])
   @@index([role, scopeType, scopeRef])
@@ -470,6 +473,7 @@ model Programme {
   updatedAt        DateTime @updatedAt
   offerings        ProgrammeOffering[]
   rules            RequirementRule[]
+  academicServices AcademicSupportService[]
 }
 
 model ProgrammeOffering {
@@ -845,7 +849,146 @@ model Student {
   // Phase 7 slice 2: staged lines resolved to this student (DS5 §4
   // student/enrolment mapping; null stays MOODLE_ONLY evidence).
   resolvedGradeLines GradeLine[]
+  advisers StudentAdviserAssignment[]
+  academicRequests AcademicSupportRequest[]
   @@index([status, createdAt])
+}
+
+// V2 Task 6: academic help is separate from applicant tickets and from every
+// restricted counselling/welfare/disability store. Routes are institution
+// setup records; this slice accepts only explicit DEMO routes in DEMO_MODE.
+model AcademicSupportService {
+  id                String @id @default(uuid())
+  programmeId       String
+  programme         Programme @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  campus            String
+  name              String
+  ownerAssignmentId String
+  ownerAssignment   RoleAssignment @relation("AcademicServiceOwner", fields: [ownerAssignmentId], references: [id], onDelete: Restrict)
+  status            String @default("DRAFT")
+  demoOnly          Boolean @default(true)
+  effectiveFrom     DateTime
+  effectiveTo       DateTime?
+  approvalRef       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  requests          AcademicSupportRequest[]
+
+  @@index([programmeId, campus, status, effectiveFrom])
+  @@index([ownerAssignmentId, status])
+}
+
+model StudentAdviserAssignment {
+  id                  String @id @default(uuid())
+  studentId           String
+  student             Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  adviserAssignmentId String
+  adviserAssignment   RoleAssignment @relation("StudentAdviser", fields: [adviserAssignmentId], references: [id], onDelete: Restrict)
+  effectiveFrom       DateTime
+  effectiveTo         DateTime?
+  sourceRef           String
+  createdAt           DateTime @default(now())
+
+  @@index([studentId, effectiveFrom, effectiveTo])
+  @@index([adviserAssignmentId, effectiveFrom, effectiveTo])
+}
+
+model AcademicSupportRequest {
+  id                String @id @default(uuid())
+  reference         String @unique
+  studentId         String
+  student           Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  serviceId         String
+  service           AcademicSupportService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  ownerAssignmentId String
+  ownerAssignment   RoleAssignment @relation("AcademicRequestOwner", fields: [ownerAssignmentId], references: [id], onDelete: Restrict)
+  category          String
+  contactMethod     String
+  details           String?
+  noticeVersion     String
+  status            String @default("RECEIVED")
+  idempotencyKey    String @unique
+  fingerprint       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  events            AcademicSupportRequestEvent[]
+  messages          AcademicSupportMessage[]
+  actions           AcademicSupportAction[]
+  closure           AcademicSupportClosure?
+
+  @@index([studentId, createdAt, id])
+  @@index([ownerAssignmentId, createdAt, id])
+  @@index([ownerAssignmentId, status, createdAt, id])
+}
+
+model AcademicSupportRequestEvent {
+  id             String @id @default(uuid())
+  requestId      String
+  request        AcademicSupportRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  event          String
+  actorAccountId String
+  createdAt      DateTime @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model AcademicSupportMessage {
+  id             String @id @default(uuid())
+  requestId      String
+  request        AcademicSupportRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  authorAccountId String
+  authorRole      String
+  body            String
+  idempotencyKey  String @unique
+  fingerprint     String
+  createdAt       DateTime @default(now())
+
+  @@index([requestId, createdAt, id])
+}
+
+model AcademicSupportAction {
+  id                String @id @default(uuid())
+  requestId         String
+  request           AcademicSupportRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  title             String
+  explanation       String
+  routeKey          String
+  dueOn             String
+  status            String @default("PROPOSED")
+  proposerAccountId String
+  proposalKey       String @unique
+  fingerprint       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  events            AcademicSupportActionEvent[]
+
+  @@index([requestId, status, dueOn, id])
+  @@index([status, dueOn, id])
+}
+
+model AcademicSupportActionEvent {
+  id             String @id @default(uuid())
+  actionId       String
+  action         AcademicSupportAction @relation(fields: [actionId], references: [id], onDelete: Restrict)
+  event          String
+  status         String
+  actorAccountId String
+  idempotencyKey String @unique
+  fingerprint    String
+  createdAt      DateTime @default(now())
+
+  @@index([actionId, createdAt, id])
+}
+
+model AcademicSupportClosure {
+  id             String @id @default(uuid())
+  requestId      String @unique
+  request        AcademicSupportRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  reason         String
+  actorAccountId String
+  idempotencyKey String @unique
+  fingerprint    String
+  createdAt      DateTime @default(now())
 }
 
 // Phase 4 slice 2: human identity-resolution queue. A candidate pairs the
@@ -1103,6 +1246,7 @@ model FinanceReconciliationCase {
   createdAt DateTime @default(now())
   resolvedAt DateTime?
   @@index([status, createdAt])
+  @@index([status, createdAt, id])
   @@index([accountId, status])
 }
 
@@ -1165,6 +1309,7 @@ model FinanceAdjustment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([accountId, status])
+  @@index([status, kind, createdAt, id])
 }
 
 // Phase 6 slice 0: tutorial-group and teaching-assignment sources
@@ -1444,6 +1589,7 @@ model FinanceArrangement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([accountId, status])
+  @@index([status, createdAt, id])
 }
 
 model FinanceSponsorship {

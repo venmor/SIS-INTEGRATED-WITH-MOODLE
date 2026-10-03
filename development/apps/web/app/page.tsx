@@ -139,6 +139,11 @@ export default async function Home() {
               Student portal
             </Link>
           ) : null}
+          {active?.role === "ADVISER" ? (
+            <Link className={styles.primary} href="/admin/support">
+              Academic support requests
+            </Link>
+          ) : null}
           {active?.role === "ADMISSIONS_OFFICER" ? (
             <Link className={styles.primary} href="/admin/admissions/queue">
               Admissions queue

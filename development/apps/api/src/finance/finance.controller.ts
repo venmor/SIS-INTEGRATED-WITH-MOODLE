@@ -30,6 +30,9 @@ import {
   CashIntakeDto,
   DecideAdjustmentDto,
   DecideArrangementDto,
+  FinanceCaseQueueQuery,
+  FinanceArrangementQueueQuery,
+  FinanceAdjustmentQueueQuery,
   InitiatePaymentDto,
   InvoiceQuery,
   PaymentQuery,
@@ -42,7 +45,10 @@ import {
 } from './dto.js';
 
 interface AuthRequest extends Request {
-  auth: ActiveAuthority & { scopeType?: string | null; scopeRef?: string | null };
+  auth: ActiveAuthority & {
+    scopeType?: string | null;
+    scopeRef?: string | null;
+  };
 }
 
 // Payment initiation is high-impact: a stricter per-account budget than the
@@ -102,10 +108,7 @@ export class FinanceController {
   }
 
   @Get('receipts/:reference')
-  receipt(
-    @Req() r: AuthRequest,
-    @Param('reference') reference: string,
-  ) {
+  receipt(@Req() r: AuthRequest, @Param('reference') reference: string) {
     return this.finance.receipt(r.auth, reference);
   }
 
@@ -137,23 +140,22 @@ export class FinanceController {
   }
 
   @Get('payments/:reference')
-  payment(
-    @Req() r: AuthRequest,
-    @Param('reference') reference: string,
-  ) {
+  payment(@Req() r: AuthRequest, @Param('reference') reference: string) {
     return this.finance.paymentDetail(r.auth, reference);
   }
 
+  @Get('workspace-summary')
+  workspaceSummary(@Req() r: AuthRequest) {
+    return this.finance.workspaceSummary(r.auth);
+  }
+
   @Get('cases')
-  cases(@Req() r: AuthRequest) {
-    return this.finance.listCases(r.auth);
+  cases(@Req() r: AuthRequest, @Query() query: FinanceCaseQueueQuery) {
+    return this.finance.listCases(r.auth, query);
   }
 
   @Get('cases/:id')
-  caseDetail(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  caseDetail(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.finance.caseDetail(r.auth, id);
   }
 
@@ -248,13 +250,16 @@ export class FinanceController {
   }
 
   @Get('adjustments')
-  adjustments(@Req() r: AuthRequest) {
-    return this.finance.listAdjustments(r.auth);
+  adjustments(@Req() r: AuthRequest, @Query() q: FinanceAdjustmentQueueQuery) {
+    return this.finance.listAdjustments(r.auth, q);
   }
 
   @Post('arrangements')
   @UseGuards(CsrfGuard)
-  requestArrangement(@Req() r: AuthRequest, @Body() dto: RequestArrangementDto) {
+  requestArrangement(
+    @Req() r: AuthRequest,
+    @Body() dto: RequestArrangementDto,
+  ) {
     return this.finance.requestArrangement(r.auth, dto.idempotencyKey, {
       period: dto.period,
       terms: dto.terms,
@@ -263,8 +268,11 @@ export class FinanceController {
   }
 
   @Get('arrangements')
-  arrangements(@Req() r: AuthRequest) {
-    return this.finance.listArrangements(r.auth);
+  arrangements(
+    @Req() r: AuthRequest,
+    @Query() q: FinanceArrangementQueueQuery,
+  ) {
+    return this.finance.listArrangements(r.auth, q);
   }
 
   @Post('arrangements/:id/decide')

@@ -12,6 +12,8 @@ import { FinanceModule } from './finance/finance.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 import { IntegrationModule } from './integration/integration.module.js';
 import { AssessmentModule } from './assessment/assessment.module.js';
+import { InstitutionSetupModule } from './institution-setup/institution-setup.module.js';
+import { AcademicSupportModule } from './academic-support/academic-support.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { AssessmentModule } from './assessment/assessment.module.js';
     TeachingModule,
     IntegrationModule,
     AssessmentModule,
+    InstitutionSetupModule,
+    AcademicSupportModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

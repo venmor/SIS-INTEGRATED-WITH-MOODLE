@@ -10,7 +10,7 @@ const reads = new RegExp(
   `^(queue|queue/${uuid}|${uuid}/evidence|${uuid}/findings|${uuid}/recommendations|${uuid}/history)$`,
 );
 const writes = new RegExp(
-  `^(${uuid}/(claim|release|findings|clarifications|recommendations|decision/release|offer/extend)|corrections/${uuid}/decide)$`,
+  `^(queue/preparation|${uuid}/(claim|release|findings|clarifications|recommendations|decision/release|offer/extend)|corrections/${uuid}/decide)$`,
 );
 
 async function proxy(

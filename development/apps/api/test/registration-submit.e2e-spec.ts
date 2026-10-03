@@ -144,8 +144,9 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
       .field('idempotencyKey', key())
       .attach('file', pdf, 'fictional-result.pdf')
       .expect(201);
-    const docId = (uploaded.body as { documents: Array<{ id: string }> })
-      .documents.at(-1)?.id as string;
+    const docId = (
+      uploaded.body as { documents: Array<{ id: string }> }
+    ).documents.at(-1)?.id as string;
     version = (uploaded.body as { version: number }).version;
     await appPost(
       `/${id}/documents/${docId}/scan`,
@@ -254,7 +255,11 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
     return { id, cookie: `sid=${token}` };
   }
 
-  const DECLARATIONS = ['PLAN_ACCURATE', 'RULES_UNDERSTOOD', 'FINANCE_UNDERSTOOD'];
+  const DECLARATIONS = [
+    'PLAN_ACCURATE',
+    'RULES_UNDERSTOOD',
+    'FINANCE_UNDERSTOOD',
+  ];
 
   async function plannedStudent(codes = ['SWE111', 'MTH111', 'ENG111']) {
     const app = await convertedStudent();
@@ -344,9 +349,9 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
       include: { roster: true },
     });
     expect(registration.roster).toHaveLength(3);
-    expect(
-      registration.roster.every((r) => r.status === 'ENROLLED'),
-    ).toBe(true);
+    expect(registration.roster.every((r) => r.status === 'ENROLLED')).toBe(
+      true,
+    );
     const snapshot = registration.snapshot as {
       courses: unknown[];
       declarations: unknown[];
@@ -577,10 +582,13 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
     const app = await plannedStudent();
     const empty = await regGet('/status', app.cookie).expect(200);
     expect((empty.body as { registration: null }).registration).toBeNull();
-    expect(
-      (empty.body as { moodle: { state: string } }).moodle.state,
-    ).toBe('NotAvailable');
-    await regGet('/timetable', app.cookie).expect(404);
+    expect((empty.body as { moodle: { state: string } }).moodle.state).toBe(
+      'NotAvailable',
+    );
+    const notReady = await regGet('/timetable', app.cookie).expect(404);
+    expect((notReady.body as { code: string }).code).toBe(
+      'TIMETABLE_NOT_AVAILABLE',
+    );
     await regPost(
       '/submit',
       {
@@ -592,23 +600,35 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
     ).expect(201);
     const full = await regGet('/status', app.cookie).expect(200);
     expect(
-      (full.body as { registration: { receipt: string } }).registration
-        .receipt,
+      (full.body as { registration: { receipt: string } }).registration.receipt,
     ).toMatch(/^REG-\d{4}-\d{4}$/);
-    expect(
-      (full.body as { moodle: { state: string } }).moodle.state,
-    ).toBe('Queued');
+    expect((full.body as { moodle: { state: string } }).moodle.state).toBe(
+      'Queued',
+    );
     const table = await regGet('/timetable', app.cookie).expect(200);
+    expect(
+      (table.body as { publicationStatus: string }).publicationStatus,
+    ).toBe('AWAITING_PUBLICATION');
+    expect(
+      Date.parse((table.body as { checkedAt: string }).checkedAt),
+    ).not.toBeNaN();
+    expect(table.body).not.toHaveProperty('sessions');
     const groups = (
       table.body as {
         groups: Array<{ semester: string; courses: Array<{ code: string }> }>;
       }
     ).groups;
-    expect(
-      groups.some((g) =>
-        g.courses.some((c) => c.code === 'SWE111'),
-      ),
-    ).toBe(true);
+    expect(groups.some((g) => g.courses.some((c) => c.code === 'SWE111'))).toBe(
+      true,
+    );
+    const attempt = await db.programmeAttempt.findUniqueOrThrow({
+      where: { applicationId: app.id },
+    });
+    const otherStudent = await user('STUDENT', ['study'], 'STUDENT', key());
+    await regGet(
+      `/timetable?attemptId=${attempt.id}`,
+      otherStudent.cookie,
+    ).expect(404);
   });
 
   it('submit-denied: non-student workspaces refused', async () => {
