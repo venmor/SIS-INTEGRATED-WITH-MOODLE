@@ -57,7 +57,11 @@ export function ProgrammeCard({
       ) : null}
       {statusNote ? <p className={styles.note}>{statusNote}</p> : null}
       <div className={styles.actions}>
-        <a className={styles.primaryAction} href={viewHref}>
+        <a
+          className={styles.primaryAction}
+          href={viewHref}
+          aria-label={`View ${name}`}
+        >
           View programme
         </a>
         <a
