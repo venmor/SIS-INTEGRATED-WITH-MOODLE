@@ -164,6 +164,8 @@ The existing `feature-sis-expansion-2.0.md` remains the subsystem inventory and 
 
 **Workspace shell increment, 2026-10-04:** [TASK-V2-UI-005](../../task-packets/TASK-V2-UI-005.md) and the [region map](../../design/WORKSPACE-SHELL-V2.md) establish stable staff sidebar/top bar and focused portal navigation. Future workspaces occupy reserved positions only when their scoped journeys work; search, notification counts, profile controls and period selection remain separate source-owned tasks. [Implementation note](../../learning/NOTE-V2-UI-005.md).
 
+**Public entry increment, 2026-10-04:** [TASK-V2-UI-006](../../task-packets/TASK-V2-UI-006.md) separates neutral SIS sign-in from public admissions discovery. The home route presents both paths; sign-in prioritizes the credential form and leaves fictional demo guidance optional. [Implementation note](../../learning/NOTE-V2-UI-006.md).
+
 ### Task 8: Reproducible institutional reporting and exports
 
 - [ ] Execute TASK-071–075 and source-owned read models with definitions for denominator, cohort/census date, exclusions, missing data, source version and freshness.

@@ -1,0 +1,80 @@
+.header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem clamp(1rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.brand span:last-child {
+  display: grid;
+  gap: 0.1rem;
+}
+.brand strong {
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+.brand small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--green-500);
+  color: var(--white);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.8rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.nav a:hover,
+.nav a[aria-current="page"] {
+  color: var(--text-primary);
+  background: var(--bg-sunken);
+}
+.nav .signIn {
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  margin-left: 0.25rem;
+}
+@media (max-width: 43rem) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .nav {
+    width: 100%;
+  }
+  .nav a {
+    padding: 0 0.55rem;
+  }
+}

@@ -1,0 +1,5 @@
+# SIS entry, sign-in and discovery presentation
+
+`TASK-V2-UI-006` separates the neutral SIS entry from the public admissions catalogue. The unauthenticated home offers direct sign-in for students, staff and applicants, alongside a separate programme-discovery route. Sign-in begins with the credential form and recovery; fictional demo accounts are available through an optional disclosure only in `DEMO_MODE`. Public discovery retains its source-backed search, filters, results and pagination under its own navigation.
+
+The change adds no account creation, admissions eligibility decision or production credential exposure. The public navigation exposes only working destinations. On 2026-10-04 the web production build and focused lint passed; the isolated PostgreSQL browser run passed the direct student sign-in and public catalogue mobile checks (2/2). Fictional applicant and admissions-officer seed logins returned HTTP 200 against the local review API. Human visual/accessibility review and the broader applicant regression suite remain open.
