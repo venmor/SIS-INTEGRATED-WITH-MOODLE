@@ -16,6 +16,10 @@ export const APPLICATION_DEMO_V1 = {
     mimeTypes: ["application/pdf", "image/jpeg", "image/png"],
     extensions: ["pdf", "jpg", "jpeg", "png"],
     minimumStage: "AwaitingQualityCheck",
+    // Slice PH8-004 (packet-local demo value): per-user calendar-day
+    // (Africa/Lusaka) upload budget. The handbook threat model requires
+    // a daily quota but names no number — this fills it, labelled demo.
+    maxUploadsPerDay: 10,
     scanner:
       "ClamAV plus PDF structural validation; exact bundled fixtures only in explicit demo mode",
   },

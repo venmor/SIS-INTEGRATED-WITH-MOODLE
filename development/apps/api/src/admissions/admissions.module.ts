@@ -3,6 +3,7 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module.
 import {
   ApplicationsController,
   ApplicationRateGuard,
+  UploadQuotaGuard,
 } from './applications.controller.js';
 import { ApplicationCaseController } from './case.controller.js';
 import { ReviewController } from './review.controller.js';
@@ -23,6 +24,7 @@ import { DocumentScanner } from './scanner.js';
     ReviewService,
     DocumentScanner,
     ApplicationRateGuard,
+    UploadQuotaGuard,
   ],
 })
 export class AdmissionsModule {}

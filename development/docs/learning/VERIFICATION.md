@@ -593,3 +593,32 @@ Manual screen-reader/WSL replay, remote CI, Vercel route check,
 production provider + policy approval (GAP-009 paging/RPO/RTO),
 and human walkthrough remain **not verified**. Detail in
 [NOTE-PH8-003](NOTE-PH8-003.md).
+
+## Phase 8 slice 4 (2026-10-04, fresh `sis_ph8_s4_quota_final_test` + `sis_ph8_s4_auth_test`)
+
+Rate-limit/abuse tuning (TASK-PH8-004 drafted 2026-10-04,
+human approval pending; lead Chitundu Milimbo, reviewer
+Charles Hangoma). Node **22.13.1** / PostgreSQL **18**, same
+direct-`node` CLI discipline as slices 1–3. No migration (the
+quota counts existing rows; config changes are code) and no
+browser journey (API-only slice per packet). Typecheck exit 0,
+lint clean on touched files, API dist via direct `tsc`. New
+`upload-quota` **4/4** on the fresh DB — RED first (11th
+upload 201; spec path/async-chain bugs fixed before any
+implementation), GREEN after `UploadQuotaGuard` (allow, deny
+with `Retry-After` + audited DENY, yesterday-rows-excluded,
+per-account isolation). New unit: Lusaka day-boundary (3) +
+`RateLimiter` window-recovery and versioned FIN callback
+budget (2).
+Regression on a separate fresh DB: `auth` **10/10** (first run
+missed `DEMO_MODE=true` on the demo-recovery route — the
+documented 404 gate, green on rerun). Unit **78/78** (73 + 5
+new). `npm run scan` cannot run on this box (ripgrep
+unavailable); no web changes so no web rebuild. New gaps:
+GAP-023 (anonymous submission row unmappable), GAP-024 (proxy
+trust, initiation DENY audit, full-seed reruns on a Node 24
+box).
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production capacity numbers, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH8-004](NOTE-PH8-004.md).

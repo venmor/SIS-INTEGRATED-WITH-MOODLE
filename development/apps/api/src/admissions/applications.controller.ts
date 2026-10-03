@@ -18,11 +18,17 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response, Request } from 'express';
+import { randomUUID } from 'node:crypto';
 import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
 import { SessionGuard } from '../identity-access/session.guard.js';
 import { CsrfGuard } from '../identity-access/csrf.guard.js';
+import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { RateLimiter } from '../identity-access/rate-limit.js';
+import {
+  secondsUntilNextUploadDay,
+  startOfUploadDay,
+} from './upload-quota.js';
 import { ApplicationsService } from './applications.service.js';
 import {
   StartDto,
@@ -35,6 +41,49 @@ import {
 } from './dto.js';
 interface AuthRequest extends Request {
   auth: ActiveAuthority;
+}
+@Injectable()
+export class UploadQuotaGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+  async canActivate(context: ExecutionContext) {
+    const req = context.switchToHttp().getRequest<AuthRequest>();
+    const res = context.switchToHttp().getResponse<Response>();
+    res.setHeader('Cache-Control', 'no-store');
+    // Per-user Lusaka-calendar-day upload budget (handbook §19.41).
+    // Counted in the guard so the 429 carries Retry-After like the
+    // per-minute guard; the check-then-act race is bounded by the
+    // same single-instance approximation as RateLimiter (documented).
+    const used = await this.prisma.applicationDocument.count({
+      where: {
+        application: { accountId: req.auth.accountId },
+        createdAt: { gte: startOfUploadDay(new Date()) },
+      },
+    });
+    if (used >= policy.upload.maxUploadsPerDay) {
+      const retryAfter = secondsUntilNextUploadDay(new Date());
+      const params = req.params as { id?: string };
+      await this.prisma.auditEvent.create({
+        data: {
+          action: 'ApplicationDocumentQuotaDenied',
+          actorAccountId: req.auth.accountId,
+          activeRole: req.auth.activeRole ?? 'APP',
+          scope: `APPLICATIONS:${req.auth.accountId}`,
+          targetRef: params.id ?? req.auth.accountId,
+          outcome: 'DENY',
+          correlationId: randomUUID(),
+          policyVersion: policy.version,
+          purpose: 'Document upload abuse control',
+          metadata: { used, quota: policy.upload.maxUploadsPerDay },
+        },
+      });
+      res.setHeader('Retry-After', retryAfter);
+      throw new HttpException(
+        'Too many document uploads today. Try again tomorrow.',
+        429,
+      );
+    }
+    return true;
+  }
 }
 @Injectable()
 export class ApplicationRateGuard implements CanActivate {
@@ -120,7 +169,7 @@ export class ApplicationsController {
     return this.service.discard(r.auth, id, dto);
   }
   @Post(':id/documents')
-  @UseGuards(CsrfGuard)
+  @UseGuards(CsrfGuard, UploadQuotaGuard)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
