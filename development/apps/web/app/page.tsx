@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { SECURITY_V1 } from "@sis/config";
 import { ContextBar, Notice, Status } from "@sis/ui";
+import { PublicHeader } from "./public-header";
 import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 import { ExpiryBanner } from "./expiry-banner";
@@ -56,31 +57,49 @@ export default async function Home() {
   const me = await loadMe();
   if (!me) {
     return (
-      <div className={styles.page}>
-        <main className={styles.main}>
-          <p className={styles.context}>Admissions and student services</p>
-          <h1 className={styles.title}>Student Information System</h1>
-          <p className={styles.lede}>
-            Explore programmes and entry requirements, then sign in to start or
-            continue your application.
-          </p>
-          <Status
-            severity="info"
-            state="Start with programme discovery"
-            reason="Read requirements, compare programmes and check the intake deadline before applying."
-            updated="Programme details show their latest published version."
-            action="Choose a programme or sign in to continue."
-          />
-          <div className={styles.actions}>
-            <Link className={styles.primary} href="/discover">
-              Find a programme
-            </Link>
-          </div>
-          <p className={styles.supporting}>
-            <Link href="/applicant">Sign in to the applicant portal</Link>
-          </p>
-        </main>
-      </div>
+      <>
+        <PublicHeader current="home" />
+        <div className={styles.page}>
+          <main id="main-content" className={styles.main}>
+            <p className={styles.context}>One place for university work</p>
+            <h1 className={styles.title}>Continue your work in the SIS</h1>
+            <p className={styles.lede}>
+              Students, applicants and staff sign in to their own workspaces.
+              You can also explore programmes without signing in.
+            </p>
+            <div className={styles.entryGrid}>
+              <section
+                className={styles.entryPrimary}
+                aria-labelledby="entry-sign-in"
+              >
+                <p className={styles.entryEyebrow}>For existing accounts</p>
+                <h2 id="entry-sign-in">Sign in to your workspace</h2>
+                <p>
+                  Continue registration, applications, teaching or university
+                  administration using your SIS account.
+                </p>
+                <Link className={styles.primary} href="/sign-in">
+                  Sign in
+                </Link>
+              </section>
+              <section
+                className={styles.entrySecondary}
+                aria-labelledby="entry-discovery"
+              >
+                <p className={styles.entryEyebrow}>
+                  For prospective applicants
+                </p>
+                <h2 id="entry-discovery">Explore programmes</h2>
+                <p>
+                  Search published programmes, check requirements and compare
+                  available study options before applying.
+                </p>
+                <Link href="/discover">Find a programme →</Link>
+              </section>
+            </div>
+          </main>
+        </div>
+      </>
     );
   }
   const active = me.activeWorkspace;

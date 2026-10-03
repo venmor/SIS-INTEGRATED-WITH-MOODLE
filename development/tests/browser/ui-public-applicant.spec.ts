@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
-import { createApplicant } from "./fixtures";
+import { createApplicant, createStudent } from "./fixtures";
 
 async function expectNoHorizontalOverflow(
   page: import("@playwright/test").Page,
@@ -11,6 +11,43 @@ async function expectNoHorizontalOverflow(
     ),
   ).toBe(true);
 }
+
+test("SIS entry offers direct sign-in separately from public admissions discovery", async ({
+  page,
+}) => {
+  const student = await createStudent();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Continue your work in the SIS" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Public navigation" })
+      .getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(
+    page.getByRole("heading", { name: "Sign in to the SIS" }),
+  ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Username" })).toBeVisible();
+  await expect(page.getByText("Try a fictional demo account")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByLabel("Username", { exact: true }).fill(student.username);
+  await page.getByLabel("Password", { exact: true }).fill(student.password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(
+    page.getByRole("link", { name: "Student portal" }),
+  ).toBeVisible();
+  await page.goto("/discover");
+  await expect(
+    page.getByRole("heading", { name: "Find a programme" }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
 
 async function startDraft(page: import("@playwright/test").Page) {
   const applicant = await createApplicant();

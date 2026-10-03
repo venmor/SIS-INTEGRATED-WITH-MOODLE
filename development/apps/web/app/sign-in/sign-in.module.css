@@ -5,6 +5,36 @@
   padding-block: var(--space-2);
 }
 
+.main {
+  max-width: 34rem;
+  margin-inline: auto;
+}
+.form {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+.demoDisclosure {
+  margin-top: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.demoDisclosure summary {
+  cursor: pointer;
+  color: var(--link);
+  font-weight: 650;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+.demoList {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
 .form {
   display: flex;
   flex-direction: column;
