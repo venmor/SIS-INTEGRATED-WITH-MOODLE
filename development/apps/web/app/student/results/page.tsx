@@ -50,10 +50,10 @@ async function loadOwnResults(): Promise<{
 // never official, and board notes never leave the staff workspace.
 export default async function StudentResultsPage() {
   const res = await loadOwnResults();
-  if (!res.data) return <StudentUnavailable message={res.message} />;
+  if (!res.data) return <main id="student-content"><StudentUnavailable message={res.message} /></main>;
   const items = res.data.items;
   return (
-    <>
+    <main id="student-content">
       <PageHeader
         eyebrow="Student portal"
         title="Official results"
@@ -81,8 +81,11 @@ export default async function StudentResultsPage() {
                 </StatusChip>
               </p>
               <p className={styles.meta}>
-                Total {item.total} · {item.outcome} · published{" "}
-                {item.publishedAt.slice(0, 10)}
+                Total {item.total} · {item.outcome}
+                {item.version > 1
+                  ? ` · amended official version ${item.version}`
+                  : ""}{" "}
+                · published {item.publishedAt.slice(0, 10)}
               </p>
             </li>
           ))}
@@ -95,6 +98,6 @@ export default async function StudentResultsPage() {
           appeals follow the published academic process.
         </p>
       </Card>
-    </>
+    </main>
   );
 }

@@ -1741,3 +1741,43 @@ model OfficialCourseResult {
   @@index([packageId])
   @@index([studentRef, status])
 }
+
+// Phase 7 slice 7: result amendment skeleton (TASK-PH7-007). Controlled
+// post-release correction cases on RELEASED official results; approval
+// writes a NEW immutable OfficialCourseResult version (supersede link
+// in trace) + an academic-impact stub task (progression recalculation
+// queue per DS5 section 18). Originals are never edited or deleted.
+model ResultAmendmentCase {
+  id String @id @default(uuid())
+  packageId String
+  offeringRef String
+  periodCode String
+  studentRef String
+  supersedesId String?
+  correctedTotal Float
+  correctedOutcome String @default("PASS")
+  reason String
+  evidence String?
+  declaration String
+  status String @default("OPEN")
+  version Int @default(1)
+  requestedByAccountId String
+  decidedByAccountId String?
+  createdAt DateTime @default(now())
+  decidedAt DateTime?
+  @@unique([packageId, studentRef, version])
+  @@index([packageId])
+  @@index([studentRef, status])
+}
+
+model AcademicImpactTask {
+  id String @id @default(uuid())
+  amendmentCaseId String
+  studentRef String
+  kind String @default("PROGRESSION_RECALC")
+  status String @default("PENDING")
+  detail Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([amendmentCaseId])
+  @@index([studentRef, status])
+}

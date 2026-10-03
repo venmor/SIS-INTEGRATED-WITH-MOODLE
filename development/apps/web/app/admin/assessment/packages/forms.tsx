@@ -340,3 +340,233 @@ export function ReleaseResultsForm({ packageId }: { packageId: string }) {
     </>
   );
 }
+
+// Result amendment request (TASK-PH7-007): an authorized requester
+// opens a controlled case on one released result with reason,
+// evidence, corrected total and the exact declaration. Blocked
+// server-side unless the package is released and the student carries
+// a released row. Every submit carries a fresh idempotency key.
+export function RequestAmendmentForm({ packageId }: { packageId: string }) {
+  const router = useRouter();
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  return (
+    <>
+      {notice ? (
+        <Notice severity="success" title="Done" message={notice} />
+      ) : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="The amendment was not requested" errors={errors} />
+      ) : null}
+      <form
+        aria-label="Request result amendment"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (pending) return;
+          setPending(true);
+          setErrors([]);
+          setNotice(null);
+          const data = new FormData(e.currentTarget);
+          if (!data.get("amendment-confirm")) {
+            setErrors([
+              {
+                fieldId: "amendment-confirm",
+                message:
+                  "Confirm that this amendment is complete for its student before submitting.",
+              },
+            ]);
+            setPending(false);
+            return;
+          }
+          postAssessment("/amendments", {
+            packageId,
+            studentRef: String(data.get("amendment-student") ?? "").trim(),
+            correctedTotal: Number(data.get("amendment-total") ?? NaN),
+            reason: String(data.get("amendment-reason") ?? ""),
+            evidence: String(data.get("amendment-evidence") ?? "") || undefined,
+            declaration:
+              "I confirm that this official-result amendment is complete for its student and I submit it within my assigned authority.",
+            idempotencyKey: crypto.randomUUID(),
+          })
+            .then(() => {
+              setNotice(
+                "Amendment case opened. The examinations authority approves or declines; the original result stays unchanged until approval.",
+              );
+              router.refresh();
+            })
+            .catch((error: unknown) => {
+              setErrors([
+                { fieldId: "amendment-student", message: failure(error) },
+              ]);
+            })
+            .finally(() => {
+              setPending(false);
+            });
+        }}
+      >
+        <p>
+          <label htmlFor="amendment-student">Student reference</label>{" "}
+          <input
+            id="amendment-student"
+            name="amendment-student"
+            type="text"
+            autoComplete="off"
+          />
+        </p>
+        <p>
+          <label htmlFor="amendment-total">Corrected total (0–100)</label>{" "}
+          <input
+            id="amendment-total"
+            name="amendment-total"
+            type="number"
+            min={0}
+            max={100}
+            step="0.01"
+          />
+        </p>
+        <p>
+          <label htmlFor="amendment-reason">
+            Reason with documented authority
+          </label>{" "}
+          <input
+            id="amendment-reason"
+            name="amendment-reason"
+            type="text"
+            autoComplete="off"
+          />
+        </p>
+        <p>
+          <label htmlFor="amendment-evidence">Evidence reference</label>{" "}
+          <input
+            id="amendment-evidence"
+            name="amendment-evidence"
+            type="text"
+            autoComplete="off"
+          />
+        </p>
+        <p>
+          <input
+            id="amendment-confirm"
+            name="amendment-confirm"
+            type="checkbox"
+            value="yes"
+          />{" "}
+          <label htmlFor="amendment-confirm">
+            I confirm that this official-result amendment is complete for
+            its student and I submit it within my assigned authority.
+          </label>
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending ? "Requesting…" : "Request amendment"}
+          </button>
+        </p>
+      </form>
+    </>
+  );
+}
+
+// Amendment decision form: the examinations authority approves (new
+// immutable official version + progression-recalculation task) or
+// declines with reason, with four-eyes (approver differs from
+// requester, enforced server-side). Version-checked and idempotent.
+export function DecideAmendmentForm({
+  caseId,
+  version,
+  decided,
+}: {
+  caseId: string;
+  version: number;
+  decided: boolean;
+}) {
+  const router = useRouter();
+  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  if (decided) {
+    return (
+      <Notice
+        severity="info"
+        title="Amendment decided"
+        message="This case already carries a decision. Decided cases keep their outcome; open a new case for further correction."
+      />
+    );
+  }
+
+  const toId = `amendment-decision-to-${caseId}`;
+  const reasonId = `amendment-decision-reason-${caseId}`;
+
+  return (
+    <>
+      {notice ? <p role="status">{notice}</p> : null}
+      {errors.length > 0 ? (
+        <ErrorSummary title="The amendment was not decided" errors={errors} />
+      ) : null}
+      <form
+        aria-label="Decide result amendment"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (pending) return;
+          setPending(true);
+          setErrors([]);
+          setNotice(null);
+          const data = new FormData(e.currentTarget);
+          const to = String(data.get("amendment-decision-to") ?? "");
+          const reason = String(data.get("amendment-decision-reason") ?? "");
+          postAssessment(`/amendments/${caseId}/decide`, {
+            version,
+            to,
+            reason: reason || undefined,
+            idempotencyKey: crypto.randomUUID(),
+          })
+            .then(() => {
+              setNotice(
+                to === "APPROVE"
+                  ? "Amendment approved. A new official version is published; the student sees the current version."
+                  : `Amendment ${to} recorded. History preserved.`,
+              );
+              router.refresh();
+            })
+            .catch((error: unknown) => {
+              setErrors([
+                {
+                  fieldId: reasonId,
+                  message: failure(error),
+                },
+              ]);
+            })
+            .finally(() => {
+              setPending(false);
+            });
+        }}
+      >
+        <p>
+          <label htmlFor={toId}>Amendment decision</label>{" "}
+          <select id={toId} name="amendment-decision-to">
+            <option value="APPROVE">Approve</option>
+            <option value="DECLINE">Decline</option>
+          </select>
+        </p>
+        <p>
+          <label htmlFor={reasonId}>
+            Reason (required when declining)
+          </label>{" "}
+          <input
+            id={reasonId}
+            name="amendment-decision-reason"
+            type="text"
+            autoComplete="off"
+          />
+        </p>
+        <p>
+          <button type="submit" disabled={pending}>
+            {pending ? "Recording…" : "Record amendment decision"}
+          </button>
+        </p>
+      </form>
+    </>
+  );
+}

@@ -403,3 +403,78 @@ for deletion before commit. `backup:test`, full-suite shared-DB
 regression, manual screen-reader/WSL replay, remote CI, and human
 walkthrough remain **not verified**. Detail in
 [NOTE-PH7-005](NOTE-PH7-005.md).
+
+## Phase 7 slice 6 (2026-09-27, fresh `sis_ph7_s6_test` + `sis_ph7_browser_test`)
+
+Official result release + student view (TASK-PH7-006; lead Chitundu
+Milimbo, reviewer Charles Hangoma). Typecheck exit 0, web lint clean,
+API lint warnings-only, API dist via direct `tsc`, web production
+build exit 0 (new `/student/results` route). API e2e `grade-release`
+**15/15** on the fresh DB (pre-board/blocking-condition/stale/
+unresolved refusals each proving zero rows, happy-path RELEASED count
+2 + 64-hex hash + 68.8 PASS rows + outbox chain, six-role denials,
+expired-grant 403 + restore, foreign-period 403, neutrals,
+racing-release convergence both-201 exactly-2-rows, idempotent replay
++ cross-package key conflict, outbox-deletion-keeps-release
+TEST-REC-010, student isolation own-studentRef, second-version
+independent release). Slice regressions held on separate fresh DBs:
+`assessment-plan` **20/20**, `grade-staging` **18/18**,
+`grade-validation` **13/13**, `grade-moderation` **14/14**,
+`grade-board` **15/15**. Unit **73/73**. Browser `board-release`
+(moderate 3 → assemble → approve → release → student sees official;
+pre-release student sees nothing) **1/1** on fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage).
+
+`backup:test`, manual screen-reader/WSL replay, remote CI, Vercel
+route check, production policy approval, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH7-006](NOTE-PH7-006.md).
+
+## Phase 7 slice 7 (2026-10-01, fresh `sis_ph7_s7_test` + `sis_ph7_browser_test`)
+
+Result amendment skeleton (TASK-PH7-007; lead Chitundu Milimbo,
+reviewer Charles Hangoma). Typecheck exit 0, web lint clean, API
+lint warnings-only, API dist via direct `tsc`, web production build
+exit 0 (package amendment section + student version note). API e2e
+`grade-amendment` **12/12** on the fresh DB (request OPEN + outbox
+chain, unreleased/unknown-student/out-of-range/bad-declaration
+refusals, approve with new version row + preserved original + outbox
+chain + PROGRESSION_RECALC PENDING + student-sees-amended-only,
+decline reason demand, SoD, five-role denials + student-read refusal,
+neutrals, racing-approve convergence 201 + REQUEST_CLOSED with
+exactly 2 rows, idempotent replay + cross-student key conflict,
+expired-grant 403 + restore, second-case new version + v3). Slice
+regressions held on separate fresh DBs: `assessment-plan` **20/20**,
+`grade-staging` **18/18**, `grade-validation` **13/13**,
+`grade-moderation` **14/14**, `grade-board` **16/16** (incl. the new
+`decision-idempotent` same-key-replay test locking the slice-5 gates-
+inside-`command()` hardening), `grade-release` **15/15**. Unit
+**73/73** (one boot-timing flake in the full run, green isolated).
+Browser `result-amendment` (release → student sees 68.8 → request →
+pre-approval still 68.8 → approve → student sees 74 + amended-version
+note, 68.8 gone) **1/1** plus the `board-release` rerun (main-scoped
+student assertions) **1/1**, each on its own fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage). First amendment run caught an over-strict spec
+assertion (hardcoded `version 2`; release rows carry the package
+version so the note reads 3 in that flow) — relaxed to
+`/amended official version [0-9]+/`, then green on a fresh DB.
+
+Backup drill (2026-10-01, `sis_ph7_browser_test` board-release
+journey data): `pg_dump` → restore into scratch
+`sis_ph7_backup_scratch` → per-table counts match on all 12 checked
+tables (OfficialCourseResult 2, ResultPackage 1, BoardDecision 1,
+ResultAmendmentCase 0, AcademicImpactTask 0, Person 27, Account 26,
+OutboxEvent 5, AuditEvent 41, AssessmentPlan 1, GradeBatch 3,
+ModerationCase 3) with zero orphans (assignments, amendment cases,
+official rows, impact tasks). Scratch dropped afterwards. Note:
+`npm run backup:test` itself cannot run on this Windows box (no
+local `pg_dump`/`psql` binaries; its TABLES list also predates
+Phase 3–7 tables) — the drill above used the container tools and
+covers more tables than the script. Widening the script is a
+follow-up, not done here.
+
+`backup:test`, manual screen-reader/WSL replay, remote CI, Vercel
+route check, production policy approval, and human walkthrough remain
+**not verified** (backup covered by the manual drill above, not by
+the script itself). Detail in [NOTE-PH7-007](NOTE-PH7-007.md).

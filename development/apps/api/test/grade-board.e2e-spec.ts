@@ -410,6 +410,43 @@ describe('Phase 7 board/decision package', () => {
     expect(conflict.body.code).toBe('IDEMPOTENCY_CONFLICT');
   });
 
+  it('decision-idempotent: same key replays the stored decision after success', async () => {
+    await provisionCandidates([known1, known2]);
+    await fullyModeratedScope([known1, known2]);
+    const pkg = (
+      await assemble(lecA).expect(201)
+    ).body as { id: string; version: number };
+    const k = key();
+    const first = await post(
+      `/packages/${pkg.id}/decide`,
+      {
+        idempotencyKey: k,
+        version: pkg.version,
+        to: 'APPROVE_FOR_RELEASE',
+        reason: 'Board minute 12.',
+      },
+      exam,
+    ).expect(201);
+    const retry = await post(
+      `/packages/${pkg.id}/decide`,
+      {
+        idempotencyKey: k,
+        version: pkg.version,
+        to: 'APPROVE_FOR_RELEASE',
+        reason: 'Board minute 12.',
+      },
+      exam,
+    ).expect(201);
+    expect((retry.body as { status: string }).status).toBe('APPROVED_FOR_RELEASE');
+    expect((retry.body as { version: number }).version).toBe(
+      (first.body as { version: number }).version,
+    );
+    const decisions = await db.boardDecision.findMany({
+      where: { packageId: pkg.id },
+    });
+    expect(decisions).toHaveLength(1);
+  });
+
   it('decision-sod: preparer cannot decide; decider must be examinations', async () => {
     await provisionCandidates([known1, known2]);
     await fullyModeratedScope([known1, known2]);

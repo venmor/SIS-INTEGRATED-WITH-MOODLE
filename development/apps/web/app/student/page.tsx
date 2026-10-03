@@ -55,7 +55,7 @@ export default async function StudentPage() {
     },
   ];
   return (
-    <>
+    <main id="student-content">
       <PageHeader
         eyebrow={`Student portal · ${board.period} · ${board.studentNumber}`}
         title="Welcome to the student portal"
@@ -144,6 +144,6 @@ export default async function StudentPage() {
           </ul>
         )}
       </Card>
-    </>
+    </main>
   );
 }

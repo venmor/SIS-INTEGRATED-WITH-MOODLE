@@ -47,10 +47,6 @@ async function noOverflow(page: any) {
   ).toBe(true);
 }
 
-function uuidFrom(text: string | null | undefined): string {
-  return text?.match(/[0-9a-fA-F-]{36}/)?.[0] ?? "";
-}
-
 async function signIn(
   page: any,
   username: string,
@@ -64,11 +60,11 @@ async function signIn(
   await expect(page).toHaveURL(`${base}/`, { timeout: 20000 });
 }
 
-// Phase 7 slice 6: the student sees nothing before release (provisional
-// Moodle marks never publish), the examinations authority releases an
-// approved package, and the student then sees only their own official
-// released result.
-test("board release: approve, release, student sees official", async ({
+// Phase 7 slice 7: release publishes 68.8, the student sees it, an
+// authorized amendment case corrects it to 74, the examinations
+// authority approves, and the student sees only the amended current
+// version — the original stays in staff history, never overwritten.
+test("result amendment: request, approve, student sees amended total", async ({
   page,
 }) => {
   const base = process.env.BROWSER_BASE_URL ?? "http://127.0.0.1:3100";
@@ -85,9 +81,9 @@ test("board release: approve, release, student sees official", async ({
   await page.setViewportSize({ width: 390, height: 844 });
 
   // Setup through the API: candidate list, approved plan, then per
-  // component an active mapping, staged batch, validation and submission.
-  // Moderation begin/decide runs through the UI below so the journey
-  // proves the staff screens end to end.
+  // component an active mapping, staged batch, validation and
+  // submission. Moderation begin/decide runs through the UI below so
+  // the journey proves the staff screens end to end.
   await apiPost(
     "/candidate-lists",
     {
@@ -135,7 +131,7 @@ test("board release: approve, release, student sees official", async ({
       {
         idempotencyKey: randomUUID(),
         componentId,
-        moodleActivityId: `SIM-REL-${randomUUID().slice(0, 8).toUpperCase()}`,
+        moodleActivityId: `SIM-AMD-${randomUUID().slice(0, 8).toUpperCase()}`,
         moodleCourseRef: shellRef,
       },
       lecSid,
@@ -192,77 +188,107 @@ test("board release: approve, release, student sees official", async ({
   }
   await page.context().clearCookies();
 
-  // The student sees nothing before release: provisional staged marks
-  // exist, but Moodle alone publishes nothing official.
-  await signIn(page, stu.username, stu.password, base);
-  await page.goto("/student/results");
-  await expect(
-    page.locator("main").getByText(/No official results released yet/),
-  ).toBeVisible();
-  await expect(page.locator("main").getByText("68.8")).toHaveCount(0);
-  await noOverflow(page);
-  await page.context().clearCookies();
+  // Package assembly, board approval and official release via the API
+  // (the board-release journey already proves those screens); the UI
+  // under test here is the amendment request → approval below.
+  const pkg = await apiPost(
+    "/packages",
+    {
+      idempotencyKey: randomUUID(),
+      offeringRef: lecturer.offeringRef,
+      periodCode: lecturer.periodCode,
+      declaration: PACKAGE_DECLARATION,
+    },
+    lecSid,
+  );
+  const pkgDetail = (await (
+    await fetch(`${api}/assessment/packages/${pkg.id as string}`, {
+      headers: { cookie: lecSid },
+    })
+  ).json()) as { version: number };
+  await apiPost(
+    `/packages/${pkg.id as string}/decide`,
+    {
+      idempotencyKey: randomUUID(),
+      version: pkgDetail.version,
+      to: "APPROVE_FOR_RELEASE",
+      reason: "Board minute 12.",
+    },
+    examSid,
+  );
+  await apiPost(
+    "/releases",
+    { idempotencyKey: randomUUID(), packageId: pkg.id as string },
+    examSid,
+  );
+  const packageId = pkg.id as string;
 
-  // Lecturer assembles the board package through the UI declaration.
-  await signIn(page, lecturer.username, lecturer.password, base);
-  await page.goto("/admin/assessment/packages");
-  await page
-    .getByLabel(/I confirm that the approved results, moderation outcomes/)
-    .check();
-  const assembleButton = page.getByRole("button", {
-    name: "Assemble package",
-  });
-  await assembleButton.focus();
-  await expect(assembleButton).toBeFocused();
-  await assembleButton.click();
-  await expect(page.getByText(/Result package assembled/)).toBeVisible();
-  const packageLink =
-    (await page
-      .locator("li", { hasText: "ASSEMBLED" })
-      .first()
-      .getByRole("link", { name: "Open package" })
-      .getAttribute("href")) ?? "";
-  const packageId = uuidFrom(packageLink);
-  expect(packageId).not.toBe("");
-  await page.context().clearCookies();
-
-  // Examinations authority approves, then releases, the package.
-  await signIn(page, officer.username, officer.password, base);
-  await page.goto(`/admin/assessment/packages/${packageId}`);
-  await page
-    .getByLabel("Board decision", { exact: true })
-    .selectOption("APPROVE_FOR_RELEASE");
-  const decideButton = page.getByRole("button", {
-    name: "Record board decision",
-  });
-  await decideButton.focus();
-  await expect(decideButton).toBeFocused();
-  await decideButton.click();
-  await expect(page.locator("main")).toContainText("APPROVED_FOR_RELEASE");
-  await page
-    .getByLabel(/I confirm that the board approved this package for release/)
-    .check();
-  const releaseButton = page.getByRole("button", { name: "Release results" });
-  await releaseButton.focus();
-  await expect(releaseButton).toBeFocused();
-  await releaseButton.click();
-  await expect(
-    page.getByText(/2 official results published/),
-  ).toBeVisible();
-  await expect(page.locator("main")).toContainText("RELEASED");
-  await noOverflow(page);
-  await page.context().clearCookies();
-
-  // The student now sees only their own official released result: no
-  // board discussion, no other student, no provisional wording.
+  // The student sees the released 68.8 before any amendment.
   await signIn(page, stu.username, stu.password, base);
   await page.goto("/student/results");
   await expect(
     page.locator("main").getByText("Official result — released").first(),
   ).toBeVisible();
   await expect(page.locator("main").getByText("68.8").first()).toBeVisible();
+  await page.context().clearCookies();
+
+  // The lecturer opens an amendment case through the package page.
+  await signIn(page, lecturer.username, lecturer.password, base);
+  await page.goto(`/admin/assessment/packages/${packageId}`);
+  await expect(page.locator("main")).toContainText("Result amendments");
+  await page.getByLabel("Student reference").fill(studentA);
+  await page.getByLabel(/Corrected total/).fill("74");
+  await page
+    .getByLabel("Reason with documented authority")
+    .fill("Verified clerical error: FINAL-EXAM 68 misrecorded as 66.");
+  await page.getByLabel("Evidence reference").fill("remark-slip-001");
+  await page
+    .getByLabel(/this official-result amendment is complete for its student/)
+    .check();
+  const requestButton = page.getByRole("button", { name: "Request amendment" });
+  await requestButton.focus();
+  await expect(requestButton).toBeFocused();
+  await requestButton.click();
+  await expect(page.getByText(/Amendment case opened/)).toBeVisible();
+  await noOverflow(page);
+  await page.context().clearCookies();
+
+  // Pre-approval the student still sees the original 68.8.
+  await signIn(page, stu.username, stu.password, base);
+  await page.goto("/student/results");
+  await expect(page.locator("main").getByText("68.8").first()).toBeVisible();
+  await expect(page.locator("main").getByText("74")).toHaveCount(0);
+  await page.context().clearCookies();
+
+  // The examinations authority approves the case.
+  await signIn(page, officer.username, officer.password, base);
+  await page.goto(`/admin/assessment/packages/${packageId}`);
+  await page
+    .getByLabel("Amendment decision", { exact: true })
+    .selectOption("APPROVE");
+  const approveButton = page.getByRole("button", {
+    name: "Record amendment decision",
+  });
+  await approveButton.focus();
+  await expect(approveButton).toBeFocused();
+  await approveButton.click();
+  await expect(page.getByText(/Amendment approved/)).toBeVisible();
+  await expect(page.locator("main")).toContainText("APPROVED");
+  await noOverflow(page);
+  await page.context().clearCookies();
+
+  // The student now sees only the amended 74 with its version note.
+  await signIn(page, stu.username, stu.password, base);
+  await page.goto("/student/results");
+  await expect(
+    page.locator("main").getByText("Official result — released").first(),
+  ).toBeVisible();
+  await expect(page.locator("main").getByText("74").first()).toBeVisible();
+  await expect(
+    page.locator("main").getByText(/amended official version [0-9]+/),
+  ).toBeVisible();
+  await expect(page.locator("main").getByText("68.8")).toHaveCount(0);
   await expect(page.locator("main").getByText("Board minute")).toHaveCount(0);
-  await expect(page.locator("main").getByText("Moodle")).toHaveCount(0);
   await noOverflow(page);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
 });

@@ -167,6 +167,7 @@ export interface OfficialResultView {
   studentRef: string;
   total: number;
   outcome: string;
+  version: number;
   publishedAt: string;
 }
 export interface ReleaseView {
@@ -176,4 +177,32 @@ export interface ReleaseView {
   studentCount: number;
   releaseHash: string;
   publishedAt: string;
+}
+/** Phase 7 slice 7: result amendment skeleton views (TASK-PH7-007).
+ * Cases move OPEN→APPROVED/DECLINED; approval writes a new immutable
+ * official row (supersede link in trace) + an academic-impact stub
+ * task (progression recalculation queue). Students see only the
+ * latest RELEASED version. ISO date strings. */
+export interface AmendmentCaseView {
+  id: string;
+  packageId: string;
+  studentRef: string;
+  status: string;
+  version: number;
+  correctedTotal: number;
+  correctedOutcome: string;
+  reason: string;
+  requestedBy: string;
+  createdAt: string;
+}
+export interface AcademicImpactView {
+  id: string;
+  kind: string;
+  status: string;
+  studentRef: string;
+}
+export interface AmendmentCaseDetailView extends AmendmentCaseView {
+  decidedBy: string | null;
+  decidedAt: string | null;
+  impacts: AcademicImpactView[];
 }

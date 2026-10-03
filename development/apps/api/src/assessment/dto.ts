@@ -6,6 +6,7 @@ import {
   IsArray,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -262,4 +263,58 @@ export class ListPackagesQuery {
 export class ReleaseResultsDto extends KeyDto {
   @IsUUID()
   packageId!: string;
+}
+
+// Phase 7 slice 7: result amendment skeleton (TASK-PH7-007). The exact
+// amendment declaration (UI-DECISION-001 pattern). The server refuses
+// any other wording before storing.
+export const AMENDMENT_DECLARATION =
+  'I confirm that this official-result amendment is complete for its student and I submit it within my assigned authority.';
+
+export class RequestAmendmentDto extends KeyDto {
+  @IsUUID()
+  packageId!: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  studentRef!: string;
+  @Type(() => Number)
+  @IsNumber()
+  correctedTotal!: number;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  reason!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  evidence?: string;
+  @IsString()
+  @Equals(AMENDMENT_DECLARATION)
+  declaration!: string;
+}
+
+export class DecideAmendmentDto extends KeyDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  version!: number;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  to!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+export class ListAmendmentsQuery {
+  @IsOptional()
+  @IsUUID()
+  packageId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  status?: string;
 }
