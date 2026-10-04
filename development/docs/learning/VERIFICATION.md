@@ -1,5 +1,9 @@
 # Verification evidence — 2026-09-19
 
+## V2 applicant result and upload blockers — 2026-10-04
+
+[TASK-V2-APP-002](../task-packets/TASK-V2-APP-002.md) resolves the Radiography “Science subject”/selectable “Science” mismatch, shows current result blockers in the qualification form and makes the local exact-fixture file action explicit in the review blocker. The subject and document assertions were observed red, then the applicant API suite passed **19/19** on isolated synthetic PostgreSQL. The connected mobile applicant journey passed **1/1** after its inline-results assertion was observed red. Fresh web/API production builds, lint, source scan and formatting passed; lint retains unrelated warnings. [Detail](NOTE-V2-APP-002.md). No provider call or download occurred.
+
 ## V2 student finance periods — 2026-10-04
 
 [TASK-V2-FIN-004](../task-packets/TASK-V2-FIN-004.md) lists only a student's invoiced periods and uses the selected period for account, statement, payment and arrangement actions instead of fixed `2026S1`. The new API test failed at the absent route, then the finance statement suite passed **10/10** and the wider finance governance suite **24/24** on the isolated review database; the latter required the repository environment loader for its simulated callback secret. The connected student portal browser story passed **1/1** at 390px. Fresh API/web builds, lint and formatting passed; API lint retains unrelated warnings. [Detail](NOTE-V2-FIN-004.md). No provider call or download occurred.

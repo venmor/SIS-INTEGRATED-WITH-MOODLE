@@ -21,9 +21,11 @@ describe('Phase 2 owned applicant journey', () => {
   const scanner = {
     scan: vi
       .fn<
-        (
-          content: Uint8Array,
-        ) => Promise<{ status: string; scanner: string | null; correlationId: string }>
+        (content: Uint8Array) => Promise<{
+          status: string;
+          scanner: string | null;
+          correlationId: string;
+        }>
       >()
       .mockResolvedValue({
         status: 'AwaitingQualityCheck',
@@ -335,6 +337,12 @@ describe('Phase 2 owned applicant journey', () => {
       }).expect(201)
     ).body;
     expect(draft.documents[0].canPreview).toBe(false);
+    expect(
+      draft.blockers.find((b) => b.section === 'documents')?.message,
+    ).toContain('fictional practice PDF');
+    expect(
+      draft.blockers.find((b) => b.section === 'documents')?.message,
+    ).toContain('Check file safety');
     draft = (
       await post(`/${draft.id}/documents/${doc.id}/scan`, {
         version: draft.version,
@@ -713,6 +721,86 @@ describe('Phase 2 owned applicant journey', () => {
     expect(
       await db.application.count({ where: { accountId: u.accountId } }),
     ).toBe(3);
+  });
+  it('matches a published subject requirement to its selectable result name', async () => {
+    const u = await user();
+    const route = await db.qualificationRoute.findUniqueOrThrow({
+      where: { code: 'ECZ' },
+    });
+    const programme = await db.programme.create({
+      data: {
+        code: `TEST-${key()}`,
+        name: 'Fictional science programme',
+        awardLevel: 'Bachelor',
+        school: 'Test',
+        duration: '4 years',
+        overview: 'Test only',
+        feeScheduleRef: 'DEMO-ACADEMIC-2026-v1/test',
+        publishedVersion: 'TEST-v1',
+        effectiveDate: new Date(),
+        owningOffice: 'Admissions',
+      },
+    });
+    await db.requirementRule.create({
+      data: {
+        programmeId: programme.id,
+        routeId: route.id,
+        ruleKey: 'science',
+        label: 'Science subject',
+        kind: 'GRADE',
+        mandatory: true,
+        minGrade: 6,
+        evidence: 'Result statement',
+      },
+    });
+    const offering = await db.programmeOffering.create({
+      data: {
+        programmeId: programme.id,
+        intake: 'TEST',
+        studyMode: 'Full-time',
+        campus: 'Test',
+        availability: 'OPEN',
+        deadline: new Date(Date.now() + 86400000),
+      },
+    });
+    const started = await post(
+      '',
+      { offeringId: offering.id, confirmed: true, idempotencyKey: key() },
+      u.cookie,
+    ).expect(201);
+    const biology = await post(
+      `/${started.body.id}/sections/qualifications`,
+      {
+        version: started.body.version,
+        idempotencyKey: key(),
+        complete: true,
+        data: {
+          routeCode: 'ECZ',
+          institution: 'Fictional ECZ',
+          awardTitle: 'Grade 12',
+          completionYear: 2025,
+          status: 'COMPLETED',
+          subjects: [{ subject: 'Biology', grade: 4 }],
+        },
+      },
+      u.cookie,
+    ).expect(201);
+    expect(biology.body.blockers).toContainEqual(
+      expect.objectContaining({ section: 'qualifications', field: 'subjects' }),
+    );
+    const saved = await post(
+      `/${started.body.id}/sections/qualifications`,
+      {
+        version: biology.body.version,
+        idempotencyKey: key(),
+        complete: true,
+        data: { subjects: [{ subject: 'Science', grade: 4 }] },
+      },
+      u.cookie,
+    ).expect(201);
+    expect(saved.body.blockers).not.toContainEqual(
+      expect.objectContaining({ section: 'qualifications', field: 'subjects' }),
+    );
   });
   it('suspending the account invalidates an already-issued session immediately', async () => {
     await db.account.update({

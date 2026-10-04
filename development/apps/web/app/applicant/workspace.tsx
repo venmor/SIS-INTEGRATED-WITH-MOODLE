@@ -778,6 +778,25 @@ export function Workspace({
           )}
           {section === "qualifications" && (
             <>
+              {a.blockers.some(
+                (blocker) => blocker.section === "qualifications",
+              ) && (
+                <section
+                  className="grid gap-2 rounded-sis border-l-4 border-sis-attention bg-sis-attention-bg p-4 text-sis-attention-text"
+                  aria-label="Results still needed"
+                >
+                  <h2>Results still needed</h2>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {a.blockers
+                      .filter((blocker) => blocker.section === "qualifications")
+                      .map((blocker, index) => (
+                        <li key={`${blocker.field ?? "section"}-${index}`}>
+                          {blocker.message}
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              )}
               <p>
                 Enter your official qualification details and examination grades
                 as shown on your certificates.

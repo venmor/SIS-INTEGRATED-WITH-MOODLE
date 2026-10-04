@@ -15,7 +15,10 @@ import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { validateSection, type Fields } from './validation.js';
 import { DocumentScanner, actualMime } from './scanner.js';
-import { ObjectStorageService, UploadMetadata } from './object-storage.service.js';
+import {
+  ObjectStorageService,
+  UploadMetadata,
+} from './object-storage.service.js';
 import type {
   StartDto,
   SaveDto,
@@ -261,17 +264,30 @@ export class ApplicationsService {
           r.kind === 'GRADE' &&
           (!r.route || r.route.code === 'ECZ'),
       );
-      for (const rule of required)
+      for (const rule of required) {
+        const subject = policy.qualifications.subjects.find(
+          (name) => name === rule.label || `${name} subject` === rule.label,
+        );
+        if (!subject) {
+          blockers.push({
+            section: 'qualifications',
+            field: 'subjects',
+            message:
+              'Admissions needs to correct a published subject requirement before this application can be submitted.',
+          });
+          continue;
+        }
         if (
           !(
             q.subjects as { subject: string; grade: number }[] | undefined
-          )?.some((s) => s.subject === rule.label)
+          )?.some((result) => result.subject === subject)
         )
           blockers.push({
             section: 'qualifications',
             field: 'subjects',
-            message: `Declare the ${rule.label} result required for this programme.`,
+            message: `Add ${subject} and its grade under Subject results for this programme.`,
           });
+      }
     }
     if (
       !q.routeCode ||
@@ -316,11 +332,21 @@ export class ApplicationsService {
             d.category === required.category &&
             d.status === policy.upload.minimumStage,
         )
-      )
+      ) {
+        const latest = docs
+          .filter((d) => d.category === required.category)
+          .at(-1);
+        const demoPending =
+          latest?.status === 'SecurityScanPending' &&
+          process.env.DEMO_MODE === 'true' &&
+          process.env.APPLICATION_SCANNER === 'demo-fixtures';
         blockers.push({
           section: 'documents',
-          message: `${required.label} must pass the configured file-safety check.`,
+          message: demoPending
+            ? `${required.label} has not cleared file safety. Select Check file safety; if this is not the fictional practice PDF, replace it with that PDF first.`
+            : `${required.label} must pass the configured file-safety check.`,
         });
+      }
     sections.push({
       key: 'documents',
       label: 'Supporting documents',
@@ -1047,7 +1073,10 @@ export class ApplicationsService {
     if (doc.bucket === 'demo-postgres') {
       this.fail('DOCUMENT_UNAVAILABLE', 'This document is unavailable.', 503);
     }
-    const { stream } = await this.objectStorage.download(doc.bucket as any, doc.key);
+    const { stream } = await this.objectStorage.download(
+      doc.bucket as any,
+      doc.key,
+    );
     const chunks: Buffer[] = [];
     for await (const chunk of stream) chunks.push(Buffer.from(chunk));
     return Buffer.concat(chunks);

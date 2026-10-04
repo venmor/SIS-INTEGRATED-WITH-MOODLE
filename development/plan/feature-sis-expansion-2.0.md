@@ -22,6 +22,8 @@ Paths below are relative to `development/`. New module and screen paths are prop
 
 For timetable specifically, use synthetic periods, offerings, rooms, staff and sessions. The demonstration must let an authorized scheduler define versioned rules and a draft schedule, detect room/teacher/student conflicts, obtain the configured approval, publish a version, and show the student's own timetable and changes. It does not require a real university timetable or imported institutional data. The configured rule can be fictional, but hard constraints must be enforced by the server and tested.
 
+Applicant usability increment [TASK-V2-APP-002](../docs/task-packets/TASK-V2-APP-002.md) makes the current Radiography result and demo upload blockers actionable. It does not define alternative-science-subject equivalence. The institution setup/rule workstream must model accepted subject groups explicitly and version them so future policy changes do not invalidate existing application records silently.
+
 ## 1. Requirements & Constraints
 
 - **REQ-001**: Preserve the three connected MVP stories and their authorization, failure and recovery tests throughout expansion.

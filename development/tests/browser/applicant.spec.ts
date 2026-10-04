@@ -60,6 +60,9 @@ test("applicant completes a mobile keyboard journey and recovers a lost submissi
     .click();
   await expect(page.getByRole("status")).toContainText("All changes saved");
   await page.getByRole("link", { name: /Qualifications and results/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Results still needed" }),
+  ).toBeVisible();
   await page
     .getByLabel("Qualification route", { exact: false })
     .selectOption("ECZ");
