@@ -2,6 +2,8 @@
 
 The approved handbook models institutional structure as an effective-dated graph and separates business policy owners from System Administration. The current database has academic periods, programmes, offerings and curricula, but no approved organisation relationship registry, admission-cycle authority or institutional configuration publication workflow. `REQ-NFR-009` is therefore unmet as an operating capability.
 
+Later status: [TASK-V2-SETUP-002](../task-packets/TASK-V2-SETUP-002.md) added draft structure and delivery identities to this inventory. The original absence statement above describes this slice's implementation date; approved organisation scope and configuration publication remain open.
+
 The new read-only `GET /institution-setup/readiness` samples record counts and returns explicit `BLOCKED`, `MISSING` or `PRESENT_UNVERIFIED` sections. Only a current `SYSADMIN` assignment in `SYSTEM:GLOBAL` can call it; every permitted and denied authenticated read is purpose-audited. It contains no personal records, policy values or secrets. The System Operations page shows counts, missing decisions and next actions in a mobile-safe list. There are no configuration mutation endpoints in this slice.
 
 The [governance proposal](../policies/INSTITUTION-CONFIGURATION-GOVERNANCE-PROPOSAL.md) gives the institution a decision agenda for owner, independent approver, publisher, scope, effective date, step-up and correction. It is not adopted policy. [GAP-V2-001](../gaps/GAP-V2-001-institution-configuration-authority.md) and related GAP-004/006/012 remain open; the report does not activate workflows or make seeded records authoritative.

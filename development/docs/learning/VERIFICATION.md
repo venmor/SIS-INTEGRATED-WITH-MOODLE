@@ -1,5 +1,9 @@
 # Verification evidence — 2026-09-19
 
+## V2 structure and delivery readiness inventory — 2026-10-04
+
+[TASK-V2-SETUP-002](../task-packets/TASK-V2-SETUP-002.md) extends the purpose-audited, global-System-Administrator-only read with draft structure, teaching-resource and course-only-registration counts. Connected API e2e was red on missing counts, then passed **4/4** on isolated synthetic PostgreSQL; a 390px browser check passed **1/1** on isolated ports. API build, typecheck, lint and source scan passed. [Detail](NOTE-V2-SETUP-002.md). No setup writes, live data, provider calls or downloads occurred.
+
 ## V2 draft academic-delivery identities — 2026-10-04
 
 [TASK-V2-TIME-003](../task-packets/TASK-V2-TIME-003.md) introduces additive relational identities for institution units/versions, course versions, academic-period delivery offerings/sections and buildings/venues. All **67 migrations** applied to a new dedicated synthetic PostgreSQL database; Prisma validation/client generation, the API production build, source scan and new-identity schema comparison passed. The full API unit suite passed **317 with 13 skipped**. Foreign-key/check probes denied orphan sections/venues/unit versions, a self-linking unit relation and negative capacity. Existing unrelated schema drift remains. No shared database or official record was changed. [Detail](NOTE-V2-TIME-003.md).

@@ -22,11 +22,34 @@ export class InstitutionReadinessService {
     sampledAt: string;
     sections: ReadinessSection[];
   }> {
-    const [periods, programmes, offerings, curricula] = await Promise.all([
+    const [
+      periods,
+      programmes,
+      offerings,
+      curricula,
+      units,
+      unitVersions,
+      unitRelationships,
+      courseVersions,
+      deliveryOfferings,
+      sections,
+      buildings,
+      venues,
+      courseOnlyRegistrations,
+    ] = await Promise.all([
       this.prisma.academicPeriod.count(),
       this.prisma.programme.count(),
       this.prisma.programmeOffering.count(),
       this.prisma.curriculumVersion.count(),
+      this.prisma.institutionUnit.count(),
+      this.prisma.institutionUnitVersion.count(),
+      this.prisma.institutionUnitRelationship.count(),
+      this.prisma.courseVersion.count(),
+      this.prisma.courseDeliveryOffering.count(),
+      this.prisma.teachingSection.count(),
+      this.prisma.teachingBuilding.count(),
+      this.prisma.teachingVenue.count(),
+      this.prisma.courseRegistration.count({ where: { status: 'ENROLLED' } }),
     ]);
 
     return {
@@ -38,10 +61,13 @@ export class InstitutionReadinessService {
           label: 'Institution structure',
           status: 'BLOCKED',
           reason:
-            'The effective-dated organisation and scope registry is not in place.',
+            units || unitVersions || unitRelationships
+              ? 'Draft structure records exist, but approved effective-dated scope and relationships are unverified.'
+              : 'No institution-unit records exist, and approved scope and relationship authority is missing.',
           nextAction:
-            'Approve the organisation relationship and scope authority design.',
+            'Reconcile unit versions and relationships, then approve scope and change authority.',
           gapIds: ['GAP-004', 'GAP-V2-001'],
+          counts: { units, unitVersions, unitRelationships },
         },
         {
           id: 'calendar',
@@ -64,6 +90,30 @@ export class InstitutionReadinessService {
             'Reconcile programmes, offerings and curriculum versions with the institution.',
           gapIds: ['GAP-004', 'GAP-V2-001'],
           counts: { programmes, offerings, curricula },
+        },
+        {
+          id: 'teaching-delivery',
+          label: 'Teaching delivery',
+          status: 'BLOCKED',
+          reason:
+            courseVersions ||
+            deliveryOfferings ||
+            sections ||
+            buildings ||
+            venues
+              ? 'Draft delivery records exist, but section enrolment, dated sessions and timetable publication are unverified.'
+              : 'No delivery identities or venues exist, and section mapping and timetable publication are not configured.',
+          nextAction:
+            'Reconcile course-only registrations to sections, validate dated sessions and approve a publication route.',
+          gapIds: ['GAP-021', 'GAP-V2-001'],
+          counts: {
+            courseVersions,
+            deliveryOfferings,
+            sections,
+            buildings,
+            venues,
+            courseOnlyRegistrations,
+          },
         },
         {
           id: 'admissions-cycle',

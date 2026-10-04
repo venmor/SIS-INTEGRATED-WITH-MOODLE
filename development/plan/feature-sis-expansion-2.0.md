@@ -2,7 +2,7 @@
 goal: Deliver the handbook-defined SIS from a verified presentation MVP to operational v2.0
 version: 2.0-plan.2
 date_created: 2026-09-30
-last_updated: 2026-10-02
+last_updated: 2026-10-04
 owner: Charles Hangoma and Chitundu Milimbo; per-slice lead and reviewer recorded before execution
 status: Planned
 tags: [architecture, feature, migration, security, accessibility, roadmap]
@@ -113,6 +113,8 @@ Read-only foundation, 2026-10-02: [TASK-V2-TIME-001](../docs/task-packets/TASK-V
 Validation foundation, 2026-10-04: [TASK-V2-TIME-002](../docs/task-packets/TASK-V2-TIME-002.md) adds a deterministic occurrence-conflict core under caller-supplied, versioned synthetic rules ([evidence](../docs/learning/NOTE-V2-TIME-002.md)). It does not create official course offerings, venues, drafts or published student timetables. TASK-101–105 and GAP-021 remain open. Next, connect authoritative offering/section and venue records to draft validation, then implement independent publication and student projection; do not infer them from legacy `Course.semester` or tutorial-group text.
 
 Identity foundation, 2026-10-04: [TASK-V2-TIME-003](../docs/task-packets/TASK-V2-TIME-003.md) introduces additive draft unit/version, course-version, delivery-offering/section and building/venue tables ([evidence](../docs/learning/NOTE-V2-TIME-003.md)). Existing course-only registrations are deliberately not mapped automatically. TASK-101–105, GAP-021 and GAP-V2-001 remain open. Next implement governed synthetic draft creation/validation and explicit reconciliation to actual section enrolment, then connect dated sessions to TASK-V2-TIME-002 and add independent publish/revision controls.
+
+Operational inventory, 2026-10-04: [TASK-V2-SETUP-002](../docs/task-packets/TASK-V2-SETUP-002.md) exposes current structure and teaching-delivery counts in the read-only setup workspace ([evidence](../docs/learning/NOTE-V2-SETUP-002.md)). It names the course-only registration mapping burden and keeps both areas blocked; counting rows does not grant setup or timetable authority.
 
 #### Examination management workstream — required v1.2 depth
 

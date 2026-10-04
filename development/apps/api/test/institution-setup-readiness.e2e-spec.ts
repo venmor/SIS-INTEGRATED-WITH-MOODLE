@@ -68,7 +68,38 @@ describe('V2 institution setup operational readiness', () => {
 
   it('shows only current operational counts and blocked setup decisions to a global System Administrator', async () => {
     const admin = await actor('SYSADMIN', 'SYSTEM', 'GLOBAL');
+    const unit = await db.institutionUnit.create({
+      data: { code: `DEMO-${randomUUID()}` },
+    });
+    await db.institutionUnitVersion.create({
+      data: {
+        unitId: unit.id,
+        version: 1,
+        name: 'Fictional campus',
+        unitType: 'CAMPUS',
+      },
+    });
+    const building = await db.teachingBuilding.create({
+      data: {
+        campusUnitId: unit.id,
+        code: 'B1',
+        name: 'Fictional building',
+      },
+    });
+    await db.teachingVenue.create({
+      data: {
+        buildingId: building.id,
+        code: 'R1',
+        name: 'Fictional room',
+        teachingCapacity: 20,
+      },
+    });
     const programmeCount = await db.programme.count();
+    const unitCount = await db.institutionUnit.count();
+    const venueCount = await db.teachingVenue.count();
+    const courseOnlyRegistrations = await db.courseRegistration.count({
+      where: { status: 'ENROLLED' },
+    });
     const response = await request(app.getHttpServer())
       .get('/institution-setup/readiness')
       .set('Cookie', admin.cookie)
@@ -79,6 +110,7 @@ describe('V2 institution setup operational readiness', () => {
       sections: Array<{
         id: string;
         status: string;
+        reason: string;
         counts?: Record<string, number>;
         gapIds: string[];
       }>;
@@ -92,6 +124,32 @@ describe('V2 institution setup operational readiness', () => {
     expect(
       body.sections.find((section) => section.id === 'organization')?.gapIds,
     ).toContain('GAP-004');
+    expect(
+      body.sections.find((section) => section.id === 'organization')?.counts
+        ?.units,
+    ).toBe(unitCount);
+    expect(
+      body.sections.find((section) => section.id === 'organization')?.status,
+    ).toBe('BLOCKED');
+    expect(
+      body.sections.find((section) => section.id === 'organization')?.reason,
+    ).toContain('Draft structure records exist');
+    expect(
+      body.sections.find((section) => section.id === 'teaching-delivery')
+        ?.counts?.venues,
+    ).toBe(venueCount);
+    expect(
+      body.sections.find((section) => section.id === 'teaching-delivery')
+        ?.counts?.courseOnlyRegistrations,
+    ).toBe(courseOnlyRegistrations);
+    expect(
+      body.sections.find((section) => section.id === 'teaching-delivery')
+        ?.gapIds,
+    ).toContain('GAP-021');
+    expect(
+      body.sections.find((section) => section.id === 'teaching-delivery')
+        ?.status,
+    ).toBe('BLOCKED');
     expect(
       body.sections.find((section) => section.id === 'authority')?.gapIds,
     ).toContain('GAP-V2-001');

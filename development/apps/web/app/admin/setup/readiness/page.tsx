@@ -47,6 +47,22 @@ function statusLabel(status: ReadinessSection["status"]) {
   return "Setup blocked";
 }
 
+const countLabels: Record<string, string> = {
+  periods: "Academic periods",
+  programmes: "Programmes",
+  offerings: "Admission offerings",
+  curricula: "Curriculum versions",
+  units: "Institution units",
+  unitVersions: "Unit versions",
+  unitRelationships: "Unit relationships",
+  courseVersions: "Course versions",
+  deliveryOfferings: "Course delivery offerings",
+  sections: "Teaching sections",
+  buildings: "Buildings",
+  venues: "Venues",
+  courseOnlyRegistrations: "Course registrations needing section mapping",
+};
+
 export default async function SetupReadinessPage() {
   const loaded = await loadReport();
   return (
@@ -101,7 +117,7 @@ export default async function SetupReadinessPage() {
                     <dl className={styles.counts}>
                       {Object.entries(section.counts).map(([label, count]) => (
                         <div key={label}>
-                          <dt>{label}</dt>
+                          <dt>{countLabels[label] ?? label}</dt>
                           <dd>{count.toLocaleString("en-ZM")}</dd>
                         </div>
                       ))}
