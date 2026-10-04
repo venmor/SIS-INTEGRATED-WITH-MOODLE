@@ -620,6 +620,51 @@ export class FinanceService {
     return this.invoiceView(invoice, period.code);
   }
 
+  async studentPeriods(auth: FinanceAuthority) {
+    const student = await this.studentOf(auth);
+    const account = await this.prisma.financeAccount.findUnique({
+      where: { studentId: student.id },
+      select: { id: true },
+    });
+    const invoices = account
+      ? await this.prisma.financeInvoice.findMany({
+          where: { accountId: account.id },
+          select: {
+            id: true,
+            createdAt: true,
+            dueAt: true,
+            status: true,
+            period: { select: { code: true } },
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })
+      : [];
+    await this.prisma.auditEvent.create({
+      data: {
+        action: 'StudentFinancePeriodsViewed',
+        actorAccountId: auth.accountId,
+        activeRole: 'STUDENT',
+        scope: `FINANCE:${account?.id ?? 'NONE'}`,
+        targetRef: account?.id ?? student.id,
+        outcome: 'ALLOW',
+        correlationId: randomUUID(),
+        policyVersion: policy.version,
+        purpose: 'Student finance self-service',
+        metadata: json({ count: invoices.length }),
+      },
+    });
+    return {
+      source: 'FINANCE_INVOICE',
+      asOf: new Date().toISOString(),
+      items: invoices.map((invoice) => ({
+        code: invoice.period.code,
+        issuedAt: invoice.createdAt.toISOString(),
+        dueAt: invoice.dueAt?.toISOString() ?? null,
+        status: invoice.status,
+      })),
+    };
+  }
+
   private async ownInvoice(auth: FinanceAuthority, periodCode?: string) {
     const student = await this.studentOf(auth);
     const period = await this.periodOf(periodCode);
@@ -1882,6 +1927,18 @@ export class FinanceService {
         404,
       );
     }
+    const invoice = await this.prisma.financeInvoice.findUnique({
+      where: {
+        accountId_periodId: { accountId: account.id, periodId: period.id },
+      },
+      select: { id: true },
+    });
+    if (!invoice)
+      this.fail(
+        'INVOICE_NOT_READY',
+        'No invoice has been issued for this period yet.',
+        404,
+      );
     const result = await this.command(
       auth,
       key,

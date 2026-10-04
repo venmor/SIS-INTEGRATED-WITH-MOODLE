@@ -97,6 +97,11 @@ export class FinanceController {
     return this.finance.readInvoice(r.auth, q.period);
   }
 
+  @Get('periods')
+  periods(@Req() r: AuthRequest) {
+    return this.finance.studentPeriods(r.auth);
+  }
+
   @Get('account')
   account(@Req() r: AuthRequest, @Query() q: InvoiceQuery) {
     return this.finance.accountSummary(r.auth, q.period);

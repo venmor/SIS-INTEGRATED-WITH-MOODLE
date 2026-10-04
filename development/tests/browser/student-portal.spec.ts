@@ -196,10 +196,12 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("heading", { name: "Statement" }).first(),
   ).toBeVisible();
+  await expect(page.getByLabel("Invoice period")).toHaveValue("2026S1");
   await noOverflow(page);
 
   // Payment initiation: reviewed amount, explicit method, uncertain state.
-  await page.goto("/student/finance/pay");
+  await page.getByRole("link", { name: "Make a payment for 2026S1" }).click();
+  await expect(page).toHaveURL(/\/student\/finance\/pay\?period=2026S1/);
   await expect(
     page.getByRole("heading", { name: "Make a payment", exact: true }),
   ).toBeVisible();

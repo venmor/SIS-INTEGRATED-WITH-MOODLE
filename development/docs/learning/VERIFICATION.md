@@ -1,5 +1,9 @@
 # Verification evidence — 2026-09-19
 
+## V2 student finance periods — 2026-10-04
+
+[TASK-V2-FIN-004](../task-packets/TASK-V2-FIN-004.md) lists only a student's invoiced periods and uses the selected period for account, statement, payment and arrangement actions instead of fixed `2026S1`. The new API test failed at the absent route, then the finance statement suite passed **10/10** and the wider finance governance suite **24/24** on the isolated review database; the latter required the repository environment loader for its simulated callback secret. The connected student portal browser story passed **1/1** at 390px. Fresh API/web builds, lint and formatting passed; API lint retains unrelated warnings. [Detail](NOTE-V2-FIN-004.md). No provider call or download occurred.
+
 Verified in the isolated `review/phase-2-slices-2-5` worktree. Node **24.21.0**; PostgreSQL **18**; committed npm lockfile. Final database runs used a separate Docker container, `sis-phase2-review-tests`, bound only to `127.0.0.1:55432`. Existing `sis-postgres-18` on 5432 and other applications were not modified. Earlier isolated temporary PostgreSQL verification was repeated after the session's temporary services were cleared.
 
 ## Executed checks

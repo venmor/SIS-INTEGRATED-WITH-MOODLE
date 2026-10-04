@@ -1,5 +1,7 @@
 # Product roadmap
 
+The immediate v2 milestone is a **synthetic operating-university demonstration**: authorized users configure fictional, versioned policies and structure in the UI, then exercise connected workflows against those records. A real timetable or institutional dataset is unnecessary for this milestone. Simulator and provider boundaries must be plainly labelled; production use still needs institutional decisions, real integrations and operational acceptance. See the demonstration completion direction in the [implementation backlog](../../plan/feature-sis-expansion-2.0.md).
+
 The detailed executable backlog is [feature-sis-expansion-2.0](../../plan/feature-sis-expansion-2.0.md). It extends the approved release families with source-linked vertical slices, file targets, dependencies, user journeys and measurable exit gates.
 
 The [operating-SIS v2.0 design](../superpowers/specs/2026-10-02-v2-operating-sis-design.md) and [execution plan](../superpowers/plans/2026-10-02-v2-operating-sis-plan.md) sharpen this backlog with configurable institution setup, high-volume admissions navigation/allocation, class attendance, localized workflows, persistent guardrailed student AI, trustworthy exports, and explicitly real provider-backed payment boundaries. Setup authority remains an open design gap; do not enable privileged configuration writes until approved. Use local synthetic data and report expected transfer before any download due the user's limited internet data. Moodle cloud connection is deferred.

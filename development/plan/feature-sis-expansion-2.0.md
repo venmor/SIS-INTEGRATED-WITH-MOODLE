@@ -18,6 +18,10 @@ The 2026-10-02 operating-SIS design and detailed execution plan refine this inve
 
 Paths below are relative to `development/`. New module and screen paths are proposed implementation locations, not claims that they exist. Before each slice, read its exact source records in full and confirm later supersession; the source map is [SOURCE-MAP](../docs/roadmap/SOURCE-MAP.md). A policy gate with no approved input remains blocked. Do not substitute an AI-authored numerical threshold or institutional appointment.
 
+**Demonstration completion direction, 2026-10-04:** The immediate target is a coherent fictional university operated through the SIS, not live institutional deployment. Synthetic policies, academic periods, programmes, timetables and student records must be created or revised through governed setup UI and then used by the actual workflow engines. Seed files may bootstrap a rehearsal but cannot be the only way to change a feature. Every demonstrated decision must identify its fictional policy version, accountable actor, scope and effective date; official and high-impact actions retain independent approval and audit. A complete demonstration follows connected applicant, student, teaching, examination, results, finance, support and reporting journeys with denial/recovery cases, rather than counting screens. The existing Moodle simulator may stand in for cloud Moodle until connection work resumes; payment actions remain labelled simulated until a real provider contract and recovery are verified. Institutional authority and production acceptance remain separate later gates. Before editable demo configuration is enabled, define explicit fictional proposer/approver appointments and bind every write to isolated `DEMO_MODE` data; GAP-V2-001 still forbids treating these as live university appointments.
+
+For timetable specifically, use synthetic periods, offerings, rooms, staff and sessions. The demonstration must let an authorized scheduler define versioned rules and a draft schedule, detect room/teacher/student conflicts, obtain the configured approval, publish a version, and show the student's own timetable and changes. It does not require a real university timetable or imported institutional data. The configured rule can be fictional, but hard constraints must be enforced by the server and tested.
+
 ## 1. Requirements & Constraints
 
 - **REQ-001**: Preserve the three connected MVP stories and their authorization, failure and recovery tests throughout expansion.
@@ -134,6 +138,8 @@ Sources: DS6, finance journey08, security/recovery and official-record controls.
 Exit: one split-sponsored repeating student can pay partially, receive a governed correction/refund and reproduce the complete statement after restore with no duplicate money movement.
 
 Review-worktree finance workbench increments, 2026-10-03: [TASK-V2-FIN-001](../docs/task-packets/TASK-V2-FIN-001.md) bounds reconciliation cases and supplies exact home counts; [TASK-V2-FIN-002](../docs/task-packets/TASK-V2-FIN-002.md) bounds pending arrangement review; [TASK-V2-FIN-003](../docs/task-packets/TASK-V2-FIN-003.md) bounds pending adjustment/refund review by kind and shows role-appropriate forms. These make portions of TASK-032 easier to operate but do not complete TASK-031–035, authorize live payments, or certify finance reports.
+
+[TASK-V2-FIN-004](../docs/task-packets/TASK-V2-FIN-004.md) replaces the student's fixed demo finance period with own invoiced-period navigation and keeps payment/arrangement requests tied to the visible period. This closes a student-navigation gap only; it does not complete the finance goals above.
 
 The shared [v2.0 workspace shell](../docs/design/WORKSPACE-SHELL-V2.md) now fixes sidebar, top bar, mobile navigation and future module positions. Each additional workbench must add only a working, role-relevant route with its own task packet and server authority; a reserved position is not a feature-complete claim.
 
