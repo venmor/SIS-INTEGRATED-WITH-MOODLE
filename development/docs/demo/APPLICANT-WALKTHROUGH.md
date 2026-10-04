@@ -19,6 +19,8 @@ ALLOW_DEMO_SEED=true node scripts/with-env.mjs node prisma/seed/seed.ts
 
 The seed requires explicit permission through `ALLOW_DEMO_SEED`; it creates fictional accounts and programme rules. It does not verify a real person's email. If an older installation already applied the repaired catalogue migration, read the checksum caution in [the earlier-phase review](../learning/PRIOR-PHASE-REVIEW.md) before deploying.
 
+The document step in an exact-fixture local demonstration offers **Download fictional practice document**. Use that PDF for the qualification document and then select **Check file safety**. Other files stay in safety review in this demo. A received file is not verified. The review page names any other missing requirements, such as a required subject result; complete those in the qualification section before formal submission.
+
 4. In one terminal, start the API:
 
 ```sh

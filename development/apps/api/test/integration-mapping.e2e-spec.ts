@@ -233,7 +233,12 @@ describe('Phase 6 mapping registry and lifecycle', () => {
     expect((replay.body as { moodleId: string }).moodleId).toBe(reference);
     expect(
       await db.moodleMapping.count({
-        where: { kind: 'SHELL', sisType: 'OFFERING', status: 'ACTIVE' },
+        where: {
+          kind: 'SHELL',
+          sisType: 'OFFERING',
+          sisId: `${offeringId}:2026S1`,
+          status: 'ACTIVE',
+        },
       }),
     ).toBe(1);
   });

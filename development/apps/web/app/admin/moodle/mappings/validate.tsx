@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import { Notice } from "@sis/ui";
+import type { MOODLE_LIVE_V1 } from "@sis/config";
+
+/** Backend labels this page may render. Derived from the one
+ * authoritative mode list in `@sis/config` so that renaming a mode is a
+ * compile error here rather than a wrong label in a browser. The API's
+ * `MoodleBackend` type is deliberately not imported: it lives in
+ * `apps/api/src/integration/moodle-adapter.ts`, a server module that the
+ * web app must not depend on. */
+type ConnectionBackend = (typeof MOODLE_LIVE_V1.modes)[number];
 
 async function postIntegration(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`/api/integration${path}`, {
@@ -40,12 +49,12 @@ export function ConnectionValidate() {
     try {
       const out = (await postIntegration("/connection/validate", {})) as {
         ok?: boolean;
-        backend?: string;
+        backend?: ConnectionBackend;
         version?: string | null;
         detail?: string;
       };
       setResult(
-        `${out.backend === "live" ? "Live" : "Simulator"}: ${out.detail ?? ""}${out.version ? ` (version ${out.version})` : ""}`,
+        `${out.backend === "live-test" ? "Live" : "Simulator"}: ${out.detail ?? ""}${out.version ? ` (version ${out.version})` : ""}`,
       );
     } catch (error) {
       setResult(

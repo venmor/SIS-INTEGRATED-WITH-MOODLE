@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ActionButton, ErrorSummary, Field, PasswordField } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
@@ -11,6 +11,10 @@ interface FieldError {
   fieldId: string;
   message: string;
 }
+
+const subscribeHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 // Sign-in form: uncontrolled inputs (values live in the DOM, preserved across
 // failures), submit via fetch to the same-origin proxy. Double-submit blocked
@@ -36,12 +40,24 @@ export function SignInForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
   const [filledAccount, setFilledAccount] = useState<string | null>(null);
+  const ready = useSyncExternalStore(
+    subscribeHydration,
+    clientReady,
+    serverReady,
+  );
+
+  // A server-rendered form has no submit handler until React hydrates it.
+  // Keep the native form from posting credentials to the page in that gap.
 
   function fillDetails(account: { username: string; password: string }) {
     if (pending) return;
     const username = formRef.current?.elements.namedItem("username");
     const password = formRef.current?.elements.namedItem("password");
-    if (!(username instanceof HTMLInputElement) || !(password instanceof HTMLInputElement)) return;
+    if (
+      !(username instanceof HTMLInputElement) ||
+      !(password instanceof HTMLInputElement)
+    )
+      return;
     username.value = account.username;
     password.value = account.password;
     setErrors([]);
@@ -80,19 +96,15 @@ export function SignInForm({
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
         // Only local applicant/discovery/admin routes survive authentication.
-        const isStaffAccount = demoStaff?.some((s) => s.username === filledAccount);
         const target =
           returnTo &&
           /^\/(applicant|discover|admin)(\/|\?|$)/.test(returnTo) &&
           !/[\\\r\n]/.test(returnTo)
             ? returnTo
-            : filledAccount && filledAccount === demoAccount?.username
+            : data.get("username") === demoAccount?.username
               ? "/applicant"
-              : isStaffAccount
-                ? "/admin/admissions/queue"
-                : "/";
-        router.replace(target);
-        router.refresh();
+              : "/";
+        await router.replace(target);
         return;
       }
       if (res.status === 429) {
@@ -124,67 +136,20 @@ export function SignInForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} noValidate={false} className={signInStyles.form}>
-      {demoAccount ? (
-        <section className={signInStyles.demoPanel} aria-labelledby="demo-applicant-heading">
-          <p className={signInStyles.demoLabel}>Fictional applicant demo</p>
-          <h2 id="demo-applicant-heading">Try the applicant journey</h2>
-          <p>
-            Use this shared account to explore applications. Everyone using it
-            can see its test applications. Enter fictional information only.
-          </p>
-          <dl className={signInStyles.credentials}>
-            <div><dt>Username</dt><dd><code>{demoAccount.username}</code></dd></div>
-            <div><dt>Password</dt><dd><code>{demoAccount.password}</code></dd></div>
-          </dl>
-          <ActionButton type="button" kind="secondary" onClick={fillDemoDetails} disabled={pending}>
-            Fill demo applicant details
-          </ActionButton>
-          <p className={signInStyles.demoNote}>
-            Personal account registration is not available in this demo.
-          </p>
-          <p role="status" className={signInStyles.demoStatus}>
-            {filledAccount ? "Demo details filled. Select Sign in to continue." : "Fill the details, then select Sign in."}
-          </p>
-        </section>
-      ) : null}
-      {demoStaff && demoStaff.length > 0 ? (
-        <section className={signInStyles.demoPanel} aria-labelledby="demo-staff-heading">
-          <p className={signInStyles.demoLabel}>Fictional staff demo</p>
-          <h2 id="demo-staff-heading">Try the admissions workspaces</h2>
-          <p>
-            Each role signs in to its own workspace. Enter fictional
-            information only.
-          </p>
-          {demoStaff.map((staff) => (
-            <div key={staff.username}>
-              <h3>
-                {staff.role}: <code>{staff.username}</code>
-              </h3>
-              <p>{staff.blurb}</p>
-              <dl className={signInStyles.credentials}>
-                <div><dt>Username</dt><dd><code>{staff.username}</code></dd></div>
-                <div><dt>Password</dt><dd><code>{staff.password}</code></dd></div>
-              </dl>
-              <ActionButton
-                type="button"
-                kind="secondary"
-                onClick={() => fillDetails(staff)}
-                disabled={pending}
-              >
-                Fill {staff.role.toLowerCase()} details
-              </ActionButton>
-            </div>
-          ))}
-        </section>
-      ) : null}
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      method="POST"
+      noValidate={false}
+      className={signInStyles.form}
+    >
       {errors.length > 0 ? (
         <ErrorSummary title="We could not sign you in." errors={errors} />
       ) : null}
       <Field
         id="username"
         label="Username"
-        help={demoAccount ? "Enter your SIS username, or use the demo applicant details above." : "The username from your account letter."}
+        help="Use the username from your SIS account."
         autoComplete="username"
         error={errors.find((e) => e.fieldId === "username")?.message}
         inputProps={{ type: "text", required: true, maxLength: 64 }}
@@ -200,14 +165,112 @@ export function SignInForm({
         <ActionButton
           kind="primary"
           pending={pending}
+          disabled={!ready}
           loadingText="Signing in…"
         >
           Sign in
         </ActionButton>
       </div>
+      {!ready ? <p role="status">Preparing secure sign-in…</p> : null}
       <p className={styles.supporting}>
         <a href="/recovery">Need help signing in?</a>
       </p>
+      {demoAccount || (demoStaff && demoStaff.length > 0) ? (
+        <details className={signInStyles.demoDisclosure}>
+          <summary>Try a fictional demo account</summary>
+          <div className={signInStyles.demoList}>
+            {demoAccount ? (
+              <section
+                className={signInStyles.demoPanel}
+                aria-labelledby="demo-applicant-heading"
+              >
+                <p className={signInStyles.demoLabel}>
+                  Fictional applicant demo
+                </p>
+                <h2 id="demo-applicant-heading">Try the applicant journey</h2>
+                <p>
+                  Use this shared account to explore applications. Everyone
+                  using it can see its test applications. Enter fictional
+                  information only.
+                </p>
+                <dl className={signInStyles.credentials}>
+                  <div>
+                    <dt>Username</dt>
+                    <dd>
+                      <code>{demoAccount.username}</code>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Password</dt>
+                    <dd>
+                      <code>{demoAccount.password}</code>
+                    </dd>
+                  </div>
+                </dl>
+                <ActionButton
+                  type="button"
+                  kind="secondary"
+                  onClick={fillDemoDetails}
+                  disabled={!ready || pending}
+                >
+                  Fill demo applicant details
+                </ActionButton>
+                <p className={signInStyles.demoNote}>
+                  Personal account registration is not available in this demo.
+                </p>
+                <p role="status" className={signInStyles.demoStatus}>
+                  {filledAccount
+                    ? "Demo details filled. Select Sign in to continue."
+                    : "Fill the details, then select Sign in."}
+                </p>
+              </section>
+            ) : null}
+            {demoStaff && demoStaff.length > 0 ? (
+              <section
+                className={signInStyles.demoPanel}
+                aria-labelledby="demo-staff-heading"
+              >
+                <p className={signInStyles.demoLabel}>Fictional staff demo</p>
+                <h2 id="demo-staff-heading">Try the admissions workspaces</h2>
+                <p>
+                  Each role signs in to its own workspace. Enter fictional
+                  information only.
+                </p>
+                {demoStaff.map((staff) => (
+                  <div key={staff.username}>
+                    <h3>
+                      {staff.role}: <code>{staff.username}</code>
+                    </h3>
+                    <p>{staff.blurb}</p>
+                    <dl className={signInStyles.credentials}>
+                      <div>
+                        <dt>Username</dt>
+                        <dd>
+                          <code>{staff.username}</code>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Password</dt>
+                        <dd>
+                          <code>{staff.password}</code>
+                        </dd>
+                      </div>
+                    </dl>
+                    <ActionButton
+                      type="button"
+                      kind="secondary"
+                      onClick={() => fillDetails(staff)}
+                      disabled={!ready || pending}
+                    >
+                      Fill {staff.role.toLowerCase()} details
+                    </ActionButton>
+                  </div>
+                ))}
+              </section>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
     </form>
   );
 }

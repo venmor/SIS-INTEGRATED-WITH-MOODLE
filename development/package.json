@@ -23,11 +23,12 @@
     "db:start": "node scripts/local-db.mjs start",
     "db:stop": "node scripts/local-db.mjs stop",
     "db:status": "node scripts/local-db.mjs status",
+    "db:setup:test": "node scripts/setup-test-db.mjs",
     "backup:test": "node scripts/backup-test.mjs",
     "postinstall": "node scripts/with-env.mjs prisma generate",
     "test:scripts": "node --test scripts/*.test.mjs",
     "scan": "node scripts/check-source.mjs",
-    "test:browser": "node scripts/with-env.mjs playwright test",
+    "test:browser": "node scripts/with-env.mjs node scripts/prepare-test-offerings.mjs && node scripts/with-env.mjs playwright test",
     "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json"
   },
   "prisma": {
@@ -35,15 +36,19 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "@types/clamscan": "^2.4.1",
     "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "7.10.0"
   },
   "license": "UNLICENSED",
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
-    "@prisma/client": "7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@sendgrid/mail": "^8.1.6",
     "argon2": "0.45.1",
-    "pg": "8.23.0"
+    "nodemailer": "^10.0.11",
+    "pg": "8.23.0",
+    "twilio": "^6.1.1"
   },
   "allowScripts": {
     "@embedded-postgres/linux-x64@18.4.0-beta.17": true

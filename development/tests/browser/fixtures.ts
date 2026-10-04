@@ -17,36 +17,41 @@ export async function createApplicant() {
   const username = `browser.${randomUUID()}`;
   const password = "Fictional-browser-2026!";
   try {
-    const person = await db.person.create({
-      data: {
-        displayName: "Fictional browser applicant",
-        email: `${username}@demo.invalid`,
-        emailVerifiedAt: new Date(),
-      },
+    // Use a transaction to ensure all operations succeed or fail together
+    const result = await db.$transaction(async (tx) => {
+      const person = await tx.person.create({
+        data: {
+          displayName: "Fictional browser applicant",
+          email: `${username}@demo.invalid`,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const account = await tx.account.create({
+        data: { personId: person.id, username },
+      });
+      await tx.credential.create({
+        data: {
+          accountId: account.id,
+          kind: "PASSWORD",
+          secretHash: await hash(password),
+          status: "ACTIVE",
+        },
+      });
+      // Use a proper offering code as scopeRef (matching demo accounts like bwalya.m -> BWL-2026-001)
+      await tx.roleAssignment.create({
+        data: {
+          accountId: account.id,
+          role: "APP",
+          scopeType: "APPLICATION",
+          scopeRef: "BWL-2026-001",
+          capabilities: ["apply"],
+          reason: "Isolated browser fixture",
+          startsAt: new Date("2020-01-01"),
+        },
+      });
+      return { username, password };
     });
-    const account = await db.account.create({
-      data: { personId: person.id, username },
-    });
-    await db.credential.create({
-      data: {
-        accountId: account.id,
-        kind: "PASSWORD",
-        secretHash: await hash(password),
-        status: "ACTIVE",
-      },
-    });
-    await db.roleAssignment.create({
-      data: {
-        accountId: account.id,
-        role: "APP",
-        scopeType: "APPLICATION",
-        scopeRef: account.id,
-        capabilities: ["apply"],
-        reason: "Isolated browser fixture",
-        startsAt: new Date("2020-01-01"),
-      },
-    });
-    return { username, password };
+    return result;
   } finally {
     await db.$disconnect();
   }
@@ -133,6 +138,81 @@ export async function createStudent() {
   }
 }
 
+/** Demo-only academic receiving route and an appointed adviser for one
+ * synthetic student. Never seeds an institutional service appointment. */
+export async function createAcademicSupportScenario() {
+  const student = await createStudent();
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname))
+    throw new Error("Browser tests require an isolated test/review database.");
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.adviser.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const record = await db.student.findUniqueOrThrow({
+      where: { studentNumber: student.studentNumber },
+      include: {
+        attempts: { include: { offering: { include: { programme: true } } } },
+      },
+    });
+    const offering = record.attempts[0].offering;
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser academic adviser",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    const appointment = await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "ADVISER",
+        scopeType: "PROGRAMME",
+        scopeRef: offering.programme.code,
+        capabilities: ["academic.support.receive"],
+        startsAt: new Date("2020-01-01"),
+        reason: "Isolated browser fixture",
+      },
+    });
+    await db.studentAdviserAssignment.create({
+      data: {
+        studentId: record.id,
+        adviserAssignmentId: appointment.id,
+        effectiveFrom: new Date("2020-01-01"),
+        sourceRef: "SYNTHETIC-BROWSER",
+      },
+    });
+    await db.academicSupportService.create({
+      data: {
+        programmeId: offering.programmeId,
+        campus: offering.campus,
+        name: "Fictional programme academic advising",
+        ownerAssignmentId: appointment.id,
+        status: "ACTIVE",
+        demoOnly: true,
+        effectiveFrom: new Date("2020-01-01"),
+        approvalRef: "SYNTHETIC-BROWSER",
+      },
+    });
+    return { student, adviser: { username, password } };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 5 slice 1: assess charges for the fixture student's registered
  * period through the real API (finance-officer session minted directly,
  * same pattern as the role fixtures above). Returns the invoice reference. */
@@ -141,8 +221,7 @@ export async function assessStudentCharges(studentNumber: string) {
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
     throw new Error("Browser tests require an isolated test/review database.");
   }
-  const api =
-    process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3101";
+  const api = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3101";
   const db = new PrismaClient({
     adapter: new PrismaPg({ connectionString: url }),
   });
@@ -254,6 +333,53 @@ export async function createFinanceOfficer() {
   }
 }
 
+/** Selected finance approver workspace for read-only queue and form checks. */
+export async function createFinanceApprover() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.fin.approver.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser finance approver",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "FINANCE_APPROVER",
+        scopeType: "FINANCE",
+        scopeRef: "GLOBAL",
+        capabilities: ["approve-adjustment"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 5 slice 6: open reconciliation case fixture for queue triage. */
 export async function seedReconCase() {
   const url = process.env.DATABASE_URL;
@@ -278,6 +404,82 @@ export async function seedReconCase() {
       },
     });
     return kase.id;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A single fictional pending arrangement for a browser-owned student. */
+export async function seedArrangement(studentNumber: string) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const student = await db.student.findUniqueOrThrow({
+      where: { studentNumber },
+      include: { person: { include: { accounts: true } } },
+    });
+    const account = await db.financeAccount.create({
+      data: { studentId: student.id },
+    });
+    const period = await db.academicPeriod.findUniqueOrThrow({
+      where: { code: "2026S1" },
+    });
+    const row = await db.financeArrangement.create({
+      data: {
+        accountId: account.id,
+        periodId: period.id,
+        terms: "Fictional two instalments for browser review",
+        reason: "Fictional temporary cash shortfall",
+        status: "REQUESTED",
+        policyVersion: "BROWSER-TEST",
+        requesterAccountId: student.person.accounts[0].id,
+      },
+    });
+    return row.id;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A fictional pending waiver for the finance review browser journey. */
+export async function seedAdjustment(studentNumber: string) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const student = await db.student.findUniqueOrThrow({
+      where: { studentNumber },
+      include: { person: { include: { accounts: true } } },
+    });
+    const account = await db.financeAccount.findUniqueOrThrow({
+      where: { studentId: student.id },
+    });
+    const period = await db.academicPeriod.findUniqueOrThrow({
+      where: { code: "2026S1" },
+    });
+    const row = await db.financeAdjustment.create({
+      data: {
+        accountId: account.id,
+        periodId: period.id,
+        kind: "WAIVER",
+        amountMinor: 12345,
+        currency: "ZMW",
+        reason: "Fictional browser waiver review",
+        status: "REQUESTED",
+        policyVersion: "BROWSER-TEST",
+        requesterAccountId: student.person.accounts[0].id,
+      },
+    });
+    return row.id;
   } finally {
     await db.$disconnect();
   }
@@ -542,7 +744,12 @@ export async function createCheckpointStudent() {
         },
       },
     });
-    return { username, password, studentNumber: student.studentNumber };
+    return {
+      username,
+      password,
+      studentNumber: student.studentNumber,
+      outboxId: eventId,
+    };
   } finally {
     await db.$disconnect();
   }
@@ -571,7 +778,10 @@ async function mintSid(
       },
     });
     const account = await db.account.create({
-      data: { personId: person.id, username: `browser.${label}.${randomUUID()}` },
+      data: {
+        personId: person.id,
+        username: `browser.${label}.${randomUUID()}`,
+      },
     });
     const assignment = await db.roleAssignment.create({
       data: {
@@ -602,7 +812,13 @@ async function mintSid(
 
 /** Phase 6 slice 6: privileged session cookies for API driving. */
 export const moodleAdminSid = () =>
-  mintSid("MOODLE_ADMIN", ["sync-moodle", "manage-mapping"], "SYSTEM", "MOODLE", "mdladmin");
+  mintSid(
+    "MOODLE_ADMIN",
+    ["sync-moodle", "manage-mapping"],
+    "SYSTEM",
+    "MOODLE",
+    "mdladmin",
+  );
 
 export const supportSid = () =>
   mintSid(
@@ -875,7 +1091,12 @@ export async function createModerator() {
         startsAt: new Date("2020-01-01"),
       },
     });
-    return { username, password, offeringRef: "SWE-2026S1", periodCode: "2026S1" };
+    return {
+      username,
+      password,
+      offeringRef: "SWE-2026S1",
+      periodCode: "2026S1",
+    };
   } finally {
     await db.$disconnect();
   }
@@ -904,6 +1125,109 @@ export async function ensureStagedStudent() {
       data: { personId: person.id, studentNumber },
     });
     return studentNumber;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Synthetic submitted cases for staff-queue pagination stories. */
+export async function createSyntheticAdmissionsCases(count = 2) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const references: string[] = [];
+  try {
+    const offering = await db.programmeOffering.findFirstOrThrow({
+      where: {
+        intake: { startsWith: "2026" },
+        programme: { code: "SWE" },
+        availability: "OPEN",
+      },
+    });
+    for (let index = 0; index < count; index += 1) {
+      const suffix = randomUUID();
+      const person = await db.person.create({
+        data: {
+          displayName: "Fictional queue pagination applicant",
+          email: `queue.${suffix}@demo.invalid`,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const account = await db.account.create({
+        data: { personId: person.id, username: `queue.${suffix}` },
+      });
+      const reference = `APP-QUEUE-${suffix}`;
+      await db.application.create({
+        data: {
+          accountId: account.id,
+          offeringId: offering.id,
+          reference,
+          state: "Submitted",
+          policyVersion: "APPLICATION-DEMO-v1",
+          requirementVersion: "SYNTHETIC-QUEUE-FIXTURE-v1",
+          submission: {
+            create: {
+              reference,
+              snapshot: { synthetic: true },
+              receipt: { reference },
+            },
+          },
+        },
+      });
+      references.push(reference);
+    }
+    return references;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A distinct fictional reviewer per browser journey, preserving sign-in limits. */
+export async function createAdmissionsOfficer() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.officer.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional admissions reviewer",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "ADMISSIONS_OFFICER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        capabilities: ["review-assigned"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
   } finally {
     await db.$disconnect();
   }

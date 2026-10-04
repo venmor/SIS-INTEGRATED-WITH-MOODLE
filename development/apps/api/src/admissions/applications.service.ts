@@ -1,7 +1,8 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
+import { Readable } from 'node:stream';
+import { getPolicySync, policy } from './policy.provider.js';
 import type {
   ApplicationView,
   ApplicationSection,
@@ -14,6 +15,7 @@ import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { validateSection, type Fields } from './validation.js';
 import { DocumentScanner, actualMime } from './scanner.js';
+import { ObjectStorageService, UploadMetadata } from './object-storage.service.js';
 import type {
   StartDto,
   SaveDto,
@@ -52,6 +54,7 @@ export class ApplicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scanner: DocumentScanner,
+    private readonly objectStorage: ObjectStorageService,
   ) {}
   fail(
     code: string,
@@ -112,7 +115,7 @@ export class ApplicationsService {
   }
   policy() {
     return {
-      ...policy,
+      ...getPolicySync(),
       upload: {
         ...policy.upload,
         scanner:
@@ -602,7 +605,7 @@ export class ApplicationsService {
       actor,
       dto.idempotencyKey,
       'SaveApplicationDraft',
-      { id, section, ...dto },
+      { id, section, ...(dto as object) },
       async (db) => {
         const row = await this.own(db, actor, id);
         this.editable(row, dto.version);
@@ -683,7 +686,7 @@ export class ApplicationsService {
       actor,
       dto.idempotencyKey,
       'ChangeApplicationProgrammeOffering',
-      { id, ...dto },
+      { id, ...(dto as object) },
       async (db) => {
         const row = await this.own(db, actor, id);
         if (!dto.confirmed)
@@ -782,7 +785,7 @@ export class ApplicationsService {
       actor,
       dto.idempotencyKey,
       'DiscardApplicationDraft',
-      { id, ...dto },
+      { id, ...(dto as object) },
       async (db) => {
         const row = await this.own(db, actor, id);
         if (!dto.confirmed)
@@ -846,7 +849,7 @@ export class ApplicationsService {
       actor,
       dto.idempotencyKey,
       'UploadSupportingDocument',
-      { id, ...dto, hash: digest(file.buffer.toString('base64')) },
+      { id, ...(dto as object), hash: digest(file.buffer.toString('base64')) },
       async (db) => {
         const row = await this.own(db, actor, id);
         this.editable(row, dto.version);
@@ -876,6 +879,41 @@ export class ApplicationsService {
             where: { id: current.id },
             data: { status: 'Withdrawn' },
           });
+
+        // The approved presentation adapter keeps quarantined bytes in the
+        // restricted database. Object storage remains a separate live gate.
+        const demoStorage = process.env.DEMO_MODE === 'true';
+        const bucket = demoStorage
+          ? 'demo-postgres'
+          : this.objectStorage.getBucketForCategory(dto.category);
+        const key = demoStorage
+          ? `${id}/${randomUUID()}`
+          : this.objectStorage.generateKey(id, dto.category, file.originalname);
+        const checksum = createHash('sha256').update(file.buffer).digest('hex');
+
+        const metadata: UploadMetadata = {
+          originalName: file.originalname
+            .replace(/[^\p{L}\p{N}_. -]/gu, '_')
+            .slice(-120),
+          mimeType: mime,
+          size: file.size,
+          checksum,
+          applicationId: id,
+          category: dto.category,
+          uploadedBy: actor.accountId,
+          uploadedAt: new Date().toISOString(),
+        };
+
+        if (!demoStorage) {
+          await this.objectStorage.uploadBuffer(
+            bucket as ReturnType<ObjectStorageService['getBucketForCategory']>,
+            key,
+            file.buffer,
+            metadata,
+          );
+        }
+
+        // Store the private demo bytes or the object-store reference.
         await db.applicationDocument.create({
           data: {
             applicationId: id,
@@ -885,8 +923,10 @@ export class ApplicationsService {
               .slice(-120),
             mimeType: mime,
             size: file.size,
-            content: new Uint8Array(file.buffer),
-            sha256: createHash('sha256').update(file.buffer).digest('hex'),
+            content: demoStorage ? new Uint8Array(file.buffer) : null,
+            bucket,
+            key,
+            sha256: checksum,
             version: (current?.version ?? 0) + 1,
             replacesId: current?.id,
             replacementReason: dto.replacementReason,
@@ -924,15 +964,16 @@ export class ApplicationsService {
     const row = await this.own(this.prisma, actor, id);
     const doc = row.documents.find((d) => d.id === docId);
     if (!doc) this.fail('NOT_FOUND', 'Document not found.', 404);
+
     const result =
       doc.status === 'SecurityScanPending'
-        ? await this.scanner.scan(doc.content)
+        ? await this.scanner.scan(await this.documentBytes(doc))
         : null;
     return this.command(
       actor,
       dto.idempotencyKey,
       'ScanApplicationDocument',
-      { id, docId, ...dto },
+      { id, docId, ...(dto as object) },
       async (db) => {
         const current = await this.own(db, actor, id);
         this.editable(current, dto.version);
@@ -944,7 +985,9 @@ export class ApplicationsService {
           );
         await db.applicationDocument.update({
           where: { id: docId },
-          data: result ?? { status: 'SecurityScanPending' },
+          data: result
+            ? { status: result.status, scanner: result.scanner }
+            : { status: 'SecurityScanPending' },
         });
         const updated = await db.application.update({
           where: { id },
@@ -987,7 +1030,27 @@ export class ApplicationsService {
       'ALLOW',
       { documentId: doc.id },
     );
-    return doc;
+    const bytes = await this.documentBytes(doc);
+    const { content: _content, ...safeDoc } = doc;
+    return {
+      ...safeDoc,
+      stream: Readable.from([bytes]),
+    };
+  }
+
+  private async documentBytes(doc: {
+    content: Uint8Array | null;
+    bucket: string;
+    key: string;
+  }): Promise<Buffer> {
+    if (doc.content) return Buffer.from(doc.content);
+    if (doc.bucket === 'demo-postgres') {
+      this.fail('DOCUMENT_UNAVAILABLE', 'This document is unavailable.', 503);
+    }
+    const { stream } = await this.objectStorage.download(doc.bucket as any, doc.key);
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
   }
   async review(actor: ActiveAuthority, id: string) {
     const application = await this.get(actor, id);
@@ -1003,7 +1066,7 @@ export class ApplicationsService {
       actor,
       dto.idempotencyKey,
       'SubmitApplication',
-      { id, ...dto },
+      { id, ...(dto as object) },
       async (db) => {
         const row = await this.own(db, actor, id);
         if (row.submission) {
@@ -1120,6 +1183,16 @@ export class ApplicationsService {
           'ALLOW',
           { snapshotId: idSnapshot, version: row.version, receipt: reference },
         );
+
+        // Get person details for notification delivery
+        const person = await this.actor(db, actor);
+
+        // Determine channels based on verified contacts
+        const channels: ('email' | 'sms' | 'internal')[] = ['internal'];
+        if (person.emailVerifiedAt) channels.push('email');
+        if (person.phoneVerifiedAt) channels.push('sms');
+
+        const correlationId = randomUUID();
         await db.outboxEvent.create({
           data: {
             aggregate: 'Application',
@@ -1129,8 +1202,25 @@ export class ApplicationsService {
               applicationId: id,
               snapshotId: idSnapshot,
               receiptReference: reference,
-              notice:
-                'You have an application update. Sign in to view it securely.',
+              applicantName: `${view.personal.givenName} ${view.personal.familyName}`,
+              reference,
+              programmeName: view.offering.programmeName,
+              intake: view.offering.intake,
+              submittedAt: now,
+              emailTo: person.email ?? undefined,
+              smsTo: person.phone ?? undefined,
+              recipientAccountId: actor.accountId,
+              templateKey: 'APPLICATION_SUBMITTED',
+              templateVars: {
+                applicantName: `${view.personal.givenName} ${view.personal.familyName}`,
+                reference,
+                programmeName: view.offering.programmeName,
+                intake: view.offering.intake,
+                submittedAt: now,
+              },
+              channels,
+              correlationId,
+              idempotencyKey: dto.idempotencyKey,
             }),
           },
         });

@@ -6,10 +6,19 @@
   background: var(--bg-surface);
   padding: var(--space-5);
   max-width: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.card:hover,
+.card:focus-within {
+  border-color: var(--green-500);
+  box-shadow: var(--shadow-md);
 }
 
 .name {
-  font-size: var(--font-body);
+  font-size: var(--font-section);
   line-height: var(--line-tight);
   margin: 0;
 }
@@ -85,4 +94,10 @@
 
 .secondaryAction:hover {
   color: var(--link-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
 }

@@ -1,0 +1,9 @@
+# Payment-arrangement review queue — 2026-10-03
+
+[TASK-V2-FIN-002](../task-packets/TASK-V2-FIN-002.md) replaces the unbounded staff `GET /finance/arrangements` list with a database-limited pending queue. Staff can order oldest or newest, navigate twenty requests at a time, see the exact pending count and recover from a stale page. A signed cursor binds the selected live finance appointment, actor, resource and order; changing the anchor or any bound context is refused. The existing student request-history branch and individual arrangement decision command are unchanged.
+
+The staff page now uses a responsive table with terms, reason and state. The decision form selects one request from the current page rather than requiring staff to copy a raw database ID. It does not grant Finance Officers approval power; the command's existing server authority remains in force. Queue counts are operational indicators, not certified reports or service-priority promises.
+
+The focused API test first failed because `take=1` returned the entire pending list. It then passed after implementation, including approver access and student isolation. The full finance governance suite passed **23/23** using the repo environment loader and isolated review database; the connected finance browser journey passed **1/1** at 390px. Prisma validation and migration deployment, fresh API and web production builds, API/web lint and `git diff --check` passed. API lint retains unrelated existing warnings. The new index is `(status,createdAt,id)` and changes no ledger or arrangement status records. No external provider call or download occurred.
+
+Follow-on work: exact arrangement lookup, staffing scope and priority policy, bounded adjustment and student-history queues, approved fee/clearance terms, real payment-provider/recovery evidence and human acceptance remain open.

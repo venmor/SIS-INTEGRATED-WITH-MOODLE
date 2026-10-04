@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./security-legacy.js": {
+      "types": "./dist/security-legacy.d.ts",
+      "import": "./dist/security-legacy.js",
+      "default": "./dist/security-legacy.js"
     }
   },
   "files": ["dist"],

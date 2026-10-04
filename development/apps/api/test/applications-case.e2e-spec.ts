@@ -95,7 +95,8 @@ describe('Phase 2 post-submit applicant case', () => {
         idempotencyKey: key(),
       },
       c,
-    ).expect(201);
+    );
+    expect(started.status, JSON.stringify(started.body)).toBe(201);
     const id = started.body.id as string;
     let version = started.body.version as number;
     const save = async (section: string, data: object) => {

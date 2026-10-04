@@ -90,6 +90,16 @@ describe('policy (e2e)', () => {
     await app.init();
     server = app.getHttpServer();
     prisma = app.get(PrismaService);
+    const root = await prisma.scope.findUniqueOrThrow({
+      where: { name: 'SYSTEM:GLOBAL' },
+    });
+    await prisma.scope.create({
+      data: {
+        name: `TUTORIAL_GROUP:SWE101-TG9-2026S1-${stamp}`,
+        description: 'Isolated policy test tutorial group',
+        parentScopeId: root.id,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -128,6 +138,9 @@ describe('policy (e2e)', () => {
     });
     await prisma.roleAssignment.deleteMany({
       where: { reason: { startsWith: 'E2E pol grant ' } },
+    });
+    await prisma.scope.delete({
+      where: { name: `TUTORIAL_GROUP:SWE101-TG9-2026S1-${stamp}` },
     });
     await app.close();
   }, 60000);

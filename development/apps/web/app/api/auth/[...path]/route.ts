@@ -11,7 +11,9 @@ const API = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
 // Handbook slice-2 + slice-3 + slice-4 + slice-5 scope: sign-in/out, own
 // record, recovery, demo token, demo-visible policy, workspace switch,
 // expiry warnings, grants, grant-target resolve, command receipts, access
-// reviews (+decide), reinstatement, break-glass, audit timeline.
+// reviews (+decide), reinstatement, break-glass, audit timeline and the
+// authenticated finance approval challenge. The secret/code stays in the
+// request body and is never placed in a URL.
 // Later-slice APIs belong here only when their task packets land.
 const ALLOWED: Record<string, readonly string[]> = {
   GET: [
@@ -32,6 +34,7 @@ const ALLOWED: Record<string, readonly string[]> = {
     "grants/resolve",
     "break-glass",
     "reinstate",
+    "step-up/challenge",
   ],
 };
 

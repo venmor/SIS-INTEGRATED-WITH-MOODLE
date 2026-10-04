@@ -34,10 +34,10 @@ export async function auditAuth(
   // incident), tag the row unless the caller already recorded it. Daemon and
   // guard paths run outside any store and pass through untouched.
   const incidentRef = currentIncidentRef();
-  const metadata =
-    incidentRef && !(entry.metadata && 'incidentRef' in entry.metadata)
-      ? { ...(entry.metadata ?? {}), incidentRef }
-      : (entry.metadata ?? undefined);
+  const hasIncidentRef = incidentRef && !(entry.metadata && 'incidentRef' in entry.metadata);
+  const metadata = hasIncidentRef
+    ? { ...(entry.metadata ?? {}), incidentRef }
+    : entry.metadata;
   const row = await prisma.auditEvent.create({
     data: {
       action: entry.action,
@@ -52,7 +52,7 @@ export async function auditAuth(
       idempotencyRef: entry.idempotencyRef ?? null,
       priorState: entry.priorState ?? undefined,
       newState: entry.newState ?? undefined,
-      metadata,
+      metadata: metadata ?? undefined,
       policyVersion: SECURITY_V1.version,
       correlationId: randomUUID(),
     },

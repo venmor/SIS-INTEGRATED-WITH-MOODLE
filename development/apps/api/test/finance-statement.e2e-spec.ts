@@ -150,8 +150,9 @@ describe('Phase 5 student account and statement', () => {
       .field('idempotencyKey', key())
       .attach('file', pdf, 'fictional-result.pdf')
       .expect(201);
-    const docId = (uploaded.body as { documents: Array<{ id: string }> })
-      .documents.at(-1)?.id as string;
+    const docId = (
+      uploaded.body as { documents: Array<{ id: string }> }
+    ).documents.at(-1)?.id as string;
     version = (uploaded.body as { version: number }).version;
     await appPost(
       `/${id}/documents/${docId}/scan`,
@@ -260,7 +261,11 @@ describe('Phase 5 student account and statement', () => {
     return { id, cookie: `sid=${token}` };
   }
 
-  const DECLARATIONS = ['PLAN_ACCURATE', 'RULES_UNDERSTOOD', 'FINANCE_UNDERSTOOD'];
+  const DECLARATIONS = [
+    'PLAN_ACCURATE',
+    'RULES_UNDERSTOOD',
+    'FINANCE_UNDERSTOOD',
+  ];
 
   async function invoicedStudent(codes = ['SWE111', 'MTH111', 'ENG111']) {
     const student = await convertedStudent();
@@ -272,7 +277,11 @@ describe('Phase 5 student account and statement', () => {
     const planVersion = (saved.body as { version: number }).version;
     await regPost(
       '/submit',
-      { version: planVersion, idempotencyKey: key(), declarations: DECLARATIONS },
+      {
+        version: planVersion,
+        idempotencyKey: key(),
+        declarations: DECLARATIONS,
+      },
       student.cookie,
     ).expect(201);
     const attempt = await db.programmeAttempt.findUniqueOrThrow({
@@ -333,9 +342,67 @@ describe('Phase 5 student account and statement', () => {
     await app.close();
   });
 
+  it('student-periods: only own invoiced periods are listed, with no inferred current term', async () => {
+    const student = await invoicedStudent();
+    const other = await invoicedStudent();
+    const attempt = await db.programmeAttempt.findUniqueOrThrow({
+      where: { applicationId: student.id },
+    });
+    const owner = await db.student.findFirstOrThrow({
+      where: { attempts: { some: { id: attempt.id } } },
+    });
+    const account = await db.financeAccount.findUniqueOrThrow({
+      where: { studentId: owner.id },
+    });
+    const later = await db.academicPeriod.create({
+      data: { code: `T${key().slice(0, 7)}`, status: 'OPEN' },
+    });
+    await db.financeInvoice.create({
+      data: {
+        accountId: account.id,
+        periodId: later.id,
+        reference: `INV-T-${key().slice(0, 8)}`,
+        policyVersion: 'FINANCE-DEMO-v1',
+      },
+    });
+    const listed = await finGet('/periods', student.cookie).expect(200);
+    expect(
+      (listed.body as { items: Array<{ code: string }> }).items.map(
+        (item) => item.code,
+      ),
+    ).toEqual(expect.arrayContaining(['2026S1', later.code]));
+    const others = await finGet('/periods', other.cookie).expect(200);
+    expect(
+      (others.body as { items: Array<{ code: string }> }).items.map(
+        (item) => item.code,
+      ),
+    ).not.toContain(later.code);
+    const lecturer = await user('LEC', ['teach'], 'OFFERING', 'SWE101-2026S1');
+    await finGet('/periods', lecturer.cookie).expect(403);
+  });
+
+  it('arrangement requires an invoice in the selected period', async () => {
+    const student = await invoicedStudent();
+    const otherPeriod = await db.academicPeriod.create({
+      data: { code: `T${key().slice(0, 7)}`, status: 'OPEN' },
+    });
+    await finPost(
+      '/arrangements',
+      {
+        idempotencyKey: key(),
+        period: otherPeriod.code,
+        terms: 'Pay in two parts',
+        reason: 'Synthetic review',
+      },
+      student.cookie,
+    ).expect(404);
+  });
+
   it('account-summary: period, status, amount, action, deadline, support', async () => {
     const student = await invoicedStudent();
-    const res = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const res = await finGet('/account?period=2026S1', student.cookie).expect(
+      200,
+    );
     const body = res.body as {
       studentNumber: string;
       period: string;
@@ -379,12 +446,21 @@ describe('Phase 5 student account and statement', () => {
     });
     await db.financeClearance.upsert({
       where: {
-        studentId_periodId: { studentId: attemptStudent.id, periodId: period.id },
+        studentId_periodId: {
+          studentId: attemptStudent.id,
+          periodId: period.id,
+        },
       },
       update: { status: 'HELD' },
-      create: { studentId: attemptStudent.id, periodId: period.id, status: 'HELD' },
+      create: {
+        studentId: attemptStudent.id,
+        periodId: period.id,
+        status: 'HELD',
+      },
     });
-    const res = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const res = await finGet('/account?period=2026S1', student.cookie).expect(
+      200,
+    );
     const body = res.body as {
       clearanceStatus: string;
       clearanceWording: string;
@@ -397,7 +473,9 @@ describe('Phase 5 student account and statement', () => {
 
   it('statement-lines: charges in order with currency and source', async () => {
     const student = await invoicedStudent();
-    const res = await finGet('/statement?period=2026S1', student.cookie).expect(200);
+    const res = await finGet('/statement?period=2026S1', student.cookie).expect(
+      200,
+    );
     const body = res.body as {
       reference: string;
       lines: Array<{
@@ -427,7 +505,9 @@ describe('Phase 5 student account and statement', () => {
 
   it('statement-totals: invoiced, paid and outstanding reconcile', async () => {
     const student = await invoicedStudent();
-    const res = await finGet('/statement?period=2026S1', student.cookie).expect(200);
+    const res = await finGet('/statement?period=2026S1', student.cookie).expect(
+      200,
+    );
     const body = res.body as {
       invoicedMinor: number;
       paidMinor: number;
@@ -442,16 +522,17 @@ describe('Phase 5 student account and statement', () => {
 
   it('receipt-absent: no receipt before any confirmed payment', async () => {
     const student = await invoicedStudent();
-    const res = await finGet(
-      '/receipts/INV-2026-0000',
-      student.cookie,
-    ).expect(404);
+    const res = await finGet('/receipts/INV-2026-0000', student.cookie).expect(
+      404,
+    );
     expect((res.body as { code: string }).code).toBe('RECEIPT_NOT_FOUND');
   });
 
   it('account-empty: no invoice yet says so safely', async () => {
     const student = await convertedStudent();
-    const res = await finGet('/account?period=2026S1', student.cookie).expect(404);
+    const res = await finGet('/account?period=2026S1', student.cookie).expect(
+      404,
+    );
     expect((res.body as { code: string }).code).toBe('INVOICE_NOT_READY');
     await finGet('/statement?period=2026S1', student.cookie).expect(404);
   });

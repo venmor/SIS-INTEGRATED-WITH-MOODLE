@@ -124,12 +124,31 @@
   overflow-wrap: anywhere;
 }
 
+.wideCards .dataTableCardRow {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.wideCards .dataTableCardValue {
+  text-align: left;
+}
+
 @media (max-width: 44rem) {
   .dataTableScroll {
     display: none;
   }
 
   .dataTableCards {
+    display: block;
+  }
+}
+
+@media (max-width: 75rem) {
+  .wideCards .dataTableScroll {
+    display: none;
+  }
+
+  .wideCards .dataTableCards {
     display: block;
   }
 }

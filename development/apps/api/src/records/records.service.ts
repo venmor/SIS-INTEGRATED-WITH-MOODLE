@@ -496,6 +496,39 @@ export class RecordsService {
           applicationId,
           policyVersion: policy.version,
         });
+
+        // Emit OutboxEvent for StudentConverted
+        const correlationId = randomUUID();
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Student',
+            aggregateId: student.id,
+            type: 'StudentConverted',
+            payload: json({
+              studentId: student.id,
+              studentNumber: student.studentNumber,
+              personId: person.id,
+              applicationId,
+              attemptId: attempt.id,
+              programmeName: app.offering.programme.name,
+              intake: app.offering.intake,
+              temporaryPassword: 'TempPass123!', // In real implementation, this would be generated
+              recipientAccountId: app.accountId,
+              templateKey: 'STUDENT_CONVERSION',
+              templateVars: {
+                studentName: app.account.person.displayName,
+                studentNumber: student.studentNumber,
+                programmeName: app.offering.programme.name,
+                intake: app.offering.intake,
+                temporaryPassword: 'TempPass123!',
+              },
+              channels: ['email', 'internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         const body = this.toStudent(student, attempt, curriculum.version);
         return { body };
       },

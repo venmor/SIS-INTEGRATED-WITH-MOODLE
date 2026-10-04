@@ -11,10 +11,14 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  MinLength,
+  Matches,
   Min,
   Max,
   ValidateNested,
   ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
 } from 'class-validator';
 export class KeyDto {
   @IsUUID() idempotencyKey!: string;
@@ -102,7 +106,7 @@ export class ReleaseReviewDto extends VersionDto {}
 export class ReviewQueueQuery {
   @IsOptional()
   @IsIn(['mine', 'pool'])
-  scope?: string;
+  scope?: 'mine' | 'pool';
   @IsOptional()
   @IsString()
   @MaxLength(32)
@@ -114,11 +118,40 @@ export class ReviewQueueQuery {
   @IsBoolean()
   actionNeeded?: boolean;
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @MinLength(2)
+  @MaxLength(64)
+  @Matches(/^[A-Z0-9][A-Z0-9-]*$/)
+  reference?: string;
+  @IsOptional()
+  @IsIn(['oldest', 'newest'])
+  sort?: 'oldest' | 'newest';
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  cursor?: string;
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
   take?: number;
+}
+class PreparationSelectionDto {
+  @IsUUID() applicationId!: string;
+  @Type(() => Number) @IsInt() @Min(1) version!: number;
+}
+export class PreparationPreviewDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ArrayUnique((item: PreparationSelectionDto) => item.applicationId)
+  @ValidateNested({ each: true })
+  @Type(() => PreparationSelectionDto)
+  items!: PreparationSelectionDto[];
 }
 // Phase 3 slice 2 comparison DTOs (TASK-PH3-002). Finding kinds/severities
 // are demo enumerations; staff clarification mirrors the simulation shape

@@ -307,3 +307,215 @@ export class AuditTimelineQueryDto {
   @Max(100)
   take?: number;
 }
+
+// Task 1.2: Self-registration DTOs
+export class RegisterStartDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(SECURITY_V1.passwordPolicy.minLength)
+  @MaxLength(256)
+  password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  displayName!: string;
+}
+
+export class RegisterVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(SECURITY_V1.contactVerificationCodeLength)
+  @MaxLength(SECURITY_V1.contactVerificationCodeLength)
+  code!: string;
+}
+
+export class RegisterCompleteDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(SECURITY_V1.passwordPolicy.minLength)
+  @MaxLength(256)
+  password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  displayName!: string;
+}
+
+// Task 1.2: MFA DTOs
+export class MFAEnrollTOTPDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(16)
+  @MaxLength(32)
+  secret!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(6)
+  code!: string;
+}
+
+export class MFAVerifyTOTPDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(6)
+  code!: string;
+}
+
+export class MFAVerifyBackupCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  code!: string;
+}
+
+// Task 1.2: Step-up DTOs
+export class StepUpChallengeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  targetAction!: string;
+}
+
+export class StepUpVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  challengeId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  code!: string;
+
+  @IsIn(['TOTP', 'BACKUP_CODE'])
+  codeType!: 'TOTP' | 'BACKUP_CODE';
+}
+
+// Task 1.2: Recovery method DTOs
+export class RecoveryMethodAddDto {
+  @IsIn(['EMAIL', 'PHONE', 'SECURITY_QUESTION', 'RECOVERY_CODE'])
+  type!: 'EMAIL' | 'PHONE' | 'SECURITY_QUESTION' | 'RECOVERY_CODE';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  value!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  priority?: number;
+}
+
+export class RecoveryMethodVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  value!: string;
+}
+
+export class RecoveryStartDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  username!: string;
+
+  @IsIn(['EMAIL', 'PHONE', 'SECURITY_QUESTION', 'RECOVERY_CODE'])
+  methodType!: 'EMAIL' | 'PHONE' | 'SECURITY_QUESTION' | 'RECOVERY_CODE';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  methodValue?: string;
+
+  // Optional fields for suspicion detection (filled by controller from request)
+  @IsOptional()
+  @IsString()
+  ip?: string;
+
+  @IsOptional()
+  @IsString()
+  userAgent?: string;
+}
+
+// GAP-011: Recovery Review Queue DTOs
+export const RECOVERY_REVIEW_DECISIONS = [
+  'APPROVE',
+  'DENY',
+  'ESCALATE',
+] as const;
+export type RecoveryReviewDecision = (typeof RECOVERY_REVIEW_DECISIONS)[number];
+
+export class RecoveryReviewDecideDto {
+  @IsIn([...RECOVERY_REVIEW_DECISIONS])
+  decision!: RecoveryReviewDecision;
+
+  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MinLength(8)
+  @MaxLength(512)
+  reason!: string;
+}
+
+export class RecoveryReviewQueryDto {
+  @IsOptional()
+  @IsIn(['PENDING', 'CLAIMED', 'DECIDED'])
+  status?: string;
+
+  @IsOptional()
+  @IsIn(['HIGH', 'MEDIUM', 'LOW'])
+  priority?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  skip?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  take?: number;
+}
