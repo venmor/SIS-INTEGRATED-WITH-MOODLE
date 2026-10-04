@@ -2,7 +2,9 @@ import styles from "./ContextBar.module.css";
 
 const roleLabels: Record<string, string> = {
   APPLICANT: "Applicant",
+  APP: "Applicant",
   STUDENT: "Student",
+  STU: "Student",
   ADMISSIONS_OFFICER: "Admissions officer",
   ADMISSIONS_APPROVER: "Admissions approver",
   RECORDS_OFFICER: "Records officer",
