@@ -266,7 +266,6 @@ export class ConfigurationService {
     item: ConfigurationItem,
     value: unknown,
   ): { valid: boolean; error?: string } {
-    const valueType = item.valueType;
     try {
       switch (item.valueType) {
         case 'number': {

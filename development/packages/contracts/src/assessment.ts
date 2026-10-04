@@ -37,7 +37,7 @@ export interface GradeMappingView {
 }
 export interface GradeMappingTestView {
   id: string;
-  result: 'PASS' | 'FAIL';
+  result: "PASS" | "FAIL";
   reasons: string[];
   conditions: Array<{ condition: string; passed: boolean }>;
 }
@@ -158,51 +158,47 @@ export interface BoardDecisionView {
 export interface ResultPackageDetailView extends ResultPackageView {
   decisions: BoardDecisionView[];
 }
-/** Phase 7 slice 6: official release views (TASK-PH7-006). Students see
- * only their own RELEASED rows; outcome PASS/FAIL derives from the demo
- * pass mark (interim, SUP-009). ISO date strings. */
-export interface OfficialResultView {
-  offeringRef: string;
-  periodCode: string;
-  studentRef: string;
-  total: number;
-  outcome: string;
-  version: number;
-  publishedAt: string;
+
+/** Published student projection: never includes board discussion or peer data. */
+export interface StudentResultsView {
+  items: Array<{
+    courseCode: string;
+    courseTitle: string;
+    courseType: string;
+    periodCode: string;
+    mark: number | null;
+    outcome: string;
+    version: number;
+    publishedAt: string;
+    progressionReadiness: "NOT_EVALUATED" | "REVIEW_REQUIRED";
+    reviewInstructions: string;
+    history: Array<{
+      version: number;
+      mark: number | null;
+      outcome: string;
+      publishedAt: string;
+    }>;
+  }>;
+  notices: Array<{ message: string; href: string; createdAt: string }>;
 }
-export interface ReleaseView {
-  packageId: string;
-  version: number;
-  status: string;
-  studentCount: number;
-  releaseHash: string;
-  publishedAt: string;
-}
-/** Phase 7 slice 7: result amendment skeleton views (TASK-PH7-007).
- * Cases move OPEN→APPROVED/DECLINED; approval writes a new immutable
- * official row (supersede link in trace) + an academic-impact stub
- * task (progression recalculation queue). Students see only the
- * latest RELEASED version. ISO date strings. */
-export interface AmendmentCaseView {
-  id: string;
-  packageId: string;
-  studentRef: string;
-  status: string;
-  version: number;
-  correctedTotal: number;
-  correctedOutcome: string;
-  reason: string;
-  requestedBy: string;
-  createdAt: string;
-}
-export interface AcademicImpactView {
-  id: string;
-  kind: string;
-  status: string;
-  studentRef: string;
-}
-export interface AmendmentCaseDetailView extends AmendmentCaseView {
-  decidedBy: string | null;
-  decidedAt: string | null;
-  impacts: AcademicImpactView[];
+export interface ResultPublicationWorkspace {
+  nextReleaseCursor: string | null;
+  nextAmendmentCursor: string | null;
+  releases: Array<{
+    id: string;
+    packageId: string;
+    offeringRef: string;
+    periodCode: string;
+    publishedAt: string;
+    current: boolean;
+  }>;
+  amendments: Array<{
+    id: string;
+    releaseId: string;
+    packageId: string;
+    reason: string;
+    evidenceRef: string;
+    version: number;
+    status: string;
+  }>;
 }

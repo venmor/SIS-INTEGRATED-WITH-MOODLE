@@ -11,7 +11,7 @@ interface FieldError {
 
 // Student arrangement request: terms plus reason. Submission creates a
 // review case; it never clears anything by itself.
-export function ArrangementForm() {
+export function ArrangementForm({ period }: { period: string }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -31,6 +31,7 @@ export function ArrangementForm() {
           "x-requested-with": "XMLHttpRequest",
         },
         body: JSON.stringify({
+          period,
           terms: String(data.get("arrange-terms") ?? ""),
           reason: String(data.get("arrange-reason") ?? ""),
           idempotencyKey: crypto.randomUUID(),

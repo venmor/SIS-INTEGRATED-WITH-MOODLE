@@ -1,0 +1,9 @@
+# Student-owned finance periods — 2026-10-04
+
+[TASK-V2-FIN-004](../task-packets/TASK-V2-FIN-004.md) removes the student finance page's fixed `2026S1` request. The finance API lists only invoice periods belonging to the signed-in student, ordered by issue time. The page labels the newest one **Latest invoice**, lets the student select another invoiced period, and retains that choice in the URL and the payment/arrangement links. Account, invoice, statement and payment history are read for the same selected period. A missing or foreign period shows an explicit recovery link rather than silently showing another period.
+
+Payment initiation/reporting and arrangement requests now submit the visible period. The arrangement command also requires an invoice in that period. Existing server ownership, payment uncertainty, approval and ledger rules remain authoritative. This adds no fee policy, provider, real payment or institutional current-term inference.
+
+The absent periods route produced an observed 404 in the new API test. After implementation, the finance statement e2e suite passed **10/10** on isolated synthetic PostgreSQL, including own-period isolation, wrong-role denial and arrangement-without-invoice denial. The wider finance governance suite passed **24/24** with the repository environment loader. An initial run without that loader returned 503 on seven simulated callback cases because the simulation secret was absent; the configured rerun passed. The student portal browser story passed **1/1** at 390px, including period selection and navigation into the selected payment route. Fresh web and API production builds, lint and formatting passed; API lint retains unrelated existing warnings. No package, data or provider download occurred.
+
+Follow-on work: bounded student payment/arrangement history, provider-backed payments and reconciliation, approved fee/clearance policy, and human finance acceptance remain open.

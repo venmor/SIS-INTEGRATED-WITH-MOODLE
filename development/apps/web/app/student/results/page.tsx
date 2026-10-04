@@ -1,103 +1,102 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import type { OfficialResultView } from "@sis/contracts";
+import styles from "./results.module.css";
 import { Card, Notice, PageHeader, StatusChip } from "@sis/ui";
-import { StudentUnavailable } from "../chrome";
-import styles from "../student.module.css";
+import type { StudentResultsView } from "@sis/contracts";
+import { loadResult } from "../../admin/assessment/result-server";
+import { formatLusaka } from "../../../lib/time";
 
 export const dynamic = "force-dynamic";
-
-// Read-only assessment fetch for students: loadStudent() targets the
-// records module, so this page carries its own /assessment loader with
-// the same cookie, no-store and sign-in-redirect discipline. The API
-// resolves ownership server-side (Account → Person → Student) and
-// returns only the caller's RELEASED rows.
-async function loadOwnResults(): Promise<{
-  data: { items: OfficialResultView[] } | null;
-  message: string;
-}> {
-  const sid = (await cookies()).get("sid")?.value;
-  if (!sid) redirect("/sign-in?returnTo=%2Fstudent%2Fresults");
-  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
-  let response: Response;
-  try {
-    response = await fetch(`${api}/assessment/results/mine`, {
-      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(10000),
-    });
-  } catch {
-    return {
-      data: null,
-      message:
-        "We cannot reach the results service. Your record is kept. Try again shortly.",
-    };
-  }
-  if (response.status === 401) redirect("/sign-in?returnTo=%2Fstudent%2Fresults");
-  if (!response.ok) {
-    return {
-      data: null,
-      message: "Your official results are unavailable right now.",
-    };
-  }
-  return { data: (await response.json()) as { items: OfficialResultView[] }, message: "" };
-}
-
-// Student official results (TASK-PH7-006): only the caller's RELEASED
-// rows, each labelled as an official released result. Anything else is
-// a neutral "not yet released" state: provisional Moodle marks are
-// never official, and board notes never leave the staff workspace.
-export default async function StudentResultsPage() {
-  const res = await loadOwnResults();
-  if (!res.data) return <main id="student-content"><StudentUnavailable message={res.message} /></main>;
-  const items = res.data.items;
+export default async function ResultsPage() {
+  const result = await loadResult<StudentResultsView>(
+    "/me/results",
+    "/student/results",
+  );
   return (
-    <main id="student-content">
+    <main id="main-content" tabIndex={-1} className={styles.page}>
       <PageHeader
         eyebrow="Student portal"
         title="Official results"
-        lede="Your officially released course results. Only published outcomes appear here."
+        lede="Published course results and their version history. Progression decisions are shown separately from course outcomes."
       />
       <p>
-        <Link href="/student">Back to student portal</Link>
+        <Link href="/student">Student home</Link>
       </p>
-      {items.length === 0 ? (
+      {!result.data ? (
         <Notice
-          severity="info"
-          title="No official results released yet"
-          message="When the examinations office releases your official results, they appear here. Provisional Moodle marks are never official results."
+          severity="warning"
+          title="Results unavailable"
+          message={result.message}
         />
       ) : (
-        <ul className={styles.history}>
-          {items.map((item) => (
-            <li key={`${item.offeringRef}-${item.periodCode}-${item.publishedAt}`}>
+        <>
+          {result.data.items.length === 0 ? (
+            <Notice
+              severity="info"
+              title="No official results released"
+              message="Results will appear here after the authorized publication process. A Moodle mark is learning feedback and does not establish your official result."
+            />
+          ) : null}
+          {result.data.items.map((item) => (
+            <Card
+              key={`${item.courseCode}-${item.periodCode}`}
+              title={`${item.courseCode} · ${item.courseTitle}`}
+            >
               <p>
-                <strong>
-                  {item.offeringRef} · {item.periodCode}
-                </strong>{" "}
+                {item.periodCode} ·{" "}
                 <StatusChip tone="success">
                   Official result — released
                 </StatusChip>
               </p>
-              <p className={styles.meta}>
-                Total {item.total} · {item.outcome}
-                {item.version > 1
-                  ? ` · amended official version ${item.version}`
-                  : ""}{" "}
-                · published {item.publishedAt.slice(0, 10)}
-              </p>
-            </li>
+              <dl>
+                <dt>Outcome</dt>
+                <dd>{item.outcome}</dd>
+                <dt>Official mark</dt>
+                <dd>
+                  {item.mark === null
+                    ? "Not displayed under the release policy"
+                    : `${item.mark} / 100`}
+                </dd>
+                <dt>Published</dt>
+                <dd>{formatLusaka(item.publishedAt)}</dd>
+                <dt>Current version</dt>
+                <dd>{item.version}</dd>
+              </dl>
+              <Notice
+                severity="info"
+                title={
+                  item.progressionReadiness === "REVIEW_REQUIRED"
+                    ? "Academic impact review required"
+                    : "Progression not yet evaluated"
+                }
+                message={
+                  item.progressionReadiness === "REVIEW_REQUIRED"
+                    ? "This result was amended. The responsible academic team must review its effect on progression and registration. Your existing courses and learning access have not been removed by this amendment."
+                    : "This course result does not itself decide progression, supplementary eligibility or a repeat requirement."
+                }
+              />
+              <h2>Result review</h2>
+              <p>{item.reviewInstructions}</p>
+              <details>
+                <summary>Published version history</summary>
+                <ol>
+                  {item.history.map((version) => (
+                    <li key={version.version}>
+                      Version {version.version}: {version.outcome}
+                      {version.mark === null
+                        ? ""
+                        : ` · ${version.mark} / 100`}{" "}
+                      · {formatLusaka(version.publishedAt)}
+                      {version.version === item.version
+                        ? " · Current"
+                        : " · Superseded"}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            </Card>
           ))}
-        </ul>
+        </>
       )}
-      <Card title="About these results">
-        <p className={styles.meta}>
-          Released results are immutable official records. If you believe a
-          result is wrong, contact the examinations office; corrections and
-          appeals follow the published academic process.
-        </p>
-      </Card>
     </main>
   );
 }

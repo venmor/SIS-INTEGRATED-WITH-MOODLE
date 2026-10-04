@@ -33,9 +33,12 @@ export function StartForm({
     })
       .then(async (r) => {
         if (!r.ok) throw new Error("Choose a published programme first.");
-        setOffering(await r.json());
+        const data = await r.json();
+        setOffering(data);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+      });
   }, [offeringId]);
   async function start() {
     if (pending) return;
@@ -56,7 +59,9 @@ export function StartForm({
   return (
     <>
       <h1>Start an application</h1>
-      <p className={styles.eyebrow}>Application policy version {policy.version}</p>
+      <p className={styles.eyebrow}>
+        Application policy version {policy.version}
+      </p>
       {error && (
         <ErrorSummary
           title="We could not start your application"
@@ -69,7 +74,7 @@ export function StartForm({
           {String(offering?.intake ?? "")} · {String(offering?.studyMode ?? "")}{" "}
           · {String(offering?.campus ?? "")}
         </p>
-        <p>{policy.fee.explanation}</p>
+        {policy.fee?.explanation && <p>{policy.fee.explanation}</p>}
         <p>
           Up to {policy.maxActivePerIntake} active applications are permitted
           per intake, with {policy.maxChoices} programme choice per application.
@@ -127,14 +132,29 @@ export function Workspace({
     [file, setFile] = useState<File | null>(null),
     [category, setCategory] = useState("qualification"),
     [reason, setReason] = useState(""),
-    [progress, setProgress] = useState<number | null>(null);
+    [progress, setProgress] = useState<number | null>(null),
+    [uploadPhase, setUploadPhase] = useState<"transferring" | "receipt" | null>(
+      null,
+    );
   const command = useRef<{ path: string; body: Details } | null>(null),
     busy = useRef(false),
     uploadAbort = useRef<XMLHttpRequest | null>(null),
+    fileInput = useRef<HTMLInputElement | null>(null),
     autosaveRef = useRef<() => void>(() => {});
   const a = review.application,
     p = review.policy,
+    demoFixtureOnly =
+      p.demo && p.upload.scanner.startsWith("DEMO-EXACT-FIXTURE"),
     formSection = ["personal", "contact", "qualifications"].includes(section);
+  useEffect(() => {
+    // A file can be selected before this client form hydrates. Recover the
+    // browser's selection instead of leaving Upload disabled indefinitely.
+    const selected = fileInput.current?.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setDirty(true);
+    }
+  }, [section]);
   useEffect(() => {
     if (section === "programme")
       fetch("/api/catalogue/programmes?availability=OPEN&take=50")
@@ -395,7 +415,8 @@ export function Workspace({
     );
   }
   async function upload() {
-    if (!file || busy.current) return;
+    const selectedFile = file ?? fileInput.current?.files?.[0];
+    if (!selectedFile || busy.current) return;
     const current = a.documents
       .filter((d) => d.category === category && d.status !== "Withdrawn")
       .at(-1);
@@ -405,9 +426,12 @@ export function Workspace({
     }
     busy.current = true;
     setPending(true);
-    setMessage("Uploading document…");
+    setProgress(0);
+    setUploadPhase("transferring");
+    setMessage("Uploading document… 0%");
+    setErrors({});
     const body = new FormData();
-    body.set("file", file);
+    body.set("file", selectedFile);
     body.set("category", category);
     body.set("version", String(a.version));
     body.set("idempotencyKey", crypto.randomUUID());
@@ -420,17 +444,27 @@ export function Workspace({
     xhr.open("POST", `/api/applications/${a.id}/documents`);
     xhr.timeout = 25000;
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable)
-        setProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable && e.total > 0) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        setProgress(percent);
+        setMessage(`Uploading document… ${percent}%`);
+      }
+    };
+    xhr.upload.onload = () => {
+      setUploadPhase("receipt");
+      setProgress(100);
+      setMessage("File transferred. Waiting for saved receipt…");
     };
     xhr.onload = async () => {
       try {
-        const response = JSON.parse(xhr.responseText);
+        const response = JSON.parse(xhr.responseText || "{}");
         if (xhr.status >= 200 && xhr.status < 300) {
           setMessage(
             "Document received. Checking file safety is the next step.",
           );
           setFile(null);
+          if (fileInput.current) fileInput.current.value = "";
+          setReason("");
           setDirty(false);
         } else {
           setErrors({
@@ -439,10 +473,17 @@ export function Workspace({
           setMessage("Your other saved sections are unchanged.");
         }
         await reload();
+      } catch {
+        setMessage(
+          "We could not confirm the upload result. Check saved document status before trying again.",
+        );
+        setUncertain(true);
       } finally {
         busy.current = false;
         setPending(false);
         setProgress(null);
+        setUploadPhase(null);
+        uploadAbort.current = null;
       }
     };
     const failed = () => {
@@ -453,6 +494,8 @@ export function Workspace({
       busy.current = false;
       setPending(false);
       setProgress(null);
+      setUploadPhase(null);
+      uploadAbort.current = null;
     };
     xhr.onerror = failed;
     xhr.ontimeout = failed;
@@ -651,7 +694,8 @@ export function Workspace({
           <details>
             <summary>Discard draft</summary>
             <p>
-              Discarding your draft removes it from your active workspace. This action cannot be undone.
+              Discarding your draft removes it from your active workspace. This
+              action cannot be undone.
             </p>
             <label className={styles.checkboxLabel}>
               <input
@@ -734,8 +778,28 @@ export function Workspace({
           )}
           {section === "qualifications" && (
             <>
+              {a.blockers.some(
+                (blocker) => blocker.section === "qualifications",
+              ) && (
+                <section
+                  className="grid gap-2 rounded-sis border-l-4 border-sis-attention bg-sis-attention-bg p-4 text-sis-attention-text"
+                  aria-label="Results still needed"
+                >
+                  <h2>Results still needed</h2>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {a.blockers
+                      .filter((blocker) => blocker.section === "qualifications")
+                      .map((blocker, index) => (
+                        <li key={`${blocker.field ?? "section"}-${index}`}>
+                          {blocker.message}
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              )}
               <p>
-                Enter your official qualification details and examination grades as shown on your certificates.
+                Enter your official qualification details and examination grades
+                as shown on your certificates.
               </p>
               {field(
                 "routeCode",
@@ -884,72 +948,117 @@ export function Workspace({
       )}
       {section === "documents" && (
         <>
-          <p>
-            Clear files only · {p.upload.extensions.join(", ")} · up to{" "}
-            {p.upload.maxBytes / 1024 / 1024} MB.
-          </p>
-          {a.requiredDocuments.map((documentRequirement) => {
-            const files = a.documents.filter(
-              (item) => item.category === documentRequirement.category,
-            );
-            const latestFile = files.at(-1) ?? null;
-
-            return (
-              <article
-                key={documentRequirement.category}
-                className={styles.documentRequirement}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sis-border pb-4 text-sm text-sis-muted">
+            <p>Upload the evidence requested for this application.</p>
+            <p>
+              {p.upload.extensions.join(", ")} · Maximum{" "}
+              {p.upload.maxBytes / 1024 / 1024} MB per file
+            </p>
+          </div>
+          {demoFixtureOnly && (
+            <aside className="grid gap-2 rounded-sis border border-sis-attention bg-sis-attention-bg p-4 text-sis-attention-text sm:p-5">
+              <strong>Local practice document</strong>
+              <p>
+                This demonstration can clear only the fictional practice PDF.
+                Other files stay in safety review. Do not use personal records
+                here.
+              </p>
+              <a
+                className="w-fit font-semibold underline underline-offset-4"
+                href="/demo/fictional-result.pdf"
+                download="fictional-result.pdf"
               >
-                <div className={styles.documentHeading}>
-                  <div>
-                    <h2>{documentRequirement.label}</h2>
-                    <p>{documentRequirement.purpose}</p>
-                  </div>
-                  <p className={styles.documentStatus}>
-                    <strong>Status:</strong>{" "}
-                    {latestFile?.statusLabel ?? "Not uploaded"}
-                  </p>
-                </div>
+                Download fictional practice document
+              </a>
+            </aside>
+          )}
+          <section className="grid gap-3" aria-label="Required documents">
+            {a.requiredDocuments.map((documentRequirement) => {
+              const files = a.documents.filter(
+                (item) => item.category === documentRequirement.category,
+              );
+              const latestFile = files.at(-1) ?? null;
 
-                {files.map((item) => (
-                  <div key={item.id} className={styles.documentVersion}>
-                    <p>
-                      {item.fileName} · {item.statusLabel} · version {item.version}
+              return (
+                <article
+                  key={documentRequirement.category}
+                  className="grid min-w-0 gap-4 rounded-sis border border-sis-border bg-sis-surface p-4 shadow-sis sm:p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="grid gap-1">
+                      <h2>{documentRequirement.label}</h2>
+                      <p className="text-sm text-sis-muted">
+                        {documentRequirement.purpose}
+                      </p>
+                    </div>
+                    <p className="rounded-sis bg-sis-sunken px-3 py-1.5 text-sm font-semibold text-sis-text">
+                      <strong>Status:</strong>{" "}
+                      {latestFile?.statusLabel ?? "Not uploaded"}
                     </p>
-                    {item.canPreview && (
-                      <a
-                        href={`/api/applications/${a.id}/documents/${item.id}/content`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Preview {item.fileName}
-                      </a>
-                    )}
-                    {item.status === "SecurityScanPending" && (
-                      <button
-                        type="button"
-                        disabled={pending || uncertain || !a.editable}
-                        onClick={() =>
-                          run(`/${a.id}/documents/${item.id}/scan`, {
-                            version: a.version,
-                          })
-                        }
-                      >
-                        Check file safety
-                      </button>
-                    )}
                   </div>
-                ))}
-              </article>
-            );
-          })}
+
+                  {files.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-wrap items-center gap-3 border-t border-sis-border pt-4 text-sm"
+                    >
+                      <p>
+                        <strong className="break-all">{item.fileName}</strong> ·{" "}
+                        {item.statusLabel} · version {item.version}
+                      </p>
+                      {item.canPreview && (
+                        <a
+                          href={`/api/applications/${a.id}/documents/${item.id}/content`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Preview {item.fileName}
+                        </a>
+                      )}
+                      {item.status === "SecurityScanPending" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={pending || uncertain || !a.editable}
+                            onClick={() =>
+                              run(`/${a.id}/documents/${item.id}/scan`, {
+                                version: a.version,
+                              })
+                            }
+                          >
+                            Check file safety
+                          </button>
+                          {demoFixtureOnly && (
+                            <p className="basis-full text-sis-muted">
+                              If this was not the fictional practice PDF,
+                              replace it with that file and give a replacement
+                              reason. Checking again will not clear another file
+                              in this local demonstration.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </article>
+              );
+            })}
+          </section>
           <form
-            className={styles.form}
+            className="grid max-w-3xl gap-5 rounded-sis border border-sis-border bg-sis-surface p-4 shadow-sis sm:p-6"
             onSubmit={(e) => {
               e.preventDefault();
               void upload();
             }}
           >
-            <label htmlFor="category">
+            <div className="grid gap-1 border-b border-sis-border pb-4">
+              <h2>Upload a document</h2>
+              <p className="text-sm text-sis-muted">
+                Choose its category, then select a file. A replacement needs a
+                reason.
+              </p>
+            </div>
+            <label htmlFor="category" className="grid gap-2 font-semibold">
               Document category
               <select
                 id="category"
@@ -964,11 +1073,13 @@ export function Workspace({
                 ))}
               </select>
             </label>
-            <label htmlFor="file">
+            <label htmlFor="file" className="grid gap-2 font-semibold">
               Choose file
               <input
                 id="file"
+                ref={fileInput}
                 type="file"
+                className="min-w-0 max-w-full rounded-sis border border-sis-border bg-sis-page p-2 text-sm font-medium text-sis-muted file:mr-3 file:rounded-sis file:border-0 file:bg-sis-sunken file:px-3 file:py-2 file:font-semibold file:text-sis-text hover:file:bg-sis-border focus-visible:shadow-[var(--focus-ring)]"
                 accept={p.upload.mimeTypes.join(",")}
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
@@ -976,7 +1087,15 @@ export function Workspace({
                 }}
               />
             </label>
-            <label htmlFor="reason">
+            {file && (
+              <p className="rounded-sis bg-sis-info-bg px-3 py-2 text-sm text-sis-info-text">
+                Selected: <strong className="break-all">{file.name}</strong> ·{" "}
+                {file.size < 1024 * 1024
+                  ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+                  : `${(file.size / 1024 / 1024).toFixed(2)} MB`}
+              </p>
+            )}
+            <label htmlFor="reason" className="grid gap-2 font-semibold">
               Reason for replacement (required when replacing)
               <input
                 id="reason"
@@ -986,21 +1105,29 @@ export function Workspace({
                 onChange={(e) => setReason(e.target.value)}
               />
             </label>
-            {progress !== null && (
-              <>
+            {uploadPhase && (
+              <div
+                className="grid gap-2 border-t border-sis-border pt-4"
+                aria-live="polite"
+              >
                 <progress
-                  value={progress}
+                  value={progress ?? 0}
                   max={100}
                   aria-label="File upload progress"
                 />
-                <p>{progress}% uploaded</p>
+                <p className="font-semibold text-sis-text">
+                  {uploadPhase === "receipt"
+                    ? "File transferred. Waiting for saved receipt…"
+                    : `${progress ?? 0}% transferred`}
+                </p>
                 <button
                   type="button"
+                  className="w-fit rounded-sis border border-sis-border px-4 py-2 font-semibold text-sis-text transition-colors duration-150 hover:bg-sis-sunken motion-reduce:transition-none"
                   onClick={() => uploadAbort.current?.abort()}
                 >
                   Cancel upload
                 </button>
-              </>
+              </div>
             )}
             <ActionButton
               kind="primary"
@@ -1010,6 +1137,35 @@ export function Workspace({
               Upload document
             </ActionButton>
           </form>
+          {a.blockers.some(
+            (blocker) => blocker.section === "qualifications",
+          ) && (
+            <section
+              className="grid gap-3 rounded-sis border-l-4 border-sis-attention bg-sis-attention-bg p-4 text-sis-attention-text sm:p-5"
+              aria-label="Qualification details still needed"
+            >
+              <h2>Qualification details still needed</h2>
+              <ul>
+                {a.blockers
+                  .filter((blocker) => blocker.section === "qualifications")
+                  .map((blocker, index) => (
+                    <li key={index}>
+                      <Link href={`/applicant/${a.id}/qualifications`}>
+                        {blocker.message}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          )}
+          <p className="border-t border-sis-border pt-4">
+            <Link
+              href={`/applicant/${a.id}/review`}
+              className={styles.buttonLink}
+            >
+              Review application and next steps
+            </Link>
+          </p>
         </>
       )}
       {section === "programme" && (
@@ -1102,7 +1258,9 @@ export function Workspace({
                 : `${a.blockers.length} required item${a.blockers.length === 1 ? "" : "s"} need attention.`
             }
             updated={formatLusaka(a.updatedAt)}
-            action={review.ready ? "Check the details below." : "Fix the items below."}
+            action={
+              review.ready ? "Check the details below." : "Fix the items below."
+            }
           />
           {["personal", "contact", "qualifications"].map((s) => (
             <section key={s} className={styles.card}>

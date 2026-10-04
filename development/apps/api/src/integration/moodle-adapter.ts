@@ -2,9 +2,7 @@ import type { Prisma } from '@prisma/client';
 
 export type Tx = Prisma.TransactionClient;
 
-/** Which backend executes Moodle operations. Simulator is the default;
- * live engages only with explicit URL + token configuration. */
-export type MoodleBackend = 'simulator' | 'live';
+export type MoodleBackend = 'simulator' | 'live-test';
 
 export type ApplyResult =
   | 'CREATED'
@@ -105,9 +103,11 @@ export interface MoodleAdapter {
   }>;
 }
 
-/** Backend selection: live only with explicit URL + token, else simulator. */
-export function selectBackend(): MoodleBackend {
-  const url = (process.env.MOODLE_API_URL ?? '').trim();
-  const token = (process.env.MOODLE_API_TOKEN ?? '').trim();
-  return url !== '' && token !== '' ? 'live' : 'simulator';
-}
+/**
+ * Backend selection is not a function of this module. It is re-exported
+ * from `moodle-live-config.ts`, the one implementation that reads
+ * `MOODLE_INTEGRATION_MODE` and validates fail-closed, so the adapter
+ * cannot offer a second, laxer resolver. Task 9 repoints the callers that
+ * still expect a bare `MoodleBackend` label.
+ */
+export { selectBackend } from './moodle-live-config.js';

@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response, Request } from 'express';
-import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
+import { policy } from './policy.provider.js';
 import { SessionGuard } from '../identity-access/session.guard.js';
 import { CsrfGuard } from '../identity-access/csrf.guard.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
@@ -162,13 +162,17 @@ export class ApplicationsController {
     const doc = await this.service.content(r.auth, id, docId);
     res.set({
       'Content-Type': doc.mimeType,
-      'Content-Disposition': `inline; filename="document.${doc.mimeType === 'application/pdf' ? 'pdf' : doc.mimeType === 'image/png' ? 'png' : 'jpg'}"`,
+      'Content-Disposition': `inline; filename="${doc.fileName}"`,
       'Content-Security-Policy': "sandbox; default-src 'none'",
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
     });
-    res.send(Buffer.from(doc.content));
+    // Stream the authorized, safety-checked bytes from the selected adapter.
+    for await (const chunk of doc.stream) {
+      res.write(chunk);
+    }
+    res.end();
   }
   @Get(':id/review') review(
     @Req() r: AuthRequest,

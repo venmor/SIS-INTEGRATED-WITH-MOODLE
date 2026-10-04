@@ -1,0 +1,30 @@
+.brand {
+  color: var(--text-primary);
+}
+
+.brand:hover {
+  color: var(--text-primary);
+}
+
+.switch,
+.navLink {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.switch:hover,
+.navLink:hover {
+  color: var(--text-primary);
+  background: var(--bg-sunken);
+}
+
+.navLink {
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 44rem) {
+  .navLink {
+    padding-inline: var(--space-2);
+  }
+}

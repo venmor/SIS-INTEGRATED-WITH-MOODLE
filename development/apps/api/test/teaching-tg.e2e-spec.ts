@@ -660,7 +660,7 @@ describe('Phase 6 tutorial groups and teaching assignments', () => {
         coordinator,
       ),
     ]);
-    const statuses = [left.status, right.status].sort();
+    const statuses = [left.status, right.status].sort((a, b) => a - b);
     expect(statuses).toEqual([201, 409]);
   });
 

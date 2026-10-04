@@ -3,11 +3,12 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module.
 import { IntegrationController } from './integration.controller.js';
 import { IntegrationService } from './integration.service.js';
 import { DeliveryWorker } from './delivery.worker.js';
+import { OperationsQueueService } from './operations-queue.service.js';
 
 @Module({
   imports: [IdentityAccessModule],
   controllers: [IntegrationController],
-  providers: [IntegrationService, DeliveryWorker],
-  exports: [IntegrationService],
+  providers: [IntegrationService, DeliveryWorker, OperationsQueueService],
+  exports: [IntegrationService, OperationsQueueService],
 })
 export class IntegrationModule {}

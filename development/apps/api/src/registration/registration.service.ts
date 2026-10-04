@@ -1314,11 +1314,14 @@ export class RegistrationService {
     return {
       attemptId: attempt.id,
       period: period.code,
+      publicationStatus: 'AWAITING_PUBLICATION',
+      checkedAt: new Date().toISOString(),
       groups: [...groups.entries()].map(([semester, courses]) => ({
         semester,
         courses,
       })),
-      note: 'Session times arrive with the teaching timetable; courses below are the registered set.',
+      note:
+        'The courses below are registered. Class times, rooms and meeting links are not published yet.',
     };
   }
 

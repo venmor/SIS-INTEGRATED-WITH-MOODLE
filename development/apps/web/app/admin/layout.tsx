@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { ContextBar } from "@sis/ui";
 import styles from "./admin-shell.module.css";
+import { WorkspaceNav } from "./workspace-nav";
 
 interface Me {
   account: {
@@ -33,12 +34,16 @@ async function loadMe(): Promise<Me | null> {
 
 function workspaceLabel(role: string | undefined) {
   if (role === "ADMISSIONS_OFFICER") return "Admissions workspace";
+  if (role === "EXAMINATIONS_OFFICER") return "Examinations workspace";
+  if (role === "MODERATOR") return "Moderation workspace";
+  if (role === "CASHIER") return "Cashier workspace";
   if (role === "ADMISSIONS_APPROVER") return "Admissions approval workspace";
   if (role === "RECORDS_OFFICER") return "Records workspace";
   if (role === "FINANCE_OFFICER") return "Finance workspace";
   if (role === "FINANCE_APPROVER") return "Finance approval workspace";
   if (role === "LEC") return "Lecturer workspace";
   if (role === "COORDINATOR") return "Coordinator workspace";
+  if (role === "ADVISER") return "Academic adviser workspace";
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
@@ -55,6 +60,12 @@ export default async function AdminLayout({
   const role = active?.role;
 
   const items: Array<{ href: string; label: string; show: boolean }> = [
+    { href: "/", label: "Workspace home", show: true },
+    {
+      href: "/admin/assessment/publications",
+      label: "Results and amendments",
+      show: role === "EXAMINATIONS_OFFICER",
+    },
     {
       href: "/admin/admissions/queue",
       label: "Admissions queue",
@@ -71,33 +82,34 @@ export default async function AdminLayout({
       show: role === "FINANCE_OFFICER" || role === "FINANCE_APPROVER",
     },
     {
+      href: "/admin/finance/cashier",
+      label: "Cashier desk",
+      show: role === "CASHIER",
+    },
+    {
       href: "/admin/teaching/groups",
       label: "Tutorial groups",
       show: role === "COORDINATOR",
     },
     {
+      href: "/admin/support",
+      label: "Assigned support requests",
+      show: role === "ADVISER",
+    },
+    {
       href: "/admin/assessment/plans",
       label: "Assessment plans",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/mappings",
       label: "Grade mappings",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/batches",
       label: "Grade batches",
-      show:
-        role === "LEC" ||
-        role === "COORDINATOR" ||
-        role === "MOODLE_ADMIN",
+      show: role === "LEC" || role === "COORDINATOR" || role === "MOODLE_ADMIN",
     },
     {
       href: "/admin/assessment/findings",
@@ -142,6 +154,11 @@ export default async function AdminLayout({
       show: role === "SYSADMIN",
     },
     {
+      href: "/admin/setup/readiness",
+      label: "Setup readiness",
+      show: role === "SYSADMIN",
+    },
+    {
       href: "/admin/grants",
       label: "Role assignments",
       show: role === "SYSADMIN",
@@ -176,20 +193,12 @@ export default async function AdminLayout({
           />
         ) : null}
 
+        <div className={styles.desktopMenu}>
+          <WorkspaceNav items={items.filter((item) => item.show)} />
+        </div>
         <details className={styles.menu}>
-          <summary className={styles.menuToggle}>
-            Workspace sections
-          </summary>
-          <nav className={styles.nav} aria-label="Workspace sections">
-            <Link href="/">Workspace home</Link>
-            {items
-              .filter((item) => item.show)
-              .map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-          </nav>
+          <summary className={styles.menuToggle}>Workspace sections</summary>
+          <WorkspaceNav items={items.filter((item) => item.show)} />
         </details>
 
         <div className={styles.account}>
@@ -198,7 +207,21 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      <div className={styles.content} id="main-content" tabIndex={-1}>{children}</div>
+      <div className={styles.content}>
+        <header className={styles.topbar}>
+          <div className={styles.topbarIdentity}>
+            <span className={styles.topbarKicker}>Current workspace</span>
+            <strong>{workspaceLabel(role)}</strong>
+          </div>
+          <nav className={styles.topbarActions} aria-label="Account and help">
+            <Link href="/">Switch workspace</Link>
+            <Link href="/sign-in">Account</Link>
+          </nav>
+        </header>
+        <div id="main-content" tabIndex={-1} className={styles.main}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

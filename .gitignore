@@ -23,3 +23,6 @@ test-results/
 # Provider-installed local agent skills are tooling state, not application code.
 .agents/
 skills-lock.json
+
+# Local verification logs in isolated review worktrees.
+development/.evidence/

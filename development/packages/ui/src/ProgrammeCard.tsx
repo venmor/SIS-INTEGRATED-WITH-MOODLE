@@ -4,6 +4,7 @@ interface ProgrammeCardProps {
   name: string;
   awardLevel: string;
   school: string;
+  intake: string;
   duration: string;
   campus: string;
   studyMode: string;
@@ -26,6 +27,7 @@ export function ProgrammeCard({
   name,
   awardLevel,
   school,
+  intake,
   duration,
   campus,
   studyMode,
@@ -50,6 +52,7 @@ export function ProgrammeCard({
       <p className={styles.facts}>
         {studyMode} · {campus} · {duration}
       </p>
+      <p className={styles.meta}>Intake: {intake}</p>
       <p className={styles.availability}>{availabilityText}</p>
       {deadlineText ? <p className={styles.meta}>{deadlineText}</p> : null}
       {requirementSummary ? (

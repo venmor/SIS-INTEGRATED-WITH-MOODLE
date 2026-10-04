@@ -2,7 +2,7 @@
   width: 100%;
   min-height: 100%;
   display: grid;
-  grid-template-columns: 17rem minmax(0, 1fr);
+  grid-template-columns: 17.5rem minmax(0, 1fr);
 }
 
 .sidebar {
@@ -14,6 +14,10 @@
   padding: var(--space-6) var(--space-4);
   border-right: 1px solid var(--border);
   background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .brand a {
@@ -63,6 +67,10 @@
   display: none;
 }
 
+.menu {
+  display: none;
+}
+
 .nav a {
   min-height: 2.65rem;
   display: flex;
@@ -77,6 +85,12 @@
 .nav a:hover {
   background: var(--gray-100);
   color: var(--text-primary);
+}
+
+.nav a.current {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 var(--green-500);
 }
 
 .account {
@@ -103,7 +117,55 @@
   width: 100%;
 }
 
+.topbar {
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.topbarIdentity {
+  display: grid;
+  gap: 2px;
+}
+.topbarKicker {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.topbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.topbarActions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+.topbarActions a:hover {
+  background: var(--bg-sunken);
+}
+.main {
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
+  .desktopMenu {
+    display: none;
+  }
+  .menu {
+    display: block;
+  }
   .shell {
     grid-template-columns: 1fr;
   }
@@ -113,6 +175,9 @@
     border-right: 0;
     border-bottom: 1px solid var(--border);
     padding: var(--space-4);
+    position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .menuToggle {
@@ -139,5 +204,9 @@
 
   .account {
     margin-top: 0;
+  }
+
+  .topbar {
+    padding: var(--space-3) var(--space-4);
   }
 }

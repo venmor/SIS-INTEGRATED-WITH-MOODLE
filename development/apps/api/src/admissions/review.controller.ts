@@ -24,6 +24,7 @@ import {
   ReleaseReviewDto,
   ReviewFindingDto,
   ReviewQueueQuery,
+  PreparationPreviewDto,
   StaffClarificationDto,
 } from './dto.js';
 
@@ -47,7 +48,16 @@ export class ReviewController {
       q.state,
       q.actionNeeded,
       q.take,
+      q.cursor,
+      q.reference,
+      q.sort,
     );
+  }
+
+  @Post('queue/preparation')
+  @UseGuards(CsrfGuard)
+  preparation(@Req() r: AuthRequest, @Body() dto: PreparationPreviewDto) {
+    return this.reviews.preparation(r.auth, dto.items);
   }
 
   @Get('queue/:id') summary(

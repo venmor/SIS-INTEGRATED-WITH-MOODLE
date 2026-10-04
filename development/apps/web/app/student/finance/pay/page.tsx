@@ -2,6 +2,7 @@ import type { FinanceAccountView } from "@sis/contracts";
 import { FINANCE_DEMO_V1 } from "@sis/config";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { StudentUnavailable } from "../../chrome";
 import { Card, DataTable, Money, PageHeader, StatusChip } from "@sis/ui";
 import { PayForms } from "./forms";
@@ -26,7 +27,7 @@ type LoadState =
   | { kind: "missing" }
   | { kind: "failed"; message: string };
 
-async function loadPay(): Promise<LoadState> {
+async function loadPay(period: string): Promise<LoadState> {
   const sid = (await cookies()).get("sid")?.value;
   if (!sid) redirect("/sign-in?returnTo=%2Fstudent%2Ffinance%2Fpay");
   const headers = { cookie: `sid=${encodeURIComponent(sid)}` };
@@ -35,12 +36,12 @@ async function loadPay(): Promise<LoadState> {
   let paymentsRes: Response;
   try {
     [accountRes, paymentsRes] = await Promise.all([
-      fetch(`${base}/finance/account?period=2026S1`, {
+      fetch(`${base}/finance/account?period=${encodeURIComponent(period)}`, {
         headers,
         cache: "no-store",
         signal: AbortSignal.timeout(10000),
       }),
-      fetch(`${base}/finance/payments?period=2026S1`, {
+      fetch(`${base}/finance/payments?period=${encodeURIComponent(period)}`, {
         headers,
         cache: "no-store",
         signal: AbortSignal.timeout(10000),
@@ -58,7 +59,8 @@ async function loadPay(): Promise<LoadState> {
   if (!accountRes.ok || !paymentsRes.ok)
     return {
       kind: "failed",
-      message: "Your finance account is unavailable right now. Try again shortly.",
+      message:
+        "Your finance account is unavailable right now. Try again shortly.",
     };
   const account = (await accountRes.json()) as FinanceAccountView;
   const payments = (await paymentsRes.json()) as { items: PaymentItem[] };
@@ -68,8 +70,15 @@ async function loadPay(): Promise<LoadState> {
 // Make-a-payment page: reviewed amount, explicit method choice, plain
 // clearance effect, deadline, then one deliberate initiation. Open requests
 // refuse with their reference ("do not pay again").
-export default async function PayPage() {
-  const state = await loadPay();
+export default async function PayPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const period = (await searchParams).period;
+  if (!period || !/^[A-Za-z0-9_-]{1,16}$/.test(period))
+    redirect("/student/finance");
+  const state = await loadPay(period);
   if (state.kind === "missing")
     return (
       <>
@@ -91,12 +100,16 @@ export default async function PayPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Make a payment"
+        eyebrow={`Make a payment · ${state.account.period}`}
         title="Make a payment"
-        lede={`Amount due with currency, an explicit method choice, and the effect on clearance before you confirm.${state.account.dueAt ? ` Deadline ${formatLusaka(state.account.dueAt)}.` : ""}`}
+        lede={`Payment request for invoice period ${state.account.period}. Review the amount and method before you act.${state.account.dueAt ? ` Deadline ${formatLusaka(state.account.dueAt)}.` : ""}`}
       />
+      <Link href={`/student/finance?period=${encodeURIComponent(period)}`}>
+        Back to this period&apos;s statement
+      </Link>
       <PayForms
         initial={{
+          period: state.account.period,
           outstandingMinor: state.account.outstandingMinor,
           currency: state.account.currency,
           dueAt: state.account.dueAt,
@@ -122,7 +135,10 @@ export default async function PayPage() {
               heading: "Amount",
               numeric: true,
               render: (item) => (
-                <Money currency={item.currency} amountMinor={item.amountMinor} />
+                <Money
+                  currency={item.currency}
+                  amountMinor={item.amountMinor}
+                />
               ),
             },
             {

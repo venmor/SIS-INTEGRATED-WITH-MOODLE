@@ -1,0 +1,9 @@
+# V2-APP-002 — applicant blockers made actionable, 2026-10-04
+
+The current fictional Bwalya Radiography draft had two blockers: “Science subject” was required but the results form offered “Science,” and the latest qualification upload was still in file-safety review. The application service compared the rule's display label literally with submitted subject names, making the selectable “Science” unable to clear the blocker. The server now resolves that display form to the exact configured subject option and reports “Add Science and its grade under Subject results.” An unknown subject label remains blocked as a configuration problem. It does not treat Biology, Chemistry or Physics as equivalent; alternative-subject policy needs its own versioned configuration decision.
+
+The qualifications page now shows its current server blockers at the top. For the local exact-fixture scanner, a pending document blocker explains that the applicant should select **Check file safety**, and replace a non-practice file with the fictional practice PDF first. The scanner still leaves other files quarantined. No document or application data was deleted or silently changed.
+
+The new subject API case failed with the existing impossible blocker and passed after the correction. The new pending-file assertion failed with the generic safety text and then passed. The full applicant API suite passed **19/19**. The mobile applicant browser assertion for the inline results panel failed before implementation and passed in the connected journey **1/1**. Fresh production web/API builds passed. The isolated review database and bundled fictional file were used; no external download or provider call occurred.
+
+Open: alternative-subject groups and grade/eligibility evaluation need configurable, versioned rules. The local exact-fixture scanner is still a demonstration boundary, not a production malware service. Human accessibility and application acceptance remain open.

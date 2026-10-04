@@ -69,6 +69,18 @@ describe('workspace (e2e)', () => {
     await app.init();
     server = app.getHttpServer();
     prisma = app.get(PrismaService);
+    const root = await prisma.scope.findUniqueOrThrow({
+      where: { name: 'SYSTEM:GLOBAL' },
+    });
+    await prisma.scope.upsert({
+      where: { name: 'TUTORIAL_GROUP:SWE101-TG9-2026S1' },
+      update: {},
+      create: {
+        name: 'TUTORIAL_GROUP:SWE101-TG9-2026S1',
+        description: 'Isolated workspace test tutorial group',
+        parentScopeId: root.id,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -101,6 +113,9 @@ describe('workspace (e2e)', () => {
     });
     await prisma.roleAssignment.deleteMany({
       where: { reason: { startsWith: 'E2E ws grant ' } },
+    });
+    await prisma.scope.delete({
+      where: { name: 'TUTORIAL_GROUP:SWE101-TG9-2026S1' },
     });
     await app.close();
   }, 60000);

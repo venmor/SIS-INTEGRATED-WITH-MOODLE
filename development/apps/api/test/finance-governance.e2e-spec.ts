@@ -5,6 +5,8 @@ import { randomUUID, createHash, createHmac } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/identity-access/prisma.service.js';
 import { DocumentScanner } from '../src/admissions/scanner.js';
+import { MFAService } from '../src/identity-access/mfa.service.js';
+import { generateSecret, generateSync } from 'otplib';
 
 /**
  * TASK-PH5-006 finance reconciliation queue and governance e2e (RED first).
@@ -23,6 +25,7 @@ describe('Phase 5 reconciliation queue and governance', () => {
   let records: string;
   let finance: string;
   let finApprover: string;
+  let finApproverSecret: string;
   let offeringId: string;
   const csrf = { 'x-requested-with': 'XMLHttpRequest' };
   const key = () => randomUUID();
@@ -69,6 +72,20 @@ describe('Phase 5 reconciliation queue and governance', () => {
       .set(csrf)
       .set('Cookie', c)
       .send(body);
+
+  async function approvalProof(targetAction: string) {
+    const challenge = await request(app.getHttpServer())
+      .post('/auth/step-up/challenge')
+      .set(csrf)
+      .set('Cookie', finApprover)
+      .send({ targetAction })
+      .expect(200);
+    return {
+      challengeId: challenge.body.challengeId as string,
+      code: generateSync({ secret: finApproverSecret }),
+      codeType: 'TOTP' as const,
+    };
+  }
 
   function sign(body: Record<string, unknown>): string {
     const canonical = [
@@ -177,8 +194,9 @@ describe('Phase 5 reconciliation queue and governance', () => {
       .field('idempotencyKey', key())
       .attach('file', pdf, 'fictional-result.pdf')
       .expect(201);
-    const docId = (uploaded.body as { documents: Array<{ id: string }> })
-      .documents.at(-1)?.id as string;
+    const docId = (
+      uploaded.body as { documents: Array<{ id: string }> }
+    ).documents.at(-1)?.id as string;
     version = (uploaded.body as { version: number }).version;
     await appPost(
       `/${id}/documents/${docId}/scan`,
@@ -287,7 +305,11 @@ describe('Phase 5 reconciliation queue and governance', () => {
     return { id, cookie: `sid=${token}` };
   }
 
-  const DECLARATIONS = ['PLAN_ACCURATE', 'RULES_UNDERSTOOD', 'FINANCE_UNDERSTOOD'];
+  const DECLARATIONS = [
+    'PLAN_ACCURATE',
+    'RULES_UNDERSTOOD',
+    'FINANCE_UNDERSTOOD',
+  ];
 
   async function invoicedStudent(codes = ['SWE111', 'MTH111', 'ENG111']) {
     const student = await convertedStudent();
@@ -299,7 +321,11 @@ describe('Phase 5 reconciliation queue and governance', () => {
     const planVersion = (saved.body as { version: number }).version;
     await regPost(
       '/submit',
-      { version: planVersion, idempotencyKey: key(), declarations: DECLARATIONS },
+      {
+        version: planVersion,
+        idempotencyKey: key(),
+        declarations: DECLARATIONS,
+      },
       student.cookie,
     ).expect(201);
     const attempt = await db.programmeAttempt.findUniqueOrThrow({
@@ -370,9 +396,17 @@ describe('Phase 5 reconciliation queue and governance', () => {
         'GLOBAL',
       )
     ).cookie;
-    finApprover = (
-      await user('FINANCE_APPROVER', ['approve-adjustment'], 'FINANCE', 'GLOBAL')
-    ).cookie;
+    const approverUser = await user(
+      'FINANCE_APPROVER',
+      ['approve-adjustment'],
+      'FINANCE',
+      'GLOBAL',
+    );
+    finApprover = approverUser.cookie;
+    finApproverSecret = generateSecret();
+    await app
+      .get(MFAService)
+      .enrollTOTP(approverUser.accountId, finApproverSecret);
     const seeded = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: 'SWE' }, availability: 'OPEN' },
     });
@@ -390,7 +424,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       await sponsorPayload(student.attemptId, { coverageValue: 999999999 }),
     ).expect(201);
     expect((created.body as { status: string }).status).toBe('CONFIRMED');
-    const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const account = await finGet(
+      '/account?period=2026S1',
+      student.cookie,
+    ).expect(200);
     expect((account.body as { clearanceStatus: string }).clearanceStatus).toBe(
       'CLEARED',
     );
@@ -454,7 +491,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       { idempotencyKey: key(), requestReference: reference },
       student.cookie,
     ).expect(201);
-    const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const account = await finGet(
+      '/account?period=2026S1',
+      student.cookie,
+    ).expect(200);
     expect((account.body as { clearanceStatus: string }).clearanceStatus).toBe(
       'PENDING',
     );
@@ -490,11 +530,19 @@ describe('Phase 5 reconciliation queue and governance', () => {
     const id = (requested.body as { id: string }).id;
     const decided = await finPost(
       `/adjustments/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Verified.' },
+      {
+        idempotencyKey: key(),
+        approve: true,
+        note: 'Verified.',
+        ...(await approvalProof('finance.adjustment.approve')),
+      },
       finApprover,
     ).expect(201);
     expect((decided.body as { status: string }).status).toBe('APPROVED');
-    const statement = await finGet('/statement?period=2026S1', student.cookie).expect(200);
+    const statement = await finGet(
+      '/statement?period=2026S1',
+      student.cookie,
+    ).expect(200);
     const totals = statement.body as {
       invoicedMinor: number;
       outstandingMinor: number;
@@ -622,7 +670,11 @@ describe('Phase 5 reconciliation queue and governance', () => {
     // Payout reference is mandatory for refunds.
     await finPost(
       `/adjustments/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Ok.' },
+      {
+        idempotencyKey: key(),
+        approve: true,
+        note: 'Ok.',
+      },
       finApprover,
     ).expect(400);
     const paid = await finPost(
@@ -632,6 +684,7 @@ describe('Phase 5 reconciliation queue and governance', () => {
         approve: true,
         note: 'Verified overpayment.',
         payoutReference: 'PAYOUT-2026-001',
+        ...(await approvalProof('finance.refund.approve')),
       },
       finApprover,
     ).expect(201);
@@ -694,16 +747,24 @@ describe('Phase 5 reconciliation queue and governance', () => {
     expect((dupe.body as { code: string }).code).toBe('DUPLICATE_TASK');
     const queue = await finGet('/arrangements', finance).expect(200);
     expect(
-      ((queue.body as { items: Array<{ id: string }> }).items).some(
+      (queue.body as { items: Array<{ id: string }> }).items.some(
         (i) => i.id === id,
       ),
     ).toBe(true);
     await finPost(
       `/arrangements/${id}/decide`,
-      { idempotencyKey: key(), approve: true, note: 'Affordable.' },
+      {
+        idempotencyKey: key(),
+        approve: true,
+        note: 'Affordable.',
+        ...(await approvalProof('finance.arrangement.approve')),
+      },
       finApprover,
     ).expect(201);
-    const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const account = await finGet(
+      '/account?period=2026S1',
+      student.cookie,
+    ).expect(200);
     expect((account.body as { clearanceStatus: string }).clearanceStatus).toBe(
       'CLEARED',
     );
@@ -726,7 +787,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       { idempotencyKey: key(), approve: false, note: 'Terms unclear.' },
       finApprover,
     ).expect(201);
-    const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const account = await finGet(
+      '/account?period=2026S1',
+      student.cookie,
+    ).expect(200);
     const declinedBody = account.body as {
       clearanceStatus: string;
       blocksRegistration: boolean;
@@ -809,7 +873,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       student.cookie,
     ).expect(200);
     expect((confirmed.body as { status: string }).status).toBe('CONFIRMED');
-    const statement = await finGet('/statement?period=2026S1', student.cookie).expect(200);
+    const statement = await finGet(
+      '/statement?period=2026S1',
+      student.cookie,
+    ).expect(200);
     expect((statement.body as { paidMinor: number }).paidMinor).toBe(50000);
   });
 
@@ -836,12 +903,18 @@ describe('Phase 5 reconciliation queue and governance', () => {
     };
     await postCallback({ ...body, signature: sign(body) }).expect(202);
     const queue = await finGet('/cases', finance).expect(200);
-    const items = (queue.body as { items: Array<{ kind: string; status: string }> }).items;
+    const items = (
+      queue.body as { items: Array<{ kind: string; status: string }> }
+    ).items;
     expect(items.some((i) => i.kind === 'AMOUNT_MISMATCH')).toBe(true);
     const mine = await finGet('/cases', student.cookie).expect(200);
     const mineItems = (
       mine.body as {
-        items: Array<{ kind: string; studentNumber: null; safeMessage: string }>;
+        items: Array<{
+          kind: string;
+          studentNumber: null;
+          safeMessage: string;
+        }>;
       }
     ).items;
     expect(mineItems.length).toBeGreaterThan(0);
@@ -876,7 +949,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       occurredAt: new Date().toISOString(),
       nonce: key(),
     };
-    const opened = await postCallback({ ...body, signature: sign(body) }).expect(202);
+    const opened = await postCallback({
+      ...body,
+      signature: sign(body),
+    }).expect(202);
     const caseId = (opened.body as { caseId: string }).caseId;
     const detail = await finGet(`/cases/${caseId}`, finance).expect(200);
     expect(
@@ -884,16 +960,26 @@ describe('Phase 5 reconciliation queue and governance', () => {
     ).toBeGreaterThan(0);
     const resolved = await finPost(
       `/cases/${caseId}/resolve`,
-      { idempotencyKey: key(), action: 'MATCH_CONFIRM', note: 'Bank advice matches.' },
+      {
+        idempotencyKey: key(),
+        action: 'MATCH_CONFIRM',
+        note: 'Bank advice matches.',
+      },
       finance,
     ).expect(201);
     expect((resolved.body as { status: string }).status).toBe('RESOLVED');
-    const payment = await finGet(`/payments/${reference}`, student.cookie).expect(200);
+    const payment = await finGet(
+      `/payments/${reference}`,
+      student.cookie,
+    ).expect(200);
     expect((payment.body as { status: string }).status).toBe('CONFIRMED');
     // The case row survives resolution as history.
     expect(
-      (await db.financeReconciliationCase.findUniqueOrThrow({ where: { id: caseId } }))
-        .status,
+      (
+        await db.financeReconciliationCase.findUniqueOrThrow({
+          where: { id: caseId },
+        })
+      ).status,
     ).toBe('RESOLVED');
   });
 
@@ -918,14 +1004,24 @@ describe('Phase 5 reconciliation queue and governance', () => {
       occurredAt: new Date().toISOString(),
       nonce: key(),
     };
-    const opened = await postCallback({ ...body, signature: sign(body) }).expect(202);
+    const opened = await postCallback({
+      ...body,
+      signature: sign(body),
+    }).expect(202);
     const caseId = (opened.body as { caseId: string }).caseId;
     await finPost(
       `/cases/${caseId}/resolve`,
-      { idempotencyKey: key(), action: 'MARK_DUPLICATE', note: 'Same bank line.' },
+      {
+        idempotencyKey: key(),
+        action: 'MARK_DUPLICATE',
+        note: 'Same bank line.',
+      },
       finance,
     ).expect(201);
-    const payment = await finGet(`/payments/${reference}`, student.cookie).expect(200);
+    const payment = await finGet(
+      `/payments/${reference}`,
+      student.cookie,
+    ).expect(200);
     expect((payment.body as { status: string }).status).toBe(
       'AWAITING_CONFIRMATION',
     );
@@ -952,7 +1048,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       occurredAt: new Date().toISOString(),
       nonce: key(),
     };
-    const opened = await postCallback({ ...body, signature: sign(body) }).expect(202);
+    const opened = await postCallback({
+      ...body,
+      signature: sign(body),
+    }).expect(202);
     const caseId = (opened.body as { caseId: string }).caseId;
     const escalated = await finPost(
       `/cases/${caseId}/resolve`,
@@ -962,11 +1061,14 @@ describe('Phase 5 reconciliation queue and governance', () => {
     expect((escalated.body as { status: string }).status).toBe('ESCALATED');
     const queue = await finGet('/cases', finance).expect(200);
     expect(
-      ((queue.body as { items: Array<{ id: string }> }).items).some(
+      (queue.body as { items: Array<{ id: string }> }).items.some(
         (i) => i.id === caseId,
       ),
     ).toBe(true);
-    const account = await finGet('/account?period=2026S1', student.cookie).expect(200);
+    const account = await finGet(
+      '/account?period=2026S1',
+      student.cookie,
+    ).expect(200);
     expect((account.body as { clearanceStatus: string }).clearanceStatus).toBe(
       'MANUAL_REVIEW',
     );
@@ -993,7 +1095,10 @@ describe('Phase 5 reconciliation queue and governance', () => {
       occurredAt: new Date().toISOString(),
       nonce: key(),
     };
-    const opened = await postCallback({ ...body, signature: sign(body) }).expect(202);
+    const opened = await postCallback({
+      ...body,
+      signature: sign(body),
+    }).expect(202);
     const caseId = (opened.body as { caseId: string }).caseId;
     await finPost(
       `/cases/${caseId}/resolve`,
@@ -1029,9 +1134,14 @@ describe('Phase 5 reconciliation queue and governance', () => {
       occurredAt: new Date().toISOString(),
       nonce: key(),
     };
-    const res = await postCallback({ ...body, signature: sign(body) }).expect(202);
+    const res = await postCallback({ ...body, signature: sign(body) }).expect(
+      202,
+    );
     expect((res.body as { outcome: string }).outcome).toBe('CASE_OPENED');
-    const payment = await finGet(`/payments/${reference}`, student.cookie).expect(200);
+    const payment = await finGet(
+      `/payments/${reference}`,
+      student.cookie,
+    ).expect(200);
     expect((payment.body as { status: string }).status).toBe('EXPIRED');
   });
 
@@ -1040,5 +1150,248 @@ describe('Phase 5 reconciliation queue and governance', () => {
     await finGet('/cases', lecturer.cookie).expect(403);
     const applicant = await user('APP', ['apply'], 'APPLICATION', key());
     await finGet('/cases', applicant.cookie).expect(403);
+  });
+
+  it('v2 finance workbench counts all matching tasks without loading queue rows', async () => {
+    const summary = await finGet('/workspace-summary', finance).expect(200);
+    expect(summary.body.reconciliationCases).toBe(
+      await db.financeReconciliationCase.count({
+        where: { status: { in: ['OPEN', 'ESCALATED'] } },
+      }),
+    );
+    expect(summary.body.adjustments).toBe(
+      await db.financeAdjustment.count({ where: { status: 'REQUESTED' } }),
+    );
+    expect(summary.body.arrangements).toBe(
+      await db.financeArrangement.count({ where: { status: 'REQUESTED' } }),
+    );
+    const approverSummary = await finGet(
+      '/workspace-summary',
+      finApprover,
+    ).expect(200);
+    expect(approverSummary.body.reconciliationCases).toBeNull();
+    expect(approverSummary.body.adjustments).toBe(summary.body.adjustments);
+    const unrelated = await user('LEC', ['teach'], 'OFFERING', 'SWE101-2026S1');
+    await finGet('/workspace-summary', unrelated.cookie).expect(403);
+  });
+
+  it('v2 reconciliation queue pages equal-time cases and rejects changed authority or filters', async () => {
+    const createdAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+    const ids = [key(), key()].sort().reverse();
+    for (const id of ids)
+      await db.financeReconciliationCase.create({
+        data: {
+          id,
+          kind: 'UNMATCHED',
+          status: 'OPEN',
+          createdAt,
+          detail: { safeNote: 'Fictional case for pagination.' },
+        },
+      });
+    const first = await finGet(
+      '/cases?status=OPEN&sort=newest&take=1',
+      finance,
+    ).expect(200);
+    expect(first.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[0],
+    ]);
+    expect(first.body.nextCursor).toBeTruthy();
+    const second = await finGet(
+      `/cases?status=OPEN&sort=newest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      finance,
+    ).expect(200);
+    expect(second.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[1],
+    ]);
+    expect(first.body.total).toBeGreaterThanOrEqual(2);
+    await finGet(
+      `/cases?status=ESCALATED&sort=newest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      finance,
+    ).expect(400);
+    await finGet(
+      `/cases?status=OPEN&sort=oldest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      finance,
+    ).expect(400);
+    await finGet(
+      `/cases?status=OPEN&sort=newest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}x`,
+      finance,
+    ).expect(400);
+    const other = await user(
+      'FINANCE_OFFICER',
+      ['reconcile-case'],
+      'FINANCE',
+      'GLOBAL',
+    );
+    await finGet(
+      `/cases?status=OPEN&sort=newest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      other.cookie,
+    ).expect(400);
+    await finGet('/cases?take=1001', finance).expect(400);
+    await db.financeReconciliationCase.update({
+      where: { id: ids[0] },
+      data: { status: 'RESOLVED' },
+    });
+    await finGet(
+      `/cases?status=OPEN&sort=newest&take=1&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      finance,
+    ).expect(400);
+    await db.financeReconciliationCase.deleteMany({
+      where: { id: { in: ids } },
+    });
+  });
+
+  it('v2 arrangement queue pages equal-time requests and rejects changed authority or order', async () => {
+    const account = await db.financeAccount.findFirstOrThrow();
+    const period = await db.academicPeriod.findFirstOrThrow();
+    const createdAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+    const ids = [key(), key()].sort().reverse();
+    for (const id of ids)
+      await db.financeArrangement.create({
+        data: {
+          id,
+          accountId: account.id,
+          periodId: period.id,
+          terms: 'Fictional staged instalments.',
+          reason: 'Review queue test.',
+          status: 'REQUESTED',
+          policyVersion: 'TEST',
+          requesterAccountId: officer,
+          createdAt,
+        },
+      });
+    const first = await finGet(
+      '/arrangements?sort=newest&take=1',
+      finance,
+    ).expect(200);
+    expect(first.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[0],
+    ]);
+    expect(first.body.total).toBeGreaterThanOrEqual(2);
+    expect(first.body.nextCursor).toBeTruthy();
+    const cursor = encodeURIComponent(first.body.nextCursor);
+    await finGet('/arrangements?take=1', finApprover).expect(200);
+    const student = await convertedStudent();
+    const own = await finGet(
+      `/arrangements?cursor=${cursor}`,
+      student.cookie,
+    ).expect(200);
+    expect(own.body.items).toEqual([]);
+    const second = await finGet(
+      `/arrangements?sort=newest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(200);
+    expect(second.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[1],
+    ]);
+    await finGet(
+      `/arrangements?sort=oldest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(400);
+    await finGet(
+      `/arrangements?sort=newest&take=1&cursor=${cursor}x`,
+      finance,
+    ).expect(400);
+    const other = await user(
+      'FINANCE_OFFICER',
+      ['reconcile-case'],
+      'FINANCE',
+      'GLOBAL',
+    );
+    await finGet(
+      `/arrangements?sort=newest&take=1&cursor=${cursor}`,
+      other.cookie,
+    ).expect(400);
+    await finGet('/arrangements?take=1001', finance).expect(400);
+    await db.financeArrangement.update({
+      where: { id: ids[0] },
+      data: { status: 'APPROVED' },
+    });
+    await finGet(
+      `/arrangements?sort=newest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(400);
+    await db.financeArrangement.deleteMany({ where: { id: { in: ids } } });
+  });
+
+  it('v2 adjustment queue pages matching kinds and rejects changed context', async () => {
+    const account = await db.financeAccount.findFirstOrThrow();
+    const period = await db.academicPeriod.findFirstOrThrow();
+    const createdAt = new Date(Date.now() + 120 * 365 * 24 * 60 * 60 * 1000);
+    const ids = [key(), key()].sort().reverse();
+    for (const id of ids)
+      await db.financeAdjustment.create({
+        data: {
+          id,
+          accountId: account.id,
+          periodId: period.id,
+          kind: 'REFUND',
+          amountMinor: 1234,
+          reason: 'Fictional review queue test.',
+          status: 'REQUESTED',
+          policyVersion: 'TEST',
+          requesterAccountId: officer,
+          createdAt,
+        },
+      });
+    const first = await finGet(
+      '/adjustments?kind=REFUND&sort=newest&take=1',
+      finance,
+    ).expect(200);
+    expect(first.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[0],
+    ]);
+    expect(first.body.total).toBeGreaterThanOrEqual(2);
+    expect(first.body.actions).toEqual({ request: true, decide: false });
+    const cursor = encodeURIComponent(first.body.nextCursor);
+    const second = await finGet(
+      `/adjustments?kind=REFUND&sort=newest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(200);
+    expect(second.body.items.map((item: { id: string }) => item.id)).toEqual([
+      ids[1],
+    ]);
+    await finGet(
+      `/adjustments?kind=WAIVER&sort=newest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(400);
+    await finGet(
+      `/adjustments?kind=REFUND&sort=oldest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(400);
+    await finGet(
+      `/adjustments?kind=REFUND&sort=newest&take=1&cursor=${cursor}x`,
+      finance,
+    ).expect(400);
+    const other = await user(
+      'FINANCE_OFFICER',
+      ['reconcile-case'],
+      'FINANCE',
+      'GLOBAL',
+    );
+    await finGet(
+      `/adjustments?kind=REFUND&sort=newest&take=1&cursor=${cursor}`,
+      other.cookie,
+    ).expect(400);
+    await finGet('/adjustments?take=1001', finance).expect(400);
+    await finGet('/adjustments?kind=UNKNOWN', finance).expect(400);
+    const approverQueue = await finGet(
+      '/adjustments?take=1',
+      finApprover,
+    ).expect(200);
+    expect(approverQueue.body.actions).toEqual({
+      request: false,
+      decide: true,
+    });
+    const unrelated = await user('LEC', ['teach'], 'OFFERING', 'SWE101-2026S1');
+    await finGet('/adjustments', unrelated.cookie).expect(403);
+    await db.financeAdjustment.update({
+      where: { id: ids[0] },
+      data: { status: 'APPROVED' },
+    });
+    await finGet(
+      `/adjustments?kind=REFUND&sort=newest&take=1&cursor=${cursor}`,
+      finance,
+    ).expect(400);
+    await db.financeAdjustment.deleteMany({ where: { id: { in: ids } } });
   });
 });

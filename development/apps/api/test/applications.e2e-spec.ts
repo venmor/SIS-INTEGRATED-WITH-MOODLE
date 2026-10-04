@@ -21,13 +21,16 @@ describe('Phase 2 owned applicant journey', () => {
   const scanner = {
     scan: vi
       .fn<
-        (
-          content: Uint8Array,
-        ) => Promise<{ status: string; scanner: string | null }>
+        (content: Uint8Array) => Promise<{
+          status: string;
+          scanner: string | null;
+          correlationId: string;
+        }>
       >()
       .mockResolvedValue({
         status: 'AwaitingQualityCheck',
         scanner: 'TEST-ADAPTER',
+        correlationId: randomUUID(),
       }),
   };
   const post = (path: string, body: object, c = cookie) =>
@@ -168,6 +171,9 @@ describe('Phase 2 owned applicant journey', () => {
     draft = results[0].body;
     expect(results[1].body.id).toBe(draft.id);
     expect((await post('', body)).body.id).toBe(draft.id);
+    const review = (await get(`/${draft.id}/review`)).body;
+    expect(review.policy.fee.explanation).toBeTruthy();
+    expect(review.policy.maxActivePerIntake).toBeGreaterThan(0);
     await post('', { ...body, confirmed: false }).expect(409);
     expect(await db.application.count({ where: { accountId } })).toBe(1);
   });
@@ -312,11 +318,17 @@ describe('Phase 2 owned applicant journey', () => {
     ).body;
     const doc = draft.documents.at(-1)!;
     expect(doc.status).toBe('SecurityScanPending');
+    const stored = await db.applicationDocument.findUniqueOrThrow({
+      where: { id: doc.id },
+    });
+    expect(stored.bucket).toBe('demo-postgres');
+    expect(Buffer.from(stored.content ?? [])).toEqual(bytes);
     await get(`/${draft.id}/documents/${doc.id}/content`).expect(404);
     await get(`/${draft.id}/documents/${doc.id}/content`, other).expect(404);
     scanner.scan.mockResolvedValueOnce({
       status: 'SecurityScanPending',
       scanner: null,
+      correlationId: key(),
     });
     draft = (
       await post(`/${draft.id}/documents/${doc.id}/scan`, {
@@ -325,6 +337,12 @@ describe('Phase 2 owned applicant journey', () => {
       }).expect(201)
     ).body;
     expect(draft.documents[0].canPreview).toBe(false);
+    expect(
+      draft.blockers.find((b) => b.section === 'documents')?.message,
+    ).toContain('fictional practice PDF');
+    expect(
+      draft.blockers.find((b) => b.section === 'documents')?.message,
+    ).toContain('Check file safety');
     draft = (
       await post(`/${draft.id}/documents/${doc.id}/scan`, {
         version: draft.version,
@@ -367,6 +385,7 @@ describe('Phase 2 owned applicant journey', () => {
     scanner.scan.mockResolvedValueOnce({
       status: 'SecurityScanFailed',
       scanner: 'TEST-ADAPTER',
+      correlationId: key(),
     });
     draft = (
       await post(`/${draft.id}/documents/${replacement.id}/scan`, {
@@ -702,6 +721,86 @@ describe('Phase 2 owned applicant journey', () => {
     expect(
       await db.application.count({ where: { accountId: u.accountId } }),
     ).toBe(3);
+  });
+  it('matches a published subject requirement to its selectable result name', async () => {
+    const u = await user();
+    const route = await db.qualificationRoute.findUniqueOrThrow({
+      where: { code: 'ECZ' },
+    });
+    const programme = await db.programme.create({
+      data: {
+        code: `TEST-${key()}`,
+        name: 'Fictional science programme',
+        awardLevel: 'Bachelor',
+        school: 'Test',
+        duration: '4 years',
+        overview: 'Test only',
+        feeScheduleRef: 'DEMO-ACADEMIC-2026-v1/test',
+        publishedVersion: 'TEST-v1',
+        effectiveDate: new Date(),
+        owningOffice: 'Admissions',
+      },
+    });
+    await db.requirementRule.create({
+      data: {
+        programmeId: programme.id,
+        routeId: route.id,
+        ruleKey: 'science',
+        label: 'Science subject',
+        kind: 'GRADE',
+        mandatory: true,
+        minGrade: 6,
+        evidence: 'Result statement',
+      },
+    });
+    const offering = await db.programmeOffering.create({
+      data: {
+        programmeId: programme.id,
+        intake: 'TEST',
+        studyMode: 'Full-time',
+        campus: 'Test',
+        availability: 'OPEN',
+        deadline: new Date(Date.now() + 86400000),
+      },
+    });
+    const started = await post(
+      '',
+      { offeringId: offering.id, confirmed: true, idempotencyKey: key() },
+      u.cookie,
+    ).expect(201);
+    const biology = await post(
+      `/${started.body.id}/sections/qualifications`,
+      {
+        version: started.body.version,
+        idempotencyKey: key(),
+        complete: true,
+        data: {
+          routeCode: 'ECZ',
+          institution: 'Fictional ECZ',
+          awardTitle: 'Grade 12',
+          completionYear: 2025,
+          status: 'COMPLETED',
+          subjects: [{ subject: 'Biology', grade: 4 }],
+        },
+      },
+      u.cookie,
+    ).expect(201);
+    expect(biology.body.blockers).toContainEqual(
+      expect.objectContaining({ section: 'qualifications', field: 'subjects' }),
+    );
+    const saved = await post(
+      `/${started.body.id}/sections/qualifications`,
+      {
+        version: biology.body.version,
+        idempotencyKey: key(),
+        complete: true,
+        data: { subjects: [{ subject: 'Science', grade: 4 }] },
+      },
+      u.cookie,
+    ).expect(201);
+    expect(saved.body.blockers).not.toContainEqual(
+      expect.objectContaining({ section: 'qualifications', field: 'subjects' }),
+    );
   });
   it('suspending the account invalidates an already-issued session immediately', async () => {
     await db.account.update({
