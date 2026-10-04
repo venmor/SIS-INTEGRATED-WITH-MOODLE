@@ -156,7 +156,9 @@ test("student sees only own official history on mobile", async ({ page }) => {
     await expect(
       page.getByText("Academic impact review required", { exact: true }),
     ).toBeVisible();
-    const summary = page.locator("summary");
+    const summary = page
+      .locator("summary")
+      .filter({ hasText: "Published version history" });
     await summary.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByText(/Version 1: PASS/)).toBeVisible();
