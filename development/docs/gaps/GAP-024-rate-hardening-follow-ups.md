@@ -42,7 +42,11 @@ Rerun the listed suites on a Node 24 box with full seed
 (including `applications.e2e`, `applications-case.e2e`, and
 the applicant browser journey for quota-regression proof);
 add the initiation DENY audit with e2e proof there; set proxy
-trust from deployment config at deploy time.
+trust from deployment config at deploy time. Slice-6
+addition (2026-10-04): run the widened `backup:test` itself
+on a tooled box/CI, plus a full-data drill covering
+finance/assessment/registration rows (empty on every
+database the Node 22 box can build).
 
 ## Human decision
 

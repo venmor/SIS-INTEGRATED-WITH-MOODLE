@@ -658,3 +658,26 @@ Manual checklist (`docs/demo/ACCESSIBILITY-CHECKLIST.md`) and
 human walkthrough remain **not verified** — by design, human
 evidence is never auto-claimed. Detail in
 [NOTE-PH8-005](NOTE-PH8-005.md).
+
+## Phase 8 slice 6 (2026-10-04, `sis_ph8_s6_a/b/c_test`)
+
+Backup/restore rehearsal (TASK-PH8-006 drafted 2026-10-04,
+human approval pending; lead Chitundu Milimbo, reviewer
+Charles Hangoma). No migration, no API/web code change. The
+widened script needs local `pg_dump`/`psql` (absent on this
+box), so verification is: `node --check` clean, canary unit
+green, TABLES asserted 103/103 against `schema.prisma` (no
+missing, no extra), and three full manual drills via
+container tools on suite-seeded DBs (`upload-quota` 4/4 +
+`auth` 10/10 on A; `ops-incidents` 15/15 on B;
+`notifications` 16/16 on C) — 103/103 counts match, zero
+orphans across all domain checks, document hashes match;
+scratch DBs dropped. Finance/assessment/registration rows
+are empty on every database this box can build, so those
+tables are proven present-and-empty, not data-bearing; the
+full-data drill plus the widened script's own run are
+CI/Node-24 follow-ups (GAP-024). Schedule/retention/
+encryption recorded as deployment decisions, not built.
+
+`npm run scan` cannot run here (ripgrep unavailable). Detail
+in [NOTE-PH8-006](NOTE-PH8-006.md).
