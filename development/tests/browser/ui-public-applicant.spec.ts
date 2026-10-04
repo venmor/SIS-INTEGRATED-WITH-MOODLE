@@ -49,6 +49,26 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await expectNoHorizontalOverflow(page);
 });
 
+test("applicant workspace home never offers access-review administration", async ({
+  page,
+}) => {
+  const applicant = await createApplicant();
+  await page.goto("/sign-in");
+  await page.getByLabel("Username", { exact: true }).fill(applicant.username);
+  await page.getByLabel("Password", { exact: true }).fill(applicant.password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(
+    page.getByRole("link", { name: "Applicant portal" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Access reviews" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("link", { name: "Role assignments" }),
+  ).toHaveCount(0);
+});
+
 async function startDraft(page: import("@playwright/test").Page) {
   const applicant = await createApplicant();
 

@@ -148,12 +148,12 @@ export default async function Home() {
           activeId={active?.assignmentId ?? null}
         />
         <div className={styles.actions}>
-          {active?.role === "APPLICANT" ? (
+          {active?.role === "APP" || active?.role === "APPLICANT" ? (
             <Link className={styles.primary} href="/applicant">
               Applicant portal
             </Link>
           ) : null}
-          {active?.role === "STUDENT" ? (
+          {active?.role === "STU" || active?.role === "STUDENT" ? (
             <Link className={styles.primary} href="/student">
               Student portal
             </Link>
@@ -213,7 +213,7 @@ export default async function Home() {
               Role assignments
             </a>
           ) : null}
-          {active ? (
+          {active?.role === "SYSADMIN" ? (
             <Link className={styles.primary} href="/admin/reviews">
               Access reviews
             </Link>
