@@ -125,7 +125,7 @@ export default async function DiscoverPage({
   const showPager = page !== null && page.total > take;
   return (
     <div className={discovery.page}>
-      <main className={discovery.main}>
+      <main id="main-content" tabIndex={-1} className={discovery.main}>
         <header className={discovery.heading}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Find a programme</h1>

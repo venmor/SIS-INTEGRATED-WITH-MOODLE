@@ -47,7 +47,7 @@ export default async function NotificationsPage() {
   const res = await loadMine();
   if (!res.data)
     return (
-      <main id="notifications-content">
+      <main id="main-content" tabIndex={-1}>
         <PageHeader
           eyebrow="Notification centre"
           title="Notifications"
@@ -61,7 +61,7 @@ export default async function NotificationsPage() {
     );
   const items = res.data.items;
   return (
-    <main id="notifications-content">
+    <main id="main-content" tabIndex={-1}>
       <PageHeader
         eyebrow="Notification centre"
         title="Notifications"

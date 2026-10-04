@@ -57,7 +57,7 @@ export default async function Home() {
   if (!me) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions and student services</p>
           <h1 className={styles.title}>Student Information System</h1>
           <p className={styles.lede}>
@@ -87,7 +87,7 @@ export default async function Home() {
   const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Student Information System</h1>
         {breakGlass ? (

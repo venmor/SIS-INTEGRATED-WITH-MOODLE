@@ -50,10 +50,10 @@ async function loadOwnResults(): Promise<{
 // never official, and board notes never leave the staff workspace.
 export default async function StudentResultsPage() {
   const res = await loadOwnResults();
-  if (!res.data) return <main id="student-content"><StudentUnavailable message={res.message} /></main>;
+  if (!res.data) return <main id="main-content" tabIndex={-1}><StudentUnavailable message={res.message} /></main>;
   const items = res.data.items;
   return (
-    <main id="student-content">
+    <main id="main-content" tabIndex={-1}>
       <PageHeader
         eyebrow="Student portal"
         title="Official results"

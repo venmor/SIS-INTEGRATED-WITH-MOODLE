@@ -12,7 +12,7 @@ export default function AreaError({
 }) {
   void error;
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <h1>We could not show this section</h1>
       <p>
         Something unexpected happened. Your saved work is kept — nothing

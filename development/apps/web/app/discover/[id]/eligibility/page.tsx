@@ -56,7 +56,7 @@ export default async function EligibilityPage({
   if (!detail) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Check my eligibility</h1>
           <Empty
@@ -72,7 +72,7 @@ export default async function EligibilityPage({
   if (routes.length === 0) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Check my eligibility</h1>
           <Notice
@@ -86,7 +86,7 @@ export default async function EligibilityPage({
   }
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>Admissions · Public catalogue</p>
         <h1 className={styles.title}>Check my eligibility</h1>
         <p className={styles.lede}>

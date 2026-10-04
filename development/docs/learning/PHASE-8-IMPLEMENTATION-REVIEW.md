@@ -1,10 +1,11 @@
-# Phase 8 Implementation Review — Hardening, Operations and Evidence (slices 1–4)
+# Phase 8 Implementation Review — Hardening, Operations and Evidence (slices 1–5)
 
 Release v0.9.0 track. Roadmap
-`11-…/10-phase-8-hardening-operations-and-evidence.md` slices 1–4
+`11-…/10-phase-8-hardening-operations-and-evidence.md` slices 1–5
 (TASK-PH8-001 approved 2026-10-03 for slice 1; TASK-PH8-002 approved
 2026-10-03 for slice 2; TASK-PH8-003 approved 2026-10-03 for slice
 3; TASK-PH8-004 drafted 2026-10-04 for slice 4, human approval
+pending; TASK-PH8-005 drafted 2026-10-04 for slice 5, human approval
 pending). Simulator-only (`SIM-NOTIFY-v1` provider);
 `NOTIFY-DEMO-v1` is fictional (SUP-009, GAP-008). Lead Chitundu
 Milimbo (slices 3–4); reviewer Charles Hangoma.
@@ -17,10 +18,12 @@ Milimbo (slices 3–4); reviewer Charles Hangoma.
 | 2 cross-domain audit timeline | §16.14; §15.19; UI-TIMELINE-001; visibleTimeline/caseHistory contracts; TEST-E2E shapes | kind-dispatched entity endpoint, gate-first joins, audited reads; package History section + contracts | `audit-entity-timeline` 10/10 |
 | 3 ops health + incident queue | §16.13; §§16.5,16.7,16.10; §§15.6–15.7,15.19; incident-lifecycle + worker-recovery clauses; TEST-REC shapes | generic `OpsIncident` (partial-unique one-OPEN-per-source) + dead-letter auto-open hooks in both domain workers + console (`/admin/ops`) over existing integration ops | `ops-incidents` 15/15 |
 | 4 rate-limit/abuse tuning | §19.41 (compendium lines 28153–28172); §§15.6–15.7; TEST-REC shapes | per-user Lusaka-day upload quota (`UploadQuotaGuard`, 429 + Retry-After + audited DENY) + versioned FIN callback budget + GAP-023/024 | `upload-quota` 4/4 |
+| 5 accessibility/performance/low-bandwidth | journey §10; §17.6; acceptance catalogue; a11y/low-bandwidth test doc | axe scans (4 journeys) + unified `#main-content` landmarks + `RouteFocus` + label sweep + zoom/reflow + slow-connection + token contrast A5/A6 + manual checklist | `accessibility` 10/10 |
 
 Total: 45/45 API e2e on fresh isolated DBs (16 + 10 + 15 + 4); unit 78/78; browser
 notification centre + package history + ops queue journeys 1/1 each at 390px with
-keyboard, focus, no overflow, empty localStorage.
+keyboard, focus, no overflow, empty localStorage; accessibility suite 10/10
+(axe, focus, labels, zoom, slow connection) plus contrast script 11/11.
 
 ## Authority notes
 
@@ -53,5 +56,5 @@ applicant→student journey; reproduced on clean HEAD, not a
 slice-3 regression), human walkthrough (both developers must
 explain the slice). Detail: [NOTE-PH8-001](NOTE-PH8-001.md),
 [NOTE-PH8-002](NOTE-PH8-002.md), [NOTE-PH8-003](NOTE-PH8-003.md),
-[NOTE-PH8-004](NOTE-PH8-004.md),
-[VERIFICATION](VERIFICATION.md) Phase 8 slices 1–4.
+[NOTE-PH8-004](NOTE-PH8-004.md), [NOTE-PH8-005](NOTE-PH8-005.md),
+[VERIFICATION](VERIFICATION.md) Phase 8 slices 1–5.

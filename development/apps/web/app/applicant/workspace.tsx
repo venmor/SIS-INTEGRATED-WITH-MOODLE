@@ -653,8 +653,9 @@ export function Workspace({
             <p>
               Discarding your draft removes it from your active workspace. This action cannot be undone.
             </p>
-            <label className={styles.checkboxLabel}>
+            <label className={styles.checkboxLabel} htmlFor="discard-confirm">
               <input
+                id="discard-confirm"
                 type="checkbox"
                 checked={confirm}
                 onChange={(e) => setConfirm(e.target.checked)}
@@ -1147,8 +1148,9 @@ export function Workspace({
             <h2>Confirm your application</h2>
             {p.declarations.map((d) => (
               <div key={d.id}>
-                <label className={styles.checkboxLabel}>
+                <label className={styles.checkboxLabel} htmlFor={`accept-${d.id}`}>
                   <input
+                    id={`accept-${d.id}`}
                     className={styles.checkbox}
                     type="checkbox"
                     checked={!!accepted[d.id]}

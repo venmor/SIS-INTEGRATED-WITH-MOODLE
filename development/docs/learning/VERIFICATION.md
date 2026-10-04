@@ -622,3 +622,39 @@ box).
 Manual screen-reader/WSL replay, remote CI, Vercel route check,
 production capacity numbers, and human walkthrough remain
 **not verified**. Detail in [NOTE-PH8-004](NOTE-PH8-004.md).
+
+## Phase 8 slice 5 (2026-10-04, fresh `sis_ph8_s5_test`)
+
+Accessibility/performance/low-bandwidth (TASK-PH8-005 drafted
+2026-10-04, human approval pending; lead Chitundu Milimbo,
+reviewer Charles Hangoma). Node **22.13.1** / PostgreSQL
+**18**, same direct-`node` CLI discipline. No migration, no
+API change. Typecheck exit 0 (API untouched, web), web
+production build exit 0, lint clean on touched files.
+`accessibility.spec.ts` **10/10** on the fresh migrated +
+min/curriculum-seeded browser DB with rebuilt apps: axe
+serious/critical-clean on sign-in, applicant workspace,
+notifications, ops queue; label-association helper green
+(caught two implicit-only checkboxes, now explicit);
+skip-link keyboard path; route focus on true SPA navigation
+(error-summary focus pre-existing, now asserted); 640px/320px
+reflow + touch targets; slow-connection pending→complete.
+Contrast script **11/11** via `test:scripts` (RED first: two
+sub-AA pairs → token amendments A5/A6). Regressions with the
+new code active: `notifications` + `ops-queue` 1/1
+(`entity-timeline` skipped — white-box seed collides on
+rerun). Unit **78/78**. Perf evidence recorded only: client
+JS 1,959,607 bytes / 84 files, zero raster images,
+self-hosted fonts. `npm run scan` cannot run here (ripgrep
+unavailable).
+
+Two browser-only debugging lessons (specs only, deleted after
+use): the catalogue 5-minute fetch cache needs distinct query
+keys for seeded data; App Router remounts layouts on
+navigation (module flag, not ref) and shared `@sis/ui` cards
+are plain-`<a>` full-loads (MPA top focus kept, not fought).
+
+Manual checklist (`docs/demo/ACCESSIBILITY-CHECKLIST.md`) and
+human walkthrough remain **not verified** — by design, human
+evidence is never auto-claimed. Detail in
+[NOTE-PH8-005](NOTE-PH8-005.md).

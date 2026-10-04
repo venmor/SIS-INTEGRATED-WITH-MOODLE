@@ -73,7 +73,7 @@ export default async function SignInPage({
       : undefined;
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <Link className={signInStyles.backLink} href="/discover">
           ← Browse programmes
         </Link>

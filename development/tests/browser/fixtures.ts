@@ -605,7 +605,80 @@ async function mintSid(
 export const moodleAdminSid = () =>
   mintSid("MOODLE_ADMIN", ["sync-moodle", "manage-mapping"], "SYSTEM", "MOODLE", "mdladmin");
 
-export const supportSid = () =>
+/** Phase 8 slice 5: synthetic startable offering for journey tests on
+ * minimally seeded browser DBs (DEMO-ACADEMIC fee prefix + one rule +
+ * OPEN offering with a future deadline; idempotent by programme code). */
+export async function ensureAxeOffering() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const programme = await db.programme.upsert({
+      where: { code: "TEST-AXE" },
+      update: {},
+      create: {
+        code: "TEST-AXE",
+        name: "Fictional Axe Test Programme",
+        awardLevel: "Bachelor",
+        school: "Test",
+        duration: "4 years",
+        overview: "Journey-test only",
+        feeScheduleRef: "DEMO-ACADEMIC-2026-v1/test",
+        publishedVersion: "TEST-v1",
+        effectiveDate: new Date(),
+        owningOffice: "Admissions",
+      },
+    });
+    await db.requirementRule.upsert({
+      where: {
+        programmeId_ruleKey_version: {
+          programmeId: programme.id,
+          ruleKey: "math",
+          version: 1,
+        },
+      },
+      update: {},
+      create: {
+        programmeId: programme.id,
+        ruleKey: "math",
+        label: "Mathematics",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        evidence: "Result statement",
+      },
+    });
+    const offering = await db.programmeOffering.upsert({
+      where: {
+        programmeId_intake_studyMode_campus: {
+          programmeId: programme.id,
+          intake: "2026S1",
+          studyMode: "FULLTIME",
+          campus: "MAIN",
+        },
+      },
+      update: {
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+      create: {
+        programmeId: programme.id,
+        intake: "2026S1",
+        studyMode: "FULLTIME",
+        campus: "MAIN",
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+    });
+    return { offeringId: offering.id };
+  } finally {
+    await db.$disconnect();
+  }
+}export const supportSid = () =>
   mintSid(
     "INTEGRATION_SUPPORT",
     ["replay-event", "manage-incident"],

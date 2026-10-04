@@ -46,6 +46,18 @@ html {
   color-scheme: light;
 }
 
+/* Slice 5: honour reduced-motion requests — the app uses only short
+ * state transitions (buttons), which collapse to none here so no
+ * meaning ever rides on animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* Global skip link — offscreen until focused. Area layouts may add
  * their own targeted skip links; this one always reaches #main-content
  * where present, else the first heading. */

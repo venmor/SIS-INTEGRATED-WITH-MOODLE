@@ -29,7 +29,7 @@ export default function ApplicantLayout({
           <ApplicantSignOut />
         </nav>
       </header>
-      <main id="applicant-content" className={styles.main} tabIndex={-1}>
+      <main id="main-content" className={styles.main} tabIndex={-1}>
         {children}
       </main>
     </div>
