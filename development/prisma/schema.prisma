@@ -1059,6 +1059,7 @@ model AcademicPeriod {
   sponsorships FinanceSponsorship[]
   adjustments FinanceAdjustment[]
   arrangements FinanceArrangement[]
+  deliveryOfferings CourseDeliveryOffering[]
   @@index([status, code])
 }
 
@@ -1636,7 +1637,129 @@ model Course {
   amendments RegistrationAmendment[]
   waitlistEntries WaitlistEntry[]
   financeCharges FinanceChargeLine[]
+  versions CourseVersion[]
   @@index([courseType, semester])
+}
+
+// V2 timetable foundation. These are draft identities, not an automatic
+// conversion of legacy course-only registrations or ProgrammeOffering rows.
+// GAP-V2-001 still blocks institutional configuration write/publication APIs.
+model InstitutionUnit {
+  id String @id @default(uuid())
+  code String @unique
+  createdAt DateTime @default(now())
+  versions InstitutionUnitVersion[]
+  outgoingRelations InstitutionUnitRelationship[] @relation("UnitRelationFrom")
+  incomingRelations InstitutionUnitRelationship[] @relation("UnitRelationTo")
+  deliveryOfferings CourseDeliveryOffering[] @relation("DeliveryUnit")
+  campusOfferings CourseDeliveryOffering[] @relation("DeliveryCampus")
+  buildings TeachingBuilding[] @relation("BuildingCampus")
+}
+
+model InstitutionUnitVersion {
+  id String @id @default(uuid())
+  unitId String
+  unit InstitutionUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  version Int
+  name String
+  unitType String
+  status String @default("DRAFT")
+  effectiveFrom DateTime?
+  effectiveTo DateTime?
+  createdAt DateTime @default(now())
+  @@unique([unitId, version])
+  @@index([unitType, status])
+}
+
+model InstitutionUnitRelationship {
+  id String @id @default(uuid())
+  fromUnitId String
+  fromUnit InstitutionUnit @relation("UnitRelationFrom", fields: [fromUnitId], references: [id], onDelete: Restrict)
+  toUnitId String
+  toUnit InstitutionUnit @relation("UnitRelationTo", fields: [toUnitId], references: [id], onDelete: Restrict)
+  relationshipType String
+  effectiveFrom DateTime
+  effectiveTo DateTime?
+  createdAt DateTime @default(now())
+  @@unique([fromUnitId, toUnitId, relationshipType, effectiveFrom])
+  @@index([toUnitId, relationshipType, effectiveFrom])
+}
+
+model CourseVersion {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  version Int
+  title String
+  credits Int
+  status String @default("DRAFT")
+  effectiveFrom DateTime?
+  effectiveTo DateTime?
+  createdAt DateTime @default(now())
+  offerings CourseDeliveryOffering[]
+  @@unique([courseId, version])
+  @@index([status, effectiveFrom])
+}
+
+model CourseDeliveryOffering {
+  id String @id @default(uuid())
+  courseVersionId String
+  courseVersion CourseVersion @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  deliveryUnitId String
+  deliveryUnit InstitutionUnit @relation("DeliveryUnit", fields: [deliveryUnitId], references: [id], onDelete: Restrict)
+  campusUnitId String
+  campusUnit InstitutionUnit @relation("DeliveryCampus", fields: [campusUnitId], references: [id], onDelete: Restrict)
+  deliveryMode String
+  capacity Int
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sections TeachingSection[]
+  @@unique([courseVersionId, periodId, deliveryUnitId, campusUnitId, deliveryMode])
+  @@index([periodId, campusUnitId, status])
+}
+
+model TeachingSection {
+  id String @id @default(uuid())
+  offeringId String
+  offering CourseDeliveryOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  code String
+  capacity Int
+  deliveryMode String
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([offeringId, code])
+  @@index([offeringId, status])
+}
+
+model TeachingBuilding {
+  id String @id @default(uuid())
+  campusUnitId String
+  campusUnit InstitutionUnit @relation("BuildingCampus", fields: [campusUnitId], references: [id], onDelete: Restrict)
+  code String
+  name String
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  venues TeachingVenue[]
+  @@unique([campusUnitId, code])
+}
+
+model TeachingVenue {
+  id String @id @default(uuid())
+  buildingId String
+  building TeachingBuilding @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  code String
+  name String
+  teachingCapacity Int
+  examinationCapacity Int?
+  stepFreeAccess Boolean?
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+  @@unique([buildingId, code])
+  @@index([status, teachingCapacity])
 }
 
 model CoursePrerequisite {

@@ -1,5 +1,9 @@
 # Verification evidence — 2026-09-19
 
+## V2 draft academic-delivery identities — 2026-10-04
+
+[TASK-V2-TIME-003](../task-packets/TASK-V2-TIME-003.md) introduces additive relational identities for institution units/versions, course versions, academic-period delivery offerings/sections and buildings/venues. All **67 migrations** applied to a new dedicated synthetic PostgreSQL database; Prisma validation/client generation, the API production build, source scan and new-identity schema comparison passed. The full API unit suite passed **317 with 13 skipped**. Foreign-key/check probes denied orphan sections/venues/unit versions, a self-linking unit relation and negative capacity. Existing unrelated schema drift remains. No shared database or official record was changed. [Detail](NOTE-V2-TIME-003.md).
+
 ## V2 timetable conflict foundation — 2026-10-04
 
 [TASK-V2-TIME-002](../task-packets/TASK-V2-TIME-002.md) adds pure, policy-versioned validation of dated teaching occurrences. The first conflict cases were observed red against an empty validator; timezone/teacher and invalid-calendar-date denial were also observed red before implementation. Focused unit checks passed **8/8**; the full API unit run passed **317 with 13 skipped**. The API production build, lint, source scan, formatting and diff-integrity checks passed. The validator is not yet connected to official offerings, venue records, staff approval or student publication. [Detail](NOTE-V2-TIME-002.md). No provider call or download occurred.

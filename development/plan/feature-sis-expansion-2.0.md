@@ -112,6 +112,8 @@ Read-only foundation, 2026-10-02: [TASK-V2-TIME-001](../docs/task-packets/TASK-V
 
 Validation foundation, 2026-10-04: [TASK-V2-TIME-002](../docs/task-packets/TASK-V2-TIME-002.md) adds a deterministic occurrence-conflict core under caller-supplied, versioned synthetic rules ([evidence](../docs/learning/NOTE-V2-TIME-002.md)). It does not create official course offerings, venues, drafts or published student timetables. TASK-101–105 and GAP-021 remain open. Next, connect authoritative offering/section and venue records to draft validation, then implement independent publication and student projection; do not infer them from legacy `Course.semester` or tutorial-group text.
 
+Identity foundation, 2026-10-04: [TASK-V2-TIME-003](../docs/task-packets/TASK-V2-TIME-003.md) introduces additive draft unit/version, course-version, delivery-offering/section and building/venue tables ([evidence](../docs/learning/NOTE-V2-TIME-003.md)). Existing course-only registrations are deliberately not mapped automatically. TASK-101–105, GAP-021 and GAP-V2-001 remain open. Next implement governed synthetic draft creation/validation and explicit reconciliation to actual section enrolment, then connect dated sessions to TASK-V2-TIME-002 and add independent publish/revision controls.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |
