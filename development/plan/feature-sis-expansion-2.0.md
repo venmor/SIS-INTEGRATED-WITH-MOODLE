@@ -110,6 +110,8 @@ Sequence: TASK-101→102→103→104→105; TASK-106 follows evidence from the m
 
 Read-only foundation, 2026-10-02: [TASK-V2-TIME-001](../docs/task-packets/TASK-V2-TIME-001.md) exposes official registered courses and a truthful publication-pending state on the student portal ([evidence](../docs/learning/NOTE-V2-TIME-001.md)). No TASK-101–105 row is complete; the page contains no published class session or conflict validation.
 
+Validation foundation, 2026-10-04: [TASK-V2-TIME-002](../docs/task-packets/TASK-V2-TIME-002.md) adds a deterministic occurrence-conflict core under caller-supplied, versioned synthetic rules ([evidence](../docs/learning/NOTE-V2-TIME-002.md)). It does not create official course offerings, venues, drafts or published student timetables. TASK-101–105 and GAP-021 remain open. Next, connect authoritative offering/section and venue records to draft validation, then implement independent publication and student projection; do not infer them from legacy `Course.semester` or tutorial-group text.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |

@@ -1,5 +1,9 @@
 # Verification evidence — 2026-09-19
 
+## V2 timetable conflict foundation — 2026-10-04
+
+[TASK-V2-TIME-002](../task-packets/TASK-V2-TIME-002.md) adds pure, policy-versioned validation of dated teaching occurrences. The first conflict cases were observed red against an empty validator; timezone/teacher and invalid-calendar-date denial were also observed red before implementation. Focused unit checks passed **8/8**; the full API unit run passed **317 with 13 skipped**. The API production build, lint, source scan, formatting and diff-integrity checks passed. The validator is not yet connected to official offerings, venue records, staff approval or student publication. [Detail](NOTE-V2-TIME-002.md). No provider call or download occurred.
+
 ## V2 applicant result and upload blockers — 2026-10-04
 
 [TASK-V2-APP-002](../task-packets/TASK-V2-APP-002.md) resolves the Radiography “Science subject”/selectable “Science” mismatch, shows current result blockers in the qualification form and makes the local exact-fixture file action explicit in the review blocker. The subject and document assertions were observed red, then the applicant API suite passed **19/19** on isolated synthetic PostgreSQL. The connected mobile applicant journey passed **1/1** after its inline-results assertion was observed red. Fresh web/API production builds, lint, source scan and formatting passed; lint retains unrelated warnings. [Detail](NOTE-V2-APP-002.md). No provider call or download occurred.
