@@ -116,6 +116,8 @@ Identity foundation, 2026-10-04: [TASK-V2-TIME-003](../docs/task-packets/TASK-V2
 
 Operational inventory, 2026-10-04: [TASK-V2-SETUP-002](../docs/task-packets/TASK-V2-SETUP-002.md) exposes current structure and teaching-delivery counts in the read-only setup workspace ([evidence](../docs/learning/NOTE-V2-SETUP-002.md)). It names the course-only registration mapping burden and keeps both areas blocked; counting rows does not grant setup or timetable authority.
 
+Fictional rule drafts, 2026-10-05: [TASK-V2-TIME-004](../docs/task-packets/TASK-V2-TIME-004.md) provides a gated campus-domain form and immutable version history for synthetic room-turnaround, preview-size and directed travel rules ([evidence](../docs/learning/NOTE-V2-TIME-004.md)). This closes only the editable rule-draft foundation of TASK-102/103. The next slice must create dated sessions against the draft delivery identities, run the conflict core using the saved rule version, and show actionable findings. It must not infer timetable approval, publication or student visibility from a saved rule draft.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |

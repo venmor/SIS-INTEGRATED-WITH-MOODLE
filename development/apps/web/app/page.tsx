@@ -163,6 +163,11 @@ export default async function Home() {
               Academic support requests
             </Link>
           ) : null}
+          {active?.role === "DOMAIN_ADMIN" && active.scopeRef.startsWith("DEMO-") ? (
+            <Link className={styles.primary} href="/admin/timetabling/demo-rules">
+              Timetable rule drafts
+            </Link>
+          ) : null}
           {active?.role === "ADMISSIONS_OFFICER" ? (
             <Link className={styles.primary} href="/admin/admissions/queue">
               Admissions queue

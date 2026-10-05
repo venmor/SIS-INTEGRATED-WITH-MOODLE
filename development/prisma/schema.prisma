@@ -58,6 +58,7 @@ model Account {
   // when no student number matched (still converts, never official).
   resolvedGradeLines GradeLine[]
   recoveryMethods RecoveryMethod[]
+  timetableDemoRuleDrafts TimetableDemoRuleDraft[]
 
   @@index([personId])
 }
@@ -1654,6 +1655,7 @@ model InstitutionUnit {
   deliveryOfferings CourseDeliveryOffering[] @relation("DeliveryUnit")
   campusOfferings CourseDeliveryOffering[] @relation("DeliveryCampus")
   buildings TeachingBuilding[] @relation("BuildingCampus")
+  timetableDemoRuleDrafts TimetableDemoRuleDraft[]
 }
 
 model InstitutionUnitVersion {
@@ -1760,6 +1762,27 @@ model TeachingVenue {
   createdAt DateTime @default(now())
   @@unique([buildingId, code])
   @@index([status, teachingCapacity])
+}
+
+// Fictional rehearsal only. No row in this table is an approved institutional
+// policy or a published timetable. The server gate requires DEMO_MODE, explicit
+// opt-in, loopback and an isolated review/test database for every query/write.
+model TimetableDemoRuleDraft {
+  id String @id @default(uuid())
+  campusUnitId String
+  campusUnit InstitutionUnit @relation(fields: [campusUnitId], references: [id], onDelete: Restrict)
+  version Int
+  roomTurnaroundMinutes Int
+  maxOccurrences Int
+  campusTravelMinutes Json
+  createdByAccountId String
+  createdBy Account @relation(fields: [createdByAccountId], references: [id], onDelete: Restrict)
+  clientRequestId String
+  contentDigest String
+  createdAt DateTime @default(now())
+  @@unique([campusUnitId, version], map: "TimetableDemoRuleDraft_campus_version_key")
+  @@unique([createdByAccountId, clientRequestId], map: "TimetableDemoRuleDraft_actor_request_key")
+  @@index([campusUnitId, createdAt])
 }
 
 model CoursePrerequisite {

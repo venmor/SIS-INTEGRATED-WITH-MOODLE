@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Parallel review servers keep their generated files away from the existing localhost session.
+  distDir: process.env.SIS_NEXT_DIST_DIR ?? ".next",
   // Compile workspace UI components (they ship as TS source in Phase 0).
   transpilePackages: ["@sis/ui", "@sis/config"],
   // Browser checks use a loopback hostname while the dev server binds all

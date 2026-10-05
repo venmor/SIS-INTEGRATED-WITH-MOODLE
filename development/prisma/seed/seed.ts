@@ -1096,6 +1096,27 @@ async function main(): Promise<void> {  // Identity administrator first so later
   for (const entry of SEED.filter((s) => s.username !== admin.username)) {
     await ensureAccount(entry, granter.id);
   }
+  if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+    for (const [code, name] of [["DEMO-MAIN", "Fictional Main Campus"], ["DEMO-HEALTH", "Fictional Health Campus"]]) {
+      const unit = await prisma.institutionUnit.upsert({ where: { code }, update: {}, create: { code } });
+      await prisma.institutionUnitVersion.upsert({
+        where: { unitId_version: { unitId: unit.id, version: 1 } }, update: {},
+        create: { unitId: unit.id, version: 1, name, unitType: "CAMPUS" },
+      });
+    }
+    await ensureAccount({
+      username: "nasilele.scheduler", personName: "Nasilele Scheduler (fictional)",
+      email: "nasilele.scheduler@demo.invalid", phone: "+260950009999",
+      password: "Seed-2026-Scheduler",
+      roles: [{
+        role: "DOMAIN_ADMIN", scopeType: "CAMPUS", scopeRef: "DEMO-MAIN",
+        startsAt: "2026-01-01T00:00:00Z", endsAt: null,
+        appointmentRef: "DEMO-TIME-004", authoritySource: "Fictional operating-university rehearsal",
+        capabilities: ["timetable-demo-rules-draft"], employmentType: null,
+        reason: "Fictional timetable rule drafts only",
+      }],
+    }, granter.id);
+  }
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
   await ensureStudentDemo();

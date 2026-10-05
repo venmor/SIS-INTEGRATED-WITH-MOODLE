@@ -13,6 +13,7 @@ import { TeachingModule } from './teaching/teaching.module.js';
 import { IntegrationModule } from './integration/integration.module.js';
 import { AssessmentModule } from './assessment/assessment.module.js';
 import { InstitutionSetupModule } from './institution-setup/institution-setup.module.js';
+import { TimetablingModule } from './timetabling/timetabling.module.js';
 import { AcademicSupportModule } from './academic-support/academic-support.module.js';
 
 @Module({
@@ -28,6 +29,7 @@ import { AcademicSupportModule } from './academic-support/academic-support.modul
     IntegrationModule,
     AssessmentModule,
     InstitutionSetupModule,
+    TimetablingModule,
     AcademicSupportModule,
   ],
   controllers: [AppController, HealthController],

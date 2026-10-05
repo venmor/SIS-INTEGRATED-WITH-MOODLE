@@ -47,6 +47,7 @@ function workspaceLabel(role: string | undefined) {
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
+  if (role === "DOMAIN_ADMIN") return "Academic delivery setup";
   return "Staff workspace";
 }
 
@@ -157,6 +158,11 @@ export default async function AdminLayout({
       href: "/admin/setup/readiness",
       label: "Setup readiness",
       show: role === "SYSADMIN",
+    },
+    {
+      href: "/admin/timetabling/demo-rules",
+      label: "Timetable rule drafts",
+      show: role === "DOMAIN_ADMIN" && active?.scopeRef?.startsWith("DEMO-") === true,
     },
     {
       href: "/admin/grants",
