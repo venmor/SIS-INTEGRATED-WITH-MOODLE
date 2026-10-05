@@ -33,6 +33,7 @@ export function SignInForm({
     username: string;
     password: string;
     blurb: string;
+    workspaceHref?: string;
   }>;
 }) {
   const router = useRouter();
@@ -96,11 +97,14 @@ export function SignInForm({
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
         // Only local applicant/discovery/admin routes survive authentication.
+        const requestedTarget = returnTo ?? demoStaff?.find(
+          (staff) => staff.username === data.get("username"),
+        )?.workspaceHref;
         const target =
-          returnTo &&
-          /^\/(applicant|discover|admin)(\/|\?|$)/.test(returnTo) &&
-          !/[\\\r\n]/.test(returnTo)
-            ? returnTo
+          requestedTarget &&
+          /^\/(applicant|discover|admin)(\/|\?|$)/.test(requestedTarget) &&
+          !/[\\\r\n]/.test(requestedTarget)
+            ? requestedTarget
             : data.get("username") === demoAccount?.username
               ? "/applicant"
               : "/";
@@ -231,9 +235,9 @@ export function SignInForm({
                 aria-labelledby="demo-staff-heading"
               >
                 <p className={signInStyles.demoLabel}>Fictional staff demo</p>
-                <h2 id="demo-staff-heading">Try the admissions workspaces</h2>
+                <h2 id="demo-staff-heading">Try staff workspaces</h2>
                 <p>
-                  Each role signs in to its own workspace. Enter fictional
+                  Sign in with the account for the workspace you need. Enter fictional
                   information only.
                 </p>
                 {demoStaff.map((staff) => (

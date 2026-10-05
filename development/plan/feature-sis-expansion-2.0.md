@@ -122,6 +122,8 @@ Decision refinement, 2026-10-05: [ADR-004](../docs/adr/ADR-004-synthetic-timetab
 
 Master/course preview slice, 2026-10-05: [TASK-V2-TIME-006](../docs/task-packets/TASK-V2-TIME-006.md) implements an immutable period-wide fictional draft whose course view is server-filtered from the same version. It checks saved policy, offering/section, venue, teaching appointment and explicit official course-registration links; incomplete section coverage, roster mapping, seats, room/teacher/student conflicts and travel produce blocking findings. This refines ADR-004 by keeping the master as the sole editable timetable source instead of prematurely storing independently mutable campus drafts. Campus rule authorship remains scoped. Independent approval, current-source revalidation at publication, atomic published replacement, impact/notification handling and enrolled-student views remain TASK-104/105 work; a conflict-free preview is never a published timetable.
 
+Preview rehearsal expansion: the [demo walkthrough](../docs/demo/TIMETABLE-PREVIEW-DEMO.md) provides 12 courses, 24 sessions, four rooms and five days through the real draft API, with ten-row paging, daily overview and per-course filtering. Demo sign-in identifies the campus-rule and central-coordinator accounts separately and opens the relevant workspace directly. This expands demonstration evidence without inventing official student registrations or granting publication authority.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |

@@ -68,6 +68,24 @@ export default async function SignInPage({
             password: "Seed-2026-Mulenga",
             blurb: "Decides adjustments, refunds and payment arrangements.",
           },
+          ...(process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true"
+            ? [
+                {
+                  role: "Campus timetable rules",
+                  username: "nasilele.scheduler",
+                  password: "Seed-2026-Scheduler",
+                  blurb: "Edits fictional campus rules. Use the coordinator account for timetable previews.",
+                  workspaceHref: "/admin/timetabling/demo-rules",
+                },
+                {
+                  role: "Timetable coordinator",
+                  username: "nasilele.master",
+                  password: "Seed-2026-Master",
+                  blurb: "Opens the full master timetable and course previews. This is a separate demo account.",
+                  workspaceHref: "/admin/timetabling/master",
+                },
+              ]
+            : []),
         ]
       : undefined;
   return (

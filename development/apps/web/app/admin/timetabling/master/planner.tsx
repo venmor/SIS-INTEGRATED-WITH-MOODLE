@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styles from "./planner.module.css";
 
 export interface Catalogue {
@@ -17,7 +17,7 @@ interface DraftSession {
   plannedSeats: number; requiresStepFreeAccess: boolean;
 }
 interface SavedSession extends Omit<DraftSession, "startLocal" | "endLocal"> {
-  startAt: string; endAt: string; courseCode: string; sectionCode: string; campusCode: string; venueCode: string;
+  startAt: string; endAt: string; courseCode: string; courseTitle?: string; sectionCode: string; campusCode: string; venueCode: string;
 }
 interface Issue { code: string; occurrenceIds: string[] }
 export interface MasterDraft { id: string; periodId: string; version: number; ruleDraftId: string;
@@ -26,7 +26,7 @@ interface CoursePreview { masterDraftId: string; version: number; status: string
   sessions: SavedSession[]; issues: Issue[]; createdAt: string }
 
 const issueLabels: Record<string, string> = {
-  ROSTER_UNVERIFIED: "No registered learners linked", ROOM_CONFLICT: "Room double-booked",
+  ROSTER_UNVERIFIED: "Registered learners not fully linked", ROOM_CONFLICT: "Room double-booked",
   ROOM_TURNAROUND: "Room turnaround too short", TEACHER_CONFLICT: "Lecturer double-booked",
   STUDENT_CONFLICT: "Student double-booked", TEACHER_TRAVEL: "Lecturer travel too short",
   STUDENT_TRAVEL: "Student travel too short", TRAVEL_POLICY_MISSING: "Campus travel rule missing",
@@ -41,6 +41,8 @@ function newSession(): DraftSession { return { id: crypto.randomUUID(), sectionI
   registrationIds: [], startLocal: "2026-10-05T08:00", endLocal: "2026-10-05T09:00",
   plannedSeats: 20, requiresStepFreeAccess: false }; }
 function displayDate(value: string) { return new Date(value).toLocaleString("en-ZM", { timeZone: "Africa/Lusaka", dateStyle: "medium", timeStyle: "short" }); }
+function dayKey(value: string) { return new Date(value).toLocaleDateString("en-CA", { timeZone: "Africa/Lusaka" }); }
+function dayLabel(value: string) { return new Date(`${value}T12:00:00+02:00`).toLocaleDateString("en-ZM", { timeZone: "Africa/Lusaka", weekday: "short", day: "numeric", month: "short" }); }
 
 export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCatalogue: Catalogue; initialHistory: MasterDraft[] }) {
   const [history, setHistory] = useState(initialHistory);
@@ -50,6 +52,10 @@ export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCat
   const [selectedDraftId, setSelectedDraftId] = useState(initialHistory[0]?.id ?? "");
   const [course, setCourse] = useState("");
   const [coursePreview, setCoursePreview] = useState<CoursePreview | null>(null);
+  const [coursePending, setCoursePending] = useState(false);
+  const courseRequest = useRef(0);
+  const [previewDay, setPreviewDay] = useState("");
+  const [previewPage, setPreviewPage] = useState(1);
   const [pending, setPending] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
@@ -67,7 +73,8 @@ export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCat
     const res = await fetch("/api/timetabling/demo-master", { cache: "no-store" });
     if (!res.ok) throw new Error("Could not load the master history.");
     const data = (await res.json()) as MasterDraft[];
-    setHistory(data); setSelectedDraftId(data[0]?.id ?? ""); setCourse(""); setCoursePreview(null);
+    courseRequest.current += 1;
+    setHistory(data); setSelectedDraftId(data[0]?.id ?? ""); setCourse(""); setCoursePreview(null); setCoursePending(false); setPreviewDay(""); setPreviewPage(1);
   }
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setPending(true); setError(""); setMessage("");
@@ -94,19 +101,49 @@ export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCat
     finally { setPending(false); }
   }
   async function chooseCourse(code: string) {
-    setCourse(code); setCoursePreview(null); setError("");
+    const request = ++courseRequest.current;
+    setCourse(code); setCoursePreview(null); setError(""); setPreviewDay(""); setPreviewPage(1);
+    setCoursePending(Boolean(selected && code));
     if (!selected || !code) return;
     try {
       const response = await fetch(`/api/timetabling/demo-master/${selected.id}/course/${code}`, { cache: "no-store" });
       if (!response.ok) throw new Error();
-      setCoursePreview((await response.json()) as CoursePreview);
-    } catch { setError("Course preview could not be loaded."); }
+      const result = (await response.json()) as CoursePreview;
+      if (request === courseRequest.current) setCoursePreview(result);
+    } catch { if (request === courseRequest.current) setError("Course preview could not be loaded."); }
+    finally { if (request === courseRequest.current) setCoursePending(false); }
   }
-  const displayed = course ? coursePreview?.sessions ?? [] : selected?.sessions ?? [];
+  const sourceSessions = [...(course ? coursePreview?.sessions ?? [] : selected?.sessions ?? [])]
+    .sort((a, b) => a.startAt.localeCompare(b.startAt) || a.courseCode.localeCompare(b.courseCode));
+  const days = [...new Set(sourceSessions.map(s => dayKey(s.startAt)))].sort();
+  const filteredSessions = sourceSessions.filter(s => !previewDay || dayKey(s.startAt) === previewDay);
+  const pageCount = Math.max(1, Math.ceil(filteredSessions.length / 10));
+  const currentPage = Math.min(previewPage, pageCount);
+  const displayed = filteredSessions.slice((currentPage - 1) * 10, currentPage * 10);
   const issues = course ? coursePreview?.issues ?? [] : selected?.issues ?? [];
+  const issueGroups = issues.reduce<Record<string, { ids: Set<string>; wholeMaster: boolean }>>((groups, issue) => {
+    const group = groups[issue.code] ??= { ids: new Set<string>(), wholeMaster: false };
+    issue.occurrenceIds.forEach(id => group.ids.add(id));
+    group.wholeMaster ||= issue.occurrenceIds.length === 0;
+    return groups;
+  }, {});
   return <div className={styles.stack}>
     <div className={styles.banner}><strong>Draft preview only</strong><span>No sessions are published to students from this workspace.</span></div>
-    <form className={styles.panel} onSubmit={save}>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    <section className={styles.panel} aria-label="Timetable previews"><div className={styles.heading}><div><h2>Saved master preview</h2><p>Choose a version, then inspect the whole period or one course.</p></div>
+      <button type="button" onClick={async () => { try { await reload(); setMessage("Latest history loaded."); } catch { setError("Could not reload history."); } }}>Reload history</button></div>
+      <div className={styles.filters}><label>Master version<select value={selectedDraftId} onChange={e => { courseRequest.current += 1; setSelectedDraftId(e.target.value); setCourse(""); setCoursePreview(null); setCoursePending(false); setPreviewDay(""); setPreviewPage(1); }}><option value="">No draft yet</option>{history.map(d => <option key={d.id} value={d.id}>Version {d.version} · {initialCatalogue.periods.find(p => p.id === d.periodId)?.code ?? "period"} · {d.sessions.length} sessions · {d.status === "BLOCKED" ? "blocked" : "for review"}</option>)}</select></label>
+        <label>View<select value={course} onChange={e => void chooseCourse(e.target.value)} disabled={!selected}><option value="">Full master timetable</option>{[...new Set(selected?.sessions.map(s => s.courseCode) ?? [])].sort().map(code => <option key={code} value={code}>{code} · {selected?.sessions.find(s => s.courseCode === code)?.courseTitle ?? "Course timetable"}</option>)}</select></label></div>
+      {selected ? <><p className={styles.context}>Master version {selected.version} · {selected.status === "BLOCKED" ? "Blocked" : "Conflict-free for review only"} · checked {displayDate(selected.createdAt)}</p>
+        <div className={styles.overview} aria-label="Timetable summary"><span><strong>{sourceSessions.length}</strong> sessions</span><span><strong>{new Set(sourceSessions.map(s => s.courseCode)).size}</strong> courses</span><span><strong>{new Set(sourceSessions.map(s => s.venueId)).size}</strong> venues</span><span><strong>{days.length}</strong> teaching days</span></div>
+        <div className={styles.dayFilters} aria-label="Filter by teaching day"><button type="button" aria-pressed={!previewDay} onClick={() => { setPreviewDay(""); setPreviewPage(1); }}>All days</button>{days.map(day => <button key={day} type="button" aria-pressed={previewDay === day} onClick={() => { setPreviewDay(day); setPreviewPage(1); }}>{dayLabel(day)} · {sourceSessions.filter(s => dayKey(s.startAt) === day).length}</button>)}</div>
+        {coursePending && <p role="status">Loading course preview…</p>}
+        <div className={styles.tableWrap}><table><thead><tr><th>Course / section</th><th>Starts</th><th>Ends</th><th>Venue</th><th>Seats</th><th>Reference</th></tr></thead><tbody>{displayed.map(s => <tr key={s.id}><td><strong>{s.courseCode} · {s.sectionCode}</strong>{s.courseTitle && <span className={styles.courseTitle}>{s.courseTitle}</span>}</td><td>{displayDate(s.startAt)}</td><td>{displayDate(s.endAt)}</td><td>{s.venueCode}</td><td>{s.plannedSeats}</td><td>{s.id.slice(0, 8)}</td></tr>)}</tbody></table></div>
+        <div className={styles.pagination} aria-label="Timetable pages"><span aria-live="polite">{filteredSessions.length ? `${(currentPage - 1) * 10 + 1}–${Math.min(currentPage * 10, filteredSessions.length)} of ${filteredSessions.length} sessions` : "No sessions in this view"}</span><button type="button" disabled={currentPage <= 1} onClick={() => setPreviewPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button type="button" disabled={currentPage >= pageCount} onClick={() => setPreviewPage(currentPage + 1)}>Next</button></div>
+        <h3>Findings ({issues.length})</h3>{course && !coursePreview ? <p>{coursePending ? "Loading findings…" : "Course findings unavailable."}</p> : issues.length ? <div className={styles.issues}>{Object.entries(issueGroups).map(([code, group]) => <details key={code}><summary>{issueLabels[code] ?? code} · {group.wholeMaster ? "whole master" : `${group.ids.size} sessions`}</summary><p>{group.wholeMaster && "Applies to the whole master timetable. "}{group.ids.size > 0 && `Session references: ${[...group.ids].map(id => id.slice(0, 8)).join(", ")}`}</p></details>)}</div> : <p>No blocking findings in this saved snapshot. Approval and publication remain separate.</p>}
+      </> : <p>No master draft has been saved yet.</p>}
+    </section>
+    <form className={styles.panel} onSubmit={save} id="plan-sessions">
       <div className={styles.heading}><div><h2>Plan sessions</h2><p>One master version holds every course session for the selected period.</p></div>
         <button type="button" onClick={() => { changed(); setSessions([...sessions, newSession()]); }} disabled={sessions.length >= 100 || pending}>Add session</button></div>
       <div className={styles.filters}>
@@ -136,16 +173,6 @@ export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCat
         </fieldset>;
       })}
       <div className={styles.actions}><button className={styles.primary} type="submit" disabled={pending}>{pending ? "Saving draft…" : "Save and check conflicts"}</button><span aria-live="polite">{pending ? "Saving…" : message || (dirty ? "Changes not yet saved" : "")}</span></div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
     </form>
-    <section className={styles.panel}><div className={styles.heading}><div><h2>Saved master preview</h2><p>Choose a version, then inspect the whole period or one course.</p></div>
-      <button type="button" onClick={async () => { try { await reload(); setMessage("Latest history loaded."); } catch { setError("Could not reload history."); } }}>Reload history</button></div>
-      <div className={styles.filters}><label>Master version<select value={selectedDraftId} onChange={e => { setSelectedDraftId(e.target.value); setCourse(""); setCoursePreview(null); }}><option value="">No draft yet</option>{history.map(d => <option key={d.id} value={d.id}>Version {d.version} · {initialCatalogue.periods.find(p => p.id === d.periodId)?.code ?? "period"} · {d.status === "BLOCKED" ? "blocked" : "for review"}</option>)}</select></label>
-        <label>View<select value={course} onChange={e => void chooseCourse(e.target.value)} disabled={!selected}><option value="">Full master timetable</option>{[...new Set(selected?.sessions.map(s => s.courseCode) ?? [])].sort().map(code => <option key={code} value={code}>{code} course timetable</option>)}</select></label></div>
-      {selected ? <><p className={styles.context}>Master version {selected.version} · {selected.status === "BLOCKED" ? "Blocked" : "Conflict-free for review only"} · checked {displayDate(selected.createdAt)}</p>
-        <div className={styles.tableWrap}><table><thead><tr><th>Course / section</th><th>Starts</th><th>Ends</th><th>Venue</th><th>Seats</th><th>Reference</th></tr></thead><tbody>{displayed.map(s => <tr key={s.id}><td>{s.courseCode} · {s.sectionCode}</td><td>{displayDate(s.startAt)}</td><td>{displayDate(s.endAt)}</td><td>{s.venueCode}</td><td>{s.plannedSeats}</td><td>{s.id.slice(0, 8)}</td></tr>)}</tbody></table></div>
-        <h3>Findings ({issues.length})</h3>{issues.length ? <ul className={styles.issues}>{issues.map((issue, i) => <li key={`${issue.code}-${i}`}><strong>{issueLabels[issue.code] ?? issue.code}</strong><span>{issue.occurrenceIds.length ? `Sessions ${issue.occurrenceIds.map(id => id.slice(0, 8)).join(" + ")}` : "Whole master timetable"}</span></li>)}</ul> : <p>No blocking findings in this saved snapshot. Approval and publication remain separate.</p>}
-      </> : <p>No master draft has been saved yet.</p>}
-    </section>
   </div>;
 }

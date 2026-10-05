@@ -126,6 +126,11 @@ export const SECURITY_V1: SecurityConfig = {
       // sign-in UX reason.
       "MODERATOR",
       "ADVISER",
+      // TIME-006: own-session reads/switches only. The workspace service
+      // still checks target ownership/liveness; no timetable grant or
+      // publication authority follows from these verbs.
+      "DOMAIN_ADMIN",
+      "TIMETABLE_COORDINATOR",
     ],
     "iam.me.read": [
       "SYSADMIN",
@@ -142,6 +147,8 @@ export const SECURITY_V1: SecurityConfig = {
       // Phase 7 slice 4 (TASK-PH7-004): same sign-in UX reason.
       "MODERATOR",
       "ADVISER",
+      "DOMAIN_ADMIN",
+      "TIMETABLE_COORDINATOR",
     ],
   },
   sodPairs: [],

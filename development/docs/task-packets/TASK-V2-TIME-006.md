@@ -12,3 +12,4 @@
 1. A scheduler can add/edit dated sessions through a keyboard-accessible form and save a new version; master and per-course views render from the same row without drift.
 2. Cross-course room/teacher/student conflicts show exact session references and block review-readiness. A missing roster or teaching appointment cannot be presented as conflict-free.
 3. Connected tests cover scope, link integrity, conflict, retry/stale, append-only history and student denial. Browser tests cover master/course switching at 390px and version history. No external data is used. This slice does not itself close independent approval, publication, student visibility or live policy authority.
+4. A reproducible larger sample shows 12 courses/24 sessions across five days and four rooms, with summary, daily filter, ten-row paging and course projection. Fixture creation cannot create official student enrolments; repeated sample saves remain idempotent.

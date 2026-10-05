@@ -16,8 +16,18 @@
 .panel .primary { background: var(--green-500); border-color: var(--green-600); color: white; }
 .panel button:focus-visible, .panel select:focus-visible, .panel input:focus-visible { outline: 3px solid var(--green-500); outline-offset: 2px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .75rem; margin: 1.25rem 0; }
+.overview span { display: grid; gap: .25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sunken); padding: .9rem 1rem; color: var(--text-secondary); }
+.overview strong { font-size: 1.6rem; color: var(--text-primary); }
+.dayFilters, .pagination { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+.dayFilters button[aria-pressed="true"] { color: var(--green-700, #13613b); background: var(--bg-sunken); border-color: var(--green-500); }
+.pagination > span:first-child { margin-right: auto; color: var(--text-secondary); }
 .warning, .error { color: var(--red-700, #a32626); font-weight: 650; }
 .tableWrap { overflow-x: auto; max-width: 100%; margin: 1rem 0; }
 .tableWrap table { width: 100%; border-collapse: collapse; text-align: left; min-width: 40rem; }
 .tableWrap th, .tableWrap td { padding: .7rem; border-bottom: 1px solid var(--border); }
-.issues { padding: 0; list-style: none; }.issues li { display: flex; flex-wrap: wrap; gap: .4rem 1rem; border-top: 1px solid var(--border); padding: .7rem 0; }.issues span { color: var(--text-secondary); }
+.courseTitle { display: block; margin-top: .25rem; color: var(--text-secondary); font-size: .9rem; }
+.issues details { border-top: 1px solid var(--border); padding: .85rem 0; }
+.issues summary { font-weight: 650; cursor: pointer; }
+.issues p { color: var(--text-secondary); line-height: 1.6; overflow-wrap: anywhere; }
+.issues summary:focus-visible { outline: 3px solid var(--green-500); outline-offset: 3px; }

@@ -1173,14 +1173,26 @@ async function ensureTimetableDemoDelivery(granterId: string): Promise<void> {
     where: { campusUnitId_code: { campusUnitId: campus.id, code: "DEMO-B1" } }, update: {},
     create: { campusUnitId: campus.id, code: "DEMO-B1", name: "Fictional teaching building" },
   });
-  for (const venueCode of ["DEMO-R1", "DEMO-R2"]) {
+  for (const [venueCode, capacity] of [["DEMO-R1", 40], ["DEMO-R2", 40], ["DEMO-R3", 60], ["DEMO-R4", 100]] as const) {
     await prisma.teachingVenue.upsert({
       where: { buildingId_code: { buildingId: building.id, code: venueCode } }, update: {},
-      create: { buildingId: building.id, code: venueCode, name: `Fictional room ${venueCode}`, teachingCapacity: 40, stepFreeAccess: true },
+      create: { buildingId: building.id, code: venueCode, name: `Fictional room ${venueCode}`, teachingCapacity: capacity, stepFreeAccess: true },
     });
   }
+  const previewCourses = [
+    ["DEM101", "Academic Writing"], ["DEM102", "Introduction to Computing"],
+    ["DEM103", "Statistics for Decision Making"], ["DEM104", "Database Fundamentals"],
+    ["DEM105", "Computer Networks"], ["DEM106", "Web Application Development"],
+    ["DEM107", "Information Systems"], ["DEM108", "Entrepreneurship"],
+    ["DEM109", "Research Methods"], ["DEM110", "Ethics and Professional Practice"],
+  ] as const;
+  // Preview-only courses have no curriculum links or official enrolments.
+  for (const [code, title] of previewCourses) await prisma.course.upsert({
+    where: { code }, update: {},
+    create: { code, title: `${title} (fictional)`, credits: 15, courseType: "half", semester: "S1", capacity: 40 },
+  });
   const teacher = await prisma.account.findUniqueOrThrow({ where: { username: "mutinta.l" } });
-  for (const courseCode of ["SWE111", "MTH111"]) {
+  for (const courseCode of ["SWE111", "MTH111", ...previewCourses.map(([code]) => code)]) {
     const course = await prisma.course.findUniqueOrThrow({ where: { code: courseCode } });
     const version = await prisma.courseVersion.upsert({
       where: { courseId_version: { courseId: course.id, version: 1 } }, update: {},

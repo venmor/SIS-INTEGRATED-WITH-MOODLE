@@ -19,7 +19,7 @@ describe('fictional master and course previews', () => {
     const token = randomUUID();
     await db.session.create({ data: { accountId: account.id, activeAssignmentId: assignment.id,
       tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 3_600_000) } });
-    return { cookie: `sid=${token}`, assignmentId: assignment.id };
+    return { cookie: `sid=${token}`, assignmentId: assignment.id, accountId: account.id };
   }
 
   beforeAll(async () => {
@@ -86,5 +86,26 @@ describe('fictional master and course previews', () => {
     process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS = 'false';
     await request(app.getHttpServer()).get('/timetabling/demo-master').set('Cookie', another.cookie).expect(404);
     process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS = 'true';
+  });
+
+  it('switches timetable workspaces only between owned live appointments', async () => {
+    const planner = await actor('TIMETABLE_COORDINATOR', 'SYSTEM', 'DEMO-UNIVERSITY', 'timetable-demo-master-draft');
+    const campus = await db.roleAssignment.create({ data: { accountId: planner.accountId,
+      role: 'DOMAIN_ADMIN', scopeType: 'CAMPUS', scopeRef: 'DEMO-MAIN',
+      capabilities: ['timetable-demo-rules-draft'], startsAt: new Date('2020-01-01'), reason: 'Fictional switching fixture' } });
+    const headers = { Cookie: planner.cookie, 'x-requested-with': 'XMLHttpRequest' };
+    const switched = await request(app.getHttpServer()).post('/auth/workspace/switch').set(headers)
+      .send({ assignmentId: campus.id }).expect(200);
+    expect(switched.body.activeWorkspace.role).toBe('DOMAIN_ADMIN');
+    await request(app.getHttpServer()).get('/timetabling/demo-master').set('Cookie', planner.cookie).expect(403);
+    await request(app.getHttpServer()).post('/auth/workspace/switch').set(headers)
+      .send({ assignmentId: planner.assignmentId }).expect(200);
+    await request(app.getHttpServer()).get('/timetabling/demo-master').set('Cookie', planner.cookie).expect(200);
+    const another = await actor('TIMETABLE_COORDINATOR', 'SYSTEM', 'DEMO-UNIVERSITY', 'timetable-demo-master-draft');
+    await request(app.getHttpServer()).post('/auth/workspace/switch').set(headers)
+      .send({ assignmentId: another.assignmentId }).expect(400);
+    await db.roleAssignment.update({ where: { id: campus.id }, data: { revokedAt: new Date() } });
+    await request(app.getHttpServer()).post('/auth/workspace/switch').set(headers)
+      .send({ assignmentId: campus.id }).expect(400);
   });
 });

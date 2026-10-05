@@ -91,7 +91,7 @@ export class MasterPreviewService {
       select: { id: true, course: { select: { code: true } }, registration: { select: { periodId: true } } }, take: 100 });
     return { periods, rules: rules.filter((row) => toPlanningRules(row)).map((row) => ({ id: row.id, periodId: row.periodId, version: row.version,
       campusCode: offerings.find((o) => o.campusUnitId === row.campusUnitId)?.campusUnit.code ?? 'DEMO' })),
-      sections: offerings.flatMap((o) => o.sections.map((s) => ({ id: s.id, code: `${o.courseVersion.course.code} · ${s.code}`,
+      sections: offerings.flatMap((o) => o.sections.map((s) => ({ id: s.id, code: `${o.courseVersion.course.code} · ${o.courseVersion.title} · ${s.code}`,
         courseCode: o.courseVersion.course.code, periodId: o.periodId, campusCode: o.campusUnit.code, capacity: s.capacity }))),
       venues: venues.map((v) => ({ id: v.id, code: `${v.building.campusUnit.code} · ${v.code}`, campusCode: v.building.campusUnit.code,
         teachingCapacity: v.teachingCapacity, stepFreeAccess: v.stepFreeAccess })),
@@ -171,7 +171,7 @@ export class MasterPreviewService {
         const teacherById = new Map(teachers.map((t) => [t.id, t]));
         const registrationById = new Map(registrations.map((r) => [r.id, r]));
         const studentByAttempt = new Map(attempts.map((a) => [a.id, a.studentId]));
-        const preview: Array<SessionInput & { courseCode: string; sectionCode: string; campusCode: string; venueCode: string; teacherAccountId: string }> = [];
+        const preview: Array<SessionInput & { courseCode: string; courseTitle: string; sectionCode: string; campusCode: string; venueCode: string; teacherAccountId: string }> = [];
         const occurrences: TeachingOccurrence[] = [];
         const extra: TimetableIssue[] = [];
         const courseSessions = new Map<string, string[]>();
@@ -206,7 +206,7 @@ export class MasterPreviewService {
             extra.push({ code: 'SEAT_PLAN_INSUFFICIENT', occurrenceIds: [input.id] });
           if (linked.length === 0)
             extra.push({ code: 'ROSTER_UNVERIFIED', occurrenceIds: [input.id] });
-          preview.push({ ...input, courseCode: section.offering.courseVersion.course.code, sectionCode: section.code,
+          preview.push({ ...input, courseCode: section.offering.courseVersion.course.code, courseTitle: section.offering.courseVersion.title, sectionCode: section.code,
             campusCode: venue.building.campusUnit.code, venueCode: venue.code, teacherAccountId: teacher.accountId });
           occurrences.push({ id: input.id, startAt: input.startAt, endAt: input.endAt,
             campusCode: venue.building.campusUnit.code, venueId: venue.id, teacherIds: [teacher.accountId],
@@ -233,7 +233,7 @@ export class MasterPreviewService {
           sessions: preview.map((s) => ({ id: s.id, sectionId: s.sectionId, venueId: s.venueId,
             teacherAssignmentId: s.teacherAssignmentId, registrationIds: s.registrationIds,
             startAt: s.startAt, endAt: s.endAt, plannedSeats: s.plannedSeats,
-            requiresStepFreeAccess: s.requiresStepFreeAccess, courseCode: s.courseCode,
+            requiresStepFreeAccess: s.requiresStepFreeAccess, courseCode: s.courseCode, courseTitle: s.courseTitle,
             sectionCode: s.sectionCode, campusCode: s.campusCode, venueCode: s.venueCode,
             teacherAccountId: s.teacherAccountId })),
           issues: issues.map((issue) => ({ code: issue.code, occurrenceIds: issue.occurrenceIds })),
