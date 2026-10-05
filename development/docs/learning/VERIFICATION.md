@@ -681,3 +681,27 @@ encryption recorded as deployment decisions, not built.
 
 `npm run scan` cannot run here (ripgrep unavailable). Detail
 in [NOTE-PH8-006](NOTE-PH8-006.md).
+
+## Phase 8 slice 7 (2026-10-04, isolated `sis-demo-reset` project)
+
+Demo reset and evidence capture (TASK-PH8-007 drafted
+2026-10-04, human approval pending; lead Chitundu Milimbo,
+reviewer Charles Hangoma). No migration, no API/web code
+change. Three refusal paths proven (exit 2, zero side
+effects): missing flag, shared project name, shared port.
+Full rehearsal green: isolated container/network/volume →
+51/51 migrations on :55433 → seed honestly skipped (Node 24
+only; CI proves it) → evidence JSON
+(sharedServiceBefore/After true, 31s) → isolated project
+fully removed → shared `development_pgdata`, all 40
+databases and 19 `sis` accounts verified intact. `node
+--check` clean on the rewritten script. CI backup step added
+(post-e2e seeded DB = full-data drill); proof is the first
+green post-push run (Actions cannot run here). Release
+candidate proposed (`v0.9.0-rc1`; human tag action);
+rollback = redeploy prior build, database stays forward
+(additive migrations, no down path). Walkthrough gained a
+release-rehearsal section (never rerun live against shared
+data).
+
+Detail in [NOTE-PH8-007](NOTE-PH8-007.md).
