@@ -4,6 +4,7 @@ import {
   type TeachingOccurrence,
   type TimetableRules,
 } from './conflicts.js';
+import { toPlanningRules } from './demo-rules-policy.js';
 
 const rules: TimetableRules = {
   version: 'FICTIONAL-TIME-v1',
@@ -36,6 +37,25 @@ function occurrence(
 }
 
 describe('dated teaching occurrence validation', () => {
+  it('uses a complete saved fictional policy to block out-of-window and long sessions', () => {
+    const policy = toPlanningRules({
+      id: 'RULE-2', periodId: 'DEMO-PERIOD', roomTurnaroundMinutes: 10, maxOccurrences: 50,
+      campusTravelMinutes: [{ fromCampus: 'MAIN', toCampus: 'HEALTH', minutes: 30 }],
+      teachingStartDate: new Date('2026-10-05T00:00:00Z'), teachingEndDate: new Date('2026-12-18T00:00:00Z'),
+      dailyStartTime: '08:00', dailyEndTime: '18:00', allowedWeekdays: [1, 2, 3, 4, 5], maxSessionMinutes: 90,
+    });
+    expect(policy?.campusTravelMinutes.MAIN.HEALTH).toBe(30);
+    expect(validateTeachingOccurrences([occurrence('A', { startAt: '2026-10-10T08:00:00+02:00', endAt: '2026-10-10T10:00:00+02:00' })], policy!).map((issue) => issue.code))
+      .toEqual(['OUTSIDE_TEACHING_WINDOW', 'SESSION_TOO_LONG']);
+    expect(validateTeachingOccurrences([occurrence('A')], policy!)).toEqual([]);
+  });
+
+  it('refuses incomplete earlier rule versions as planning policy', () => {
+    expect(toPlanningRules({ id: 'RULE-1', periodId: null, roomTurnaroundMinutes: 10,
+      maxOccurrences: 50, campusTravelMinutes: [], teachingStartDate: null, teachingEndDate: null,
+      dailyStartTime: null, dailyEndTime: null, allowedWeekdays: null, maxSessionMinutes: null,
+    })).toBeNull();
+  });
   it('blocks overlapping venue, teacher and registered-student commitments', () => {
     const issues = validateTeachingOccurrences(
       [

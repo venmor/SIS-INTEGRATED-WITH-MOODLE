@@ -17,6 +17,14 @@ export interface TimetableRules {
   roomTurnaroundMinutes: number;
   campusTravelMinutes: Record<string, Record<string, number>>;
   maxOccurrences: number;
+  teachingWindow?: {
+    startDate: string;
+    endDate: string;
+    dailyStartTime: string;
+    dailyEndTime: string;
+    allowedWeekdays: number[];
+    maxSessionMinutes: number;
+  };
 }
 
 export interface TimetableIssue {
@@ -35,7 +43,9 @@ export interface TimetableIssue {
     | 'STUDENT_TRAVEL'
     | 'TEACHER_CONFLICT'
     | 'TEACHER_TRAVEL'
-    | 'TRAVEL_POLICY_MISSING';
+    | 'TRAVEL_POLICY_MISSING'
+    | 'OUTSIDE_TEACHING_WINDOW'
+    | 'SESSION_TOO_LONG';
   occurrenceIds: string[];
 }
 
@@ -55,6 +65,8 @@ const priority: Record<TimetableIssue['code'], number> = {
   TEACHER_CONFLICT: 11,
   TEACHER_TRAVEL: 12,
   TRAVEL_POLICY_MISSING: 13,
+  OUTSIDE_TEACHING_WINDOW: 14,
+  SESSION_TOO_LONG: 15,
 };
 
 const minutes = (value: number) => value * 60_000;
@@ -72,6 +84,22 @@ const overlaps = (left: TeachingOccurrence, right: TeachingOccurrence) =>
   Date.parse(left.startAt) < Date.parse(right.endAt) &&
   Date.parse(right.startAt) < Date.parse(left.endAt);
 
+const localClock = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Africa/Lusaka', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'short',
+});
+const weekdayNumber: Record<string, number> = {
+  Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
+};
+function localParts(instant: string) {
+  const parts = Object.fromEntries(localClock.formatToParts(new Date(instant)).map((item) => [item.type, item.value]));
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+    weekday: weekdayNumber[parts.weekday],
+  };
+}
+
 function common(left: Set<string>, right: Set<string>) {
   const [small, large] =
     left.size <= right.size ? [left, right] : [right, left];
@@ -88,7 +116,21 @@ export function validateTeachingOccurrences(
     !Number.isSafeInteger(rules.roomTurnaroundMinutes) ||
     rules.roomTurnaroundMinutes < 0 ||
     !Number.isSafeInteger(rules.maxOccurrences) ||
-    rules.maxOccurrences < 1
+    rules.maxOccurrences < 1 ||
+    (rules.teachingWindow !== undefined && (
+      !/^\d{4}-\d{2}-\d{2}$/.test(rules.teachingWindow.startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(rules.teachingWindow.endDate) ||
+      rules.teachingWindow.startDate > rules.teachingWindow.endDate ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(rules.teachingWindow.dailyStartTime) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(rules.teachingWindow.dailyEndTime) ||
+      rules.teachingWindow.dailyStartTime >= rules.teachingWindow.dailyEndTime ||
+      !Array.isArray(rules.teachingWindow.allowedWeekdays) ||
+      rules.teachingWindow.allowedWeekdays.length === 0 ||
+      rules.teachingWindow.allowedWeekdays.some((day) => !Number.isSafeInteger(day) || day < 1 || day > 7) ||
+      !Number.isSafeInteger(rules.teachingWindow.maxSessionMinutes) ||
+      rules.teachingWindow.maxSessionMinutes < 15 ||
+      rules.teachingWindow.maxSessionMinutes > 480
+    ))
   )
     return [{ code: 'POLICY_INVALID', occurrenceIds: [] }];
   if (occurrences.length > rules.maxOccurrences)
@@ -114,6 +156,17 @@ export function validateTeachingOccurrences(
       issues.push({ code: 'INVALID_TIME', occurrenceIds: [item.id] });
     } else {
       valid.push(item);
+      if (rules.teachingWindow) {
+        const window = rules.teachingWindow;
+        const first = localParts(item.startAt);
+        const last = localParts(item.endAt);
+        if (first.date < window.startDate || last.date > window.endDate ||
+          first.date !== last.date || !window.allowedWeekdays.includes(first.weekday) ||
+          first.time < window.dailyStartTime || last.time > window.dailyEndTime)
+          issues.push({ code: 'OUTSIDE_TEACHING_WINDOW', occurrenceIds: [item.id] });
+        if (end - start > minutes(window.maxSessionMinutes))
+          issues.push({ code: 'SESSION_TOO_LONG', occurrenceIds: [item.id] });
+      }
     }
     if (!item.venueId)
       issues.push({ code: 'VENUE_MISSING', occurrenceIds: [item.id] });

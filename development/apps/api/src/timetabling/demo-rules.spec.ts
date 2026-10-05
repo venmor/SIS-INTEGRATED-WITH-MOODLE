@@ -5,6 +5,13 @@ const request = 'a141dad1-16af-4f7b-b3f7-ec0c0c5d9b1d';
 const base = {
   clientRequestId: request,
   expectedVersion: 0,
+  periodId: 'c94988e6-ae8e-4737-9987-8255a2d37642',
+  teachingStartDate: '2026-10-05',
+  teachingEndDate: '2026-12-18',
+  dailyStartTime: '08:00',
+  dailyEndTime: '18:00',
+  allowedWeekdays: [1, 2, 3, 4, 5],
+  maxSessionMinutes: 180,
   roomTurnaroundMinutes: 15,
   maxOccurrences: 200,
   travel: [
@@ -44,5 +51,16 @@ describe('fictional timetable rule draft boundary', () => {
     expect(() => parseDraftCommand({ ...base, travel: [...base.travel, ...base.travel] })).toThrow();
     expect(() => parseDraftCommand({ ...base, approved: true })).toThrow();
     expect(() => parseDraftCommand({ ...base, maxOccurrences: 501 })).toThrow();
+  });
+
+  it('rejects impossible teaching dates, hours, weekdays and session duration', () => {
+    expect(() => parseDraftCommand({ ...base, teachingStartDate: '2026-02-30' })).toThrow();
+    expect(() => parseDraftCommand({ ...base, teachingEndDate: '2026-10-04' })).toThrow();
+    expect(() => parseDraftCommand({ ...base, dailyStartTime: '19:00' })).toThrow();
+    expect(() => parseDraftCommand({ ...base, allowedWeekdays: [1, 1] })).toThrow();
+    expect(() => parseDraftCommand({ ...base, maxSessionMinutes: 481 })).toThrow();
+    expect(() => parseDraftCommand({ ...base, maxSessionMinutes: 180, dailyEndTime: '09:00' })).toThrow();
+    expect(() => parseDraftCommand({ ...base, teachingEndDate: '2028-12-18' })).toThrow();
+    expect(parseDraftCommand({ ...base, allowedWeekdays: [5, 1] }).allowedWeekdays).toEqual([1, 5]);
   });
 });

@@ -10,6 +10,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { SECURITY_V1 } from '@sis/config';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
+import { toPlanningRules } from './demo-rules-policy.js';
 
 interface TravelRow {
   fromCampus: string;
@@ -20,6 +21,13 @@ interface TravelRow {
 interface DraftCommand {
   clientRequestId: string;
   expectedVersion: number;
+  periodId: string;
+  teachingStartDate: string;
+  teachingEndDate: string;
+  dailyStartTime: string;
+  dailyEndTime: string;
+  allowedWeekdays: number[];
+  maxSessionMinutes: number;
   roomTurnaroundMinutes: number;
   maxOccurrences: number;
   travel: TravelRow[];
@@ -27,6 +35,13 @@ interface DraftCommand {
 
 const campusCode = /^DEMO-[A-Z0-9-]{1,30}$/;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+const timeOnly = /^([01]\d|2[0-3]):[0-5]\d$/;
+function validDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !dateOnly.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
 
 export function timetableDemoDraftsEnabled(env: NodeJS.ProcessEnv = process.env) {
   if (
@@ -51,6 +66,13 @@ export function parseDraftCommand(input: unknown): DraftCommand {
   const allowed = new Set([
     'clientRequestId',
     'expectedVersion',
+    'periodId',
+    'teachingStartDate',
+    'teachingEndDate',
+    'dailyStartTime',
+    'dailyEndTime',
+    'allowedWeekdays',
+    'maxSessionMinutes',
     'roomTurnaroundMinutes',
     'maxOccurrences',
     'travel',
@@ -61,6 +83,23 @@ export function parseDraftCommand(input: unknown): DraftCommand {
     throw new BadRequestException('A valid save reference is required.');
   if (!Number.isSafeInteger(value.expectedVersion) || (value.expectedVersion as number) < 0)
     throw new BadRequestException('Reload the latest rule version.');
+  if (typeof value.periodId !== 'string' || !uuid.test(value.periodId))
+    throw new BadRequestException('Select a configured academic period.');
+  if (!validDate(value.teachingStartDate) || !validDate(value.teachingEndDate) || value.teachingStartDate > value.teachingEndDate)
+    throw new BadRequestException('Enter valid, ordered teaching dates.');
+  if (Date.parse(`${value.teachingEndDate}T00:00:00Z`) - Date.parse(`${value.teachingStartDate}T00:00:00Z`) > 366 * 86_400_000)
+    throw new BadRequestException('One fictional teaching window may span at most 367 inclusive days.');
+  if (typeof value.dailyStartTime !== 'string' || typeof value.dailyEndTime !== 'string' || !timeOnly.test(value.dailyStartTime) || !timeOnly.test(value.dailyEndTime) || value.dailyStartTime >= value.dailyEndTime)
+    throw new BadRequestException('Enter valid, ordered daily teaching hours.');
+  if (!Array.isArray(value.allowedWeekdays) || value.allowedWeekdays.length === 0 || value.allowedWeekdays.length > 7 ||
+    value.allowedWeekdays.some((day) => !Number.isSafeInteger(day) || day < 1 || day > 7) ||
+    new Set(value.allowedWeekdays).size !== value.allowedWeekdays.length)
+    throw new BadRequestException('Choose one or more distinct teaching weekdays.');
+  if (!Number.isSafeInteger(value.maxSessionMinutes) || (value.maxSessionMinutes as number) < 15 || (value.maxSessionMinutes as number) > 480)
+    throw new BadRequestException('Maximum session duration must be 15–480 minutes.');
+  const clockMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  if ((value.maxSessionMinutes as number) > clockMinutes(value.dailyEndTime) - clockMinutes(value.dailyStartTime))
+    throw new BadRequestException('Maximum session duration cannot exceed the daily teaching hours.');
   if (
     !Number.isSafeInteger(value.roomTurnaroundMinutes) ||
     (value.roomTurnaroundMinutes as number) < 0 ||
@@ -105,6 +144,13 @@ export function parseDraftCommand(input: unknown): DraftCommand {
   return {
     clientRequestId: value.clientRequestId,
     expectedVersion: value.expectedVersion as number,
+    periodId: value.periodId,
+    teachingStartDate: value.teachingStartDate,
+    teachingEndDate: value.teachingEndDate,
+    dailyStartTime: value.dailyStartTime,
+    dailyEndTime: value.dailyEndTime,
+    allowedWeekdays: [...(value.allowedWeekdays as number[])].sort((a, b) => a - b),
+    maxSessionMinutes: value.maxSessionMinutes as number,
     roomTurnaroundMinutes: value.roomTurnaroundMinutes as number,
     maxOccurrences: value.maxOccurrences as number,
     travel,
@@ -148,6 +194,11 @@ export class DemoTimetableRulesService {
 
   async list(actor: ActiveAuthority) {
     const campus = await this.campus(actor);
+    const periods = await this.prisma.academicPeriod.findMany({
+      where: { code: { startsWith: 'DEMO-' } },
+      orderBy: { code: 'asc' }, take: 30,
+      select: { id: true, code: true },
+    });
     const versions = await this.prisma.timetableDemoRuleDraft.findMany({
       where: { campusUnitId: campus.id },
       orderBy: { version: 'desc' },
@@ -158,15 +209,27 @@ export class DemoTimetableRulesService {
         roomTurnaroundMinutes: true,
         maxOccurrences: true,
         campusTravelMinutes: true,
+        periodId: true,
+        teachingStartDate: true,
+        teachingEndDate: true,
+        dailyStartTime: true,
+        dailyEndTime: true,
+        allowedWeekdays: true,
+        maxSessionMinutes: true,
         createdAt: true,
       },
     });
-    return { campusCode: campus.code, status: 'FICTIONAL_DRAFT_ONLY', versions };
+    return { campusCode: campus.code, status: 'FICTIONAL_DRAFT_ONLY', periods, versions: versions.map((row) => ({
+      ...row, planningPolicyComplete: !!toPlanningRules(row),
+    })) };
   }
 
   async create(actor: ActiveAuthority, raw: unknown) {
     const campus = await this.campus(actor);
     const command = parseDraftCommand(raw);
+    const period = await this.prisma.academicPeriod.findUnique({ where: { id: command.periodId }, select: { code: true } });
+    if (!period || !period.code.startsWith('DEMO-'))
+      throw new BadRequestException('Select a configured fictional academic period.');
     const codes = [...new Set(command.travel.flatMap((row) => [row.fromCampus, row.toCampus]))];
     if (codes.length) {
       const registered = await this.prisma.institutionUnit.findMany({
@@ -183,6 +246,13 @@ export class DemoTimetableRulesService {
     }
     const content = {
       campusCode: campus.code,
+      periodId: command.periodId,
+      teachingStartDate: command.teachingStartDate,
+      teachingEndDate: command.teachingEndDate,
+      dailyStartTime: command.dailyStartTime,
+      dailyEndTime: command.dailyEndTime,
+      allowedWeekdays: command.allowedWeekdays,
+      maxSessionMinutes: command.maxSessionMinutes,
       roomTurnaroundMinutes: command.roomTurnaroundMinutes,
       maxOccurrences: command.maxOccurrences,
       travel: command.travel,
@@ -232,6 +302,13 @@ export class DemoTimetableRulesService {
           data: {
             campusUnitId: campus.id,
             version: command.expectedVersion + 1,
+            periodId: command.periodId,
+            teachingStartDate: new Date(`${command.teachingStartDate}T00:00:00.000Z`),
+            teachingEndDate: new Date(`${command.teachingEndDate}T00:00:00.000Z`),
+            dailyStartTime: command.dailyStartTime,
+            dailyEndTime: command.dailyEndTime,
+            allowedWeekdays: command.allowedWeekdays,
+            maxSessionMinutes: command.maxSessionMinutes,
             roomTurnaroundMinutes: command.roomTurnaroundMinutes,
             maxOccurrences: command.maxOccurrences,
             campusTravelMinutes: command.travel.map((row) => ({

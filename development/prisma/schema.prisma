@@ -1061,6 +1061,7 @@ model AcademicPeriod {
   adjustments FinanceAdjustment[]
   arrangements FinanceArrangement[]
   deliveryOfferings CourseDeliveryOffering[]
+  timetableDemoRuleDrafts TimetableDemoRuleDraft[]
   @@index([status, code])
 }
 
@@ -1775,6 +1776,14 @@ model TimetableDemoRuleDraft {
   roomTurnaroundMinutes Int
   maxOccurrences Int
   campusTravelMinutes Json
+  periodId String?
+  period AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  teachingStartDate DateTime? @db.Date
+  teachingEndDate DateTime? @db.Date
+  dailyStartTime String?
+  dailyEndTime String?
+  allowedWeekdays Json?
+  maxSessionMinutes Int?
   createdByAccountId String
   createdBy Account @relation(fields: [createdByAccountId], references: [id], onDelete: Restrict)
   clientRequestId String

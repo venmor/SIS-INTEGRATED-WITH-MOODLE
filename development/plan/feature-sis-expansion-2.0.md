@@ -118,6 +118,8 @@ Operational inventory, 2026-10-04: [TASK-V2-SETUP-002](../docs/task-packets/TASK
 
 Fictional rule drafts, 2026-10-05: [TASK-V2-TIME-004](../docs/task-packets/TASK-V2-TIME-004.md) provides a gated campus-domain form and immutable version history for synthetic room-turnaround, preview-size and directed travel rules ([evidence](../docs/learning/NOTE-V2-TIME-004.md)). This closes only the editable rule-draft foundation of TASK-102/103. The next slice must create dated sessions against the draft delivery identities, run the conflict core using the saved rule version, and show actionable findings. It must not infer timetable approval, publication or student visibility from a saved rule draft.
 
+Decision refinement, 2026-10-05: [ADR-004](../docs/adr/ADR-004-synthetic-timetable-planning-contract.md) requires a complete fictional teaching-window policy before dated planning, then one versioned period-wide master draft with server-filtered course previews. Course views are projections of the master, never separately edited calendars. Independent approval and an atomic, revalidated publish step later create enrolled-student views. [TASK-V2-TIME-005](../docs/task-packets/TASK-V2-TIME-005.md) closes the missing typed policy fields; the linked session/master/course-preview and publication tasks remain open until end-to-end browser and denial evidence exists.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |

@@ -1097,6 +1097,10 @@ async function main(): Promise<void> {  // Identity administrator first so later
     await ensureAccount(entry, granter.id);
   }
   if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+    await prisma.academicPeriod.upsert({
+      where: { code: "DEMO-2026-TEACHING" }, update: {},
+      create: { code: "DEMO-2026-TEACHING", status: "DRAFT" },
+    });
     for (const [code, name] of [["DEMO-MAIN", "Fictional Main Campus"], ["DEMO-HEALTH", "Fictional Health Campus"]]) {
       const unit = await prisma.institutionUnit.upsert({ where: { code }, update: {}, create: { code } });
       await prisma.institutionUnitVersion.upsert({

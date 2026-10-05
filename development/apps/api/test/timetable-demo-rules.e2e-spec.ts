@@ -8,6 +8,7 @@ import { PrismaService } from '../src/identity-access/prisma.service.js';
 describe('fictional timetable rule drafts', () => {
   let app: INestApplication;
   let db: PrismaService;
+  let periodId: string;
   const previousDemoMode = process.env.DEMO_MODE;
   const previousGate = process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS;
 
@@ -50,6 +51,11 @@ describe('fictional timetable rule drafts', () => {
     app = module.createNestApplication();
     await app.init();
     db = app.get(PrismaService);
+    const period = await db.academicPeriod.upsert({
+      where: { code: 'DEMO-TIME-005-TEST' }, update: {},
+      create: { code: 'DEMO-TIME-005-TEST', status: 'DRAFT' },
+    });
+    periodId = period.id;
   });
 
   afterAll(async () => {
@@ -66,6 +72,8 @@ describe('fictional timetable rule drafts', () => {
     const user = await actor('DOMAIN_ADMIN', home.code);
     const input = {
       clientRequestId: randomUUID(), expectedVersion: 0,
+      periodId, teachingStartDate: '2026-10-05', teachingEndDate: '2026-12-18',
+      dailyStartTime: '08:00', dailyEndTime: '18:00', allowedWeekdays: [1, 2, 3, 4, 5], maxSessionMinutes: 180,
       roomTurnaroundMinutes: 15, maxOccurrences: 200,
       travel: [{ fromCampus: home.code, toCampus: away.code, minutes: 30 }],
     };
@@ -79,6 +87,7 @@ describe('fictional timetable rule drafts', () => {
     expect(second.body.version).toBe(2);
     const list = await request(app.getHttpServer()).get('/timetabling/demo-rules').set('Cookie', user.cookie).expect(200);
     expect(list.body.versions.map((row: { version: number }) => row.version)).toEqual([2, 1]);
+    expect(list.body.versions[0].planningPolicyComplete).toBe(true);
     await expect(db.timetableDemoRuleDraft.update({ where: { id: first.body.id }, data: { maxOccurrences: 1 } })).rejects.toThrow(/append-only/);
     const audit = await db.auditEvent.findFirst({ where: { targetRef: first.body.id, action: 'DemoTimetableRuleDraftSaved' } });
     expect(audit?.outcome).toBe('ALLOW');
@@ -92,12 +101,16 @@ describe('fictional timetable rule drafts', () => {
     const user = await actor('DOMAIN_ADMIN', home.code);
     const other = await actor('DOMAIN_ADMIN', away.code);
     const noCapability = await actor('DOMAIN_ADMIN', home.code, []);
-    const input = { clientRequestId: randomUUID(), expectedVersion: 0, roomTurnaroundMinutes: 10, maxOccurrences: 20, travel: [] };
+    const input = { clientRequestId: randomUUID(), expectedVersion: 0, periodId,
+      teachingStartDate: '2026-10-05', teachingEndDate: '2026-12-18', dailyStartTime: '08:00', dailyEndTime: '18:00',
+      allowedWeekdays: [1, 2, 3, 4, 5], maxSessionMinutes: 180,
+      roomTurnaroundMinutes: 10, maxOccurrences: 20, travel: [] };
     await request(app.getHttpServer()).post('/timetabling/demo-rules').set('Cookie', user.cookie).send(input).expect(201);
     const otherList = await request(app.getHttpServer()).get('/timetabling/demo-rules').set('Cookie', other.cookie).expect(200);
     expect(otherList.body.versions).toEqual([]);
     await request(app.getHttpServer()).get('/timetabling/demo-rules').set('Cookie', noCapability.cookie).expect(403);
     await request(app.getHttpServer()).post('/timetabling/demo-rules').set('Cookie', user.cookie).send({ ...input, clientRequestId: randomUUID(), expectedVersion: 1, travel: [{ fromCampus: home.code, toCampus: 'MAIN', minutes: 2 }] }).expect(400);
+    await request(app.getHttpServer()).post('/timetabling/demo-rules').set('Cookie', user.cookie).send({ ...input, clientRequestId: randomUUID(), expectedVersion: 1, periodId: randomUUID() }).expect(400);
     await db.roleAssignment.update({ where: { id: user.assignmentId }, data: { revokedAt: new Date() } });
     await request(app.getHttpServer()).get('/timetabling/demo-rules').set('Cookie', user.cookie).expect(403);
     await request(app.getHttpServer()).post('/timetabling/demo-rules').set('Cookie', user.cookie).send(input).expect(403);
