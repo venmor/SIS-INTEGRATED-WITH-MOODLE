@@ -45,7 +45,11 @@ export interface TimetableIssue {
     | 'TEACHER_TRAVEL'
     | 'TRAVEL_POLICY_MISSING'
     | 'OUTSIDE_TEACHING_WINDOW'
-    | 'SESSION_TOO_LONG';
+    | 'SESSION_TOO_LONG'
+    | 'ROSTER_UNVERIFIED'
+    | 'SECTION_MEMBERSHIP_CONFLICT'
+    | 'COVERAGE_INCOMPLETE'
+    | 'SEAT_PLAN_INSUFFICIENT';
   occurrenceIds: string[];
 }
 
@@ -67,6 +71,10 @@ const priority: Record<TimetableIssue['code'], number> = {
   TRAVEL_POLICY_MISSING: 13,
   OUTSIDE_TEACHING_WINDOW: 14,
   SESSION_TOO_LONG: 15,
+  ROSTER_UNVERIFIED: 16,
+  SECTION_MEMBERSHIP_CONFLICT: 17,
+  COVERAGE_INCOMPLETE: 18,
+  SEAT_PLAN_INSUFFICIENT: 19,
 };
 
 const minutes = (value: number) => value * 60_000;

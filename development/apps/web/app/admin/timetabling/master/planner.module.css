@@ -1,0 +1,23 @@
+.stack { display: grid; gap: 1.5rem; width: 100%; }
+.banner { display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sunken); }
+.panel { border: 1px solid var(--border); border-radius: var(--radius-md); padding: clamp(1rem, 3vw, 2rem); background: var(--bg-surface); min-width: 0; }
+.heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1rem; }
+.heading h2 { margin: 0 0 .35rem; }.heading p, .context, .roster p { margin: 0; color: var(--text-secondary); }
+.filters, .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.filters label, .fields label { display: grid; gap: .4rem; font-weight: 650; }
+.filters select, .fields select, .fields input { width: 100%; min-height: 2.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); padding: .5rem .75rem; }
+.session { border: 1px solid var(--border); border-radius: var(--radius-md); margin: 1.25rem 0; padding: 1rem; min-width: 0; }
+.session legend { font-weight: 700; padding: 0 .4rem; }
+.check, .roster label { display: flex; gap: .5rem; align-items: start; margin: .75rem 0; }
+.roster { padding: .8rem 0; border-top: 1px solid var(--border); }
+.roster p { margin-top: .5rem; }
+.panel button { min-height: 2.65rem; border: 1px solid var(--border); border-radius: var(--radius-md); padding: .5rem 1rem; background: var(--bg-surface); color: var(--text-primary); font-weight: 650; cursor: pointer; }
+.panel button:disabled { opacity: .55; cursor: wait; }
+.panel .primary { background: var(--green-500); border-color: var(--green-600); color: white; }
+.panel button:focus-visible, .panel select:focus-visible, .panel input:focus-visible { outline: 3px solid var(--green-500); outline-offset: 2px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.warning, .error { color: var(--red-700, #a32626); font-weight: 650; }
+.tableWrap { overflow-x: auto; max-width: 100%; margin: 1rem 0; }
+.tableWrap table { width: 100%; border-collapse: collapse; text-align: left; min-width: 40rem; }
+.tableWrap th, .tableWrap td { padding: .7rem; border-bottom: 1px solid var(--border); }
+.issues { padding: 0; list-style: none; }.issues li { display: flex; flex-wrap: wrap; gap: .4rem 1rem; border-top: 1px solid var(--border); padding: .7rem 0; }.issues span { color: var(--text-secondary); }

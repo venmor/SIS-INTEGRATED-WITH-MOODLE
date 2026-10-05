@@ -120,6 +120,8 @@ Fictional rule drafts, 2026-10-05: [TASK-V2-TIME-004](../docs/task-packets/TASK-
 
 Decision refinement, 2026-10-05: [ADR-004](../docs/adr/ADR-004-synthetic-timetable-planning-contract.md) requires a complete fictional teaching-window policy before dated planning, then one versioned period-wide master draft with server-filtered course previews. Course views are projections of the master, never separately edited calendars. Independent approval and an atomic, revalidated publish step later create enrolled-student views. [TASK-V2-TIME-005](../docs/task-packets/TASK-V2-TIME-005.md) closes the missing typed policy fields; the linked session/master/course-preview and publication tasks remain open until end-to-end browser and denial evidence exists.
 
+Master/course preview slice, 2026-10-05: [TASK-V2-TIME-006](../docs/task-packets/TASK-V2-TIME-006.md) implements an immutable period-wide fictional draft whose course view is server-filtered from the same version. It checks saved policy, offering/section, venue, teaching appointment and explicit official course-registration links; incomplete section coverage, roster mapping, seats, room/teacher/student conflicts and travel produce blocking findings. This refines ADR-004 by keeping the master as the sole editable timetable source instead of prematurely storing independently mutable campus drafts. Campus rule authorship remains scoped. Independent approval, current-source revalidation at publication, atomic published replacement, impact/notification handling and enrolled-student views remain TASK-104/105 work; a conflict-free preview is never a published timetable.
+
 #### Examination management workstream — required v1.2 depth
 
 | Task | Description | Completed | Date |

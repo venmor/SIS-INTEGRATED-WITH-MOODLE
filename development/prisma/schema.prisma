@@ -59,6 +59,7 @@ model Account {
   resolvedGradeLines GradeLine[]
   recoveryMethods RecoveryMethod[]
   timetableDemoRuleDrafts TimetableDemoRuleDraft[]
+  timetableDemoMasterDrafts TimetableDemoMasterDraft[]
 
   @@index([personId])
 }
@@ -1062,6 +1063,7 @@ model AcademicPeriod {
   arrangements FinanceArrangement[]
   deliveryOfferings CourseDeliveryOffering[]
   timetableDemoRuleDrafts TimetableDemoRuleDraft[]
+  timetableDemoMasterDrafts TimetableDemoMasterDraft[]
   @@index([status, code])
 }
 
@@ -1789,9 +1791,32 @@ model TimetableDemoRuleDraft {
   clientRequestId String
   contentDigest String
   createdAt DateTime @default(now())
+  masterDrafts TimetableDemoMasterDraft[]
   @@unique([campusUnitId, version], map: "TimetableDemoRuleDraft_campus_version_key")
   @@unique([createdByAccountId, clientRequestId], map: "TimetableDemoRuleDraft_actor_request_key")
   @@index([campusUnitId, createdAt])
+}
+
+// Synthetic, immutable period-wide planning snapshot. No row is approved or
+// published; course previews are projections of sessions in the same row.
+model TimetableDemoMasterDraft {
+  id String @id @default(uuid())
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  version Int
+  ruleDraftId String
+  ruleDraft TimetableDemoRuleDraft @relation(fields: [ruleDraftId], references: [id], onDelete: Restrict)
+  sessions Json
+  issues Json
+  status String
+  createdByAccountId String
+  createdBy Account @relation(fields: [createdByAccountId], references: [id], onDelete: Restrict)
+  clientRequestId String
+  contentDigest String
+  createdAt DateTime @default(now())
+  @@unique([periodId, version])
+  @@unique([createdByAccountId, clientRequestId])
+  @@index([periodId, createdAt])
 }
 
 model CoursePrerequisite {

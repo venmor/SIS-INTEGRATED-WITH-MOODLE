@@ -48,6 +48,7 @@ function workspaceLabel(role: string | undefined) {
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
   if (role === "DOMAIN_ADMIN") return "Academic delivery setup";
+  if (role === "TIMETABLE_COORDINATOR") return "Timetable planning";
   return "Staff workspace";
 }
 
@@ -163,6 +164,11 @@ export default async function AdminLayout({
       href: "/admin/timetabling/demo-rules",
       label: "Timetable rule drafts",
       show: role === "DOMAIN_ADMIN" && active?.scopeRef?.startsWith("DEMO-") === true,
+    },
+    {
+      href: "/admin/timetabling/master",
+      label: "Master timetable preview",
+      show: role === "TIMETABLE_COORDINATOR" && active?.scopeRef === "DEMO-UNIVERSITY",
     },
     {
       href: "/admin/grants",

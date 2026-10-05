@@ -168,6 +168,11 @@ export default async function Home() {
               Timetable rule drafts
             </Link>
           ) : null}
+          {active?.role === "TIMETABLE_COORDINATOR" && active.scopeRef === "DEMO-UNIVERSITY" ? (
+            <Link className={styles.primary} href="/admin/timetabling/master">
+              Master timetable preview
+            </Link>
+          ) : null}
           {active?.role === "ADMISSIONS_OFFICER" ? (
             <Link className={styles.primary} href="/admin/admissions/queue">
               Admissions queue

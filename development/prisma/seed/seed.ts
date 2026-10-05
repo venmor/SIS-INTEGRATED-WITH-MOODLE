@@ -1120,10 +1120,25 @@ async function main(): Promise<void> {  // Identity administrator first so later
         reason: "Fictional timetable rule drafts only",
       }],
     }, granter.id);
+    await ensureAccount({
+      username: "nasilele.master", personName: "Nasilele Master Planner (fictional)",
+      email: "nasilele.master@demo.invalid", phone: "+260950009998",
+      password: "Seed-2026-Master",
+      roles: [{
+        role: "TIMETABLE_COORDINATOR", scopeType: "SYSTEM", scopeRef: "DEMO-UNIVERSITY",
+        startsAt: "2026-01-01T00:00:00Z", endsAt: null,
+        appointmentRef: "DEMO-TIME-006", authoritySource: "Fictional operating-university rehearsal",
+        capabilities: ["timetable-demo-master-draft"], employmentType: null,
+        reason: "Fictional master timetable draft only",
+      }],
+    }, granter.id);
   }
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
   await ensureStudentDemo();
+  if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+    await ensureTimetableDemoDelivery(granter.id);
+  }
   // Explicit fictional verified-contact fixture; never infer verification for real users.
   if (process.env.DEMO_MODE === "true") {
     for (const username of ["bwalya.m", "daka.c", "phiri.n"]) {
@@ -1149,6 +1164,48 @@ async function main(): Promise<void> {  // Identity administrator first so later
   console.log(
     `seed v0.2 complete: ${counts.persons} persons, ${counts.accounts} accounts, ${counts.roles} role assignments, ${counts.credentials} credentials, ${counts.programmes} programmes, ${counts.offerings} offerings, ${counts.rules} requirement rules`,
   );
+}
+
+async function ensureTimetableDemoDelivery(granterId: string): Promise<void> {
+  const campus = await prisma.institutionUnit.findUniqueOrThrow({ where: { code: "DEMO-MAIN" } });
+  const period = await prisma.academicPeriod.findUniqueOrThrow({ where: { code: "DEMO-2026-TEACHING" } });
+  const building = await prisma.teachingBuilding.upsert({
+    where: { campusUnitId_code: { campusUnitId: campus.id, code: "DEMO-B1" } }, update: {},
+    create: { campusUnitId: campus.id, code: "DEMO-B1", name: "Fictional teaching building" },
+  });
+  for (const venueCode of ["DEMO-R1", "DEMO-R2"]) {
+    await prisma.teachingVenue.upsert({
+      where: { buildingId_code: { buildingId: building.id, code: venueCode } }, update: {},
+      create: { buildingId: building.id, code: venueCode, name: `Fictional room ${venueCode}`, teachingCapacity: 40, stepFreeAccess: true },
+    });
+  }
+  const teacher = await prisma.account.findUniqueOrThrow({ where: { username: "mutinta.l" } });
+  for (const courseCode of ["SWE111", "MTH111"]) {
+    const course = await prisma.course.findUniqueOrThrow({ where: { code: courseCode } });
+    const version = await prisma.courseVersion.upsert({
+      where: { courseId_version: { courseId: course.id, version: 1 } }, update: {},
+      create: { courseId: course.id, version: 1, title: course.title, credits: course.credits },
+    });
+    const offering = await prisma.courseDeliveryOffering.upsert({
+      where: { courseVersionId_periodId_deliveryUnitId_campusUnitId_deliveryMode: {
+        courseVersionId: version.id, periodId: period.id, deliveryUnitId: campus.id, campusUnitId: campus.id, deliveryMode: "IN_PERSON",
+      } }, update: {},
+      create: { courseVersionId: version.id, periodId: period.id, deliveryUnitId: campus.id,
+        campusUnitId: campus.id, deliveryMode: "IN_PERSON", capacity: 40 },
+    });
+    const section = await prisma.teachingSection.upsert({
+      where: { offeringId_code: { offeringId: offering.id, code: "DEMO-A" } }, update: {},
+      create: { offeringId: offering.id, code: "DEMO-A", capacity: 40, deliveryMode: "IN_PERSON" },
+    });
+    const assignment = await prisma.roleAssignment.findFirst({
+      where: { accountId: teacher.id, role: "LEC", scopeType: "SECTION", scopeRef: section.id },
+    });
+    if (!assignment) await prisma.roleAssignment.create({ data: {
+      accountId: teacher.id, role: "LEC", scopeType: "SECTION", scopeRef: section.id,
+      startsAt: new Date("2026-01-01T00:00:00Z"), capabilities: ["teach"],
+      grantedById: granterId, approverId: granterId, reason: "Fictional teaching section appointment",
+    } });
+  }
 }
 
 await main()
