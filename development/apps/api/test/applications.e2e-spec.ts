@@ -688,20 +688,26 @@ describe('Phase 2 owned applicant journey', () => {
       });
       ids.push(extra.id);
     }
-    for (const id of ids.slice(0, 3))
+    try {
+      for (const id of ids.slice(0, 3))
+        await post(
+          '',
+          { offeringId: id, confirmed: true, idempotencyKey: key() },
+          u.cookie,
+        ).expect(201);
       await post(
         '',
-        { offeringId: id, confirmed: true, idempotencyKey: key() },
+        { offeringId: ids[3], confirmed: true, idempotencyKey: key() },
         u.cookie,
-      ).expect(201);
-    await post(
-      '',
-      { offeringId: ids[3], confirmed: true, idempotencyKey: key() },
-      u.cookie,
-    ).expect(409);
-    expect(
-      await db.application.count({ where: { accountId: u.accountId } }),
-    ).toBe(3);
+      ).expect(409);
+      expect(
+        await db.application.count({ where: { accountId: u.accountId } }),
+      ).toBe(3);
+    } finally {
+      await db.programmeOffering.deleteMany({
+        where: { id: { in: ids.slice(1) } },
+      });
+    }
   });
   it('suspending the account invalidates an already-issued session immediately', async () => {
     await db.account.update({
