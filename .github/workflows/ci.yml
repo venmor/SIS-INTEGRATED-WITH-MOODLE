@@ -58,6 +58,16 @@ jobs:
       - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_browser_review
+      # Slice PH8-007: backup/restore rehearsal on the fully seeded +
+      # suite-populated database (full-data drill incl. finance and
+      # assessment rows). Needs pg_dump/psql matching the server major.
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install --no-install-recommends -y postgresql-client-18
+      - name: Backup/restore rehearsal on the seeded database
+        run: npm run backup:test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
