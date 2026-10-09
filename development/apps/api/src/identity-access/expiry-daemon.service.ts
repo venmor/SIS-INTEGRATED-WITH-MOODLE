@@ -124,14 +124,10 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           where: { assignmentId: candidate.id, acknowledgedAt: null },
         });
         if (!open) {
-          try {
-            await this.prisma.expiryWarning.create({
-              data: { assignmentId: candidate.id, warnedAt: now },
-            });
-          } catch {
-            // Lost the race with a concurrent tick (partial unique on open
-            // warnings): the other tick's warning stands, nothing duplicates.
-          }
+          await this.prisma.expiryWarning.createMany({
+            data: [{ assignmentId: candidate.id, warnedAt: now }],
+            skipDuplicates: true,
+          });
         }
       }
 
@@ -260,13 +256,10 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           where: { assignmentId: assignment.id, acknowledgedAt: null },
         });
         if (!openWarning) {
-          try {
-            await tx.expiryWarning.create({
-              data: { assignmentId: assignment.id, warnedAt: now },
-            });
-          } catch {
-            // Concurrent tick won the race; its warning stands.
-          }
+          await tx.expiryWarning.createMany({
+            data: [{ assignmentId: assignment.id, warnedAt: now }],
+            skipDuplicates: true,
+          });
         }
 
         // Emergency access ends completely on expiry (the justified
