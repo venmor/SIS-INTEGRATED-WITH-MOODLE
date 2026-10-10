@@ -195,7 +195,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
     try {
       // The transaction reports whether this tick won the claim, so losers
       // never inflate processedCount.
-      return await this.prisma.$transaction(
+      const claimed = await this.prisma.$transaction(
         async (tx) => {
         const claimed = await tx.roleAssignment.updateMany({
           where: { id: assignment.id, revokedAt: null },
@@ -253,22 +253,6 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
           },
         });
 
-        // One open warning per assignment (replay-safe: never duplicate an
-        // unacknowledged warning for the same assignment; the partial
-        // unique index is the final guard under concurrent ticks).
-        const openWarning = await tx.expiryWarning.findFirst({
-          where: { assignmentId: assignment.id, acknowledgedAt: null },
-        });
-        if (!openWarning) {
-          try {
-            await tx.expiryWarning.create({
-              data: { assignmentId: assignment.id, warnedAt: now },
-            });
-          } catch {
-            // Concurrent tick won the race; its warning stands.
-          }
-        }
-
         // Emergency access ends completely on expiry (the justified
         // exception to null-workspace degradation): sessions bound to the
         // break-glass assignment die, the request is marked expired, and a
@@ -319,6 +303,27 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
       },
       { maxWait: 10000, timeout: 10000 },
       );
+
+      if (claimed) {
+        // One open warning per assignment (replay-safe: never duplicate an
+        // unacknowledged warning for the same assignment; the partial
+        // unique index is the final guard under concurrent ticks). Run outside
+        // the transaction so constraint collisions do not abort the revoke.
+        const openWarning = await this.prisma.expiryWarning.findFirst({
+          where: { assignmentId: assignment.id, acknowledgedAt: null },
+        });
+        if (!openWarning) {
+          try {
+            await this.prisma.expiryWarning.create({
+              data: { assignmentId: assignment.id, warnedAt: now },
+            });
+          } catch {
+            // Concurrent tick won the race; its warning stands.
+          }
+        }
+      }
+
+      return claimed;
     } catch (error) {
       this.logger.error(
         `Error revoking expired assignment ${assignment.id}`,
