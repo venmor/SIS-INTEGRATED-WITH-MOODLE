@@ -56,3 +56,9 @@
   color: var(--link-hover);
   text-decoration: underline;
 }
+
+.toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
