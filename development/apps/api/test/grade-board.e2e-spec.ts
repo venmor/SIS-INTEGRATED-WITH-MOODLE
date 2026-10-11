@@ -212,6 +212,15 @@ describe('Phase 7 board/decision package', () => {
     );
     await app.init();
     db = app.get(PrismaService);
+    await db.resultPackage.deleteMany({
+      where: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE },
+    });
+    await db.officialCARecord.deleteMany({
+      where: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE },
+    });
+    await db.moderationCase.deleteMany({
+      where: { batch: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE } },
+    });
     post = assessPost(app);
     get = assessGet(app);
     const lecAUser = await user(db, 'LEC', ['stage-marks'], 'OFFERING', OFFERING_REF);
