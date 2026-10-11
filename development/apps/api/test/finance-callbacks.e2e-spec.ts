@@ -26,6 +26,7 @@ describe('Phase 5 callback normalization and duplicate protection', () => {
   const csrf = { 'x-requested-with': 'XMLHttpRequest' };
   const key = () => randomUUID();
   const SECRET = process.env.FIN_SIM_SECRET ?? 'demo-fixtures-secret';
+  process.env.FIN_SIM_SECRET = SECRET;
   const appPost = (path: string, body: object, c: string) =>
     request(app.getHttpServer())
       .post(`/applications${path}`)

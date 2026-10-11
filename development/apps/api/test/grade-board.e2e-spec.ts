@@ -212,6 +212,15 @@ describe('Phase 7 board/decision package', () => {
     );
     await app.init();
     db = app.get(PrismaService);
+    await db.resultPackage.deleteMany({
+      where: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE },
+    });
+    await db.officialCARecord.deleteMany({
+      where: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE },
+    });
+    await db.moderationCase.deleteMany({
+      where: { batch: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE } },
+    });
     post = assessPost(app);
     get = assessGet(app);
     const lecAUser = await user(db, 'LEC', ['stage-marks'], 'OFFERING', OFFERING_REF);
@@ -280,16 +289,16 @@ describe('Phase 7 board/decision package', () => {
         programmeId_intake_studyMode_campus: {
           programmeId: programme.id,
           intake: '2026S1',
-          studyMode: 'FULLTIME',
-          campus: 'MAIN',
+          studyMode: 'Full-time',
+          campus: 'Main Campus',
         },
       },
       update: { availability: 'OPEN' },
       create: {
         programmeId: programme.id,
         intake: '2026S1',
-        studyMode: 'FULLTIME',
-        campus: 'MAIN',
+        studyMode: 'Full-time',
+        campus: 'Main Campus',
         availability: 'OPEN',
       },
     });
