@@ -97,7 +97,7 @@ export interface RegistrationStatusView {
   registration: RegistrationReceiptView | null;
   amendments: AmendmentView[];
   moodle: {
-    state: string;
+    state: 'NotAvailable' | 'Queued' | 'Synced' | 'Delayed' | 'Failed' | 'NOT_PROVISIONED';
     detail: string;
   };
 }

@@ -64,9 +64,8 @@ describe('Phase 8 cross-domain audit timeline', () => {
     const applicant2 = await user(db, 'APP', ['apply'], 'SYSTEM', 'GLOBAL');
     applicant2Cookie = applicant2.cookie;
     applicant2AccountId = applicant2.accountId;
-    officerCookie = (
-      await user(db, 'ADMISSIONS_OFFICER', ['review-assigned'], 'INTAKE', '2026')
-    ).cookie;
+    const officer = await user(db, 'ADMISSIONS_OFFICER', ['review-assigned'], 'INTAKE', '2026');
+    officerCookie = officer.cookie;
     approverCookie = (
       await user(db, 'ADMISSIONS_APPROVER', ['decide-offer'], 'INTAKE', '2026')
     ).cookie;
@@ -126,6 +125,7 @@ describe('Phase 8 cross-domain audit timeline', () => {
       },
     });
     applicationId = application.id;
+    await db.reviewAssignment.create({ data: { applicationId, assigneeAccountId: officer.accountId, status: 'CLAIMED' } });
     await db.applicationStatusEvent.createMany({
       data: [
         {
@@ -274,6 +274,27 @@ describe('Phase 8 cross-domain audit timeline', () => {
     expect(sources).toContain('BOARD_DECISION');
     expect(sources).toContain('OFFICIAL_RESULT');
     expect(sources).toContain('AUDIT');
+  });
+
+  it.each([
+    ['LEC', 'stage-marks', 'OFFERING', 'FOREIGN'],
+    ['EXAMINATIONS_OFFICER', 'validate-results', 'PERIOD', 'FOREIGN'],
+    ['COORDINATOR', 'approve-assessment', 'SCHOOL', 'Computing'],
+    ['MOODLE_ADMIN', 'manage-mapping', 'SYSTEM', 'GLOBAL'],
+    ['MODERATOR', 'moderate-results', 'PERIOD', '2026S1'],
+  ])('denies foreign or technical package authority: %s', async (role, capability, scopeType, scopeRef) => {
+    const actor = await user(db, role, [capability], scopeType, scopeRef);
+    await get(`/auth/audit/timeline/entity/result-package/${packageId}`, actor.cookie).expect(404);
+  });
+
+  it('denies admissions staff outside intake or without the case claim', async () => {
+    for (const [role, capability, intake] of [
+      ['ADMISSIONS_OFFICER', 'review-assigned', '2026'],
+      ['ADMISSIONS_APPROVER', 'decide-offer', '2030'],
+    ]) {
+      const actor = await user(db, role, [capability], 'INTAKE', intake);
+      await get(`/auth/audit/timeline/entity/application/${applicationId}`, actor.cookie).expect(404);
+    }
   });
 
   it('package-student: students get a neutral 404 on packages', async () => {

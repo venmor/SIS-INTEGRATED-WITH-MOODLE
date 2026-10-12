@@ -14,7 +14,7 @@
 
 - Use repository source, approved handbook records, and generated synthetic data only.
 - The user's limited-data restriction was lifted on 2026-10-02. Continue to report substantial transfers and any paid-provider cost before starting them; use synthetic records, not downloaded student data.
-- Keep the Moodle simulator active; defer cloud Moodle connection.
+- Keep explicit simulator delivery active while live write prerequisites are missing. The user's 2026-10-07 instruction resumes cloud setup and read-only identity checks; [current connection evidence](../../demo/MOODLE-CLOUD-CONNECTION-SETUP.md) does not authorize a write run.
 - No external model, payment, messaging, identity, or cloud provider calls without an approved decision and cost/transfer review.
 - Never claim demo behavior is institutional policy or operational acceptance.
 - No arbitrary executable code in rule/configuration workspaces.
@@ -110,6 +110,8 @@ The existing `feature-sis-expansion-2.0.md` remains the subsystem inventory and 
 
 ### Task 4: Configurable academic structure and rules
 
+**Fictional structure/calendar increment, 2026-10-07:** [SETUP-003](../../task-packets/TASK-V2-SETUP-003.md) implements typed editable unit/relationship/calendar definitions, immutable proposals, exact-version review and independent activation under an explicit fictional policy. New source-linked projections and a pending owner-handoff event preserve existing registrations/windows. [Evidence and decisions](../../learning/NOTE-V2-SETUP-003.md). This is a scoped increment of Tasks 2/4; their full institutional authority, curriculum, programme, scheduling, recovery and owner-reconciliation checklists remain open.
+
 - [ ] Deliver TASK-011 course/version/offering/period/org/curriculum foundation only after Task 2 establishes source authority and migration reconciliation.
 - [ ] Deliver TASK-012 rule previews and TASK-013 credit cases using versioned criteria, stable explanations and approval boundaries.
 - [ ] Complete registration, progression, appeals and postgraduate TASK-014–016; preserve official history and domain ownership.
@@ -125,6 +127,8 @@ The existing `feature-sis-expansion-2.0.md` remains the subsystem inventory and 
 - [ ] Test spoof/replay, proxy check-in, network outage, accommodation, roster change, clock skew and lecturer correction across API, UI and audit.
 
 **Student availability increment, 2026-10-02:** [TASK-V2-TIME-001](../../task-packets/TASK-V2-TIME-001.md) and its [learning note](../../learning/NOTE-V2-TIME-001.md) connect the student page to the official registered-course projection and show publication pending. This leaves TASK-101–105 and GAP-021 fully open for actual sessions, venues, conflict checks, approval, publication and changes.
+
+**Publication increment, 2026-10-12:** [TIME-007](../../learning/NOTE-V2-TIME-007.md) now verifies the bounded genuine synthetic manifest → independent current-source approval → own student timetable → replacement/recovery story. [Student UI verification](../../learning/NOTE-V2-TIME-UI-001.md) covers CAT week/day/list, paging, changes and scoped date-only unavailable-state recovery. This supersedes the earlier pending-only timetable state for the opt-in publication scenario. Keep general configuration/allocation, notification ownership, lecturer/exam journeys and institutional/operational UAT unchecked; technical proof does not close all Task 5 or TASK-101–105.
 
 ### Task 6: Student support and safeguarding journeys
 
@@ -179,6 +183,8 @@ The existing `feature-sis-expansion-2.0.md` remains the subsystem inventory and 
 - [ ] AI cannot grant eligibility, interpret unpublished marks, diagnose, counsel, discipline, spend money, alter records or imply provider action. It is fully optional; test provider-off, timeout, stale source, authorization change and data deletion.
 
 ### Task 10: Real provider connections and payment reconciliation
+
+**Moodle continuation, 2026-10-07:** authenticated read-only target identity was verified, and the owner confirmed retiring the temporary exposed token. [MOODLE-001](../../task-packets/TASK-V2-MOODLE-001.md) adds source-preserving `NOT_PROVISIONED` deferral, separate write readiness and honest staff/student states. [Evidence](../../learning/NOTE-V2-MOODLE-001.md) separates the repaired read-only transport and queued-work safety from persisted run/manifest, independently approved fresh authentication, immutable mapping and durable claim/reconciliation dependencies. No live write or full provider connection is claimed.
 
 - [ ] Keep providers behind adapters and sandbox/test credentials. Complete TASK-081–085 only with an approved provider contract and institutional data/security decision.
 - [ ] Payments require verified provider callbacks, idempotent reconciliation, exact minor-unit accounting, reversal/refund/audit trail and user-visible pending/failed states.

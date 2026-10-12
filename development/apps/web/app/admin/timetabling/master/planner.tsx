@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import styles from "./planner.module.css";
 
 export interface Catalogue {
@@ -17,6 +18,7 @@ interface DraftSession {
   plannedSeats: number; requiresStepFreeAccess: boolean;
 }
 interface SavedSession extends Omit<DraftSession, "startLocal" | "endLocal"> {
+  teacherName?: string; deliveryMode?: string; courseVersionId?: string; offeringId?: string;
   startAt: string; endAt: string; courseCode: string; courseTitle?: string; sectionCode: string; campusCode: string; venueCode: string;
 }
 interface Issue { code: string; occurrenceIds: string[] }
@@ -128,7 +130,7 @@ export function MasterPlanner({ initialCatalogue, initialHistory }: { initialCat
     return groups;
   }, {});
   return <div className={styles.stack}>
-    <div className={styles.banner}><strong>Draft preview only</strong><span>No sessions are published to students from this workspace.</span></div>
+    <div className={styles.banner}><strong>Draft preview only</strong><span>Saving a master does not publish sessions.</span><Link href="/admin/timetabling/publications">Review publication</Link></div>
     {error && <p className={styles.error} role="alert">{error}</p>}
     <section className={styles.panel} aria-label="Timetable previews"><div className={styles.heading}><div><h2>Saved master preview</h2><p>Choose a version, then inspect the whole period or one course.</p></div>
       <button type="button" onClick={async () => { try { await reload(); setMessage("Latest history loaded."); } catch { setError("Could not reload history."); } }}>Reload history</button></div>

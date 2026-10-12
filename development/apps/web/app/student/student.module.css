@@ -1,5 +1,5 @@
 .kicker {
-  color: var(--text-secondary);
+  color: var(--green-800);
   font-size: var(--font-supporting);
   font-weight: var(--weight-semibold);
   margin-bottom: var(--space-2);
@@ -291,4 +291,30 @@
   .disclosure summary::before {
     transition: none;
   }
+}
+
+/* Separate task destinations from quieter record/history surfaces. */
+.taskCard {
+  border-top: 3px solid var(--green-700);
+}
+.taskCard h3 {
+  color: var(--green-900);
+}
+.taskCard a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  gap: var(--space-2);
+}
+.recordPanel {
+  box-shadow: none;
+}
+.facts {
+  background: var(--bg-page);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-sm);
+}
+.disclosure summary:focus-visible {
+  outline: 2px solid var(--blue-700);
+  outline-offset: 3px;
 }

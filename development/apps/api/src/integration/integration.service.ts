@@ -2,10 +2,17 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { MOODLE_DEMO_V1 as policy } from '@sis/config';
+import type {
+  MoodleDeliveryQueueView,
+  MoodleWorkerRunResult,
+  MoodleWriteReadiness,
+  NotProvisionedResult,
+} from '@sis/contracts';
 import { SimulatorError, type SimScenario } from './moodle-simulator.js';
 import { ensureSimShell } from './moodle-simulator.js';
 import {
   selectBackend,
+  liveDeliveryDeferral as currentLiveDeferral,
   type MoodleAdapter,
   type MoodleBackend,
   type ShellHandle,
@@ -56,6 +63,42 @@ export class IntegrationService {
     private readonly prisma: PrismaService,
     private readonly ops: OpsService,
   ) {}
+
+  /** Source-flow readiness only; no environment value, DB or network leaks. */
+  liveDeliveryDeferral(): NotProvisionedResult | null {
+    return currentLiveDeferral();
+  }
+
+  private writeReadiness(): MoodleWriteReadiness {
+    return (
+      this.liveDeliveryDeferral() ?? {
+        outcome: 'SIMULATOR_READY',
+        backend: 'simulator',
+        detail:
+          'The labelled simulator workflow is available. No real Moodle is contacted.',
+      }
+    );
+  }
+
+  /** Canonical pending Moodle sources; never fabricate a delivery attempt. */
+  private pendingMoodleSources(limit: number, dueAt?: Date) {
+    const pending: Prisma.IntegrationDeliveryAttemptWhereInput = {
+      state: 'PENDING',
+      ...(dueAt
+        ? { OR: [{ nextRunAt: null }, { nextRunAt: { lte: dueAt } }] }
+        : {}),
+    };
+    return this.prisma.outboxEvent.findMany({
+      where: {
+        type: { startsWith: 'Moodle' },
+        deliveredAt: null,
+        OR: [{ attempts: { none: {} } }, { attempts: { some: pending } }],
+      },
+      orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+      select: { id: true, type: true, occurredAt: true },
+    });
+  }
 
   fail(
     code: string,
@@ -233,18 +276,20 @@ export class IntegrationService {
   }
 
   async connectionHealth(auth: IntegrationAuthority) {
-    const admin = await this.liveAssignment(auth, 'MOODLE_ADMIN', 'sync-moodle');
+    const admin = await this.liveAssignment(
+      auth,
+      'MOODLE_ADMIN',
+      'sync-moodle',
+    );
     const support = await this.liveAssignment(
       auth,
       'INTEGRATION_SUPPORT',
       'replay-event',
     );
-    if (
-      !(
-        (admin && auth.activeRole === 'MOODLE_ADMIN') ||
-        (support && auth.activeRole === 'INTEGRATION_SUPPORT')
-      )
-    ) {
+    if (!(
+      (admin && auth.activeRole === 'MOODLE_ADMIN') ||
+      (support && auth.activeRole === 'INTEGRATION_SUPPORT')
+    )) {
       throw new HttpException(
         { message: 'This integration workspace is unavailable.' },
         403,
@@ -253,6 +298,7 @@ export class IntegrationService {
     const connection = await this.ensureConnection(this.prisma);
     const inMaintenance = await this.maintenanceActive(this.prisma);
     const selection = selectBackend();
+    const writeReadiness = this.writeReadiness();
     // Live health performs a real version call; simulator answers locally.
     // Either way the response carries state, never secret values.
     //
@@ -276,18 +322,21 @@ export class IntegrationService {
         status: 'Failing',
         detail: LIVE_TEST_REFUSED_DETAIL,
         reasons: selection.reasons,
+        writeReadiness,
         lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
       };
     }
     const backend: HealthBackend = selection.kind;
     let version: string | null = null;
     if (selection.kind === 'live-test') {
-      const checked = await this.adapter().validateConnection().catch(() => ({
-        ok: false as const,
-        backend: 'live-test' as const,
-        version: null,
-        detail: 'Live validation failed.',
-      }));
+      const checked = await this.adapter()
+        .validateConnection()
+        .catch(() => ({
+          ok: false as const,
+          backend: 'live-test' as const,
+          version: null,
+          detail: 'Live validation failed.',
+        }));
       version = checked.version;
       if (!checked.ok) {
         return {
@@ -296,6 +345,7 @@ export class IntegrationService {
           version,
           status: 'Failing',
           detail: checked.detail,
+          writeReadiness,
           lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
         };
       }
@@ -305,6 +355,7 @@ export class IntegrationService {
       backend,
       version: selection.kind === 'live-test' ? version : 'MOODLE-SIM-v1',
       status: inMaintenance ? 'MAINTENANCE' : connection.status,
+      writeReadiness,
       lastCheckedAt: connection.lastCheckedAt?.toISOString() ?? null,
     };
   }
@@ -323,6 +374,8 @@ export class IntegrationService {
         400,
       );
     }
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) return deferral;
     const result = await this.command(
       auth,
       key,
@@ -351,6 +404,12 @@ export class IntegrationService {
 
   async testMapping(auth: IntegrationAuthority, key: string, id: string) {
     await this.moodleAdmin(auth, 'manage-mapping');
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      const row = await this.prisma.moodleMapping.findUnique({ where: { id } });
+      if (!row) this.fail('NOT_FOUND', 'Mapping not found.', 404);
+      return deferral;
+    }
     const result = await this.command(
       auth,
       key,
@@ -384,7 +443,8 @@ export class IntegrationService {
           if (!account) reasons.push('SIS account does not exist.');
         } else if (row.kind === 'ROLE') {
           const map = policy.roleMap as unknown as Record<string, string>;
-          if (!map[row.sisId]) reasons.push('SIS role has no approved Moodle target.');
+          if (!map[row.sisId])
+            reasons.push('SIS role has no approved Moodle target.');
         }
         if (!row.moodleId.trim()) reasons.push('Moodle identifier is empty.');
         const passed = reasons.length === 0;
@@ -398,7 +458,9 @@ export class IntegrationService {
         await this.audit(db, auth, 'MoodleMappingTested', row.id, key, {
           result: passed ? 'PASS' : 'FAIL',
         });
-        return { body: { id: row.id, result: passed ? 'PASS' : 'FAIL', reasons } };
+        return {
+          body: { id: row.id, result: passed ? 'PASS' : 'FAIL', reasons },
+        };
       },
     );
     return result;
@@ -406,6 +468,13 @@ export class IntegrationService {
 
   async activateMapping(auth: IntegrationAuthority, key: string, id: string) {
     await this.moodleAdmin(auth, 'manage-mapping');
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      const row = await this.prisma.moodleMapping.findUnique({ where: { id } });
+      if (!row) this.fail('NOT_FOUND', 'Mapping not found.', 404);
+      await this.validateMappingActivation(this.prisma, row, auth);
+      return deferral;
+    }
     const result = await this.command(
       auth,
       key,
@@ -417,28 +486,7 @@ export class IntegrationService {
         if (row.status === 'ACTIVE') {
           return { body: this.mappingView(row) };
         }
-        // Four-eyes: the activator must differ from the creator.
-        if (row.creatorAccountId === auth.accountId) {
-          throw new HttpException(
-            {
-              code: 'SOD_VIOLATION',
-              message: 'A second officer must activate this mapping.',
-              supportReference: randomUUID(),
-            },
-            403,
-          );
-        }
-        const latest = await db.mappingCheck.findFirst({
-          where: { mappingId: row.id },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (!latest || latest.result !== 'PASS') {
-          this.fail(
-            'TEST_REQUIRED',
-            'Run a passing synthetic test before activation.',
-            409,
-          );
-        }
+        await this.validateMappingActivation(db, row, auth);
         const maxVersion = await db.moodleMapping.aggregate({
           where: {
             kind: row.kind,
@@ -473,19 +521,51 @@ export class IntegrationService {
     return result;
   }
 
+  private async validateMappingActivation(
+    db: Pick<Tx, 'mappingCheck'>,
+    row: { id: string; status: string; creatorAccountId: string },
+    auth: IntegrationAuthority,
+  ): Promise<void> {
+    // Preserve the existing simulator's ACTIVE read and four-eyes rules.
+    if (row.status === 'ACTIVE') return;
+    if (row.creatorAccountId === auth.accountId) {
+      throw new HttpException(
+        {
+          code: 'SOD_VIOLATION',
+          message: 'A second officer must activate this mapping.',
+          supportReference: randomUUID(),
+        },
+        403,
+      );
+    }
+    const latest = await db.mappingCheck.findFirst({
+      where: { mappingId: row.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!latest || latest.result !== 'PASS') {
+      this.fail(
+        'TEST_REQUIRED',
+        'Run a passing synthetic test before activation.',
+        409,
+      );
+    }
+  }
+
   async listMappings(auth: IntegrationAuthority) {
-    const admin = await this.liveAssignment(auth, 'MOODLE_ADMIN', 'manage-mapping');
+    const admin = await this.liveAssignment(
+      auth,
+      'MOODLE_ADMIN',
+      'manage-mapping',
+    );
     const support = await this.liveAssignment(
       auth,
       'INTEGRATION_SUPPORT',
       'replay-event',
     );
-    if (
-      !(
-        (admin && auth.activeRole === 'MOODLE_ADMIN') ||
-        (support && auth.activeRole === 'INTEGRATION_SUPPORT')
-      )
-    ) {
+    if (!(
+      (admin && auth.activeRole === 'MOODLE_ADMIN') ||
+      (support && auth.activeRole === 'INTEGRATION_SUPPORT')
+    )) {
       throw new HttpException(
         { message: 'This integration workspace is unavailable.' },
         403,
@@ -517,6 +597,8 @@ export class IntegrationService {
           where: { code: '2026S1' },
         });
     if (!period) this.fail('NOT_FOUND', 'Academic period not found.', 404);
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) return deferral;
     const sisId = `${offering.id}:${period.code}`;
     const pattern = policy.shellIdPattern as unknown as string;
     const moodleId = pattern
@@ -557,10 +639,17 @@ export class IntegrationService {
             reasons: json(['Provisioned from approved offering.']),
           },
         });
-        await this.audit(db, auth, 'MoodleCourseShellCreated', created.id, key, {
-          offeringId: offering.id,
-          period: period.code,
-        });
+        await this.audit(
+          db,
+          auth,
+          'MoodleCourseShellCreated',
+          created.id,
+          key,
+          {
+            offeringId: offering.id,
+            period: period.code,
+          },
+        );
         return { body: this.mappingView(created) };
       },
     );
@@ -669,7 +758,11 @@ export class IntegrationService {
         metadata: json({ mode }),
       },
     });
-    return { provider: updated.provider, status: updated.status, scenario: mode };
+    return {
+      provider: updated.provider,
+      status: updated.status,
+      scenario: mode,
+    };
   }
 
   private async periodForOffering(db: Tx, offeringId: string) {
@@ -774,9 +867,8 @@ export class IntegrationService {
   }
 
   private backoffSeconds(attempt: number): number {
-    const base = (
-      policy.worker as unknown as { baseDelaySeconds: number }
-    ).baseDelaySeconds;
+    const base = (policy.worker as unknown as { baseDelaySeconds: number })
+      .baseDelaySeconds;
     const capped = Math.min(base * 2 ** Math.max(0, attempt - 1), 600);
     return capped + Math.floor(Math.random() * 5);
   }
@@ -789,9 +881,8 @@ export class IntegrationService {
     error: string,
     retryable: boolean,
   ): Promise<void> {
-    const maxAttempts = (
-      policy.worker as unknown as { maxAttempts: number }
-    ).maxAttempts;
+    const maxAttempts = (policy.worker as unknown as { maxAttempts: number })
+      .maxAttempts;
     if (!retryable) {
       await db.integrationDeliveryAttempt.update({
         where: { id: attemptRowId },
@@ -826,12 +917,28 @@ export class IntegrationService {
     });
   }
 
-  async deliverOutbox(outboxId: string): Promise<{ outcome: string }> {
+  async deliverOutbox(
+    outboxId: string,
+  ): Promise<
+    | { outcome: 'DUPLICATE' | 'DELIVERED' | 'RETRY' | 'MANUAL_REVIEW' }
+    | NotProvisionedResult
+  > {
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      const event = await this.prisma.outboxEvent.findUnique({
+        where: { id: outboxId },
+        select: { id: true },
+      });
+      if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
+      return deferral;
+    }
     return this.prisma.$transaction(async (db) => {
       const event = await db.outboxEvent.findUnique({
         where: { id: outboxId },
       });
       if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
+      const closed = this.liveDeliveryDeferral();
+      if (closed) return closed;
       if (event.deliveredAt) return { outcome: 'DUPLICATE' };
       const attemptRow = await db.integrationDeliveryAttempt.findFirst({
         where: { outboxId, state: { in: ['PENDING', 'DELIVERING'] } },
@@ -879,7 +986,9 @@ export class IntegrationService {
         return { outcome: 'DELIVERED' };
       } catch (error) {
         const message =
-          error instanceof Error ? error.message.slice(0, 500) : 'Unknown error';
+          error instanceof Error
+            ? error.message.slice(0, 500)
+            : 'Unknown error';
         // Permanent mapping/source failures go to manual review, never
         // infinite retry. Simulator outages/timeouts and retryable live
         // API failures reschedule with backoff.
@@ -960,7 +1069,8 @@ export class IntegrationService {
     const registration = await db.institutionalRegistration.findUnique({
       where: { id: payload.registrationId },
     });
-    if (!registration) throw new Error('SRC_REGISTRATION_GONE Registration vanished.');
+    if (!registration)
+      throw new Error('SRC_REGISTRATION_GONE Registration vanished.');
     const shell = await this.shellFor(db, attempt.offeringId, payload.period);
     const adapter = this.adapter();
     await adapter.applyEnrolment({
@@ -998,7 +1108,8 @@ export class IntegrationService {
     const registration = await db.institutionalRegistration.findUnique({
       where: { id: payload.registrationId },
     });
-    if (!registration) throw new Error('SRC_REGISTRATION_GONE Registration vanished.');
+    if (!registration)
+      throw new Error('SRC_REGISTRATION_GONE Registration vanished.');
     const attempt = await db.programmeAttempt.findUniqueOrThrow({
       where: { id: registration.attemptId },
     });
@@ -1039,7 +1150,8 @@ export class IntegrationService {
     });
     const period = await this.periodForOffering(db, group.offeringId);
     const shell = await this.shellFor(db, group.offeringId, period.code);
-    const active = allocation?.status === 'ACTIVE' && payload.action !== 'REMOVE';
+    const active =
+      allocation?.status === 'ACTIVE' && payload.action !== 'REMOVE';
     await this.adapter().applyGroupMember({
       db,
       shell,
@@ -1058,7 +1170,8 @@ export class IntegrationService {
     const assignment = await db.teachingAssignment.findUnique({
       where: { id: payload.assignmentId },
     });
-    if (!assignment) throw new Error('SRC_ASSIGNMENT_GONE Assignment vanished.');
+    if (!assignment)
+      throw new Error('SRC_ASSIGNMENT_GONE Assignment vanished.');
     if (assignment.status !== 'ACTIVE') {
       // Not yet active: leave pending for a later pass, not an error.
       throw new SimulatorError('TIMEOUT', 'Assignment not active yet.');
@@ -1101,19 +1214,34 @@ export class IntegrationService {
     });
   }
 
-  async runWorker(limit = 25): Promise<{
-    processed: number;
-    delivered: number;
-    retried: number;
-    dead: number;
-  }> {
+  async runWorker(limit = 25): Promise<MoodleWorkerRunResult> {
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      const sources = await this.pendingMoodleSources(limit, new Date());
+      return {
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+        deferred: sources.length,
+        deferral,
+      };
+    }
     if (await this.deliveryPaused()) {
-      return { processed: 0, delivered: 0, retried: 0, dead: 0 };
+      return {
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+        deferred: 0,
+        deferral: null,
+      };
     }
     const now = new Date();
     const due = await this.prisma.integrationDeliveryAttempt.findMany({
       where: {
         state: 'PENDING',
+        outbox: { type: { startsWith: 'Moodle' } },
         OR: [{ nextRunAt: null }, { nextRunAt: { lte: now } }],
       },
       orderBy: { createdAt: 'asc' },
@@ -1122,9 +1250,17 @@ export class IntegrationService {
     let delivered = 0;
     let retried = 0;
     let dead = 0;
+    let deferred = 0;
+    let lateDeferral: NotProvisionedResult | null = null;
     for (const row of due) {
       const outcome = await this.deliverOutbox(row.outboxId);
-      if (outcome.outcome === 'DELIVERED' || outcome.outcome === 'DUPLICATE')
+      if (outcome.outcome === 'NOT_PROVISIONED') {
+        deferred += 1;
+        lateDeferral = outcome;
+      } else if (
+        outcome.outcome === 'DELIVERED' ||
+        outcome.outcome === 'DUPLICATE'
+      )
         delivered += 1;
       else if (outcome.outcome === 'RETRY') retried += 1;
       else dead += 1;
@@ -1141,22 +1277,45 @@ export class IntegrationService {
       take: Math.max(0, limit - due.length),
     });
     for (const event of orphaned) {
+      const closed = this.liveDeliveryDeferral();
+      if (closed) {
+        deferred += 1;
+        lateDeferral = closed;
+        continue;
+      }
       await this.prisma.integrationDeliveryAttempt.create({
         data: { outboxId: event.id, state: 'PENDING', attempt: 0 },
       });
       const outcome = await this.deliverOutbox(event.id);
-      if (outcome.outcome === 'DELIVERED' || outcome.outcome === 'DUPLICATE')
+      if (outcome.outcome === 'NOT_PROVISIONED') {
+        deferred += 1;
+        lateDeferral = outcome;
+      } else if (
+        outcome.outcome === 'DELIVERED' ||
+        outcome.outcome === 'DUPLICATE'
+      )
         delivered += 1;
       else if (outcome.outcome === 'RETRY') retried += 1;
       else dead += 1;
     }
-    return { processed: due.length + orphaned.length, delivered, retried, dead };
+    return {
+      processed: due.length + orphaned.length - deferred,
+      delivered,
+      retried,
+      dead,
+      deferred,
+      deferral: lateDeferral,
+    };
   }
 
   private async opsRole(
     auth: IntegrationAuthority,
   ): Promise<'MOODLE_ADMIN' | 'INTEGRATION_SUPPORT'> {
-    const admin = await this.liveAssignment(auth, 'MOODLE_ADMIN', 'sync-moodle');
+    const admin = await this.liveAssignment(
+      auth,
+      'MOODLE_ADMIN',
+      'sync-moodle',
+    );
     if (admin && auth.activeRole === 'MOODLE_ADMIN') return 'MOODLE_ADMIN';
     const support = await this.liveAssignment(
       auth,
@@ -1171,14 +1330,30 @@ export class IntegrationService {
     );
   }
 
-  async listDeliveries(auth: IntegrationAuthority) {
+  async listDeliveries(
+    auth: IntegrationAuthority,
+  ): Promise<MoodleDeliveryQueueView> {
     await this.opsRole(auth);
     const rows = await this.prisma.integrationDeliveryAttempt.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: { outbox: true },
     });
+    const deferral = this.liveDeliveryDeferral();
+    // This is a bounded readiness preview, not complete queue traversal.
+    // Look ahead once so omitted waiting work is visible to the operator.
+    const sources = deferral ? await this.pendingMoodleSources(101) : [];
     return {
+      writeReadiness: this.writeReadiness(),
+      deferredSourcesTruncated: sources.length > 100,
+      deferredSources: sources.slice(0, 100).map((source) => ({
+        outboxId: source.id,
+        eventType: source.type,
+        occurredAt: source.occurredAt.toISOString(),
+        outcome: 'NOT_PROVISIONED' as const,
+        reason: deferral!.reason,
+        detail: deferral!.detail,
+      })),
       items: rows.map((r) => ({
         id: r.id,
         outboxId: r.outboxId,
@@ -1301,9 +1476,16 @@ export class IntegrationService {
             creatorAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'MoodleMaintenanceScheduled', created.id, key, {
-          reason: created.reason,
-        });
+        await this.audit(
+          db,
+          auth,
+          'MoodleMaintenanceScheduled',
+          created.id,
+          key,
+          {
+            reason: created.reason,
+          },
+        );
         return {
           body: {
             id: created.id,
@@ -1354,7 +1536,14 @@ export class IntegrationService {
           where: { id: row.id },
           data: { status: 'CANCELLED' },
         });
-        await this.audit(db, auth, 'MoodleMaintenanceCancelled', row.id, key, {});
+        await this.audit(
+          db,
+          auth,
+          'MoodleMaintenanceCancelled',
+          row.id,
+          key,
+          {},
+        );
         return { body: { id: updated.id, status: updated.status } };
       },
     );
@@ -1485,6 +1674,8 @@ export class IntegrationService {
         reason: input.reason.trim(),
       };
     }
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) return deferral;
     const result = await this.command(
       auth,
       key,
@@ -1504,9 +1695,16 @@ export class IntegrationService {
             requesterAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'IntegrationReplayRequested', created.id, key, {
-          scope,
-        });
+        await this.audit(
+          db,
+          auth,
+          'IntegrationReplayRequested',
+          created.id,
+          key,
+          {
+            scope,
+          },
+        );
         return { body: { id: created.id, status: created.status } };
       },
     );
@@ -1537,31 +1735,26 @@ export class IntegrationService {
     input: { approve: boolean; note?: string },
   ) {
     await this.supportOfficer(auth);
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      this.validateReplayDecision(
+        await this.prisma.replayDecision.findUnique({ where: { id } }),
+        auth,
+        input,
+      );
+      return deferral;
+    }
     const result = await this.command(
       auth,
       key,
       input.approve ? 'ApproveIntegrationReplay' : 'DeclineIntegrationReplay',
       { id, ...input },
       async (db) => {
-        const row = await db.replayDecision.findUnique({ where: { id } });
-        if (!row) this.fail('NOT_FOUND', 'Replay decision not found.', 404);
-        if (row.status !== 'PENDING') {
-          this.fail('REQUEST_CLOSED', 'This replay is already decided.', 409);
-        }
-        // Four-eyes: the requester never decides their own replay.
-        if (row.requesterAccountId === auth.accountId) {
-          throw new HttpException(
-            {
-              code: 'SOD_VIOLATION',
-              message: 'A second officer must decide this replay.',
-              supportReference: randomUUID(),
-            },
-            403,
-          );
-        }
-        if (!input.approve && !input.note?.trim()) {
-          this.fail('NOTE_REQUIRED', 'Declines require a reason.', 400);
-        }
+        const row = this.validateReplayDecision(
+          await db.replayDecision.findUnique({ where: { id } }),
+          auth,
+          input,
+        );
         const decided = await db.replayDecision.update({
           where: { id: row.id },
           data: {
@@ -1601,7 +1794,9 @@ export class IntegrationService {
         await this.audit(
           db,
           auth,
-          input.approve ? 'IntegrationReplayApproved' : 'IntegrationReplayDeclined',
+          input.approve
+            ? 'IntegrationReplayApproved'
+            : 'IntegrationReplayDeclined',
           row.id,
           key,
           { note: input.note?.trim() || null },
@@ -1610,6 +1805,31 @@ export class IntegrationService {
       },
     );
     return result;
+  }
+
+  private validateReplayDecision<
+    T extends { status: string; requesterAccountId: string },
+  >(
+    row: T | null,
+    auth: IntegrationAuthority,
+    input: { approve: boolean; note?: string },
+  ): T {
+    if (!row) this.fail('NOT_FOUND', 'Replay decision not found.', 404);
+    if (row.status !== 'PENDING')
+      this.fail('REQUEST_CLOSED', 'This replay is already decided.', 409);
+    if (row.requesterAccountId === auth.accountId) {
+      throw new HttpException(
+        {
+          code: 'SOD_VIOLATION',
+          message: 'A second officer must decide this replay.',
+          supportReference: randomUUID(),
+        },
+        403,
+      );
+    }
+    if (!input.approve && !input.note?.trim())
+      this.fail('NOTE_REQUIRED', 'Declines require a reason.', 400);
+    return row;
   }
 
   async setPaused(
@@ -1629,7 +1849,9 @@ export class IntegrationService {
     });
     await this.prisma.auditEvent.create({
       data: {
-        action: paused ? 'IntegrationDeliveryPaused' : 'IntegrationDeliveryResumed',
+        action: paused
+          ? 'IntegrationDeliveryPaused'
+          : 'IntegrationDeliveryResumed',
         actorAccountId: auth.accountId,
         activeRole: auth.activeRole ?? 'INTEGRATION_SUPPORT',
         scope: `INTEGRATION:${connection.id}`,
@@ -1646,8 +1868,13 @@ export class IntegrationService {
 
   async runReconciliation(
     auth: IntegrationAuthority,
-  ): Promise<{ runId: string; diffs: number; repaired: number; cases: number }> {
+  ): Promise<
+    | { runId: string; diffs: number; repaired: number; cases: number }
+    | NotProvisionedResult
+  > {
     await this.opsRole(auth);
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) return deferral;
     const run = await this.prisma.reconciliationRun.create({
       data: { scope: 'FULL', status: 'RUNNING' },
     });
@@ -1692,7 +1919,9 @@ export class IntegrationService {
           select: { id: true, studentId: true },
         });
         const attemptIds = attempts.map((a) => a.id);
-        const attemptStudent = new Map(attempts.map((a) => [a.id, a.studentId]));
+        const attemptStudent = new Map(
+          attempts.map((a) => [a.id, a.studentId]),
+        );
         const roster = await this.prisma.courseRegistration.findMany({
           where: {
             status: 'ENROLLED',
@@ -1703,7 +1932,9 @@ export class IntegrationService {
         let numberOf: (rowId: string) => string | undefined = (rowId) => rowId;
         if (live) {
           const students = await this.prisma.student.findMany({
-            where: { id: { in: [...new Set(attempts.map((a) => a.studentId))] } },
+            where: {
+              id: { in: [...new Set(attempts.map((a) => a.studentId))] },
+            },
             select: { id: true, studentNumber: true },
           });
           const numbers = new Map(students.map((s) => [s.id, s.studentNumber]));
@@ -1752,12 +1983,13 @@ export class IntegrationService {
                 })
               : null;
             if (registration) {
-              const pending = await this.prisma.integrationDeliveryAttempt.findFirst({
-                where: {
-                  outbox: { aggregateId: registration.id },
-                  state: { in: ['PENDING', 'DELIVERING'] },
-                },
-              });
+              const pending =
+                await this.prisma.integrationDeliveryAttempt.findFirst({
+                  where: {
+                    outbox: { aggregateId: registration.id },
+                    state: { in: ['PENDING', 'DELIVERING'] },
+                  },
+                });
               if (!pending) {
                 const source =
                   latest?.aggregateId === registration.id
@@ -1789,7 +2021,9 @@ export class IntegrationService {
                 kind: 'UNEXPECTED_IN_MOODLE',
                 studentId: expected.studentId,
                 shellId: shell.handle.id,
-                detail: { note: 'Simulator holds an enrolment with no SIS registration.' },
+                detail: {
+                  note: 'Simulator holds an enrolment with no SIS registration.',
+                },
               });
             }
           }
@@ -1808,11 +2042,7 @@ export class IntegrationService {
             });
           }
           const expected = expectedStudents.get(actualKey);
-          if (
-            sim.status === 'ACTIVE' &&
-            sim.role !== 'Student' &&
-            expected
-          ) {
+          if (sim.status === 'ACTIVE' && sim.role !== 'Student' && expected) {
             diffs += 1;
             cases += await this.openReconCase(run.id, {
               kind: 'ENROLMENT_MISMATCH',
@@ -1876,7 +2106,11 @@ export class IntegrationService {
       const summary = { diffs, repaired, cases };
       await this.prisma.reconciliationRun.update({
         where: { id: run.id },
-        data: { status: 'COMPLETED', finishedAt: new Date(), summary: summary as Prisma.InputJsonValue },
+        data: {
+          status: 'COMPLETED',
+          finishedAt: new Date(),
+          summary: summary as Prisma.InputJsonValue,
+        },
       });
       await this.prisma.auditEvent.create({
         data: {
@@ -1999,6 +2233,40 @@ export class IntegrationService {
         400,
       );
     }
+    const deferral = this.liveDeliveryDeferral();
+    if (deferral) {
+      const row = await this.prisma.reconciliationCase.findUnique({
+        where: { id },
+      });
+      if (!row) this.fail('NOT_FOUND', 'Reconciliation case not found.', 404);
+      if (row.status !== 'OPEN' && row.status !== 'ESCALATED') {
+        this.fail('REQUEST_CLOSED', 'This case is already resolved.', 409);
+      }
+      if (
+        input.action === 'MARK_RESOLVED' &&
+        (!input.note || input.note.trim().length < 20)
+      ) {
+        this.fail(
+          'EVIDENCE_REQUIRED',
+          'Resolutions describe what proves the difference resolved.',
+          400,
+        );
+      }
+      if (input.action === 'SUSPEND_ACCESS') {
+        const detail = (row.detail ?? {}) as Record<string, unknown>;
+        const studentId =
+          row.studentId ??
+          (typeof detail.externalKey === 'string' ? detail.externalKey : null);
+        if (!studentId || !row.shellId) {
+          this.fail(
+            'NOT_APPLICABLE',
+            'Suspension needs a student and a shell.',
+            400,
+          );
+        }
+      }
+      return deferral;
+    }
     const result = await this.command(
       auth,
       key,
@@ -2015,9 +2283,16 @@ export class IntegrationService {
             where: { id: row.id },
             data: { status: 'ESCALATED' },
           });
-          await this.audit(db, auth, 'ReconciliationCaseEscalated', row.id, key, {
-            note: input.note?.trim() || null,
-          });
+          await this.audit(
+            db,
+            auth,
+            'ReconciliationCaseEscalated',
+            row.id,
+            key,
+            {
+              note: input.note?.trim() || null,
+            },
+          );
           return { body: { id: escalated.id, status: escalated.status } };
         }
         if (input.action === 'MARK_RESOLVED') {
@@ -2037,7 +2312,14 @@ export class IntegrationService {
               resolvedAt: new Date(),
             },
           });
-          await this.audit(db, auth, 'ReconciliationCaseResolved', row.id, key, {});
+          await this.audit(
+            db,
+            auth,
+            'ReconciliationCaseResolved',
+            row.id,
+            key,
+            {},
+          );
           return { body: { id: closed.id, status: closed.status } };
         }
         if (input.action === 'SUSPEND_ACCESS') {
@@ -2096,7 +2378,14 @@ export class IntegrationService {
               resolvedAt: new Date(),
             },
           });
-          await this.audit(db, auth, 'ReconciliationAccessSuspended', row.id, key, {});
+          await this.audit(
+            db,
+            auth,
+            'ReconciliationAccessSuspended',
+            row.id,
+            key,
+            {},
+          );
           return { body: { id: closed.id, status: closed.status } };
         }
         // REQUEUE: safe repair through idempotent redelivery.
@@ -2108,7 +2397,14 @@ export class IntegrationService {
             resolvedAt: new Date(),
           },
         });
-        await this.audit(db, auth, 'ReconciliationCaseRequeued', row.id, key, {});
+        await this.audit(
+          db,
+          auth,
+          'ReconciliationCaseRequeued',
+          row.id,
+          key,
+          {},
+        );
         return { body: { id: closed.id, status: closed.status } };
       },
     );
@@ -2138,9 +2434,14 @@ export class IntegrationService {
     input: { title: string; severity: string; detail?: string },
   ) {
     await this.supportOfficer(auth);
-    if (!input.title.trim()) this.fail('EMPTY_TITLE', 'Title the incident.', 400);
+    if (!input.title.trim())
+      this.fail('EMPTY_TITLE', 'Title the incident.', 400);
     if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(input.severity)) {
-      this.fail('UNKNOWN_SEVERITY', 'Severity is LOW, MEDIUM, HIGH or CRITICAL.', 400);
+      this.fail(
+        'UNKNOWN_SEVERITY',
+        'Severity is LOW, MEDIUM, HIGH or CRITICAL.',
+        400,
+      );
     }
     const result = await this.command(
       auth,
@@ -2157,9 +2458,16 @@ export class IntegrationService {
             detail: json({ note: input.detail?.trim() || null }),
           },
         });
-        await this.audit(db, auth, 'IntegrationIncidentOpened', created.id, key, {
-          severity: created.severity,
-        });
+        await this.audit(
+          db,
+          auth,
+          'IntegrationIncidentOpened',
+          created.id,
+          key,
+          {
+            severity: created.severity,
+          },
+        );
         return { body: { id: created.id, status: created.status } };
       },
     );
@@ -2219,33 +2527,39 @@ export class IntegrationService {
             closedAt: new Date(),
           },
         });
-        await this.audit(db, auth, 'IntegrationIncidentClosed', row.id, key, {});
+        await this.audit(
+          db,
+          auth,
+          'IntegrationIncidentClosed',
+          row.id,
+          key,
+          {},
+        );
         return { body: { id: closed.id, status: closed.status } };
       },
     );
     return result;
   }
 
-  async runWorkerNow(auth: IntegrationAuthority): Promise<{
-    processed: number;
-    delivered: number;
-    retried: number;
-    dead: number;
-  }> {
+  async runWorkerNow(
+    auth: IntegrationAuthority,
+  ): Promise<MoodleWorkerRunResult> {
     // Demo/test trigger: runs the claim loop synchronously. Production
     // cadence comes from the scheduler (slice 3 worker precedent).
-    const admin = await this.liveAssignment(auth, 'MOODLE_ADMIN', 'sync-moodle');
+    const admin = await this.liveAssignment(
+      auth,
+      'MOODLE_ADMIN',
+      'sync-moodle',
+    );
     const support = await this.liveAssignment(
       auth,
       'INTEGRATION_SUPPORT',
       'replay-event',
     );
-    if (
-      !(
-        (admin && auth.activeRole === 'MOODLE_ADMIN') ||
-        (support && auth.activeRole === 'INTEGRATION_SUPPORT')
-      )
-    ) {
+    if (!(
+      (admin && auth.activeRole === 'MOODLE_ADMIN') ||
+      (support && auth.activeRole === 'INTEGRATION_SUPPORT')
+    )) {
       throw new HttpException(
         { message: 'This integration workspace is unavailable.' },
         403,

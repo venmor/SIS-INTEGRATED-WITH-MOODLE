@@ -66,7 +66,10 @@ const REFUSAL_CODES: LiveTestRefusalCode[] = [
 
 /** The environment keys this suite reads, so `beforeEach`/`afterEach` can
  *  clear and restore exactly those and nothing else in `process.env`. */
-const ENV_KEYS = ['DEMO_MODE', ...MOODLE_LIVE_V1.requiredEnv] as readonly string[];
+const ENV_KEYS = [
+  'DEMO_MODE',
+  ...MOODLE_LIVE_V1.requiredEnv,
+] as readonly string[];
 
 function applyEnv(env: NodeJS.ProcessEnv): void {
   for (const key of ENV_KEYS) {
@@ -86,6 +89,7 @@ const ALLOWED_HEALTH_KEYS = new Set([
   'status',
   'detail',
   'reasons',
+  'writeReadiness',
   'lastCheckedAt',
 ]);
 
@@ -162,20 +166,34 @@ const AUTH = {
 /** Stubs `fetch` and records every call. The live health path must make
  *  exactly one, and the simulator and refused paths must make none; no
  *  test here opens a socket. */
-function stubFetch(): { calls: string[] } {
+function stubFetch(): { calls: string[]; bodies: URLSearchParams[] } {
   const calls: string[] = [];
+  const bodies: URLSearchParams[] = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: unknown) => {
+    vi.fn(async (input: unknown, options?: RequestInit) => {
       calls.push(String(input));
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ version: '4.5.6', sitename: 'Example Moodle' }),
-      } as unknown as Response;
+      bodies.push(
+        new URLSearchParams(
+          options?.body instanceof URLSearchParams
+            ? options.body
+            : typeof options?.body === 'string'
+              ? options.body
+              : '',
+        ),
+      );
+      return new Response(
+        JSON.stringify({
+          siteid: 2,
+          release: '4.5.6',
+          version: '2024100706',
+          sitename: 'Example Moodle',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
     }),
   );
-  return { calls };
+  return { calls, bodies };
 }
 
 let saved: Record<string, string | undefined> = {};
@@ -261,7 +279,10 @@ describe('IntegrationService.setSimulatorMode refuses a disabled live-test', () 
       AUTH,
       'SUCCESS',
     );
-    expect(out).toMatchObject({ provider: 'MOODLE-SIM-v1', scenario: 'SUCCESS' });
+    expect(out).toMatchObject({
+      provider: 'MOODLE-SIM-v1',
+      scenario: 'SUCCESS',
+    });
     expect(double.moodleConnection.update).toHaveBeenCalledTimes(1);
     expect(double.auditEvent.create).toHaveBeenCalledTimes(1);
   });
@@ -330,6 +351,7 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
       backend: 'simulator',
       version: 'MOODLE-SIM-v1',
       status: 'HEALTHY',
+      writeReadiness: { outcome: 'SIMULATOR_READY', backend: 'simulator' },
     });
     expect(body).not.toHaveProperty('reasons');
     expect(calls, 'the simulator must not call Moodle').toEqual([]);
@@ -337,16 +359,23 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
 
   it('performs the live call for a live-test selection and reports live-test', async () => {
     applyEnv(validEnv());
-    const { calls } = stubFetch();
+    const { calls, bodies } = stubFetch();
     const { prisma } = prismaDouble();
     const body = await new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).connectionHealth(AUTH);
     expect(body).toMatchObject({
       backend: 'live-test',
       version: '4.5.6',
       status: 'HEALTHY',
+      writeReadiness: {
+        outcome: 'NOT_PROVISIONED',
+        backend: 'live-test',
+        reason: 'LIVE_PREREQUISITES_UNAVAILABLE',
+      },
     });
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('wsfunction=core_webservice_get_site_info');
+    expect(new URL(calls[0]).search).toBe('');
+    expect(bodies[0].get('wsfunction')).toBe('core_webservice_get_site_info');
+    expect(calls[0]).not.toContain(validEnv().MOODLE_API_TOKEN);
   });
 
   it('reports the refusal, makes no Moodle call, and never says simulator', async () => {
@@ -360,6 +389,11 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
     expect(body.backend).not.toBe('simulator');
     expect(body.status).toBe('Failing');
     expect(body.version).toBeNull();
+    expect(body.writeReadiness).toMatchObject({
+      outcome: 'NOT_PROVISIONED',
+      backend: 'live-test-disabled',
+      reason: 'LIVE_CONFIGURATION_REFUSED',
+    });
     expect([...(body.reasons as LiveTestRefusalCode[])].sort()).toEqual(
       [...REFUSAL_CODES].sort(),
     );

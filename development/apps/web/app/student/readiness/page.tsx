@@ -1,3 +1,7 @@
+import {
+  parseAcademicContext,
+  academicHref,
+} from "../../../lib/academic-context";
 import type { ReadinessView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -10,7 +14,10 @@ async function loadReadiness(
   query: string,
 ): Promise<{ data: ReadinessView | null; message: string }> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) redirect("/sign-in?returnTo=%2Fstudent%2Freadiness");
+  if (!sid)
+    redirect(
+      `/sign-in?returnTo=${encodeURIComponent(`/student/readiness${query}`)}`,
+    );
   try {
     const response = await fetch(
       `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/registration/readiness${query}`,
@@ -20,7 +27,10 @@ async function loadReadiness(
         signal: AbortSignal.timeout(10000),
       },
     );
-    if (response.status === 401) redirect("/sign-in?returnTo=%2Fstudent%2Freadiness");
+    if (response.status === 401)
+      redirect(
+        `/sign-in?returnTo=${encodeURIComponent(`/student/readiness${query}`)}`,
+      );
     if (!response.ok)
       return {
         data: null,
@@ -39,7 +49,10 @@ async function loadReadiness(
   }
 }
 
-const OVERALL: Record<string, { title: string; severity: "success" | "info" | "warning" }> = {
+const OVERALL: Record<
+  string,
+  { title: string; severity: "success" | "info" | "warning" }
+> = {
   READY: { title: "Ready to register", severity: "success" },
   AWAITING_STUDENT_INPUT: {
     title: "Action needed",
@@ -61,10 +74,17 @@ const OVERALL: Record<string, { title: string; severity: "success" | "info" | "w
 export default async function ReadinessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{
+    period?: string | string[];
+    attemptId?: string | string[];
+  }>;
 }) {
-  const { period } = await searchParams;
-  const query = period ? `?period=${encodeURIComponent(period)}` : "";
+  const parsed = parseAcademicContext(await searchParams);
+  if (!parsed.valid)
+    return (
+      <StudentUnavailable message="Choose a valid study period before checking readiness." />
+    );
+  const query = parsed.query.size ? `?${parsed.query}` : "";
   const r = await loadReadiness(query);
   if (!r.data) return <StudentUnavailable message={r.message} />;
   const board = r.data;
@@ -81,6 +101,25 @@ export default async function ReadinessPage({
         title={banner.title}
         message={`Assessed ${formatLusaka(board.assessedAt)}. Open regulation boundaries route to academic decisions: ${board.pendingRegulations.join(", ")}.`}
       />
+      <p>
+        <a
+          href={academicHref(
+            "/student/courses",
+            Object.fromEntries(parsed.query),
+          )}
+        >
+          Plan your courses
+        </a>
+        {" · "}
+        <a
+          href={academicHref(
+            "/student/register",
+            Object.fromEntries(parsed.query),
+          )}
+        >
+          Review registration
+        </a>
+      </p>
       <ul>
         {board.conditions.map((condition) => (
           <li key={condition.key}>

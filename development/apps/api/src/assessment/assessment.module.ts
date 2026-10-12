@@ -5,9 +5,10 @@ import { Module } from '@nestjs/common';
 import { IdentityAccessModule } from '../identity-access/identity-access.module.js';
 import { AssessmentController } from './assessment.controller.js';
 import { AssessmentService } from './assessment.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
-  imports: [IdentityAccessModule],
+  imports: [IdentityAccessModule, NotificationsModule],
   controllers: [AssessmentController, PublicationController],
   providers: [AssessmentService, PublicationService, ...publicationProviders],
   exports: [AssessmentService],

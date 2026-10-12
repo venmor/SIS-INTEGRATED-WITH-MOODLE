@@ -50,9 +50,10 @@ describe('fictional master and course previews', () => {
     const input = { clientRequestId: randomUUID(), expectedVersion: latest?.version ?? 0, periodId: period.id, ruleDraftId: rule.id,
       sessions: selected.map((section) => ({ id: randomUUID(), sectionId: section.id, venueId: venues[0].id,
         teacherAssignmentId: teacher.find((assignment) => assignment.scopeRef === section.id)!.id,
-        registrationIds: [], startAt: '2026-10-05T08:00:00+02:00', endAt: '2026-10-05T09:00:00+02:00',
+        registrationIds: [], startAt: '2026-10-12T08:00:00+02:00', endAt: '2026-10-12T09:00:00+02:00',
         plannedSeats: 20, requiresStepFreeAccess: false })) };
-    const saved = await request(app.getHttpServer()).post('/timetabling/demo-master').set('Cookie', who.cookie).send(input).expect(201);
+    const saved = await request(app.getHttpServer()).post('/timetabling/demo-master').set('x-requested-with','XMLHttpRequest').set('Cookie', who.cookie).send(input)
+      .expect((response) => expect(response.status, response.body.message).toBe(201));
     expect(saved.body.status).toBe('BLOCKED');
     const list = await request(app.getHttpServer()).get('/timetabling/demo-master').set('Cookie', who.cookie).expect(200);
     const row = list.body.find((draft: { id: string }) => draft.id === saved.body.id);
@@ -63,11 +64,11 @@ describe('fictional master and course previews', () => {
     expect(filtered.body.masterDraftId).toBe(saved.body.id);
     expect(filtered.body.sessions).toHaveLength(1);
     expect(filtered.body.sessions[0].courseCode).toBe(courseCode);
-    const replay = await request(app.getHttpServer()).post('/timetabling/demo-master').set('Cookie', who.cookie).send(input).expect(201);
+    const replay = await request(app.getHttpServer()).post('/timetabling/demo-master').set('x-requested-with','XMLHttpRequest').set('Cookie', who.cookie).send(input).expect(201);
     expect(replay.body.id).toBe(saved.body.id);
-    await request(app.getHttpServer()).post('/timetabling/demo-master').set('Cookie', who.cookie).send({ ...input, sessions: input.sessions.slice(0, 1) }).expect(409);
-    await request(app.getHttpServer()).post('/timetabling/demo-master').set('Cookie', who.cookie).send({ ...input, clientRequestId: randomUUID(), sessions: input.sessions.slice(0, 1) }).expect(409);
-    const partial = await request(app.getHttpServer()).post('/timetabling/demo-master').set('Cookie', who.cookie)
+    await request(app.getHttpServer()).post('/timetabling/demo-master').set('x-requested-with','XMLHttpRequest').set('Cookie', who.cookie).send({ ...input, sessions: input.sessions.slice(0, 1) }).expect(409);
+    await request(app.getHttpServer()).post('/timetabling/demo-master').set('x-requested-with','XMLHttpRequest').set('Cookie', who.cookie).send({ ...input, clientRequestId: randomUUID(), sessions: input.sessions.slice(0, 1) }).expect(409);
+    const partial = await request(app.getHttpServer()).post('/timetabling/demo-master').set('x-requested-with','XMLHttpRequest').set('Cookie', who.cookie)
       .send({ ...input, clientRequestId: randomUUID(), expectedVersion: saved.body.version, sessions: input.sessions.slice(0, 1) }).expect(201);
     const partialCourse = await request(app.getHttpServer()).get(`/timetabling/demo-master/${partial.body.id}/course/${courseCode}`)
       .set('Cookie', who.cookie).expect(200);

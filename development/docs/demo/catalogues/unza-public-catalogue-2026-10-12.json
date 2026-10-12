@@ -1,0 +1,35 @@
+{
+  "version": "1.0.0",
+  "checkedAt": "2026-10-12",
+  "purpose": "Public academic catalogue reference for an independent SIS demonstration",
+  "notAnOfficialCurriculum": true,
+  "sources": {
+    "natural": "https://web.unza.zm/natural-and-applied-sciences/undergraduates",
+    "electrical": "https://www.unza.zm/undergraduate/school-of-engineering/electrical-and-electronic-engineering/bachelor-of-engineering-electrical-and-electronic-engineering"
+  },
+  "programmes": [
+    {"key":"computer-science","name":"Bachelor of Computer Science in Computer Science","source":"natural"},
+    {"key":"computer-systems","name":"Bachelor of Computer Science in Computer Systems Engineering","source":"natural"},
+    {"key":"network-security","name":"Bachelor of Computer Science in Networking and Information Security","source":"natural"},
+    {"key":"software-engineering","name":"Bachelor of Computer Science in Software Engineering","source":"natural"},
+    {"key":"mathematics","name":"Bachelor of Science in Mathematics","source":"natural"},
+    {"key":"statistics","name":"Bachelor of Science in Statistics","source":"natural"},
+    {"key":"physics","name":"Bachelor of Science in Physics","source":"natural"},
+    {"key":"electrical-engineering","name":"Bachelor of Engineering (Electrical and Electronic Engineering)","source":"electrical"}
+  ],
+  "courses": [
+    {"key":"intro-physics","name":"Introduction to Physics","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"First Year","source":"electrical"},
+    {"key":"cell-biology","name":"Cell Biology and Genetics","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"First Year","source":"electrical"},
+    {"key":"intro-chemistry","name":"Introduction to Chemistry","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"First Year","source":"electrical"},
+    {"key":"electrical-principles","name":"Principles of Electrical and Electronic Engineering","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"General Engineering","source":"electrical"},
+    {"key":"engineering-communication","name":"Engineering Communication","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"General Engineering","source":"electrical"},
+    {"key":"intro-it","name":"Introduction to Information Technology","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"General Engineering","source":"electrical"},
+    {"key":"engineering-maths-1","name":"Engineering Mathematics I","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"General Engineering","source":"electrical"},
+    {"key":"engineering-drawing-1","name":"Engineering Drawing I","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"General Engineering","source":"electrical"},
+    {"key":"signals-systems","name":"Signals and Systems","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"Third Year","source":"electrical"},
+    {"key":"digital-electronics","name":"Digital Electronics","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"Third Year","source":"electrical"},
+    {"key":"computer-engineering","name":"Computer Engineering","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"Third Year","source":"electrical"},
+    {"key":"engineering-maths-2","name":"Engineering Mathematics II","officialCode":null,"programme":"electrical-engineering","sourceYearLabel":"Third Year","source":"electrical"}
+  ],
+  "limitations": ["Programme names and course titles are public facts; official codes, credits, prerequisites, fees and current curriculum approval are not inferred.","Computer-science programme pages did not expose a reliable course list. Existing SWE111 and similar fixture codes must not be relabelled as official UNZA codes.","Demo offering periods, capacities, teaching assignments, student records and policies are generated independently."]
+}

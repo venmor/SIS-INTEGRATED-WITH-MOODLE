@@ -84,8 +84,29 @@ export default async function SignInPage({
                   blurb: "Opens the full master timetable and course previews. This is a separate demo account.",
                   workspaceHref: "/admin/timetabling/master",
                 },
+                {
+                  role: "Timetable publication reviewer",
+                  username: "tembo.timetable",
+                  password: "Seed-2026-Timetable",
+                  blurb: "Independently reviews and publishes the fictional timetable.",
+                  workspaceHref: "/admin/timetabling/publications",
+                },
+                {
+                  role: "Timetable sample student",
+                  username: "chanda.time",
+                  password: "Seed-2026-Student",
+                  blurb: "Views classes for the registered fictional publication period.",
+                  workspaceHref: "/student/timetable?period=DEMO-2026-PUBLICATION",
+                },
               ]
             : []),
+          ...(process.env.SIS_ENABLE_INSTITUTION_DEMO_SETUP === "true"
+            ? [
+                { role: "University setup proposer", username: "nalumino.setup", password: "Seed-2026-Setup",
+                  blurb: "Edits the fictional university structure and calendar, then saves a version for independent review.", workspaceHref: "/admin/setup/university" },
+                { role: "University setup reviewer", username: "chileshe.policy", password: "Seed-2026-Policy",
+                  blurb: "Reviews the exact saved version and activates it separately from its proposer.", workspaceHref: "/admin/setup/university" },
+              ] : []),
         ]
       : undefined;
   return (

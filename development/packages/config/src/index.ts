@@ -23,3 +23,4 @@ export {
   type NotificationChannel,
 } from "./notifications.js";
 export { NOTIFY_DEMO_V1 } from "./notifications.js";
+export * from './institution-setup.js';

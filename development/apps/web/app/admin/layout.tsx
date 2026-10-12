@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { ContextBar } from "@sis/ui";
 import styles from "./admin-shell.module.css";
 import { WorkspaceNav } from "./workspace-nav";
+import { institutionSetupAvailable } from "../../lib/institution-setup-permissions";
+import { timetablePermissions } from "../../lib/timetable-permissions";
 
 interface Me {
   account: {
@@ -32,7 +34,7 @@ async function loadMe(): Promise<Me | null> {
   }
 }
 
-function workspaceLabel(role: string | undefined) {
+function workspaceLabel(role: string | undefined, scopeRef?: string) {
   if (role === "ADMISSIONS_OFFICER") return "Admissions workspace";
   if (role === "EXAMINATIONS_OFFICER") return "Examinations workspace";
   if (role === "MODERATOR") return "Moderation workspace";
@@ -47,7 +49,7 @@ function workspaceLabel(role: string | undefined) {
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
-  if (role === "DOMAIN_ADMIN") return "Academic delivery setup";
+  if (role === "DOMAIN_ADMIN") return scopeRef === "DEMO-UNIVERSITY" ? "University setup" : "Academic delivery setup";
   if (role === "TIMETABLE_COORDINATOR") return "Timetable planning";
   return "Staff workspace";
 }
@@ -60,6 +62,8 @@ export default async function AdminLayout({
   const me = await loadMe();
   const active = me?.activeWorkspace ?? null;
   const role = active?.role;
+  const [timetable, setupAvailable] = await Promise.all([timetablePermissions(active), institutionSetupAvailable(active)]);
+  const contextLabel = timetable?.canPublish ? "Timetable publication" : workspaceLabel(role, active?.scopeRef);
 
   const items: Array<{ href: string; label: string; show: boolean }> = [
     { href: "/", label: "Workspace home", show: true },
@@ -161,14 +165,24 @@ export default async function AdminLayout({
       show: role === "SYSADMIN",
     },
     {
+      href: "/admin/setup/university",
+      label: "University structure",
+      show: setupAvailable,
+    },
+    {
       href: "/admin/timetabling/demo-rules",
       label: "Timetable rule drafts",
-      show: role === "DOMAIN_ADMIN" && active?.scopeRef?.startsWith("DEMO-") === true,
+      show: role === "DOMAIN_ADMIN" && active?.scopeType === "CAMPUS" && active?.scopeRef?.startsWith("DEMO-") === true,
     },
     {
       href: "/admin/timetabling/master",
       label: "Master timetable preview",
       show: role === "TIMETABLE_COORDINATOR" && active?.scopeRef === "DEMO-UNIVERSITY",
+    },
+    {
+      href: "/admin/timetabling/publications",
+      label: "Timetable publication",
+      show: timetable?.canRead === true,
     },
     {
       href: "/admin/grants",
@@ -191,7 +205,7 @@ export default async function AdminLayout({
               SIS
             </span>
             <span>
-              <strong>{workspaceLabel(role)}</strong>
+              <strong>{contextLabel}</strong>
               <small>Student Information System</small>
             </span>
           </Link>
@@ -223,7 +237,7 @@ export default async function AdminLayout({
         <header className={styles.topbar}>
           <div className={styles.topbarIdentity}>
             <span className={styles.topbarKicker}>Current workspace</span>
-            <strong>{workspaceLabel(role)}</strong>
+            <strong>{contextLabel}</strong>
           </div>
           <nav className={styles.topbarActions} aria-label="Account and help">
             <Link href="/">Switch workspace</Link>

@@ -32,6 +32,8 @@ model Person {
   duplicateOf        Person?  @relation("PersonDuplicate", fields: [duplicateOfPersonId], references: [id], onDelete: Restrict)
   duplicates         Person[] @relation("PersonDuplicate")
   student            Student?
+  timetableProposals TimetableDemoMasterDraft[] @relation("TimetableProposerPerson")
+  timetableApprovals TimetableDemoPublication[] @relation("TimetableApproverPerson")
 }
 
 model Account {
@@ -60,8 +62,11 @@ model Account {
   recoveryMethods RecoveryMethod[]
   timetableDemoRuleDrafts TimetableDemoRuleDraft[]
   timetableDemoMasterDrafts TimetableDemoMasterDraft[]
+  demoSetupVersions DemoInstitutionSetupVersion[] @relation("SetupProposer")
+  demoSetupActivations DemoInstitutionSetupActivation[] @relation("SetupApprover")
 
   @@index([personId])
+  timetablePublications TimetableDemoPublication[]
 }
 
 // Secrets live here — never overwritten in place. A password/TOTP change
@@ -121,6 +126,9 @@ model RoleAssignment {
   @@index([role, scopeType, scopeRef])
   @@index([accountId, role, scopeType, scopeRef])
   @@index([scopeId])
+  timetableProposals TimetableDemoMasterDraft[] @relation("TimetableProposerAppointment")
+  timetableApprovals TimetableDemoPublication[] @relation("TimetableApproverAppointment")
+  timetableStudentSessions TimetableStudentSession[] @relation("TimetableTeachingAppointment")
 }
 
 // Capability registry (GAP-003): allowed capabilities + metadata
@@ -1028,6 +1036,7 @@ model ProgrammeAttempt {
   status String @default("ADMITTED")
   createdAt DateTime @default(now())
   @@index([studentId, status])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 // Phase 4 slice 2: versioned curriculum. Only PUBLISHED versions receive new
@@ -1064,7 +1073,10 @@ model AcademicPeriod {
   deliveryOfferings CourseDeliveryOffering[]
   timetableDemoRuleDrafts TimetableDemoRuleDraft[]
   timetableDemoMasterDrafts TimetableDemoMasterDraft[]
+  calendarVersions AcademicPeriodVersion[]
   @@index([status, code])
+  timetableStudentSessions TimetableStudentSession[]
+  timetablePublications TimetableDemoPublication[]
 }
 
 model StudentCorrectionRequest {
@@ -1668,12 +1680,16 @@ model InstitutionUnitVersion {
   version Int
   name String
   unitType String
+  unitKind String?
+  setupVersionId String?
+  setupVersion DemoInstitutionSetupVersion? @relation(fields: [setupVersionId], references: [id], onDelete: Restrict)
   status String @default("DRAFT")
   effectiveFrom DateTime?
   effectiveTo DateTime?
   createdAt DateTime @default(now())
   @@unique([unitId, version])
   @@index([unitType, status])
+  @@index([setupVersionId])
 }
 
 model InstitutionUnitRelationship {
@@ -1683,11 +1699,78 @@ model InstitutionUnitRelationship {
   toUnitId String
   toUnit InstitutionUnit @relation("UnitRelationTo", fields: [toUnitId], references: [id], onDelete: Restrict)
   relationshipType String
+  setupVersionId String?
+  setupVersion DemoInstitutionSetupVersion? @relation(fields: [setupVersionId], references: [id], onDelete: Restrict)
   effectiveFrom DateTime
   effectiveTo DateTime?
   createdAt DateTime @default(now())
   @@unique([fromUnitId, toUnitId, relationshipType, effectiveFrom])
   @@index([toUnitId, relationshipType, effectiveFrom])
+  @@index([setupVersionId])
+}
+
+// Immutable source calendar. Activations never overwrite legacy registration
+// dates. Domains reconcile to an explicit source version through their owner.
+model AcademicPeriodVersion {
+  id String @id @default(uuid())
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  version Int
+  name String
+  periodType String
+  parentCode String?
+  startDate DateTime @db.Date
+  endDate DateTime @db.Date
+  setupVersionId String
+  setupVersion DemoInstitutionSetupVersion @relation(fields: [setupVersionId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([periodId, version])
+  @@unique([setupVersionId, periodId])
+  @@index([setupVersionId])
+}
+
+// DEMO-SETUP-2026.1. Isolated fictional contract, never institutional approval.
+model DemoInstitutionSetupVersion {
+  id String @id @default(uuid())
+  version Int @unique
+  profile Json
+  reason String
+  contentDigest String
+  baseActivationId String?
+  baseActivation DemoInstitutionSetupActivation? @relation("SetupDraftBase", fields: [baseActivationId], references: [id], onDelete: Restrict)
+  createdByAccountId String
+  createdBy Account @relation("SetupProposer", fields: [createdByAccountId], references: [id], onDelete: Restrict)
+  createdByAssignmentId String
+  clientRequestId String
+  policyVersion String
+  createdAt DateTime @default(now())
+  activation DemoInstitutionSetupActivation?
+  unitVersions InstitutionUnitVersion[]
+  unitRelationships InstitutionUnitRelationship[]
+  periodVersions AcademicPeriodVersion[]
+  @@unique([createdByAccountId, clientRequestId])
+}
+
+model DemoInstitutionSetupActivation {
+  id String @id @default(uuid())
+  setupVersionId String @unique
+  setupVersion DemoInstitutionSetupVersion @relation(fields: [setupVersionId], references: [id], onDelete: Restrict)
+  previousActivationId String?
+  previousActivation DemoInstitutionSetupActivation? @relation("SetupActivationChain", fields: [previousActivationId], references: [id], onDelete: Restrict)
+  successors DemoInstitutionSetupActivation[] @relation("SetupActivationChain")
+  dependentDrafts DemoInstitutionSetupVersion[] @relation("SetupDraftBase")
+  approvedByAccountId String
+  approvedBy Account @relation("SetupApprover", fields: [approvedByAccountId], references: [id], onDelete: Restrict)
+  approvedByAssignmentId String
+  authenticationStrength String
+  approvalMeaning String
+  contentDigest String
+  commandDigest String
+  clientRequestId String
+  policyVersion String
+  approvedAt DateTime @default(now())
+  @@unique([approvedByAccountId, clientRequestId])
+  @@index([approvedAt])
 }
 
 model CourseVersion {
@@ -1704,6 +1787,7 @@ model CourseVersion {
   offerings CourseDeliveryOffering[]
   @@unique([courseId, version])
   @@index([status, effectiveFrom])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 model CourseDeliveryOffering {
@@ -1724,6 +1808,7 @@ model CourseDeliveryOffering {
   sections TeachingSection[]
   @@unique([courseVersionId, periodId, deliveryUnitId, campusUnitId, deliveryMode])
   @@index([periodId, campusUnitId, status])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 model TeachingSection {
@@ -1738,6 +1823,7 @@ model TeachingSection {
   updatedAt DateTime @updatedAt
   @@unique([offeringId, code])
   @@index([offeringId, status])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 model TeachingBuilding {
@@ -1765,6 +1851,7 @@ model TeachingVenue {
   createdAt DateTime @default(now())
   @@unique([buildingId, code])
   @@index([status, teachingCapacity])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 // Fictional rehearsal only. No row in this table is an approved institutional
@@ -1817,6 +1904,15 @@ model TimetableDemoMasterDraft {
   @@unique([periodId, version])
   @@unique([createdByAccountId, clientRequestId])
   @@index([periodId, createdAt])
+  createdByAssignmentId String?
+  createdByAssignment RoleAssignment? @relation("TimetableProposerAppointment", fields: [createdByAssignmentId], references: [id], onDelete: Restrict)
+  createdByPersonId String?
+  createdByPerson Person? @relation("TimetableProposerPerson", fields: [createdByPersonId], references: [id], onDelete: Restrict)
+  sourceFingerprint String?
+  // Curated calendar/unit/rule versions retained by the immutable proposal.
+  // Nullable only for legacy proposals, which cannot be published without proof.
+  sourceContext Json?
+  publications TimetableDemoPublication[]
 }
 
 model CoursePrerequisite {
@@ -1898,6 +1994,7 @@ model CourseRegistration {
   createdAt DateTime @default(now())
   @@unique([registrationId, courseId])
   @@index([registrationId, status])
+  timetableStudentSessions TimetableStudentSession[]
 }
 
 // Phase 4 slice 6: registration amendments and waitlist. Snapshots stay
@@ -2425,4 +2522,73 @@ model OpsIncident {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([status, createdAt])
+}
+
+// Fictional policy release only: source draft and approval chain are immutable.
+model TimetableDemoPublication {
+  id String @id @default(uuid())
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  masterDraftId String @unique
+  masterDraft TimetableDemoMasterDraft @relation(fields: [masterDraftId], references: [id], onDelete: Restrict)
+  version Int
+  previousPublicationId String? @unique
+  previousPublication TimetableDemoPublication? @relation("TimetablePublicationChain", fields: [previousPublicationId], references: [id], onDelete: Restrict)
+  successor TimetableDemoPublication? @relation("TimetablePublicationChain")
+  approvedByAccountId String
+  approvedBy Account @relation(fields: [approvedByAccountId], references: [id], onDelete: Restrict)
+  approvedByAssignmentId String
+  approvedByAssignment RoleAssignment @relation("TimetableApproverAppointment", fields: [approvedByAssignmentId], references: [id], onDelete: Restrict)
+  approvedByPersonId String
+  approvedByPerson Person @relation("TimetableApproverPerson", fields: [approvedByPersonId], references: [id], onDelete: Restrict)
+  clientRequestId String
+  contentDigest String
+  commandDigest String
+  sourceFingerprint String
+  reason String
+  policyVersion String
+  authenticationStrength String
+  approvalMeaning String
+  impact Json
+  publishedAt DateTime @default(now())
+  studentSessions TimetableStudentSession[]
+  @@unique([periodId, version])
+  @@unique([approvedByAccountId, clientRequestId])
+  @@index([periodId, publishedAt])
+}
+
+model TimetableStudentSession {
+  id String @id @default(uuid())
+  publicationId String
+  publication TimetableDemoPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  courseRegistrationId String
+  courseRegistration CourseRegistration @relation(fields: [courseRegistrationId], references: [id], onDelete: Restrict)
+  attemptId String
+  attempt ProgrammeAttempt @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  periodId String
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  sessionId String
+  sectionId String
+  section TeachingSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  offeringId String
+  offering CourseDeliveryOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  courseVersionId String
+  courseVersion CourseVersion @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
+  venueId String
+  venue TeachingVenue @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  teacherAssignmentId String
+  teacherAssignment RoleAssignment @relation("TimetableTeachingAppointment", fields: [teacherAssignmentId], references: [id], onDelete: Restrict)
+  sectionCode String
+  courseCode String
+  courseTitle String
+  venueCode String
+  campusCode String
+  teacherName String
+  deliveryMode String
+  startAt DateTime
+  endAt DateTime
+  createdAt DateTime @default(now())
+  @@unique([publicationId, courseRegistrationId, sessionId])
+  @@index([attemptId, periodId, publicationId])
+  @@index([courseRegistrationId, publicationId])
 }

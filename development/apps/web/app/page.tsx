@@ -7,6 +7,8 @@ import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 import { ExpiryBanner } from "./expiry-banner";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { institutionSetupAvailable } from "../lib/institution-setup-permissions";
+import { timetablePermissions } from "../lib/timetable-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +105,7 @@ export default async function Home() {
     );
   }
   const active = me.activeWorkspace;
+  const [timetable, setupAvailable] = await Promise.all([timetablePermissions(active), institutionSetupAvailable(active)]);
   const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
   return (
     <div className={styles.page}>
@@ -163,7 +166,12 @@ export default async function Home() {
               Academic support requests
             </Link>
           ) : null}
-          {active?.role === "DOMAIN_ADMIN" && active.scopeRef.startsWith("DEMO-") ? (
+          {setupAvailable ? (
+            <Link className={styles.primary} href="/admin/setup/university">
+              University structure and calendar
+            </Link>
+          ) : null}
+          {active?.role === "DOMAIN_ADMIN" && active.scopeType === "CAMPUS" && active.scopeRef.startsWith("DEMO-") ? (
             <Link className={styles.primary} href="/admin/timetabling/demo-rules">
               Timetable rule drafts
             </Link>
@@ -173,6 +181,7 @@ export default async function Home() {
               Master timetable preview
             </Link>
           ) : null}
+          {timetable?.canRead ? <Link className={styles.primary} href="/admin/timetabling/publications">Timetable publication</Link> : null}
           {active?.role === "ADMISSIONS_OFFICER" ? (
             <Link className={styles.primary} href="/admin/admissions/queue">
               Admissions queue

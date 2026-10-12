@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import type { ResultPackage } from '@prisma/client';
 import { packageDigest } from './package-integrity.js';
 import { SECURITY_V1 } from '@sis/config';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import type {
@@ -46,6 +47,7 @@ interface Trace {
 export class PublicationService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
     @Inject('RESULT_PUBLICATION_POLICY')
     private readonly policy: PublicationPolicyProvider,
     @Inject('RESULT_STEP_UP') private readonly stepUp: ResultStepUpVerifier,
@@ -625,16 +627,36 @@ export class PublicationService {
             sourceVersion: result.version,
           })),
         });
+      const noticeEvent = amendment ? 'RESULT_AMENDED' : 'RESULT_RELEASED';
+      const noticeMessage = amendment
+        ? 'An official result has been updated after an authorized review. Sign in to view the current result and next steps.'
+        : 'Your official results are available securely in the portal.';
       await db.resultNotice.create({
         data: {
           releaseId: release.id,
           studentId: student.id,
-          message: amendment
-            ? 'An official result has been updated after an authorized review. Sign in to view the current result and next steps.'
-            : 'Your official results are available securely in the portal.',
+          message: noticeMessage,
           href: '/student/results',
         },
       });
+      // The domain notice and inbox fan-out commit with the official release.
+      // Provider delivery stays queued; its failure cannot undo publication.
+      const [template, recipients] = await Promise.all([
+        db.notificationTemplate.findFirst({ where: { event: noticeEvent, status: 'ACTIVE' }, orderBy: { version: 'desc' } }),
+        db.account.findMany({ where: { personId: student.personId, status: 'ACTIVE', person: { status: 'ACTIVE' } }, select: { id: true } }),
+      ]);
+      if (template && recipients.length) {
+        for (const recipient of recipients) await this.notifications.createFromEvent(db, {
+          templateId: template.id, templateVersion: template.version, event: noticeEvent,
+          title: amendment ? 'Official result updated' : 'Official results released',
+          body: noticeMessage, actionPath: '/student/results', office: template.office,
+          category: 'RESULT', mandatory: true, recipientAccountId: recipient.id,
+          dedupeKey: `result:${release.id}:${student.id}:${recipient.id}`, channels: ['IN_SYSTEM'],
+        });
+      } else {
+        await this.audit(db, actor, 'ResultNotificationDeferred', release.id, dto.idempotencyKey,
+          'DEFERRED', template ? 'NO_ACTIVE_RECIPIENT' : 'NO_ACTIVE_TEMPLATE');
+      }
     }
     await db.outboxEvent.create({
       data: {

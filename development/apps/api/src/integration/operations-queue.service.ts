@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { Prisma } from '@prisma/client';
+import type { NotProvisionedResult } from '@sis/contracts';
+import { liveDeliveryDeferral } from './moodle-adapter.js';
 
 export interface FailedDelivery {
   id: string;
@@ -56,7 +58,9 @@ export class OperationsQueueService {
   /**
    * Get paginated list of failed deliveries (DEAD_LETTER or MANUAL_REVIEW)
    */
-  async getFailedDeliveries(filters: GetFailedDeliveriesFilters = {}): Promise<PaginatedResult<FailedDelivery>> {
+  async getFailedDeliveries(
+    filters: GetFailedDeliveriesFilters = {},
+  ): Promise<PaginatedResult<FailedDelivery>> {
     const {
       eventType,
       state,
@@ -87,7 +91,17 @@ export class OperationsQueueService {
     const [items, total] = await Promise.all([
       this.prisma.integrationDeliveryAttempt.findMany({
         where,
-        include: { outbox: { select: { id: true, type: true, aggregateId: true, payload: true, occurredAt: true } } },
+        include: {
+          outbox: {
+            select: {
+              id: true,
+              type: true,
+              aggregateId: true,
+              payload: true,
+              occurredAt: true,
+            },
+          },
+        },
         orderBy: { updatedAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -117,14 +131,17 @@ export class OperationsQueueService {
   /**
    * Manually retry a failed delivery by resetting its state to PENDING
    */
-  async retryDelivery(deliveryAttemptId: string): Promise<{
-    id: string;
-    outboxId: string;
-    state: string;
-    attempt: number;
-    nextRunAt: Date | null;
-    lastError: string | null;
-  }> {
+  async retryDelivery(deliveryAttemptId: string): Promise<
+    | {
+        id: string;
+        outboxId: string;
+        state: string;
+        attempt: number;
+        nextRunAt: Date | null;
+        lastError: string | null;
+      }
+    | NotProvisionedResult
+  > {
     const attempt = await this.prisma.integrationDeliveryAttempt.findUnique({
       where: { id: deliveryAttemptId },
       include: { outbox: true },
@@ -133,6 +150,11 @@ export class OperationsQueueService {
     if (!attempt) {
       throw new NotFoundException('Delivery attempt not found');
     }
+
+    const deferral = attempt.outbox.type.startsWith('Moodle')
+      ? liveDeliveryDeferral()
+      : null;
+    if (deferral) return deferral;
 
     const updated = await this.prisma.integrationDeliveryAttempt.update({
       where: { id: deliveryAttemptId },
@@ -157,14 +179,20 @@ export class OperationsQueueService {
   /**
    * Redirect a failed delivery to a different channel by updating the outbox payload
    */
-  async redirectDelivery(deliveryAttemptId: string, newChannel: 'email' | 'sms' | 'internal' | 'webhook'): Promise<{
-    id: string;
-    outboxId: string;
-    state: string;
-    attempt: number;
-    nextRunAt: Date | null;
-    lastError: string | null;
-  }> {
+  async redirectDelivery(
+    deliveryAttemptId: string,
+    newChannel: 'email' | 'sms' | 'internal' | 'webhook',
+  ): Promise<
+    | {
+        id: string;
+        outboxId: string;
+        state: string;
+        attempt: number;
+        nextRunAt: Date | null;
+        lastError: string | null;
+      }
+    | NotProvisionedResult
+  > {
     const attempt = await this.prisma.integrationDeliveryAttempt.findUnique({
       where: { id: deliveryAttemptId },
       include: { outbox: true },
@@ -174,8 +202,16 @@ export class OperationsQueueService {
       throw new NotFoundException('Delivery attempt not found');
     }
 
+    const deferral = attempt.outbox.type.startsWith('Moodle')
+      ? liveDeliveryDeferral()
+      : null;
+    if (deferral) return deferral;
+
     // Update outbox payload with new channel configuration
-    const currentPayload = (attempt.outbox.payload ?? {}) as Record<string, unknown>;
+    const currentPayload = (attempt.outbox.payload ?? {}) as Record<
+      string,
+      unknown
+    >;
     const updatedPayload = {
       ...currentPayload,
       channels: [newChannel],
@@ -217,7 +253,9 @@ export class OperationsQueueService {
       _count: { id: true },
     });
 
-    const counts = Object.fromEntries(stateCounts.map((s) => [s.state, s._count.id]));
+    const counts = Object.fromEntries(
+      stateCounts.map((s) => [s.state, s._count.id]),
+    );
     const pending = counts.PENDING ?? 0;
     const delivering = counts.DELIVERING ?? 0;
     const delivered = counts.DELIVERED ?? 0;
@@ -229,21 +267,25 @@ export class OperationsQueueService {
     const queueDepth = pending + delivering + retry;
 
     // Calculate success rate
-    const total = pending + delivering + delivered + retry + deadLetter + manualReview;
+    const total =
+      pending + delivering + delivered + retry + deadLetter + manualReview;
     const successRate = total > 0 ? delivered / total : 0;
 
     // Get attempt statistics
-    const attemptStats = await this.prisma.integrationDeliveryAttempt.aggregate({
-      _avg: { attempt: true },
-      _max: { attempt: true },
-    });
+    const attemptStats = await this.prisma.integrationDeliveryAttempt.aggregate(
+      {
+        _avg: { attempt: true },
+        _max: { attempt: true },
+      },
+    );
 
     // Calculate average latency for delivered events
-    const deliveredAttempts = await this.prisma.integrationDeliveryAttempt.findMany({
-      where: { state: 'DELIVERED', deliveredAt: { not: null } },
-      select: { createdAt: true, deliveredAt: true },
-      take: 1000,
-    });
+    const deliveredAttempts =
+      await this.prisma.integrationDeliveryAttempt.findMany({
+        where: { state: 'DELIVERED', deliveredAt: { not: null } },
+        select: { createdAt: true, deliveredAt: true },
+        take: 1000,
+      });
 
     let avgLatencyMs = 0;
     if (deliveredAttempts.length > 0) {

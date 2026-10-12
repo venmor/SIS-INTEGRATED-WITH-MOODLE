@@ -1,15 +1,34 @@
 import type { Prisma } from '@prisma/client';
+import type { NotProvisionedResult } from '@sis/contracts';
+import { selectBackend } from './moodle-live-config.js';
 
 export type Tx = Prisma.TransactionClient;
 
 export type MoodleBackend = 'simulator' | 'live-test';
 
+/**
+ * Interim source-flow gate, separate from delivery-attempt outcomes. Static
+ * configuration cannot authorize a live claim: persisted run, manifest,
+ * mapping and fresh-authentication prerequisites are still unavailable.
+ * This function is pure and never exposes the validated descriptor/token.
+ */
+export function liveDeliveryDeferral(): NotProvisionedResult | null {
+  const selection = selectBackend();
+  if (selection.kind === 'simulator') return null;
+  return {
+    outcome: 'NOT_PROVISIONED',
+    backend: selection.kind,
+    reason:
+      selection.kind === 'live-test-disabled'
+        ? 'LIVE_CONFIGURATION_REFUSED'
+        : 'LIVE_PREREQUISITES_UNAVAILABLE',
+    detail:
+      'Moodle access is being prepared. Live delivery and reconciliation remain disabled; queued work and registration stay unchanged.',
+  };
+}
+
 export type ApplyResult =
-  | 'CREATED'
-  | 'EXISTS'
-  | 'SUSPENDED'
-  | 'ABSENT'
-  | 'MISMATCHED';
+  'CREATED' | 'EXISTS' | 'SUSPENDED' | 'ABSENT' | 'MISMATCHED';
 
 export interface ShellHandle {
   /** Opaque shell handle: simulator row id or Moodle course id. */
@@ -110,4 +129,4 @@ export interface MoodleAdapter {
  * cannot offer a second, laxer resolver. Task 9 repoints the callers that
  * still expect a bare `MoodleBackend` label.
  */
-export { selectBackend } from './moodle-live-config.js';
+export { selectBackend };
