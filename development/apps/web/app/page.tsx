@@ -60,7 +60,7 @@ export default async function Home() {
       <>
         <PublicHeader current="home" />
         <div className={styles.page}>
-          <main id="main-content" className={styles.main}>
+          <main id="main-content" tabIndex={-1} className={styles.main}>
             <p className={styles.context}>One place for university work</p>
             <h1 className={styles.title}>Continue your work in the SIS</h1>
             <p className={styles.lede}>

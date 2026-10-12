@@ -1,5 +1,5 @@
 import { RateLimiter } from './rate-limit.js';
-import { SECURITY_V1 } from '@sis/config';
+import { FINANCE_DEMO_V1, SECURITY_V1 } from '@sis/config';
 
 describe('RateLimiter', () => {
   it('reads baselines from SECURITY-v1, never hardcoded', () => {
@@ -54,5 +54,19 @@ describe('RateLimiter', () => {
       maxAttempts: 60,
       windowMinutes: 1,
     });
+  });
+
+  it('recovers after the window elapses', async () => {
+    const limiter = new RateLimiter();
+    expect(limiter.check('k', 2, 0.001).allowed).toBe(true);
+    expect(limiter.check('k', 2, 0.001).allowed).toBe(true);
+    expect(limiter.check('k', 2, 0.001).allowed).toBe(false);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(limiter.check('k', 2, 0.001).allowed).toBe(true);
+  });
+
+  it('reads the finance callback budget from versioned config, never hardcoded', () => {
+    expect(FINANCE_DEMO_V1.rateLimit.callbackPerMinute).toBe(120);
+    expect(FINANCE_DEMO_V1.rateLimit.windowMinutes).toBe(1);
   });
 });

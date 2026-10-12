@@ -16,6 +16,7 @@ import type { Response } from 'express';
 import { SessionGuard } from '../identity-access/session.guard.js';
 import { CsrfGuard } from '../identity-access/csrf.guard.js';
 import { RateLimiter } from '../identity-access/rate-limit.js';
+import { FINANCE_DEMO_V1 as financePolicy } from '@sis/config';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { FinanceService } from './finance.service.js';
 import { CallbackDto, DispatchDto } from './dto.js';
@@ -38,7 +39,11 @@ export class FinanceCallbackRateGuard implements CanActivate {
       (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim() ??
       req.ip ??
       'unknown';
-    const check = this.limiter.check(`finance-callback:${ip}`, 120, 1);
+    const check = this.limiter.check(
+      `finance-callback:${ip}`,
+      financePolicy.rateLimit.callbackPerMinute,
+      financePolicy.rateLimit.windowMinutes,
+    );
     if (!check.allowed) {
       res.setHeader('Retry-After', check.retryAfterSeconds);
       throw new HttpException(

@@ -59,7 +59,15 @@ export const FINANCE_DEMO_V1 = {
     MANUAL_REVIEW: "Finance is reviewing your case",
   } as Record<string, string>,
   // Slice 3 rate budgets (security: high-impact initiation is stricter).
-  rateLimit: { initiationPerMinute: 3, generalPerMinute: 30, windowMinutes: 1 },
+  // Slice PH8-004: callback budget versioned here too — the handbook
+  // requires limits as configuration, never hard-coded (packet-local
+  // demo values; numbers unchanged).
+  rateLimit: {
+    initiationPerMinute: 3,
+    generalPerMinute: 30,
+    callbackPerMinute: 120,
+    windowMinutes: 1,
+  },
   // Slice 6 approval governance (fictional thresholds, never policy).
   // Maker/checker always: officers request, the approver decides, and the
   // requester can never decide their own case. Evidence is mandatory above

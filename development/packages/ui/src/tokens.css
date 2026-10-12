@@ -5,6 +5,8 @@
  * configurable and no value here is approved UNZA policy until signed off.
  * Amendments applied at adoption: A1 link default blue-700 (AA body text),
  * A2 tokenized danger hover/active, A3 explicit Attention mapping, A4 this header.
+ * A5 info text blue-800 (AA on info-bg; slice 5 contrast proof).
+ * A6 warning/attention text gold-800 (AA on warning-bg; slice 5 contrast proof).
  */
 
 :root {
@@ -71,11 +73,11 @@
   --success-text: var(--green-700);
   --warning: var(--gold-500);
   --warning-bg: var(--gold-50);
-  --warning-text: var(--gold-700);
+  --warning-text: var(--gold-800);
   /* A3: Attention is distinct from Warning in 19.7 — same hue family, text-safe grade. */
   --attention: var(--gold-500);
   --attention-bg: var(--gold-50);
-  --attention-text: var(--gold-700);
+  --attention-text: var(--gold-800);
   --error: var(--unza-red);
   --error-bg: #fbecea;
   --error-text: var(--unza-red);
@@ -84,7 +86,7 @@
   --error-darker: #922b21;
   --info: var(--blue-500);
   --info-bg: var(--blue-50);
-  --info-text: var(--blue-700);
+  --info-text: var(--blue-800);
   --neutral-bg: var(--gray-100);
   --neutral-text: var(--gray-700);
 

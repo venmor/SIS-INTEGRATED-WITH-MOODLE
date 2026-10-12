@@ -2338,3 +2338,91 @@ model RecoveryMethod {
   @@unique([accountId, type, priority])
   @@index([accountId])
 }
+
+// Phase 8 slice 1: notification record and delivery status
+// (TASK-PH8-001). Versioned templates (supersede, never edit);
+// authoritative in-system records; per-channel delivery states.
+// Staff signals are a scoped projection over NotificationRecord,
+// not a parallel table (GAP-016 design note).
+model NotificationTemplate {
+  id String @id @default(uuid())
+  event String
+  version Int @default(1)
+  status String @default("ACTIVE")
+  title String
+  body String
+  actionLabel String?
+  office String
+  category String
+  mandatory Boolean @default(false)
+  @@unique([event, version])
+}
+
+model NotificationRecord {
+  id String @id @default(uuid())
+  templateId String
+  templateVersion Int
+  event String
+  title String
+  body String
+  actionPath String?
+  deadlineAt DateTime?
+  office String
+  category String
+  mandatory Boolean @default(false)
+  recipientKind String
+  recipientAccountId String?
+  recipientRole String?
+  scopeType String?
+  scopeRef String?
+  dedupeKey String @unique
+  status String @default("OPEN")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  @@index([recipientAccountId, status])
+  @@index([recipientRole, scopeType, scopeRef, status])
+}
+
+model NotificationDelivery {
+  id String @id @default(uuid())
+  recordId String
+  channel String
+  state String @default("CREATED")
+  attempts Int @default(0)
+  nextRunAt DateTime?
+  lastError String?
+  providerRef String?
+  sentAt DateTime?
+  deliveredAt DateTime?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([state, nextRunAt])
+  @@index([recordId])
+}
+
+// Phase 8 slice 3: generic ops incidents (TASK-PH8-003). Cross-domain
+// auto-open from dead-letters plus manual operator opens; one OPEN
+// per (sourceKind, sourceRef) structurally (partial unique index in
+// SQL — Prisma cannot express it, so the service replays before
+// create inside the caller's transaction). Lifecycle
+// OPEN→ACKNOWLEDGED→RESOLVED→CLOSED with recovery evidence.
+model OpsIncident {
+  id String @id @default(uuid())
+  title String
+  severity String
+  status String @default("OPEN")
+  sourceKind String
+  sourceRef String
+  ownerAccountId String?
+  ownerRole String?
+  targetResponseAt DateTime?
+  detail Json @default("{}")
+  rootCause String?
+  recoveryEvidence String?
+  preventiveAction String?
+  linkedRef String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+}

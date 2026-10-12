@@ -32,7 +32,7 @@ export type {
   BreakGlassReviewResponse,
   ExpiryWarningView,
 } from "./review.js";
-export type { AuditTimelineRow, AuditTimelineResponse } from "./audit.js";
+export type { AuditTimelineRow, AuditTimelineResponse, EntityTimelineItem, EntityTimelineResponse } from "./audit.js";
 export type {
   AvailabilityStatus,
   CataloguePage,
@@ -52,3 +52,5 @@ export type * from "./finance.js";
 export type * from "./teaching.js";
 export type * from "./integration.js";
 export type * from "./assessment.js";
+export type * from "./notifications.js";
+export type * from "./ops.js";

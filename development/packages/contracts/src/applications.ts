@@ -30,6 +30,7 @@ export interface ApplicationPolicy {
   contactRequirement: string;
   upload: {
     maxBytes: number;
+    maxUploadsPerDay: number;
     mimeTypes: readonly string[];
     extensions: readonly string[];
     minimumStage: string;

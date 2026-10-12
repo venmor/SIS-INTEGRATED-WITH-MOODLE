@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function RecoveryPage() {
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Recover account access</h1>
         <p className={styles.lede}>

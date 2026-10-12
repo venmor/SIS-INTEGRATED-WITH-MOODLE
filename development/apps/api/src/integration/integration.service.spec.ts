@@ -2,6 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { MOODLE_LIVE_V1 } from '@sis/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../identity-access/prisma.service.js';
+import type { OpsService } from '../ops/ops.service.js';
 import { IntegrationService } from './integration.service.js';
 import { LiveMoodleAdapter } from './moodle-live.js';
 import type { LiveTestRefusalCode } from './moodle-live-config.js';
@@ -194,7 +195,7 @@ describe('IntegrationService.adapter refuses a disabled live-test', () => {
   it('returns SimulatorAdapter for the simulator selection', () => {
     applyEnv({ MOODLE_INTEGRATION_MODE: 'simulator' });
     const { prisma } = prismaDouble();
-    const adapter = new IntegrationService(prisma).adapter();
+    const adapter = new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).adapter();
     expect(adapter).toBeInstanceOf(SimulatorAdapter);
     expect(adapter.backend).toBe('simulator');
   });
@@ -202,7 +203,7 @@ describe('IntegrationService.adapter refuses a disabled live-test', () => {
   it('returns LiveMoodleAdapter for a valid live-test selection', () => {
     applyEnv(validEnv());
     const { prisma } = prismaDouble();
-    const adapter = new IntegrationService(prisma).adapter();
+    const adapter = new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).adapter();
     expect(adapter).toBeInstanceOf(LiveMoodleAdapter);
     expect(adapter.backend).toBe('live-test');
   });
@@ -210,7 +211,7 @@ describe('IntegrationService.adapter refuses a disabled live-test', () => {
   it('throws instead of returning SimulatorAdapter when live-test is refused', async () => {
     applyEnv(disabledEnv());
     const { prisma } = prismaDouble();
-    const error = await capture(() => new IntegrationService(prisma).adapter());
+    const error = await capture(() => new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).adapter());
     expect(error).toBeInstanceOf(HttpException);
     const exception = error as HttpException;
     const body = exception.getResponse() as Record<string, unknown>;
@@ -227,7 +228,7 @@ describe('IntegrationService.adapter refuses a disabled live-test', () => {
   it('carries no token, URL or other environment value in the refusal', async () => {
     applyEnv(disabledEnv());
     const { prisma } = prismaDouble();
-    const error = await capture(() => new IntegrationService(prisma).adapter());
+    const error = await capture(() => new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).adapter());
     const exception = error as HttpException;
     const body = exception.getResponse() as Record<string, unknown>;
     const surface = [
@@ -256,7 +257,7 @@ describe('IntegrationService.setSimulatorMode refuses a disabled live-test', () 
   it('still sets a simulator scenario for the simulator selection', async () => {
     applyEnv({ DEMO_MODE: 'true', MOODLE_INTEGRATION_MODE: 'simulator' });
     const { double, prisma } = prismaDouble();
-    const out = await new IntegrationService(prisma).setSimulatorMode(
+    const out = await new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).setSimulatorMode(
       AUTH,
       'SUCCESS',
     );
@@ -269,7 +270,7 @@ describe('IntegrationService.setSimulatorMode refuses a disabled live-test', () 
     applyEnv(validEnv());
     const { double, prisma } = prismaDouble();
     const error = await capture(() =>
-      new IntegrationService(prisma).setSimulatorMode(AUTH, 'SUCCESS'),
+      new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).setSimulatorMode(AUTH, 'SUCCESS'),
     );
     expect(error).toBeInstanceOf(HttpException);
     const exception = error as HttpException;
@@ -289,7 +290,7 @@ describe('IntegrationService.setSimulatorMode refuses a disabled live-test', () 
     applyEnv(disabledEnv());
     const { double, prisma } = prismaDouble();
     const error = await capture(() =>
-      new IntegrationService(prisma).setSimulatorMode(AUTH, 'SUCCESS'),
+      new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).setSimulatorMode(AUTH, 'SUCCESS'),
     );
     expect(error).toBeInstanceOf(HttpException);
     const exception = error as HttpException;
@@ -323,7 +324,7 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
     applyEnv({ MOODLE_INTEGRATION_MODE: 'simulator' });
     const { calls } = stubFetch();
     const { prisma } = prismaDouble();
-    const body = await new IntegrationService(prisma).connectionHealth(AUTH);
+    const body = await new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).connectionHealth(AUTH);
     expect(body).toMatchObject({
       provider: 'MOODLE-SIM-v1',
       backend: 'simulator',
@@ -338,7 +339,7 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
     applyEnv(validEnv());
     const { calls } = stubFetch();
     const { prisma } = prismaDouble();
-    const body = await new IntegrationService(prisma).connectionHealth(AUTH);
+    const body = await new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).connectionHealth(AUTH);
     expect(body).toMatchObject({
       backend: 'live-test',
       version: '4.5.6',
@@ -352,7 +353,7 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
     applyEnv(disabledEnv());
     const { calls } = stubFetch();
     const { prisma } = prismaDouble();
-    const service = new IntegrationService(prisma);
+    const service = new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService);
     const adapter = vi.spyOn(service, 'adapter');
     const body = await service.connectionHealth(AUTH);
     expect(body.backend).toBe('live-test-disabled');
@@ -382,7 +383,7 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
       applyEnv(env);
       stubFetch();
       const { prisma } = prismaDouble();
-      const body = await new IntegrationService(prisma).connectionHealth(AUTH);
+      const body = await new IntegrationService(prisma, { openFromDeadLetter: vi.fn() } as unknown as OpsService).connectionHealth(AUTH);
       // 1. The credential is not reachable as a property at any depth.
       //    `token` is asserted first, and would fire before `descriptor`,
       //    so this is not vacuous: it proves the walk does reach a

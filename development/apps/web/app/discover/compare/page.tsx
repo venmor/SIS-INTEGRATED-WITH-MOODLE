@@ -55,7 +55,7 @@ export default async function ComparePage({
   if (!ids.trim()) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Compare programmes</h1>
           <Empty
@@ -72,7 +72,7 @@ export default async function ComparePage({
   if (!result) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Compare programmes</h1>
           <Notice
@@ -101,7 +101,7 @@ export default async function ComparePage({
   }));
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>Admissions · Public catalogue</p>
         <h1 className={styles.title}>Compare programmes</h1>
         <p className={styles.lede}>

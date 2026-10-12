@@ -93,7 +93,7 @@ export default async function SignInPage({
       <PublicHeader current="sign-in" />
       <div className={styles.page}>
         <main
-          id="main-content"
+          id="main-content" tabIndex={-1}
           className={`${styles.main} ${signInStyles.main}`}
         >
           <p className={styles.context}>Your account</p>

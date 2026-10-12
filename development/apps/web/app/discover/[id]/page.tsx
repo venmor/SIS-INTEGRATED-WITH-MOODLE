@@ -68,7 +68,7 @@ export default async function OfferingPage({
   if (status === 0) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Programme details</h1>
           <Notice
@@ -83,7 +83,7 @@ export default async function OfferingPage({
   if (!detail) {
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main id="main-content" tabIndex={-1} className={styles.main}>
           <p className={styles.context}>Admissions · Public catalogue</p>
           <h1 className={styles.title}>Programme details</h1>
           <Empty
@@ -98,7 +98,7 @@ export default async function OfferingPage({
   }
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>
           Admissions · Public catalogue · {detail.programmeCode ?? "Programme"}
         </p>

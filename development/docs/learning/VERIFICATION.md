@@ -531,3 +531,237 @@ case from a 20,199-row sequential scan (18.839 ms) to a bitmap index scan
 [TASK-V2-SUPPORT-004](../task-packets/TASK-V2-SUPPORT-004.md) adds a selected-adviser, target-date-ordered active follow-up worklist with bounded pages, past-target and confirmation filters. The new API test was red at the missing route, then the focused support API suite passed **7/7**, including filter, paging, stale/foreign cursor and role denial. The connected support browser suite passed **3/3** at 390px, including the new confirmation worklist. The worklist index migration applied only to the isolated review DB; Prisma validation, API/web production builds, API/web lint, formatting and `git diff --check` passed. API lint retains unrelated warnings. [Detail](NOTE-V2-SUPPORT-004.md). No notification, provider call or download occurred.
 
 [TASK-V2-SUPPORT-005](../task-packets/TASK-V2-SUPPORT-005.md) adds evidenced academic-case closure with a single immutable closure row, request event and audit. The new API test was red at the absent route, then focused support API e2e passed **8/8**, including active-action and missing-evidence denial, completed-action and guidance closure, replay/conflict, wrong-role/unrelated appointment, changed adviser relationship, demo-off, closed-write denial and queue visibility. The connected student/adviser browser suite passed **3/3** at 390px, including closure and the student-visible completed state. The isolated closure migration, Prisma validation, API/web production builds, API/web lint, formatting and `git diff --check` passed; API lint retains unrelated warnings. [Detail](NOTE-V2-SUPPORT-005.md). No external notification, provider call or download occurred.
+
+### Imported remote verification history (historical, pending integration checks)
+
+`backup:test`, manual screen-reader/WSL replay, remote CI, Vercel
+route check, production policy approval, and human walkthrough remain
+**not verified** (backup covered by the manual drill above, not by
+the script itself). Detail in [NOTE-PH7-007](NOTE-PH7-007.md).
+
+## Phase 8 slice 1 (2026-10-03, fresh `sis_ph8_n2_test` + `sis_ph8_browser_test`)
+
+Notification record and delivery status (TASK-PH8-001; lead
+unassigned, reviewer Charles Hangoma). Typecheck exit 0, web lint clean, API lint
+warnings-only (no new warnings), API dist via direct `tsc`, web
+production build exit 0 (new `/notifications`,
+`/admin/notifications` routes). API e2e `notifications` **16/16**
+on the fresh DB (template versioning + supersede, OPEN + QUEUED
+happy path, unknown-template/bad-recipient refusals, worker
+QUEUED→DELIVERED + READ, armed-failure retry→dead-letter +
+mandatory escalation, suppression rules, recipient isolation +
+staff-scope signals, role denials, neutrals, racing-tick
+convergence, idempotent replay + key conflict, expired-grant 403 +
+restore, template reads, student signal refusal, release/amendment
+fan-out in-TX). Slice regressions held on separate fresh DBs:
+`grade-release` **15/15**, `grade-amendment` **12/12**. Unit
+**73/73**. Browser `notifications` (mandatory notice → centre →
+read receipt, no mute control) **1/1** on fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage).
+
+Backup drill (2026-10-03, `sis_ph8_n2_test` notification + fan-out
+data): `pg_dump` → restore into scratch → per-table counts match on
+all 9 checked tables (NotificationTemplate 14, NotificationRecord
+16, NotificationDelivery 16, OfficialCourseResult 5, ResultPackage
+2, Person 11, Account 11, OutboxEvent 19, AuditEvent 88) with zero
+orphans (deliveries, records, assignments). Scratch dropped
+afterwards. Note: `npm run backup:test` itself cannot run on this
+Windows box (no local pg tools; its TABLES list predates Phase 3–8)
+— the drill above used the container tools. Widening the script is a
+follow-up, not done here.
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production provider + policy approval, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH8-001](NOTE-PH8-001.md).
+
+## Phase 8 slice 2 (2026-10-03, fresh `sis_ph8_e2_test` + `sis_ph8_browser_test`)
+
+Cross-domain audit timeline (TASK-PH8-002; lead
+unassigned, reviewer Charles Hangoma). Typecheck exit 0, web lint clean, API lint
+warnings-only (no new warnings), API dist via direct `tsc`, web
+production build exit 0 (package History section). API e2e
+`audit-entity-timeline` **10/10** on the fresh DB (applicant own
+with staff rows filtered + both sources present, foreign applicant
+404, officer full view, approver view, tutor 404, package staff
+view with all three sources, student package 404, unknown kind
+400, unknown ids 404, invalid query 400; white-box seeds, writes
+proven by Phase 2/7 suites). No schema changes. Unit **73/73**.
+Browser `entity-timeline` (lecturer sees joined package history:
+decision + version + audit row) **1/1** on fresh migrated + seeded
+browser DB with rebuilt apps (390px, keyboard/focus, no overflow,
+empty localStorage).
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production retention + policy approval, and human walkthrough
+remain **not verified**. Detail in [NOTE-PH8-002](NOTE-PH8-002.md).
+
+## Phase 8 slice 3 (2026-10-03, fresh `sis_ph8_s3_final2_test` + `sis_ph8_browser_s3_test`)
+
+Operations health and incident queue (TASK-PH8-003; lead
+Chitundu Milimbo, reviewer Charles Hangoma). Node **22.13.1** /
+PostgreSQL **18** environment notes as slices 1–2 (direct-`node`
+CLI invocations; API dist via direct `tsc`; full demo seed
+unrunnable — min-seed + curriculum-version seeder used for the
+browser DB). Typecheck exit 0 (API + web), web lint clean, API
+lint warnings-only (no errors; 5 new `no-base-to-string` notes
+in the ops forms match the identical pre-existing
+`String(data.get(...) ?? "")` pattern), API dist via direct
+`tsc`, web production build exit 0 (new `/admin/ops`,
+`/api/ops` routes). API e2e `ops-incidents` **15/15** on the
+fresh DB (manual open + owner, severity/title refusals,
+ack/resolve/close lifecycle, notification dead-letter auto-open
+with dedupe, integration sweep dedupe, mandatory lane stays
+examinations-only, role denials, moodle reads + neutrals, list
+scoping via `status`/`openOnly` filters + detail happy path,
+target-response persistence, racing-resolve convergence,
+idempotent replay + key conflict, expired-grant 403 +
+restore). The list coverage caught a real bug: `openOnly=false`
+never filtered (`Boolean('false')` is `true`) — replaced with
+an explicit coercion, proven by a CLOSED incident excluded
+under `openOnly=true` but returned under `openOnly=false`. Slice regression held on a
+separate fresh DB: `notifications` **16/16**. Unit **73/73**.
+Browser `ops-queue` (armed SMS_SIM failure → dead-letter →
+incident → ack → resolve with evidence → CLOSED) **1/1** on
+fresh migrated + seeded browser DB with rebuilt apps (390px,
+keyboard/focus, no overflow, empty localStorage).
+
+Backup drill (2026-10-03, `sis_ph8_s3_test` ops + notification
+data): `pg_dump` → restore into scratch
+`sis_ph8_s3_backup_scratch` → per-table counts match on all 10
+checked tables (OpsIncident 8, NotificationTemplate 2,
+NotificationRecord 3, NotificationDelivery 3,
+IntegrationDeliveryAttempt 1, OutboxEvent 3, AuditEvent 17,
+ApplicationCommand 17, Person 9, Account 9) with zero orphans
+(deliveries, records). Scratch dropped afterwards. Note: `npm
+run backup:test` itself cannot run on this Windows box (no
+local pg tools; its TABLES list predates Phase 3–8) — the drill
+above used the container tools. Widening the script is a
+follow-up, not done here.
+
+First browser attempt (22:04) timed out waiting for the Close
+button: the served web build predated the Recently-resolved
+close form (stale build, not a code bug) — rebuilt both apps
+and reran on a fresh browser DB → green; the failed trace is
+kept in `test-results/`. Phase 6 `integration-ops`/`replay`
+suites fail identically on clean HEAD with our changes stashed
+(min-seed lacks the curriculum/courses for the
+applicant→student journey) — pre-existing environment limit,
+not a slice-3 regression; full-seed rerun needs a Node 24 box.
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production provider + policy approval (GAP-009 paging/RPO/RTO),
+and human walkthrough remain **not verified**. Detail in
+[NOTE-PH8-003](NOTE-PH8-003.md).
+
+## Phase 8 slice 4 (2026-10-04, fresh `sis_ph8_s4_quota_final_test` + `sis_ph8_s4_auth_test`)
+
+Rate-limit/abuse tuning (TASK-PH8-004 drafted 2026-10-04,
+human approval pending; lead Chitundu Milimbo, reviewer
+Charles Hangoma). Node **22.13.1** / PostgreSQL **18**, same
+direct-`node` CLI discipline as slices 1–3. No migration (the
+quota counts existing rows; config changes are code) and no
+browser journey (API-only slice per packet). Typecheck exit 0,
+lint clean on touched files, API dist via direct `tsc`. New
+`upload-quota` **4/4** on the fresh DB — RED first (11th
+upload 201; spec path/async-chain bugs fixed before any
+implementation), GREEN after `UploadQuotaGuard` (allow, deny
+with `Retry-After` + audited DENY, yesterday-rows-excluded,
+per-account isolation). New unit: Lusaka day-boundary (3) +
+`RateLimiter` window-recovery and versioned FIN callback
+budget (2).
+Regression on a separate fresh DB: `auth` **10/10** (first run
+missed `DEMO_MODE=true` on the demo-recovery route — the
+documented 404 gate, green on rerun). Unit **78/78** (73 + 5
+new). `npm run scan` cannot run on this box (ripgrep
+unavailable); no web changes so no web rebuild. New gaps:
+GAP-023 (anonymous submission row unmappable), GAP-024 (proxy
+trust, initiation DENY audit, full-seed reruns on a Node 24
+box).
+
+Manual screen-reader/WSL replay, remote CI, Vercel route check,
+production capacity numbers, and human walkthrough remain
+**not verified**. Detail in [NOTE-PH8-004](NOTE-PH8-004.md).
+
+## Phase 8 slice 5 (2026-10-04, fresh `sis_ph8_s5_test`)
+
+Accessibility/performance/low-bandwidth (TASK-PH8-005 drafted
+2026-10-04, human approval pending; lead Chitundu Milimbo,
+reviewer Charles Hangoma). Node **22.13.1** / PostgreSQL
+**18**, same direct-`node` CLI discipline. No migration, no
+API change. Typecheck exit 0 (API untouched, web), web
+production build exit 0, lint clean on touched files.
+`accessibility.spec.ts` **10/10** on the fresh migrated +
+min/curriculum-seeded browser DB with rebuilt apps: axe
+serious/critical-clean on sign-in, applicant workspace,
+notifications, ops queue; label-association helper green
+(caught two implicit-only checkboxes, now explicit);
+skip-link keyboard path; route focus on true SPA navigation
+(error-summary focus pre-existing, now asserted); 640px/320px
+reflow + touch targets; slow-connection pending→complete.
+Contrast script **11/11** via `test:scripts` (RED first: two
+sub-AA pairs → token amendments A5/A6). Regressions with the
+new code active: `notifications` + `ops-queue` 1/1
+(`entity-timeline` skipped — white-box seed collides on
+rerun). Unit **78/78**. Perf evidence recorded only: client
+JS 1,959,607 bytes / 84 files, zero raster images,
+self-hosted fonts. `npm run scan` cannot run here (ripgrep
+unavailable).
+
+Two browser-only debugging lessons (specs only, deleted after
+use): the catalogue 5-minute fetch cache needs distinct query
+keys for seeded data; App Router remounts layouts on
+navigation (module flag, not ref) and shared `@sis/ui` cards
+are plain-`<a>` full-loads (MPA top focus kept, not fought).
+
+Manual checklist (`docs/demo/ACCESSIBILITY-CHECKLIST.md`) and
+human walkthrough remain **not verified** — by design, human
+evidence is never auto-claimed. Detail in
+[NOTE-PH8-005](NOTE-PH8-005.md).
+
+## Phase 8 slice 6 (2026-10-04, `sis_ph8_s6_a/b/c_test`)
+
+Backup/restore rehearsal (TASK-PH8-006 drafted 2026-10-04,
+human approval pending; lead Chitundu Milimbo, reviewer
+Charles Hangoma). No migration, no API/web code change. The
+widened script needs local `pg_dump`/`psql` (absent on this
+box), so verification is: `node --check` clean, canary unit
+green, TABLES asserted 103/103 against `schema.prisma` (no
+missing, no extra), and three full manual drills via
+container tools on suite-seeded DBs (`upload-quota` 4/4 +
+`auth` 10/10 on A; `ops-incidents` 15/15 on B;
+`notifications` 16/16 on C) — 103/103 counts match, zero
+orphans across all domain checks, document hashes match;
+scratch DBs dropped. Finance/assessment/registration rows
+are empty on every database this box can build, so those
+tables are proven present-and-empty, not data-bearing; the
+full-data drill plus the widened script's own run are
+CI/Node-24 follow-ups (GAP-024). Schedule/retention/
+encryption recorded as deployment decisions, not built.
+
+`npm run scan` cannot run here (ripgrep unavailable). Detail
+in [NOTE-PH8-006](NOTE-PH8-006.md).
+
+## Phase 8 slice 7 (2026-10-04, isolated `sis-demo-reset` project)
+
+Demo reset and evidence capture (TASK-PH8-007 drafted
+2026-10-04, human approval pending; lead Chitundu Milimbo,
+reviewer Charles Hangoma). No migration, no API/web code
+change. Three refusal paths proven (exit 2, zero side
+effects): missing flag, shared project name, shared port.
+Full rehearsal green: isolated container/network/volume →
+51/51 migrations on :55433 → seed honestly skipped (Node 24
+only; CI proves it) → evidence JSON
+(sharedServiceBefore/After true, 31s) → isolated project
+fully removed → shared `development_pgdata`, all 40
+databases and 19 `sis` accounts verified intact. `node
+--check` clean on the rewritten script. CI backup step added
+(post-e2e seeded DB = full-data drill); proof is the first
+green post-push run (Actions cannot run here). Release
+candidate proposed (`v0.9.0-rc1`; human tag action);
+rollback = redeploy prior build, database stays forward
+(additive migrations, no down path). Walkthrough gained a
+release-rehearsal section (never rerun live against shared
+data).
+
+Detail in [NOTE-PH8-007](NOTE-PH8-007.md).

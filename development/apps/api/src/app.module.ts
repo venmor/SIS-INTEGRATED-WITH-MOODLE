@@ -15,6 +15,8 @@ import { AssessmentModule } from './assessment/assessment.module.js';
 import { InstitutionSetupModule } from './institution-setup/institution-setup.module.js';
 import { TimetablingModule } from './timetabling/timetabling.module.js';
 import { AcademicSupportModule } from './academic-support/academic-support.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { OpsModule } from './ops/ops.module.js';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { AcademicSupportModule } from './academic-support/academic-support.modul
     InstitutionSetupModule,
     TimetablingModule,
     AcademicSupportModule,
+    NotificationsModule,
+    OpsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

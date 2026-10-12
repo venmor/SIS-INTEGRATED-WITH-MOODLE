@@ -23,3 +23,23 @@ export interface AuditTimelineResponse {
   events: AuditTimelineRow[];
   total: number;
 }
+
+/**
+ * Slice-8 entity timeline shapes (TASK-PH8-002). One workflow object,
+ * every source the caller may already read, newest first. The joined
+ * item carries the same allow-listed fields as the direct endpoints —
+ * joined, never widened.
+ */
+export interface EntityTimelineItem {
+  source: string;
+  occurredAt: string;
+  actorRole: string | null;
+  summary: string;
+  applicantVisible?: boolean;
+}
+
+export interface EntityTimelineResponse {
+  kind: string;
+  id: string;
+  items: EntityTimelineItem[];
+}

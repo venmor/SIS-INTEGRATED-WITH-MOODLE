@@ -18,7 +18,7 @@ export default function RootError({
   }, [error]);
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>We could not show this page</h1>
         <p>

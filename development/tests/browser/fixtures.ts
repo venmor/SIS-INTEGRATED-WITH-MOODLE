@@ -1232,3 +1232,159 @@ export async function createAdmissionsOfficer() {
     await db.$disconnect();
   }
 }
+
+
+export async function ensureAxeOffering() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const programme = await db.programme.upsert({
+      where: { code: "TEST-AXE" },
+      update: {},
+      create: {
+        code: "TEST-AXE",
+        name: "Fictional Axe Test Programme",
+        awardLevel: "Bachelor",
+        school: "Test",
+        duration: "4 years",
+        overview: "Journey-test only",
+        feeScheduleRef: "DEMO-ACADEMIC-2026-v1/test",
+        publishedVersion: "TEST-v1",
+        effectiveDate: new Date(),
+        owningOffice: "Admissions",
+      },
+    });
+    await db.requirementRule.upsert({
+      where: {
+        programmeId_ruleKey_version: {
+          programmeId: programme.id,
+          ruleKey: "math",
+          version: 1,
+        },
+      },
+      update: {},
+      create: {
+        programmeId: programme.id,
+        ruleKey: "math",
+        label: "Mathematics",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        evidence: "Result statement",
+      },
+    });
+    const offering = await db.programmeOffering.upsert({
+      where: {
+        programmeId_intake_studyMode_campus: {
+          programmeId: programme.id,
+          intake: "2026S1",
+          studyMode: "FULLTIME",
+          campus: "MAIN",
+        },
+      },
+      update: {
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+      create: {
+        programmeId: programme.id,
+        intake: "2026S1",
+        studyMode: "FULLTIME",
+        campus: "MAIN",
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+    });
+    return { offeringId: offering.id };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+export async function resetNotificationDueDates() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    await db.notificationDelivery.updateMany({
+      where: { state: { in: ["QUEUED", "RETRIED"] } },
+      data: { nextRunAt: new Date(Date.now() - 1000) },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+export async function ensureTimelinePackage() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const pkg = await db.resultPackage.create({
+      data: {
+        offeringRef: "SWE-2026S1",
+        periodCode: "2026S1",
+        version: 1,
+        status: "APPROVED_FOR_RELEASE",
+        packageHash: "fictional-hash",
+        trace: {},
+        candidateListId: randomUUID(),
+        declaration: "fictional declaration",
+        preparedByAccountId: randomUUID(),
+      },
+    });
+    await db.boardDecision.create({
+      data: {
+        packageId: pkg.id,
+        version: 1,
+        to: "APPROVE_FOR_RELEASE",
+        reason: "Board minute 12.",
+        conditions: [],
+        decidedByAccountId: randomUUID(),
+      },
+    });
+    await db.resultRelease.create({
+      data: {
+        packageId: pkg.id, offeringRef: 'SWE-2026S1', periodCode: '2026S1',
+        packageHash: 'fictional-hash', policySnapshot: {},
+        releasedByAccountId: randomUUID(), assignmentId: randomUUID(), declaration: 'Isolated timeline fixture',
+        results: { create: {
+          studentId: randomUUID(), studentRef: 'STU-2026-0001', courseId: randomUUID(),
+          courseCode: 'SWE111', courseTitle: 'Programming Fundamentals', courseType: 'CORE',
+          periodCode: '2026S1', version: 2, mark: 68.8, outcome: 'PASS', calculationSnapshot: {},
+        } },
+      },
+    });
+    await db.auditEvent.create({
+      data: {
+        action: "BoardDecisionRecorded",
+        actorAccountId: randomUUID(),
+        activeRole: "EXAMINATIONS_OFFICER",
+        scope: `ASSESSMENT:${pkg.id}`,
+        targetRef: pkg.id,
+        outcome: "ALLOW",
+        correlationId: randomUUID(),
+        idempotencyRef: randomUUID(),
+        policyVersion: "ASSESSMENT-DEMO-v1",
+        purpose: "Assessment governance",
+        metadata: {},
+      },
+    });
+    return pkg.id;
+  } finally {
+    await db.$disconnect();
+  }
+}

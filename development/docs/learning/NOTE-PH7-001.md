@@ -1,7 +1,7 @@
 # Learning Note — TASK-PH7-001 (assessment scheme and grade-activity mapping plan)
 
 - Lead developer: Chitundu Milimbo (proposed; TASK-PH7-001)
-- Reviewer: Charles Hangoma (proposed)
+- Reviewer: Charles Hangoma
 - Date/release: 2026-09-25 / v0.8.0 track Phase 7 slice 1
 - Branch: local `main` worktree (code in `024af1d` + uncommitted browser-spec fix; human review pending)
 

@@ -142,7 +142,7 @@ export default async function DiscoverPage({
     <>
       <PublicHeader current="discover" />
       <div className={discovery.page}>
-        <main id="main-content" className={discovery.main}>
+        <main id="main-content" tabIndex={-1} className={discovery.main}>
           <header
             className={`${discovery.heading} border-b border-sis-border pb-6`}
           >
