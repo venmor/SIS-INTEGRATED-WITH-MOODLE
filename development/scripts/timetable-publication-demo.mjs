@@ -1,3 +1,4 @@
+import { isDemonstrationApiTarget } from "../packages/config/src/demo-environment.ts";
 // Add a pre-admitted fictional sample; registration/master save use real APIs.
 // Never reset a database, edit an existing approval or auto-publish a timetable.
 import { createRequire } from "node:module";
@@ -7,26 +8,16 @@ class DemoScenarioError extends Error {}
 const require = createRequire(import.meta.url);
 
 export function assertPublicationDemoTarget(env) {
-  const database = new URL(env.DATABASE_URL ?? "postgresql://invalid/invalid");
-  const api = new URL(env.TIMETABLE_DEMO_API_URL ?? "http://127.0.0.1:3155");
-  const loopback = (url) =>
-    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const apiValue = env.TIMETABLE_DEMO_API_URL ?? "http://127.0.0.1:3155";
   if (
     env.DEMO_MODE !== "true" ||
     env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS !== "true" ||
-    !loopback(database) ||
-    !/(?:^|_)(?:test|review|ci)(?:_|$)/i.test(database.pathname.slice(1)) ||
-    api.protocol !== "http:" ||
-    !loopback(api) ||
-    api.username ||
-    api.password ||
-    api.search ||
-    api.hash ||
-    api.pathname !== "/"
+    !isDemonstrationApiTarget(env, apiValue)
   )
     throw new DemoScenarioError(
-      "Use explicit fictional switches and loopback review/test database and API.",
+      "Use explicit fictional switches and an isolated review/test or explicitly pinned cloud demonstration database and API.",
     );
+  const api = new URL(apiValue);
   return { api };
 }
 function stableUuid(value) {

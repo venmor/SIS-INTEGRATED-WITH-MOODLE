@@ -1,3 +1,4 @@
+import { isDemonstrationDatabaseTarget } from '@sis/config';
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type {
@@ -573,16 +574,5 @@ export function demoSetupEnabled(
     env.SIS_ENABLE_INSTITUTION_DEMO_SETUP !== 'true'
   )
     return false;
-  try {
-    const url = new URL(env.DATABASE_URL ?? '');
-    return (
-      ['postgresql:', 'postgres:'].includes(url.protocol) &&
-      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) &&
-      /(?:^|_)(?:test|review|ci)(?:_|$)/i.test(
-        decodeURIComponent(url.pathname.slice(1)),
-      )
-    );
-  } catch {
-    return false;
-  }
+  return isDemonstrationDatabaseTarget(env);
 }

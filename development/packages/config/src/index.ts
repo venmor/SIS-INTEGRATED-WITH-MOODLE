@@ -24,3 +24,5 @@ export {
 } from "./notifications.js";
 export { NOTIFY_DEMO_V1 } from "./notifications.js";
 export * from './institution-setup.js';
+
+export { isDemonstrationDatabaseTarget, isDemonstrationApiTarget } from './demo-environment.js';

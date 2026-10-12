@@ -1,3 +1,4 @@
+import { isDemonstrationDatabaseTarget } from "../../packages/config/src/demo-environment.ts";
 import { createRequire } from "node:module";
 const { hash, verify } = createRequire(import.meta.url)("argon2");
 
@@ -8,15 +9,9 @@ export async function seedDemoUniversityAccounts(db) {
     process.env.SIS_ENABLE_INSTITUTION_DEMO_SETUP !== "true"
   )
     return false;
-  const url = new URL(
-    process.env.DATABASE_URL ?? "postgresql://invalid/invalid",
-  );
-  if (
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-    !/(?:^|_)(?:test|review|ci)(?:_|$)/i.test(url.pathname.slice(1))
-  )
+  if (!isDemonstrationDatabaseTarget(process.env))
     throw new Error(
-      "Fictional setup appointments need a loopback isolated review/test database.",
+      "Fictional setup appointments need an isolated review/test or explicitly pinned cloud demonstration database.",
     );
   const personIds = new Set();
   for (const [username, name, password, capability] of [

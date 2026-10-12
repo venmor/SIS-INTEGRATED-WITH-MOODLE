@@ -483,3 +483,25 @@ describe('fictional university setup policy', () => {
     ).toBe(false);
   });
 });
+
+it('accepts only explicitly pinned cloud demonstration target with its feature flag', () => {
+  const env = {
+    DEMO_MODE: 'true',
+    SIS_ENABLE_CLOUD_DEMONSTRATION: 'true',
+    SIS_ENABLE_INSTITUTION_DEMO_SETUP: 'true',
+    SIS_DEMO_DATABASE_HOST: 'pool.db.example',
+    SIS_DEMO_DATABASE_NAME: 'sis_demonstration',
+    DATABASE_URL:
+      'postgresql://demo:private@pool.db.example/sis_demonstration?sslmode=require',
+  };
+  expect(demoSetupEnabled(env)).toBe(true);
+  expect(
+    demoSetupEnabled({ ...env, SIS_ENABLE_INSTITUTION_DEMO_SETUP: 'false' }),
+  ).toBe(false);
+  expect(
+    demoSetupEnabled({ ...env, SIS_ENABLE_CLOUD_DEMONSTRATION: 'false' }),
+  ).toBe(false);
+  expect(
+    demoSetupEnabled({ ...env, SIS_DEMO_DATABASE_HOST: 'other.db.example' }),
+  ).toBe(false);
+});

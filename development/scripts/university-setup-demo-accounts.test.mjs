@@ -80,3 +80,41 @@ test("account preparation refuses expired or suspended actors and a shared perso
       else process.env[key] = value;
   }
 });
+
+test("cloud account seed refuses an unpinned target before any account lookup", async () => {
+  const keys = [
+    "DEMO_MODE",
+    "SIS_ENABLE_INSTITUTION_DEMO_SETUP",
+    "SIS_ENABLE_CLOUD_DEMONSTRATION",
+    "SIS_DEMO_DATABASE_HOST",
+    "SIS_DEMO_DATABASE_NAME",
+    "DATABASE_URL",
+  ];
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    Object.assign(process.env, {
+      DEMO_MODE: "true",
+      SIS_ENABLE_INSTITUTION_DEMO_SETUP: "true",
+      SIS_ENABLE_CLOUD_DEMONSTRATION: "true",
+      SIS_DEMO_DATABASE_HOST: "pool.db.example",
+      SIS_DEMO_DATABASE_NAME: "sis_demonstration",
+      DATABASE_URL:
+        "postgresql://demo:private@other.db.example/sis_demonstration?sslmode=require",
+    });
+    await assert.rejects(
+      () =>
+        seedDemoUniversityAccounts({
+          account: {
+            findUnique: () => {
+              throw new Error("Unexpected account lookup");
+            },
+          },
+        }),
+      /explicitly pinned/,
+    );
+  } finally {
+    for (const key of keys)
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+  }
+});

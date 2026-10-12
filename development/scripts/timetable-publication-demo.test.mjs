@@ -26,3 +26,29 @@ test("publication sample refuses shared/provider targets and missing explicit ga
       /explicit fictional/,
     );
 });
+
+test("cloud publication bootstrap requires exact database, HTTPS API and independent opt-ins", () => {
+  const env = {
+    DEMO_MODE: "true",
+    SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true",
+    SIS_ENABLE_CLOUD_DEMONSTRATION: "true",
+    SIS_DEMO_DATABASE_HOST: "pool.db.example",
+    SIS_DEMO_DATABASE_NAME: "sis_demonstration",
+    DATABASE_URL:
+      "postgresql://demo:private@pool.db.example/sis_demonstration?sslmode=require",
+    SIS_DEMO_API_ORIGIN: "https://sis-api.example",
+    TIMETABLE_DEMO_API_URL: "https://sis-api.example",
+  };
+  assert.equal(
+    assertPublicationDemoTarget(env).api.origin,
+    "https://sis-api.example",
+  );
+  for (const patch of [
+    { SIS_ENABLE_CLOUD_DEMONSTRATION: "false" },
+    { SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "false" },
+    { TIMETABLE_DEMO_API_URL: "https://other.example" },
+    { TIMETABLE_DEMO_API_URL: "http://sis-api.example" },
+    { SIS_DEMO_DATABASE_NAME: "other" },
+  ])
+    assert.throws(() => assertPublicationDemoTarget({ ...env, ...patch }));
+});

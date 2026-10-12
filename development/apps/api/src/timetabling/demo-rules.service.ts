@@ -1,3 +1,4 @@
+import { isDemonstrationDatabaseTarget } from '@sis/config';
 import {
   BadRequestException,
   ConflictException,
@@ -56,15 +57,7 @@ export function timetableDemoDraftsEnabled(
     env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS !== 'true'
   )
     return false;
-  try {
-    const url = new URL(env.DATABASE_URL ?? '');
-    return (
-      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) &&
-      /(?:test|review|ci)/i.test(url.pathname)
-    );
-  } catch {
-    return false;
-  }
+  return isDemonstrationDatabaseTarget(env, /(?:test|review|ci)/i);
 }
 
 export function parseDraftCommand(input: unknown): DraftCommand {
