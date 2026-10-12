@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { loadEnv } from "./env.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-loadEnv({ root, requireFile: true });
+loadEnv({ root, requireFile: false });
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "";
 if (!DATABASE_URL) throw new Error("DATABASE_URL is missing");
@@ -35,115 +35,7 @@ if (
   throw new Error("Unsafe scratch database name");
 let scratchCreated = false;
 
-const TABLES = [
-  "Application",
-  "ApplicationRevision",
-  "ApplicationDocument",
-  "ApplicationSubmission",
-  "ApplicationCommand",
-  "Person",
-  "Account",
-  "Credential",
-  "RoleAssignment",
-  "Session",
-  "RecoveryToken",
-  "AuditEvent",
-  "IdempotencyKey",
-  "OutboxEvent",
-  "ConfigurationItem",
-  "ConfigurationVersion",
-  "ReviewSchedule",
-  "BreakGlassRequest",
-  "ExpiryWarning",
-  "ExpiryDaemonState",
-  "QualificationRoute",
-  "Programme",
-  "ProgrammeOffering",
-  "RequirementRule",
-  "GuidanceSession",
-  "ApplicationStatusEvent",
-  "ApplicationClarification",
-  "ApplicationCorrectionRequest",
-  "ApplicationDecision",
-  "SupportTicket",
-  "SupportTicketMessage",
-  "ApplicationWithdrawal",
-  "ApplicantNotification",
-  "ReviewAssignment",
-  "ReviewFinding",
-  // Slice PH8-006: full Phase 3–8 coverage (was: slices 0–2 only).
-  // Every model in prisma/schema.prisma is listed; the drill fails
-  // on any table the restore drops.
-  "ApplicationDecisionRevision",
-  "SupportTicketMessage",
-  "ReviewRecommendation",
-  "ApplicationOfferResponse",
-  "OnboardingTask",
-  "Student",
-  "IdentityMatchCandidate",
-  "ProgrammeAttempt",
-  "CurriculumVersion",
-  "AcademicPeriod",
-  "StudentCorrectionRequest",
-  "Hold",
-  "FinanceClearance",
-  "FinanceAccount",
-  "FinanceInvoice",
-  "FinanceChargeLine",
-  "FinancePaymentRequest",
-  "FinancePaymentTransaction",
-  "FinancePaymentReversal",
-  "FinanceCallback",
-  "FinanceReconciliationCase",
-  "FinanceAllocation",
-  "FinanceAllocationReversal",
-  "FinanceAdjustment",
-  "TutorialGroup",
-  "TGAllocation",
-  "MoodleConnection",
-  "MoodleMapping",
-  "IntegrationDeliveryAttempt",
-  "SimShell",
-  "SimStudentEnrolment",
-  "SimStaffRole",
-  "ReconciliationRun",
-  "ReconciliationCase",
-  "ReplayDecision",
-  "IntegrationIncident",
-  "MoodleMaintenance",
-  "SimGroupMember",
-  "MappingCheck",
-  "TeachingAssignment",
-  "FinanceArrangement",
-  "FinanceSponsorship",
-  "Course",
-  "CoursePrerequisite",
-  "CurriculumCourse",
-  "CoursePlan",
-  "CoursePlanItem",
-  "InstitutionalRegistration",
-  "CourseRegistration",
-  "RegistrationAmendment",
-  "WaitlistEntry",
-  "AssessmentPlan",
-  "AssessmentComponent",
-  "GradeActivityMapping",
-  "GradeBatch",
-  "GradeLine",
-  "GradeFinding",
-  "AssessmentCandidateList",
-  "ModerationCase",
-  "OfficialCARecord",
-  "ResultPackage",
-  "BoardDecision",
-  "OfficialCourseResult",
-  "ResultAmendmentCase",
-  "AcademicImpactTask",
-  "NotificationTemplate",
-  "NotificationRecord",
-  "NotificationDelivery",
-  "OpsIncident",
-];
+
 
 function connectionEnv(connection) {
   const url = new URL(connection);
@@ -198,10 +90,12 @@ const result = {
   scratchDb: SCRATCH_DB,
 };
 try {
+  // Discover every migrated table instead of silently omitting new modules.
+  const TABLES = psql(DATABASE_URL, "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename").split("\n").filter(Boolean);
   const before = {};
   for (const table of TABLES) {
     before[table] = Number(
-      psql(DATABASE_URL, `SELECT COUNT(*) FROM "${table}";`),
+      psql(DATABASE_URL, `SELECT COUNT(*) FROM "${table.replaceAll('"', '""')}";`),
     );
   }
   runPg("pg_dump", DATABASE_URL, [
@@ -222,7 +116,7 @@ try {
   for (const table of TABLES) {
     const expected = before[table];
     const actual = Number(
-      psql(scratchUrl(), `SELECT COUNT(*) FROM "${table}";`),
+      psql(scratchUrl(), `SELECT COUNT(*) FROM "${table.replaceAll('"', '""')}";`),
     );
     const ok = expected === actual;
     result.tables[table] = { expected, actual, ok };
@@ -709,22 +603,22 @@ try {
         'SELECT COUNT(*) FROM "BoardDecision" d LEFT JOIN "ResultPackage" p ON p.id = d."packageId" WHERE p.id IS NULL;',
       ),
     ),
-    officialResultsWithoutPackage: Number(
+    officialResultsWithoutRelease: Number(
       psql(
         scratchUrl(),
-        'SELECT COUNT(*) FROM "OfficialCourseResult" r LEFT JOIN "ResultPackage" p ON p.id = r."packageId" WHERE p.id IS NULL;',
+        'SELECT COUNT(*) FROM "OfficialResultVersion" r LEFT JOIN "ResultRelease" p ON p.id = r."releaseId" WHERE p.id IS NULL;',
       ),
     ),
-    amendmentCasesWithoutPackage: Number(
+    amendmentsWithoutRelease: Number(
       psql(
         scratchUrl(),
-        'SELECT COUNT(*) FROM "ResultAmendmentCase" c LEFT JOIN "ResultPackage" p ON p.id = c."packageId" WHERE p.id IS NULL;',
+        'SELECT COUNT(*) FROM "ResultAmendment" c LEFT JOIN "ResultRelease" p ON p.id = c."releaseId" WHERE p.id IS NULL;',
       ),
     ),
-    impactTasksWithoutCase: Number(
+    impactTasksWithoutResult: Number(
       psql(
         scratchUrl(),
-        'SELECT COUNT(*) FROM "AcademicImpactTask" t LEFT JOIN "ResultAmendmentCase" c ON c.id = t."amendmentCaseId" WHERE c.id IS NULL;',
+        'SELECT COUNT(*) FROM "ResultAcademicImpact" t LEFT JOIN "OfficialResultVersion" c ON c.id = t."resultId" WHERE c.id IS NULL;',
       ),
     ),
     recordsWithoutTemplate: Number(

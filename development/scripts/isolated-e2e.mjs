@@ -34,6 +34,12 @@ async function main() {
           });
           child.once('error', reject); child.once('exit', (code) => resolve(code ?? 1));
         });
+        if (status === 0 && process.env.CI_BACKUP_REHEARSAL === 'true' && ['finance-assessment.e2e-spec.ts', 'grade-publication.e2e-spec.ts'].includes(file)) {
+          status = await new Promise((resolve, reject) => {
+            const child = spawn(process.execPath, ['scripts/backup-test.mjs'], { env: { ...process.env, DATABASE_URL: target.href }, stdio: 'inherit' });
+            child.once('error', reject); child.once('exit', (code) => resolve(code ?? 1));
+          });
+        }
       } finally {
         // Only the random database created above is ever removed.
         await admin.query(`DROP DATABASE ${quote(name)} WITH (FORCE)`);

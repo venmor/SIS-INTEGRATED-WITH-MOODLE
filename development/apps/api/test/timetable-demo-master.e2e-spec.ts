@@ -38,7 +38,15 @@ describe('fictional master and course previews', () => {
 
   it('saves one blocked master version and filters course view from the same snapshot', async () => {
     const period = await db.academicPeriod.findUniqueOrThrow({ where: { code: 'DEMO-2026-TEACHING' } });
-    const rule = await db.timetableDemoRuleDraft.findFirstOrThrow({ where: { periodId: period.id }, orderBy: { createdAt: 'desc' } });
+    // Create this suite's own governed rules; no cross-suite fixture dependency.
+    const ruleAuthor = await actor('DOMAIN_ADMIN', 'CAMPUS', 'DEMO-MAIN', 'timetable-demo-rules-draft');
+    const ruleResponse = await request(app.getHttpServer()).post('/timetabling/demo-rules').set('Cookie', ruleAuthor.cookie).send({
+      clientRequestId: randomUUID(), expectedVersion: 0, periodId: period.id,
+      teachingStartDate: '2026-10-05', teachingEndDate: '2026-12-18', dailyStartTime: '08:00', dailyEndTime: '18:00',
+      allowedWeekdays: [1, 2, 3, 4, 5], maxSessionMinutes: 180,
+      roomTurnaroundMinutes: 15, maxOccurrences: 200, travel: [],
+    }).expect(201);
+    const rule = ruleResponse.body as { id: string };
     const sections = await db.teachingSection.findMany({ where: { offering: { periodId: period.id } },
       include: { offering: { include: { courseVersion: { include: { course: true } } } } } });
     const venues = await db.teachingVenue.findMany({ where: { building: { campusUnit: { code: 'DEMO-MAIN' } } } });

@@ -25,6 +25,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ci_review
       DEMO_MODE: "true"
+      SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true"
       APPLICATION_SCANNER: demo-fixtures
       API_INTERNAL_URL: http://127.0.0.1:3101
       PORT: "3101"
@@ -46,8 +47,15 @@ jobs:
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
       - run: node scripts/prepare-test-offerings.mjs
       - run: npm test
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install --no-install-recommends -y postgresql-client-18
       - name: Run connected suites against independent baseline clones
         run: node scripts/isolated-e2e.mjs
+        env:
+          CI_BACKUP_REHEARSAL: "true"
       - run: npm run build
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
@@ -59,14 +67,8 @@ jobs:
       - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_browser_review
-      # Slice PH8-007: backup/restore rehearsal on the fully seeded +
-      # suite-populated database (full-data drill incl. finance and
-      # assessment rows). Needs pg_dump/psql matching the server major.
-      - name: Install PostgreSQL 18 client tools
-        run: |
-          sudo apt-get install -y postgresql-common
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install --no-install-recommends -y postgresql-client-18
+      # Populated finance and assessment clones were rehearsed before cleanup.
+      # Also verify the clean seeded baseline independently.
       - name: Backup/restore rehearsal on the seeded database
         run: npm run backup:test
       - uses: actions/upload-artifact@v4
