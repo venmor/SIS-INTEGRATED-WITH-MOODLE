@@ -14,8 +14,17 @@
 // Exception: isolated test/review/ci/browser databases (validated by the same
 // pattern used in tests/browser/fixtures.ts) may be seeded without the flag
 // so that browser tests have programme offerings available.
+import { isDemonstrationDatabaseTarget } from "../../packages/config/src/demo-environment.ts";
+
 const dbUrl = process.env.DATABASE_URL;
 const isTestDatabase = dbUrl && /(test|review|ci|browser)/i.test(new URL(dbUrl).pathname);
+const isPinnedCloudDemonstration =
+  process.env.SIS_ENABLE_CLOUD_DEMONSTRATION === "true" &&
+  isDemonstrationDatabaseTarget(process.env);
+if (dbUrl && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(dbUrl).hostname) && !isPinnedCloudDemonstration) {
+  console.error("refusing: remote demonstration seeding requires the exact approved target pins and TLS");
+  process.exit(1);
+}
 if (process.env.ALLOW_DEMO_SEED !== "true" && !isTestDatabase) {
   console.error(
     "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
@@ -1098,7 +1107,7 @@ async function main(): Promise<void> {  // Identity administrator first so later
     await ensureAccount(entry, granter.id);
   }
   await seedDemoUniversityAccounts(prisma);
-  if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+  if ((isTestDatabase || isPinnedCloudDemonstration) && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
     await prisma.academicPeriod.upsert({
       where: { code: "DEMO-2026-TEACHING" }, update: {},
       create: { code: "DEMO-2026-TEACHING", status: "DRAFT" },
@@ -1138,7 +1147,7 @@ async function main(): Promise<void> {  // Identity administrator first so later
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
   await ensureStudentDemo();
-  if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+  if ((isTestDatabase || isPinnedCloudDemonstration) && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
     await ensureTimetableDemoDelivery(granter.id);
   }
   // Explicit fictional verified-contact fixture; never infer verification for real users.
