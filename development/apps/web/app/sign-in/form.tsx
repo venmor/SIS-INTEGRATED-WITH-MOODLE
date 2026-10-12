@@ -1,5 +1,7 @@
 "use client";
 
+import { safeSignInTarget } from "../../lib/sign-in-target";
+
 import { useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ActionButton, ErrorSummary, Field, PasswordField } from "@sis/ui";
@@ -96,18 +98,12 @@ export function SignInForm({
       };
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
-        // Only local applicant/discovery/admin routes survive authentication.
+        // Preserve validated local workspace destinations through authentication.
         const requestedTarget = returnTo ?? demoStaff?.find(
           (staff) => staff.username === data.get("username"),
         )?.workspaceHref;
-        const target =
-          requestedTarget &&
-          /^\/(applicant|discover|admin)(\/|\?|$)/.test(requestedTarget) &&
-          !/[\\\r\n]/.test(requestedTarget)
-            ? requestedTarget
-            : data.get("username") === demoAccount?.username
-              ? "/applicant"
-              : "/";
+        const target = safeSignInTarget(requestedTarget)
+          ?? (data.get("username") === demoAccount?.username ? "/applicant" : "/");
         await router.replace(target);
         return;
       }
