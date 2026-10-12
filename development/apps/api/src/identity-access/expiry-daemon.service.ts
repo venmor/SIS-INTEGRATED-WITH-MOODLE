@@ -50,7 +50,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
     // schedule needs a platform cron/worker before it can run there; starting
     // an in-process job during every cold start would also block liveness on a
     // database call. Local and long-running deployments retain the scheduler.
-    if (process.env.VERCEL) return;
+    if (process.env.VERCEL || process.env.DISABLE_EXPIRY_DAEMON === 'true') return;
     await this.resyncSchedule();
   }
 
