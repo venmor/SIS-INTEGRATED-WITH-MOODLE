@@ -1,5 +1,8 @@
 "use client";
 
+import { CourseSummary } from "../../components/task-flow";
+import workflow from "../../components/workflow.module.css";
+
 import { useEffect, useState } from "react";
 import type {
   CoursePlanView,
@@ -11,7 +14,8 @@ import { ErrorSummary, Notice } from "@sis/ui";
 import { academicHref } from "../../../lib/academic-context";
 import styles from "../../applicant/applicant.module.css";
 
-const declarations = STUDENT_DEMO_V1.registration.declarations as unknown as Array<{ key: string; text: string }>;
+const declarations = STUDENT_DEMO_V1.registration
+  .declarations as unknown as Array<{ key: string; text: string }>;
 
 type Command = {
   version: number;
@@ -236,8 +240,12 @@ export function RegisterForm({
           title="Registration completed"
           message={`Receipt ${receipt.receipt}. Your official course registration is complete.`}
         />
+        <CourseSummary
+          courses={receipt.courses}
+          caption="Officially registered courses"
+        />
         <p>
-          <a href={academicHref("/student/timetable", initial)}>
+          <a className={workflow.action} href={academicHref("/student/timetable", initial)}>
             View timetable
           </a>
         </p>
@@ -259,14 +267,10 @@ export function RegisterForm({
       ) : (
         <>
           <h2>Planned courses</h2>
-          <ul>
-            {initial.items.map((item) => (
-              <li key={item.courseId}>
-                <strong>{item.code}</strong> — {item.title} ({item.credits}{" "}
-                credits)
-              </li>
-            ))}
-          </ul>
+          <CourseSummary
+            courses={initial.items}
+            caption={`${initial.items.length} selected courses · ${initial.period}`}
+          />
           <p className={styles.muted}>
             Planned load: {initial.loadHalves} half-course equivalents.
             {invalidLoad
@@ -276,7 +280,7 @@ export function RegisterForm({
           {initial.validation
             .filter((v) => v.result !== "PASS")
             .map((v, i) => (
-              <p key={i}>
+              <p key={i} className={workflow.panel}>
                 <strong>
                   {v.code} · {v.result}
                 </strong>{" "}
@@ -301,11 +305,19 @@ export function RegisterForm({
             title="Registration confirmation pending"
             message="Keep this page open. Check your status before retrying the same submission."
           />
-          <button disabled={pending} onClick={() => void checkStatus()}>
+          <button
+            className={workflow.action}
+            disabled={pending}
+            onClick={() => void checkStatus()}
+          >
             Check registration status
           </button>
           {checked && command && (
-            <button disabled={pending} onClick={() => void submit(command)}>
+            <button
+              className={workflow.action}
+              disabled={pending}
+              onClick={() => void submit(command)}
+            >
               Retry same submission
             </button>
           )}
@@ -319,11 +331,11 @@ export function RegisterForm({
               void submit();
             }}
           >
-            <fieldset disabled={pending}>
+            <fieldset disabled={pending} className={workflow.declarations}>
               <legend>Registration declarations (all required)</legend>
               {declarations.map((d) => (
                 <p key={d.key}>
-                  <label>
+                  <label className={workflow.check}>
                     <input
                       type="checkbox"
                       required
@@ -342,6 +354,7 @@ export function RegisterForm({
               ))}
             </fieldset>
             <button
+              className={workflow.action}
               disabled={
                 !recoveryReady ||
                 pending ||

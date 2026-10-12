@@ -1,3 +1,4 @@
+import { RegistrationSteps } from "../../components/task-flow";
 import type { CoursePlanView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -72,6 +73,7 @@ export default async function CoursesPage({
     <>
       <p className={styles.eyebrow}>Course selection · {board.period}</p>
       <h1>Plan your courses</h1>
+      <RegistrationSteps current="courses" context={board} />
       <p className={styles.muted}>
         Required courses, new courses and electives are listed separately.
         Unavailable courses name their reason. Saving keeps a draft; submit

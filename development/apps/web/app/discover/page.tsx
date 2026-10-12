@@ -153,6 +153,32 @@ export default async function DiscoverPage({
               is needed to browse.
             </p>
           </header>
+          <ol className={discovery.journey} aria-label="Application journey">
+            <li>
+              <span aria-hidden="true">1</span>
+              <div>
+                <strong>Find your programme</strong>
+                <p>Filter by school, study mode and intake.</p>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden="true">2</span>
+              <div>
+                <strong>Check your options</strong>
+                <p>Compare up to three programmes and entry requirements.</p>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden="true">3</span>
+              <div>
+                <strong>Prepare to apply</strong>
+                <p>
+                  Open a programme for the application route and required
+                  evidence.
+                </p>
+              </div>
+            </li>
+          </ol>
           <SearchForm initial={initial} routes={routes} />
           {page === null ? (
             <Notice

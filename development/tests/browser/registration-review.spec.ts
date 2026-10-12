@@ -17,6 +17,7 @@ let api: Server | undefined;
 let web: ChildProcess | undefined;
 let startupLog = "";
 let scenario: "empty" | "blocked" | "approval" | "load" | "valid" = "valid";
+let manyCourses = false;
 let registered = false;
 let statusUnavailable = false;
 let submissionFailure = false;
@@ -43,7 +44,7 @@ function plan(): CoursePlanView {
     version: scenario === "empty" ? 0 : 3,
     status: scenario === "empty" ? "NONE" : "DRAFT",
     items: scenario === "empty" ? [] : items,
-    available: scenario === "empty" ? items : [],
+    available: manyCourses ? [...items, ...Array.from({ length: 24 }, (_, index) => ({ ...items[0], courseId: `00000000-0000-4000-8000-${String(index+300).padStart(12, "0")}`, code: `CSC${100 + index}`, title: `Computing subject ${index+1}`, credits: index % 2 ? 30 : 15 }))] : scenario === "empty" ? items : [],
     validation: scenario === "blocked"
       ? [
           { courseId: items[0].courseId, code: "SWE121", result: "BLOCK", resultCode: "PREREQ_UNMET", explanation: "Requires SWE111 (no completed result on record)." },
@@ -101,6 +102,21 @@ test.beforeAll(async () => {
       response.end(JSON.stringify(plan()));
       return;
     }
+    if (request.method === "GET" && url.pathname === "/registration/readiness") {
+      response.end(JSON.stringify({ attemptId, period, overall: "AWAITING_STUDENT_INPUT", assessedAt: "2026-10-12T09:00:00.000Z", pendingRegulations: [], conditions: [
+        { key: "selection", label: "Course selection", status: "BLOCKED", owner: "Student", next: "Save your course selection.", detail: "No saved course plan is available." },
+        { key: "clearance", label: "Financial clearance", status: "READY", owner: "Student Finance", next: "No action needed.", detail: "Clearance has been confirmed for this period." },
+      ] }));
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/catalogue/programmes") {
+      response.end(JSON.stringify({ items: [], total: 0, skip: 0, take: 10 }));
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/catalogue/routes") {
+      response.end(JSON.stringify({ routes: [] }));
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/registration/status") {
       if (statusUnavailable) {
         response.writeHead(503).end(JSON.stringify({ message: "The current registration cannot be checked." }));
@@ -143,7 +159,7 @@ test.afterAll(async () => {
   if (api) { api.closeAllConnections(); await new Promise<void>((done) => api!.close(() => done())); }
 });
 test.beforeEach(async ({ page }) => {
-  scenario = "valid"; registered = false; statusUnavailable = false; submissionFailure = false;
+  scenario = "valid"; manyCourses = false; registered = false; statusUnavailable = false; submissionFailure = false;
   submits.length = 0; calls.length = 0;
   await page.context().addCookies([{ name: "sid", value: "synthetic-rendering-only", url: webOrigin }]);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -261,4 +277,63 @@ test("an uncertain submission survives reload with its original idempotency key"
   await page.getByRole("button", { name: "Retry same submission", exact: true }).click();
   await expect(page.getByText(/REG-2026-FIXTURE/)).toBeVisible();
   expect(submits).toEqual([original, original]);
+});
+
+
+test("course inventory search sorting and paging preserve selections", async ({ page }) => {
+  manyCourses = true;
+  await page.goto(`${webOrigin}/student/courses?${context}`);
+  const section = page.getByRole("region", { name: "Required courses", exact: true });
+  await expect(section.getByRole("status")).toHaveText("Showing 1–10 of 26");
+  await section.getByRole("button", { name: "Next required courses" }).click();
+  await section.getByRole("checkbox", { name: "CSC110 — Computing subject 11", exact: true }).check();
+  await section.getByRole("searchbox", { name: "Search required courses" }).fill("CSC110");
+  await expect(section.getByRole("checkbox", { name: "CSC110 — Computing subject 11", exact: true })).toBeChecked();
+  await expect(section.getByRole("status")).toHaveText("Showing 1–1 of 1");
+  await section.getByRole("searchbox", { name: "Search required courses" }).fill("");
+  await section.getByRole("combobox", { name: "Sort required courses" }).selectOption("title");
+  await section.getByRole("searchbox", { name: "Search required courses" }).fill("CSC110");
+  await expect(section.getByRole("checkbox", { name: "CSC110 — Computing subject 11", exact: true })).toBeChecked();
+  await expect(page.getByText("3 courses selected. Save your changes to refresh the load and checks below.")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(submits).toEqual([]);
+});
+
+test("registration location steps retain exact context without claiming prior completion", async ({ page }) => {
+  await openReview(page);
+  const steps = page.getByRole("navigation", { name: "Registration steps" });
+  await expect(steps.getByRole("link", { name: "Review and submit" })).toHaveAttribute("aria-current", "step");
+  await expect(steps.getByRole("link", { name: "Choose courses" })).toHaveAttribute("href", `/student/courses?${context}`);
+  await expect(page.getByRole("table")).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("entry and readiness layouts reflow with keyboard-accessible detail and real next actions", async ({ page }, testInfo) => {
+  // Six page loads include cold Next compilation and two viewport sizes.
+  test.setTimeout(120000);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${webOrigin}/sign-in`);
+    await expect(page.getByRole("heading", { name: "Sign in to the SIS" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Account sign-in" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Explore programmes", exact: true })).toHaveAttribute("href", "/discover");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`sign-in-${width}.png`), fullPage: true });
+    await page.goto(`${webOrigin}/discover`);
+    await expect(page.getByRole("list", { name: "Application journey" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`discover-${width}.png`), fullPage: true });
+    await page.goto(`${webOrigin}/student/readiness?${context}`);
+    await expect(page.getByRole("heading", { name: "Course selection", exact: true })).toBeVisible();
+    await expect(page.getByText("Save your course selection.")).toBeVisible();
+    await expect(page.getByText("No saved course plan is available.")).not.toBeVisible();
+    const detail = page.locator("summary").filter({ hasText: "Check details" }).first();
+    await detail.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("No saved course plan is available.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Plan your courses", exact: true })).toHaveAttribute("href", `/student/courses?${context}`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`readiness-${width}.png`), fullPage: true });
+  }
+  expect(submits).toEqual([]);
 });

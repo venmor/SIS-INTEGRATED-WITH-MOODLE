@@ -11,6 +11,7 @@ import { Notice, PageHeader, StatusChip } from "@sis/ui";
 import { formatLusaka } from "../../lib/time";
 import { ContactForm, CorrectionForm } from "./forms";
 import styles from "./student.module.css";
+import { NavigationIcon } from "../navigation-icon";
 
 async function loadRegistrationStatus(): Promise<RegistrationStatusView | null> {
   const sid = (await cookies()).get("sid")?.value;
@@ -190,7 +191,10 @@ export default async function StudentPage() {
         <div className={styles.grid}>
           {tasks.map((task) => (
             <article key={task.href} className={styles.taskCard}>
-              <h3>{task.title}</h3>
+              <h3 className={styles.taskHeading}>
+                <NavigationIcon href={task.href} />
+                {task.title}
+              </h3>
               <p>{task.body}</p>
               <Link href={task.href}>
                 {task.action}
@@ -217,6 +221,17 @@ export default async function StudentPage() {
               {board.onboardingRequiredComplete} of{" "}
               {board.onboardingRequiredTotal} required applicant tasks complete.
             </p>
+            {board.onboardingRequiredTotal > 0 ? (
+              <progress
+                className={styles.progress}
+                aria-label="Required onboarding tasks complete"
+                value={board.onboardingRequiredComplete}
+                max={board.onboardingRequiredTotal}
+              >
+                {board.onboardingRequiredComplete} of{" "}
+                {board.onboardingRequiredTotal}
+              </progress>
+            ) : null}
             {board.pendingCorrections > 0 ? (
               <StatusChip tone="attention">
                 {board.pendingCorrections} correction request

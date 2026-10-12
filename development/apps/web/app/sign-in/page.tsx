@@ -2,6 +2,8 @@ import styles from "../page.module.css";
 import signInStyles from "./sign-in.module.css";
 import { SignInForm } from "./form";
 import { PublicHeader } from "../public-header";
+import Link from "next/link";
+import { NavigationIcon } from "../navigation-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -74,39 +76,57 @@ export default async function SignInPage({
                   role: "Campus timetable rules",
                   username: "nasilele.scheduler",
                   password: "Seed-2026-Scheduler",
-                  blurb: "Edits fictional campus rules. Use the coordinator account for timetable previews.",
+                  blurb:
+                    "Edits fictional campus rules. Use the coordinator account for timetable previews.",
                   workspaceHref: "/admin/timetabling/demo-rules",
                 },
                 {
                   role: "Timetable coordinator",
                   username: "nasilele.master",
                   password: "Seed-2026-Master",
-                  blurb: "Opens the full master timetable and course previews. This is a separate demo account.",
+                  blurb:
+                    "Opens the full master timetable and course previews. This is a separate demo account.",
                   workspaceHref: "/admin/timetabling/master",
                 },
                 {
                   role: "Timetable publication reviewer",
                   username: "tembo.timetable",
                   password: "Seed-2026-Timetable",
-                  blurb: "Independently reviews and publishes the fictional timetable.",
+                  blurb:
+                    "Independently reviews and publishes the fictional timetable.",
                   workspaceHref: "/admin/timetabling/publications",
                 },
                 {
                   role: "Timetable sample student",
                   username: "chanda.time",
                   password: "Seed-2026-Student",
-                  blurb: "Views classes for the registered fictional publication period.",
-                  workspaceHref: "/student/timetable?period=DEMO-2026-PUBLICATION",
+                  blurb:
+                    "Views classes for the registered fictional publication period.",
+                  workspaceHref:
+                    "/student/timetable?period=DEMO-2026-PUBLICATION",
                 },
               ]
             : []),
           ...(process.env.SIS_ENABLE_INSTITUTION_DEMO_SETUP === "true"
             ? [
-                { role: "University setup proposer", username: "nalumino.setup", password: "Seed-2026-Setup",
-                  blurb: "Edits the fictional university structure and calendar, then saves a version for independent review.", workspaceHref: "/admin/setup/university" },
-                { role: "University setup reviewer", username: "chileshe.policy", password: "Seed-2026-Policy",
-                  blurb: "Reviews the exact saved version and activates it separately from its proposer.", workspaceHref: "/admin/setup/university" },
-              ] : []),
+                {
+                  role: "University setup proposer",
+                  username: "nalumino.setup",
+                  password: "Seed-2026-Setup",
+                  blurb:
+                    "Edits the fictional university structure and calendar, then saves a version for independent review.",
+                  workspaceHref: "/admin/setup/university",
+                },
+                {
+                  role: "University setup reviewer",
+                  username: "chileshe.policy",
+                  password: "Seed-2026-Policy",
+                  blurb:
+                    "Reviews the exact saved version and activates it separately from its proposer.",
+                  workspaceHref: "/admin/setup/university",
+                },
+              ]
+            : []),
         ]
       : undefined;
   return (
@@ -122,11 +142,49 @@ export default async function SignInPage({
           <p className={styles.lede}>
             Enter your SIS username and password to continue to your workspace.
           </p>
-          <SignInForm
-            returnTo={returnTo}
-            demoAccount={demoAccount}
-            demoStaff={demoStaff}
-          />
+          <div className={signInStyles.workspace}>
+            <section aria-label="Account sign-in">
+              <SignInForm
+                returnTo={returnTo}
+                demoAccount={demoAccount}
+                demoStaff={demoStaff}
+              />
+            </section>
+            <aside
+              className={signInStyles.helpPanel}
+              aria-labelledby="signin-options-title"
+            >
+              <h2 id="signin-options-title">Find your starting point</h2>
+              <ul className={signInStyles.options}>
+                <li>
+                  <NavigationIcon href="/student/courses" />
+                  <div>
+                    <h3>Students and staff</h3>
+                    <p>Sign in to continue your studies or assigned work.</p>
+                  </div>
+                </li>
+                <li>
+                  <NavigationIcon href="/discover" />
+                  <div>
+                    <h3>New applicants</h3>
+                    <p>Compare programmes and entry requirements first.</p>
+                    <Link href="/discover">Explore programmes</Link>
+                  </div>
+                </li>
+                <li>
+                  <NavigationIcon href="/student/support" />
+                  <div>
+                    <h3>Account support</h3>
+                    <p>Use account recovery if you cannot sign in.</p>
+                    <Link href="/recovery">Get sign-in help</Link>
+                  </div>
+                </li>
+              </ul>
+              <p className={signInStyles.securityNote}>
+                On a shared device, sign out when you finish.
+              </p>
+            </aside>
+          </div>
         </main>
       </div>
     </>

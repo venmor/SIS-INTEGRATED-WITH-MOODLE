@@ -1,3 +1,4 @@
+import { RegistrationSteps, CourseSummary } from "../../components/task-flow";
 import { createHash } from "node:crypto";
 import type { CoursePlanView, RegistrationStatusView } from "@sis/contracts";
 import { cookies } from "next/headers";
@@ -81,6 +82,7 @@ export default async function RegisterPage({
     <>
       <p className={styles.eyebrow}>Formal registration · {plan.data.period}</p>
       <h1>Review registration</h1>
+      <RegistrationSteps current="review" context={plan.data} />
       {!status.data ? (
         <Notice
           severity="warning"
@@ -106,15 +108,10 @@ export default async function RegisterPage({
             message={status.data.moodle.detail}
           />
           <h2>Registered courses</h2>
-          <ul>
-            {status.data.registration.courses.map((course) => (
-              <li key={course.code}>
-                <strong>{course.code}</strong> — {course.title} (
-                {course.courseType}
-                {course.semester ? ` · ${course.semester}` : ""})
-              </li>
-            ))}
-          </ul>
+          <CourseSummary
+            courses={status.data.registration.courses}
+            caption="Officially registered courses"
+          />
         </>
       ) : (
         <RegisterForm

@@ -1,3 +1,5 @@
+import { RegistrationSteps } from "../../components/task-flow";
+import workflow from "../../components/workflow.module.css";
 import {
   parseAcademicContext,
   academicHref,
@@ -6,7 +8,7 @@ import type { ReadinessView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
-import { Notice } from "@sis/ui";
+import { Notice, StatusChip } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
 import styles from "../../applicant/applicant.module.css";
 
@@ -96,13 +98,18 @@ export default async function ReadinessPage({
     <>
       <p className={styles.eyebrow}>Registration readiness · {board.period}</p>
       <h1>Registration readiness</h1>
+      <RegistrationSteps
+        current="readiness"
+        context={Object.fromEntries(parsed.query)}
+      />
       <Notice
         severity={banner.severity}
         title={banner.title}
-        message={`Assessed ${formatLusaka(board.assessedAt)}. Open regulation boundaries route to academic decisions: ${board.pendingRegulations.join(", ")}.`}
+        message={`Assessed ${formatLusaka(board.assessedAt)}. Each check shows the next action and responsible office.`}
       />
-      <p>
+      <div className={workflow.actions}>
         <a
+          className={workflow.action}
           href={academicHref(
             "/student/courses",
             Object.fromEntries(parsed.query),
@@ -110,8 +117,8 @@ export default async function ReadinessPage({
         >
           Plan your courses
         </a>
-        {" · "}
         <a
+          className={`${workflow.action} ${workflow.secondary}`}
           href={academicHref(
             "/student/register",
             Object.fromEntries(parsed.query),
@@ -119,20 +126,50 @@ export default async function ReadinessPage({
         >
           Review registration
         </a>
-      </p>
-      <ul>
+      </div>
+      <ul className={workflow.conditionGrid}>
         {board.conditions.map((condition) => (
-          <li key={condition.key}>
-            <p>
-              <strong>{condition.label}</strong> — {condition.status}
-            </p>
-            <p className={styles.muted}>
-              Owner: {condition.owner} · {condition.detail}
-            </p>
+          <li key={condition.key} className={workflow.condition}>
+            <div className={workflow.panelHeader}>
+              <h2>{condition.label}</h2>
+              <StatusChip
+                tone={
+                  condition.status === "READY"
+                    ? "success"
+                    : condition.status === "BLOCKED"
+                      ? "attention"
+                      : "info"
+                }
+              >
+                {condition.status
+                  .replaceAll("_", " ")
+                  .toLowerCase()
+                  .replace(/^./, (c) => c.toUpperCase())}
+              </StatusChip>
+            </div>
             <p>{condition.next}</p>
+            <details>
+              <summary>Check details</summary>
+              <dl>
+                <div>
+                  <dt>Responsible office</dt>
+                  <dd>{condition.owner}</dd>
+                </div>
+                <div>
+                  <dt>Assessment</dt>
+                  <dd>{condition.detail}</dd>
+                </div>
+              </dl>
+            </details>
           </li>
         ))}
       </ul>
+      {board.pendingRegulations.length > 0 ? (
+        <details className={workflow.panel}>
+          <summary>Regulations requiring review</summary>
+          <p className={workflow.meta}>{board.pendingRegulations.join(", ")}</p>
+        </details>
+      ) : null}
     </>
   );
 }
