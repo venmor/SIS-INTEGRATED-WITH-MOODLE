@@ -46,8 +46,8 @@ jobs:
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
       - run: node scripts/prepare-test-offerings.mjs
       - run: npm test
-      - run: npm run test:e2e --workspace=apps/api -- --exclude '**/applications.e2e-spec.ts' --exclude '**/config-versions.e2e-spec.ts' --no-file-parallelism
-      - run: npm run test:e2e --workspace=apps/api -- applications.e2e-spec.ts config-versions.e2e-spec.ts --no-file-parallelism
+      - name: Run connected suites against independent baseline clones
+        run: node scripts/isolated-e2e.mjs
       - run: npm run build
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
