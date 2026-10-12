@@ -99,16 +99,16 @@ describe('Phase 8 cross-domain audit timeline', () => {
         programmeId_intake_studyMode_campus: {
           programmeId: programme.id,
           intake: '2026S1',
-          studyMode: 'Full-time',
-          campus: 'Main Campus',
+          studyMode: 'FULLTIME',
+          campus: 'MAIN',
         },
       },
       update: { availability: 'OPEN' },
       create: {
         programmeId: programme.id,
         intake: '2026S1',
-        studyMode: 'Full-time',
-        campus: 'Main Campus',
+        studyMode: 'FULLTIME',
+        campus: 'MAIN',
         availability: 'OPEN',
       },
     });
