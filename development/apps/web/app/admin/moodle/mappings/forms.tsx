@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { MoodleWriteReadiness } from "@sis/contracts";
+import { notProvisionedMessage } from "../../../../lib/moodle-status";
+import { WaitingForMoodle } from "../write-readiness";
 
 interface FieldError {
   fieldId: string;
@@ -42,11 +45,13 @@ function failure(error: unknown): string {
 
 // Mapping registry workspace: draft with both identifiers, synthetic
 // test, four-eyes activation. Tests never write mappings.
-export function MappingForms() {
+export function MappingForms({ readiness }: { readiness?: MoodleWriteReadiness }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const disabled = readiness?.outcome !== "SIMULATOR_READY";
 
   async function act(
     path: string,
@@ -54,15 +59,21 @@ export function MappingForms() {
     done: string,
     form: HTMLFormElement,
   ) {
-    if (pending) return;
+    if (pending || disabled) return;
     setPending(path);
     setErrors([]);
     setNotice(null);
+    setDeferred(null);
     try {
-      await postIntegration(path, {
+      const out = await postIntegration(path, {
         ...body,
         idempotencyKey: crypto.randomUUID(),
       });
+      const waiting = notProvisionedMessage(out);
+      if (waiting) {
+        setDeferred(waiting);
+        return;
+      }
       setNotice(done);
       form.reset();
       router.refresh();
@@ -75,6 +86,7 @@ export function MappingForms() {
 
   return (
     <>
+      <WaitingForMoodle message={deferred} />
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
@@ -130,7 +142,7 @@ export function MappingForms() {
           />
         </p>
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button type="submit" disabled={pending !== null || disabled}>
             {pending ? "Drafting…" : "Draft mapping"}
           </button>
         </p>
@@ -154,7 +166,7 @@ export function MappingForms() {
           <input id="mapping-id" name="mapping-id" type="text" required />
         </p>
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button type="submit" disabled={pending !== null || disabled}>
             {pending ? "Testing…" : "Run synthetic test"}
           </button>
         </p>
@@ -177,7 +189,7 @@ export function MappingForms() {
           <input id="activate-id" name="activate-id" type="text" required />
         </p>
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button type="submit" disabled={pending !== null || disabled}>
             {pending ? "Activating…" : "Activate mapping"}
           </button>
         </p>

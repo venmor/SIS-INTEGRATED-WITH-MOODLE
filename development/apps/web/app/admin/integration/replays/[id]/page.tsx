@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
+import type { ConnectionView } from "@sis/contracts";
+import { WriteReadinessNotice } from "../../../moodle/write-readiness";
 import { ReplayDecideForm } from "./decide";
 import styles from "../../../../page.module.css";
 
@@ -40,7 +42,10 @@ export default async function ReplayDecidePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const list = await loadStaff<{ items: ReplayItem[] }>("/replays");
+  const [list, health] = await Promise.all([
+    loadStaff<{ items: ReplayItem[] }>("/replays"),
+    loadStaff<ConnectionView>("/health"),
+  ]);
   const item = list.ok
     ? list.data.items.find((r) => r.id === id)
     : undefined;
@@ -74,6 +79,7 @@ export default async function ReplayDecidePage({
           title="Frozen evidence package"
           message="This replay preserves correlation and idempotency. It will not create a second enrolment or record change if the destination already processed it. The evidence below is the exact version you sign."
         />
+        <WriteReadinessNotice readiness={health.ok ? health.data.writeReadiness : undefined} />
         <h2>Evidence</h2>
         <pre>{JSON.stringify(item.evidence, null, 2)}</pre>
         {item.status === "PENDING" ? (
@@ -83,7 +89,7 @@ export default async function ReplayDecidePage({
               I confirm that I have reviewed the stated evidence and make
               this decision within my assigned authority.
             </p>
-            <ReplayDecideForm replayId={item.id} />
+            <ReplayDecideForm replayId={item.id} readiness={health.ok ? health.data.writeReadiness : undefined} />
           </>
         ) : null}
       </main>

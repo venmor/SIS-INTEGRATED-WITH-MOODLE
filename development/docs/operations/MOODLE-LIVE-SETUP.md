@@ -1,5 +1,7 @@
 # Moodle live-connection setup (from Moodle itself)
 
+> Historical checklist: use the current [MoodleCloud connection guide](../demo/MOODLE-CLOUD-CONNECTION-SETUP.md). The older three-setting/mobile-service/capability advice below is superseded for new setup and does not authorize live writes.
+
 Goal: produce the three values the SIS live adapter needs —
 `MOODLE_API_URL`, `MOODLE_API_TOKEN`, `MOODLE_ROLE_IDS` — from any
 Moodle 4.x+ site where you hold Site Administrator rights. Nothing is

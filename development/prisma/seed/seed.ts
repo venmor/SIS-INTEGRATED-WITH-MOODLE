@@ -36,6 +36,7 @@ const { PrismaPg } = require("@prisma/adapter-pg");
 const { hash } = require("argon2");
 // Use dynamic import for local ESM module
 const { seedCapabilitiesScopesSod } = await import("./capabilities-scopes-sod.ts");
+const { seedDemoUniversityAccounts } = await import("./demo-university.mjs");
 
 // Prisma 7 connects through a driver adapter (no built-in engine).
 const adapter = new PrismaPg({
@@ -1096,6 +1097,7 @@ async function main(): Promise<void> {  // Identity administrator first so later
   for (const entry of SEED.filter((s) => s.username !== admin.username)) {
     await ensureAccount(entry, granter.id);
   }
+  await seedDemoUniversityAccounts(prisma);
   if (isTestDatabase && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
     await prisma.academicPeriod.upsert({
       where: { code: "DEMO-2026-TEACHING" }, update: {},

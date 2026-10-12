@@ -163,6 +163,8 @@ describe('OperationsQueueService', () => {
 
       const result = await service.retryDelivery('attempt-1');
 
+      if ('outcome' in result) throw new Error('A non-Moodle source unexpectedly deferred.');
+
       expect(result.state).toBe('PENDING');
       expect(result.attempt).toBe(0);
       expect(result.nextRunAt).toBeDefined();
@@ -211,6 +213,8 @@ describe('OperationsQueueService', () => {
       mockPrisma.outboxEvent.update.mockResolvedValue({});
 
       const result = await service.redirectDelivery('attempt-1', 'sms');
+
+      if ('outcome' in result) throw new Error('A non-Moodle source unexpectedly deferred.');
 
       expect(result.state).toBe('PENDING');
       expect(result.attempt).toBe(0);

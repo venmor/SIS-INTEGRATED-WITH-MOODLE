@@ -10,7 +10,7 @@ export class ReadinessQuery {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
 }
 // Phase 4 slice 4 course plan DTOs (TASK-PH4-004). Saving is draft-only;
@@ -28,7 +28,7 @@ export class PlanQuery {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
 }
 // Phase 4 slice 5 formal registration DTOs (TASK-PH4-005). The reviewed plan
@@ -40,7 +40,7 @@ export class SubmitRegistrationDto extends VersionDto {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
   @IsArray()
   @ArrayMinSize(1)
@@ -58,7 +58,7 @@ export class ChangeRequestDto extends KeyDto {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
   @IsString()
   @IsIn(['ADD', 'DROP'])
@@ -89,7 +89,7 @@ export class JoinWaitlistDto extends KeyDto {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
   @IsString()
   @IsNotEmpty()
@@ -109,6 +109,6 @@ export class AmendmentQuery {
   attemptId?: string;
   @IsOptional()
   @IsString()
-  @MaxLength(16)
+  @MaxLength(64)
   period?: string;
 }

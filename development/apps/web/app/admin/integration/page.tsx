@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
+import type { MoodleDeliveryQueueView } from "@sis/contracts";
+import { WriteReadinessNotice } from "../moodle/write-readiness";
 import { ReplayRequestForm } from "./replays/forms";
 import { PauseForm } from "./pause";
 import { IncidentForms } from "./incidents";
 import styles from "../../page.module.css";
+import { DeferredSources } from "./deferred-sources";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +45,7 @@ interface QueueItem {
 // are never edited here and dead letters are never deleted.
 export default async function IntegrationPage() {
   const [queue, dead, replays, incidents] = await Promise.all([
-    loadStaff<{ items: QueueItem[] }>("/deliveries"),
+    loadStaff<MoodleDeliveryQueueView>("/deliveries"),
     loadStaff<{ items: QueueItem[] }>("/dead-letters"),
     loadStaff<{ items: QueueItem[] }>("/replays"),
     loadStaff<{ items: QueueItem[] }>("/incidents"),
@@ -67,8 +70,12 @@ export default async function IntegrationPage() {
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Integration support</h1>
+        <WriteReadinessNotice readiness={queue.data.writeReadiness} />
         <PauseForm />
-        <h2>Event-delivery queue</h2>
+        <h2>Waiting for Moodle</h2>
+        <DeferredSources sources={queue.data.deferredSources} truncated={queue.data.deferredSourcesTruncated} />
+        <h2>Recent delivery attempts</h2>
+        <p>Showing up to 100 recent delivery attempts.</p>
         {queue.data.items.length === 0 ? (
           <p>No delivery attempts yet.</p>
         ) : (
@@ -99,7 +106,7 @@ export default async function IntegrationPage() {
           </ul>
         )}
         <h2>Request replay</h2>
-        <ReplayRequestForm />
+        <ReplayRequestForm readiness={queue.data.writeReadiness} />
         <h2>Replay decisions</h2>
         {replays.data.items.length === 0 ? (
           <p>No replay requests.</p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { academicHref } from "../../../lib/academic-context";
 import { useState } from "react";
 import type { CoursePlanView } from "@sis/contracts";
 import { ErrorSummary, Notice } from "@sis/ui";
@@ -13,8 +14,9 @@ interface FieldError {
 async function postPlan(
   courseCodes: string[],
   version: number,
+  context: CoursePlanView,
 ): Promise<CoursePlanView> {
-  const res = await fetch(`/api/registration/plan`, {
+  const res = await fetch(academicHref("/api/registration/plan", context), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -73,7 +75,7 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
     setErrors([]);
     setNotice(null);
     try {
-      const saved = await postPlan([...selected], board.version);
+      const saved = await postPlan([...selected], board.version, board);
       setBoard(saved);
       setSelected(new Set(saved.items.map((i) => i.code)));
       setNotice(`Draft saved as version ${saved.version}.`);

@@ -612,7 +612,12 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
     expect(
       Date.parse((table.body as { checkedAt: string }).checkedAt),
     ).not.toBeNaN();
-    expect(table.body).not.toHaveProperty('sessions');
+    const pendingTimetable = table.body as {
+      sessions: unknown[];
+      publication: { id: string } | null;
+    };
+    expect(pendingTimetable.sessions).toEqual([]);
+    expect(pendingTimetable.publication).toBeNull();
     const groups = (
       table.body as {
         groups: Array<{ semester: string; courses: Array<{ code: string }> }>;

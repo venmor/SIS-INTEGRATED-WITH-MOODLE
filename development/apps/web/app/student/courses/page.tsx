@@ -3,25 +3,35 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
 import { Notice } from "@sis/ui";
+import {
+  parseAcademicContext,
+  academicHref,
+} from "../../../lib/academic-context";
 import { PlanBoard } from "./board";
 import styles from "../../applicant/applicant.module.css";
 
-async function loadPlan(): Promise<{
+async function loadPlan(query: string): Promise<{
   data: CoursePlanView | null;
   message: string;
 }> {
   const sid = (await cookies()).get("sid")?.value;
-  if (!sid) redirect("/sign-in?returnTo=%2Fstudent%2Fcourses");
+  if (!sid)
+    redirect(
+      `/sign-in?returnTo=${encodeURIComponent(`/student/courses${query}`)}`,
+    );
   try {
     const response = await fetch(
-      `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/registration/plan`,
+      `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/registration/plan${query}`,
       {
         headers: { cookie: `sid=${encodeURIComponent(sid)}` },
         cache: "no-store",
         signal: AbortSignal.timeout(10000),
       },
     );
-    if (response.status === 401) redirect("/sign-in?returnTo=%2Fstudent%2Fcourses");
+    if (response.status === 401)
+      redirect(
+        `/sign-in?returnTo=${encodeURIComponent(`/student/courses${query}`)}`,
+      );
     if (!response.ok)
       return {
         data: null,
@@ -42,8 +52,20 @@ async function loadPlan(): Promise<{
 // Plan your courses: draft course selection with per-course validation.
 // Saving is draft-only; nothing official happens here. Official submission
 // happens at formal registration.
-export default async function CoursesPage() {
-  const r = await loadPlan();
+export default async function CoursesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    attemptId?: string | string[];
+    period?: string | string[];
+  }>;
+}) {
+  const context = parseAcademicContext(await searchParams);
+  if (!context.valid)
+    return (
+      <StudentUnavailable message="Choose a valid study period before planning courses." />
+    );
+  const r = await loadPlan(context.query.size ? `?${context.query}` : "");
   if (!r.data) return <StudentUnavailable message={r.message} />;
   const board = r.data;
   return (
@@ -55,7 +77,7 @@ export default async function CoursesPage() {
         Unavailable courses name their reason. Saving keeps a draft; submit
         happens at formal registration.
       </p>
-      {board.status !== "NONE" ? (
+      {board.status === "DRAFT" ? (
         <Notice
           severity="info"
           title="Draft saved"
@@ -63,6 +85,11 @@ export default async function CoursesPage() {
         />
       ) : null}
       <PlanBoard initial={board} />
+      <p>
+        <a href={academicHref("/student/register", board)}>
+          Review registration
+        </a>
+      </p>
     </>
   );
 }

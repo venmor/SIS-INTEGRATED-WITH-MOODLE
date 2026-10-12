@@ -22,3 +22,4 @@ export {
   type NotificationTemplate,
   type NotificationChannel,
 } from "./notifications.js";
+export * from './institution-setup.js';
