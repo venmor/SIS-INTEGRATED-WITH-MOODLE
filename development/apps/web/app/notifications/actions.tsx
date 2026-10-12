@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NotificationRecordView } from "@sis/contracts";
-import { ErrorSummary, Notice } from "@sis/ui";
+import { ActionButton, ErrorSummary, Notice } from "@sis/ui";
 import styles from "../student/student.module.css";
 
 async function postNotification(path: string, body: unknown): Promise<unknown> {
@@ -71,9 +71,12 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
       </p>
       <p>
         {item.state !== "READ" ? (
-          <button
+          <ActionButton
+            kind="secondary"
             type="button"
-            disabled={pending}
+            pending={pending}
+            loadingText="Marking as read…"
+            aria-label={`Mark as read: ${item.event}`}
             onClick={() =>
               void run(`/records/${item.id}/read`, {
                 idempotencyKey: crypto.randomUUID(),
@@ -81,12 +84,15 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
             }
           >
             Mark as read
-          </button>
+          </ActionButton>
         ) : null}{" "}
         {item.mandatory ? null : (
-          <button
+          <ActionButton
+            kind="tertiary"
             type="button"
-            disabled={pending}
+            pending={pending}
+            loadingText="Muting…"
+            aria-label={`Mute notices for: ${item.event}`}
             onClick={() =>
               void run(`/records/${item.id}/suppress`, {
                 idempotencyKey: crypto.randomUUID(),
@@ -95,7 +101,7 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
             }
           >
             Mute these notices
-          </button>
+          </ActionButton>
         )}
       </p>
     </>

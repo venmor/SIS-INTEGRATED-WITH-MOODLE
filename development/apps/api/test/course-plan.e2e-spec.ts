@@ -309,7 +309,7 @@ describe('Phase 4 course selection and validation', () => {
       await user('RECORDS_OFFICER', ['convert-student'], 'INTAKE', '2026')
     ).cookie;
     const seeded = await db.programmeOffering.findFirstOrThrow({
-      where: { programme: { code: 'SWE' }, availability: 'OPEN' },
+      where: { programme: { code: 'SWE' }, intake: '2026S1', availability: 'OPEN' },
     });
     offeringId = seeded.id;
   });

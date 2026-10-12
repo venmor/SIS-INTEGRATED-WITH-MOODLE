@@ -267,7 +267,7 @@ describe('Phase 2 post-submit applicant case', () => {
       await user('ADMISSIONS_APPROVER', ['decide-offer'], 'INTAKE', '2026')
     ).cookie;
     const seeded = await db.programmeOffering.findFirstOrThrow({
-      where: { programme: { code: 'SWE' }, availability: 'OPEN' },
+      where: { programme: { code: 'SWE' }, intake: '2026S1', availability: 'OPEN' },
     });
     offeringId = seeded.id;
   });
