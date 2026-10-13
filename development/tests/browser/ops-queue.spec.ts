@@ -55,6 +55,10 @@ test("ops queue: dead-letter opens incident, ack, resolve, close", async ({
   const support = await createIntegrationSupport();
   const stu = await createStudent();
   const gov = await sysadminSid();
+  // Worker incident titles retain the event: correlate this fixture delivery
+  // without assuming that other tests left the shared queue empty.
+  const event = `SUPPORT_REPLY_${randomUUID()}`;
+  const incidentTitle = `Notification delivery dead-lettered (${event})`;
   await page.setViewportSize({ width: 390, height: 844 });
 
   // Setup through the API: template + optional record with an armed
@@ -63,7 +67,7 @@ test("ops queue: dead-letter opens incident, ack, resolve, close", async ({
     "/templates",
     {
       idempotencyKey: randomUUID(),
-      event: "SUPPORT_REPLY",
+      event,
       title: "Support update",
       body: "Your adviser sent a support message.",
       office: "Welfare",
@@ -77,7 +81,7 @@ test("ops queue: dead-letter opens incident, ack, resolve, close", async ({
     {
       idempotencyKey: randomUUID(),
       templateId: tpl.id as string,
-      event: "SUPPORT_REPLY",
+      event,
       title: "Support update",
       body: "Your adviser sent a support message.",
       office: "Welfare",
@@ -102,30 +106,30 @@ test("ops queue: dead-letter opens incident, ack, resolve, close", async ({
   await expect(
     page.getByRole("heading", { name: "Operations queue" }),
   ).toBeVisible();
-  await expect(
-    page.locator("main").getByText(/Notification delivery dead-lettered/),
-  ).toBeVisible();
-  const ackButton = page.getByRole("button", { name: "Acknowledge incident" });
+  const incident = page.locator("main li").filter({ hasText: incidentTitle });
+  await expect(incident).toHaveCount(1);
+  await expect(incident).toBeVisible();
+  const ackButton = incident.getByRole("button", { name: "Acknowledge incident" });
   await ackButton.focus();
   await expect(ackButton).toBeFocused();
   await ackButton.click();
-  await expect(page.locator("main").getByText("ACKNOWLEDGED")).toBeVisible();
-  await page
+  await expect(incident.getByText("ACKNOWLEDGED", { exact: true })).toBeVisible();
+  await incident
     .getByLabel("Root cause")
     .fill("Simulator provider timed out under retry storm.");
-  await page
+  await incident
     .getByLabel(/Recovery evidence/)
     .fill("Provider recovered; deliveries drained and reconciled against the outbox.");
-  const resolveButton = page.getByRole("button", { name: "Resolve incident" });
+  const resolveButton = incident.getByRole("button", { name: "Resolve incident" });
   await resolveButton.focus();
   await expect(resolveButton).toBeFocused();
   await resolveButton.click();
-  await expect(page.locator("main").getByText("RESOLVED").first()).toBeVisible();
-  const closeButton = page.getByRole("button", { name: "Close incident" });
+  await expect(incident.getByText("RESOLVED", { exact: true })).toBeVisible();
+  const closeButton = incident.getByRole("button", { name: "Close incident" });
   await closeButton.focus();
   await expect(closeButton).toBeFocused();
   await closeButton.click();
-  await expect(page.locator("main").getByText("CLOSED").first()).toBeVisible();
+  await expect(incident.getByText("CLOSED", { exact: true })).toBeVisible();
   await noOverflow(page);
   await page.context().clearCookies();
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);

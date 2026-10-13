@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { prepareSetupHistory } from "./setup-history-fixture";
 
 const endpoint = "/api/institution-setup/demo-university";
 const route = "/admin/setup/university";
@@ -30,7 +31,8 @@ async function noOverflow(page: Page) {
 }
 
 test("fictional setup: lost save resolves once, exact version reviewed and independently activated", async ({
-  browser, baseURL,
+  browser,
+  baseURL,
 }) => {
   const proposerContext = await browser.newContext({
     baseURL,
@@ -51,6 +53,38 @@ test("fictional setup: lost save resolves once, exact version reviewed and indep
     await expect(
       proposer.getByRole("heading", { name: "Prepare a draft", exact: true }),
     ).toBeVisible();
+    // The connected timetable fixture already owns offerings in this period.
+    // Preserve it in the reviewed calendar rather than asking activation to
+    // silently orphan those source records.
+    const periodCount = await proposer.evaluate(async (url) => {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Setup calendar fixture unavailable");
+      return (await response.json()).template.periods.length as number;
+    }, endpoint);
+    const periodEntry = periodCount + 1;
+    expect(periodEntry).toBeLessThanOrEqual(10);
+    await proposer.locator("#demo-setup-collection-periods-summary").click();
+    await proposer
+      .getByRole("button", { name: "Add academic period", exact: true })
+      .click();
+    await proposer
+      .getByLabel(`Period code ${periodEntry}`, { exact: true })
+      .fill("DEMO-2026-PUBLICATION");
+    await proposer
+      .getByLabel(`Period name ${periodEntry}`, { exact: true })
+      .fill("Fictional timetable publication rehearsal");
+    await proposer
+      .getByLabel(`Period type ${periodEntry}`, { exact: true })
+      .selectOption("TEACHING");
+    await proposer
+      .getByLabel(`Parent period ${periodEntry} (optional)`, { exact: true })
+      .selectOption("DEMO-2026-YEAR");
+    await proposer
+      .getByLabel(`Start date ${periodEntry}`, { exact: true })
+      .fill("2026-01-01");
+    await proposer
+      .getByLabel(`End date ${periodEntry}`, { exact: true })
+      .fill("2026-12-31");
     await proposer.getByLabel("University name", { exact: true }).fill(name);
     await proposer
       .getByLabel("Reason for this version", { exact: true })
@@ -170,7 +204,10 @@ test("fictional setup: lost save resolves once, exact version reviewed and indep
         if (loseActivationResponse) {
           loseActivationResponse = false;
           const response = await interception.fetch();
-          expect(response.ok()).toBe(true);
+          expect(
+            response.ok(),
+            `Activation refused (${response.status()}): ${await response.text()}`,
+          ).toBe(true);
           await interception.abort("connectionfailed");
         } else await interception.continue();
       },
@@ -248,28 +285,27 @@ test("older setup history remains browsable without changing unsaved entries", a
   page,
 }) => {
   await signIn(page, "nalumino.setup", "Seed-2026-Setup");
-  // Build enough immutable history through the real command API on this suite's
-  // fresh synthetic database. Never assume an earlier developer's retained rows.
+  // One ordinary save establishes canonical provenance even when this test runs alone.
   await page.evaluate(async (url) => {
-    const read = async () => {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error("Setup history fixture could not be read");
-      return response.json();
-    };
-    let report = await read();
-    for (let index = 0; index < 21; index++) {
-      const response = await fetch(url, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientRequestId: crypto.randomUUID(),
-          expectedVersion: report.latestVersion,
-          expectedActivationId: report.activeActivationId,
-          reason: `Fictional browser history fixture ${index + 1}`,
-          profile: report.template }),
-      });
-      if (!response.ok) throw new Error(`Setup history fixture refused: ${response.status}`);
-      report = await read();
-    }
+    const reportResponse = await fetch(url, { cache: "no-store" });
+    if (!reportResponse.ok) throw new Error("Setup fixture report unavailable");
+    const report = await reportResponse.json();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        clientRequestId: crypto.randomUUID(),
+        expectedVersion: report.latestVersion,
+        expectedActivationId: report.activeActivationId,
+        reason: "Canonical fictional browser pagination fixture",
+        profile: report.template,
+      }),
+    });
+    if (!response.ok)
+      throw new Error(`Setup fixture save refused: ${response.status}`);
   }, endpoint);
+  await prepareSetupHistory();
+  await page.reload();
   // Use the browser's authenticated same-origin fetch, as the editor does.
   // Playwright's separate API client omits production Secure cookies on HTTP.
   const newest = await page.evaluate(async (url) => {
@@ -327,7 +363,9 @@ test("older setup history remains browsable without changing unsaved entries", a
   });
 });
 
-test("off-page setup validation reveals the exact retained field", async ({ page }) => {
+test("off-page setup validation reveals the exact retained field", async ({
+  page,
+}) => {
   await signIn(page, "nalumino.setup", "Seed-2026-Setup");
   const initial = await page.evaluate(async (url) => {
     const response = await fetch(url, { cache: "no-store" });
@@ -338,32 +376,66 @@ test("off-page setup validation reveals the exact retained field", async ({ page
   const unitType = initial.data.template.unitTypes.find(
     (type: { code: string; kind: string }) => type.kind === "ACADEMIC",
   ).code;
-  await page.getByRole("button", { name: "Use example structure", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Use example structure", exact: true })
+    .click();
   const invalidCode = "DEMO-INVALID SPACE";
-  for (let entry = initial.data.template.units.length + 1; entry <= 11; entry++) {
-    await page.getByRole("button", { name: "Add institution unit", exact: true }).click();
-    await page.getByLabel(`Unit code ${entry}`, { exact: true }).fill(
-      entry === 11 ? invalidCode : `DEMO-BROWSER-${entry}`,
-    );
-    await page.getByLabel(`Unit name ${entry}`, { exact: true }).fill(`Synthetic support unit ${entry}`);
-    await page.getByLabel(`Unit type ${entry}`, { exact: true }).selectOption(unitType);
+  for (
+    let entry = initial.data.template.units.length + 1;
+    entry <= 11;
+    entry++
+  ) {
+    await page
+      .getByRole("button", { name: "Add institution unit", exact: true })
+      .click();
+    await page
+      .getByLabel(`Unit code ${entry}`, { exact: true })
+      .fill(entry === 11 ? invalidCode : `DEMO-BROWSER-${entry}`);
+    await page
+      .getByLabel(`Unit name ${entry}`, { exact: true })
+      .fill(`Synthetic support unit ${entry}`);
+    await page
+      .getByLabel(`Unit type ${entry}`, { exact: true })
+      .selectOption(unitType);
   }
-  const reason = "Locate an invalid off-page unit code without losing the draft.";
-  await page.getByLabel("Reason for this version", { exact: true }).fill(reason);
-  await page.getByRole("button", { name: "Previous institution units page", exact: true }).click();
+  const reason =
+    "Locate an invalid off-page unit code without losing the draft.";
+  await page
+    .getByLabel("Reason for this version", { exact: true })
+    .fill(reason);
+  await page
+    .getByRole("button", {
+      name: "Previous institution units page",
+      exact: true,
+    })
+    .click();
   await page.getByText("Institution units · 11", { exact: true }).click();
-  const responsePromise = page.waitForResponse((response) =>
-    response.request().method() === "POST" && response.url().endsWith(endpoint),
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(endpoint),
   );
-  await page.getByRole("button", { name: "Save new draft", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Save new draft", exact: true })
+    .click();
   const response = await responsePromise;
   expect(response.status()).toBe(400);
-  expect((await response.json()).issue).toEqual({ collection: "units", index: 10, field: "code" });
-  const error = page.getByRole("alert").filter({ hasText: "Institution units · entry 11 · Code" });
+  expect((await response.json()).issue).toEqual({
+    collection: "units",
+    index: 10,
+    field: "code",
+  });
+  const error = page
+    .getByRole("alert")
+    .filter({ hasText: "Institution units · entry 11 · Code" });
   await expect(error).toContainText("Your entries are kept.");
   await expect(error).toBeFocused();
-  await expect(page.getByLabel("University name", { exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Save new draft", exact: true })).toBeEnabled();
+  await expect(
+    page.getByLabel("University name", { exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Save new draft", exact: true }),
+  ).toBeEnabled();
   await error.getByRole("button", { name: "Show field", exact: true }).focus();
   await page.keyboard.press("Enter");
   const field = page.getByLabel("Unit code 11", { exact: true });
@@ -372,7 +444,9 @@ test("off-page setup validation reveals the exact retained field", async ({ page
   await expect(field).toHaveValue(invalidCode);
   await expect(field).toHaveAttribute("aria-invalid", "true");
   await expect(field).toHaveAttribute("aria-describedby", /-error$/);
-  await expect(page.getByLabel("Reason for this version", { exact: true })).toHaveValue(reason);
+  await expect(
+    page.getByLabel("Reason for this version", { exact: true }),
+  ).toHaveValue(reason);
   const collection = page.locator("details").filter({ has: field });
   await expect(collection).toHaveAttribute("open", "");
   await expect(collection).toContainText("Page 2 of 2");

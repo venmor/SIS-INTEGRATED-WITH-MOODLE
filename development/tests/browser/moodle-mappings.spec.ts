@@ -86,7 +86,11 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
     page.getByRole("heading", { name: "Integration support" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Event-delivery queue" }),
+    page.getByRole("heading", { name: "Waiting for Moodle" }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByRole("heading", { name: "Recent delivery attempts" }),
   ).toBeVisible();
 
   // Incidents open and close with recovery evidence (support-only).

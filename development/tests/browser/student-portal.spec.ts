@@ -99,7 +99,7 @@ test("student portal: home, contact update, correction request", async ({
   await page.getByRole("button", { name: "Save course plan" }).click();
   await expect(page.getByText("Draft saved as version 1.")).toBeVisible();
   await expect(
-    page.getByText("Planned load: 2 half-course equivalents."),
+    page.getByText("Last saved load: 2 half-course equivalents."),
   ).toBeVisible();
   await noOverflow(page);
 
@@ -122,8 +122,10 @@ test("student portal: home, contact update, correction request", async ({
     .getByLabel("I understand my fee obligations are handled separately.")
     .check();
   await page.getByRole("button", { name: "Submit registration" }).click();
-  await expect(page.getByText("Registration completed.")).toBeVisible();
-  await expect(page.getByText(/Receipt: REG-/)).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Registration completed", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Receipt REG-/)).toBeVisible();
   await noOverflow(page);
 
   await page.goto("/student");
