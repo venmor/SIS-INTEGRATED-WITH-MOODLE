@@ -811,6 +811,15 @@ async function mintSid(
 }
 
 /** Phase 6 slice 6: privileged session cookies for API driving. */
+export const sysadminSid = () =>
+  mintSid(
+    "SYSADMIN",
+    ["administer-identity"],
+    "SYSTEM",
+    "GLOBAL",
+    "sysadmin",
+  );
+
 export const moodleAdminSid = () =>
   mintSid(
     "MOODLE_ADMIN",
