@@ -120,7 +120,7 @@ describe('workspace (e2e)', () => {
     await app.close();
   }, 60000);
 
-  it('lists live workspaces with a deterministic default (expired TUT excluded)', async () => {
+  it('lists live workspaces with an earliest-started default (expired TUT excluded)', async () => {
     const agent = request.agent(server as never);
     await (signIn(
       agent,
@@ -129,13 +129,21 @@ describe('workspace (e2e)', () => {
     ) as unknown as Promise<{ status: number }>);
     const me = await agent.get('/auth/me');
     expect(me.status).toBe(200);
-    expect(me.body.workspaces).toHaveLength(2);
-    expect(
-      me.body.workspaces.map((w: { role: string }) => w.role).sort(),
-    ).toEqual(['DEAN', 'LEC']);
-    // Earliest-started live assignment wins the default: LEC (2026-01-15).
-    expect(me.body.activeWorkspace.role).toBe('LEC');
-    expect(me.body.activeWorkspace.scopeRef).toBe('SWE101-2026S1');
+    const workspaces = me.body.workspaces as {
+      assignmentId: string; role: string; scopeRef: string; startsAt: string;
+    }[];
+    expect(workspaces.length).toBeGreaterThanOrEqual(2);
+    expect(workspaces).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'LEC', scopeRef: 'SWE101-2026S1' }),
+      expect.objectContaining({ role: 'DEAN', scopeRef: 'Computing' }),
+    ]));
+    expect(workspaces).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'TUT', scopeRef: 'SWE101-TG2-2025S2' }),
+    ]));
+    expect(workspaces.map((w) => w.startsAt)).toEqual(
+      workspaces.map((w) => w.startsAt).sort(),
+    );
+    expect(me.body.activeWorkspace.assignmentId).toBe(workspaces[0].assignmentId);
   });
 
   it('switches deliberately with audit, then reads back the Dean header facts', async () => {

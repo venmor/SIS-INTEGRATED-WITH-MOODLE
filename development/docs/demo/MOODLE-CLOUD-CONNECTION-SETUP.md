@@ -2,6 +2,8 @@
 
 Reviewed 2026-10-07 in `review/phase7-completion`. This is a test-site runbook using fictional identities only. It records a successful **read-only identity check**, setup instructions and remaining implementation gates; it does not establish full delivery or authorize production data. Charles Hangoma and Chitindu Milimbo review the evidence; their acceptance has not been recorded.
 
+**Current administrative setup, 2026-10-13:** a replacement token is present only in the ignored local `.env` and passes a read-only site check. For the exact steps to give its *own external service* the three missing create/enrol functions, or to mint a separate service-bound token, use [Give the dedicated token read and write functions](UNZA-CATALOGUE-AND-MOODLE-DEMONSTRATION.md#give-the-dedicated-token-read-and-write-functions). That separately invoked demonstration provisioning tool is not the governed `live-test` delivery worker described below.
+
 Use this checklist in place of the older [Moodle live setup](../operations/MOODLE-LIVE-SETUP.md) for a new connection. That older checklist predates explicit `live-test` mode, omits required settings, suggests a broad mobile service and supplies unverified role IDs. Its statements about MoodleCloud trial API restrictions and idle-site sleep have not been established by current official documentation.
 
 ## 1. Current evidence and the resolved site address
@@ -10,7 +12,7 @@ The user supplied `https://sis-moodle.moodlecloud.com/admin/search.php#linkusers
 
 | Check | Safe finding |
 |---|---|
-| Current local configuration | Five non-secret settings are now recorded in the ignored local `development/.env`: explicit simulator mode, canonical origin, exact host, site ID and exact release. No token was stored. Role/category/visibility/run/fingerprint/prefix settings remain unconfigured. This is local evidence, not a deployment inventory. |
+| Current local configuration | Five non-secret settings are recorded in the ignored local `development/.env`: explicit simulator mode, canonical origin, exact host, site ID and exact release. A replacement token was added there on 2026-10-13 and confirmed by a read-only identity check; its value is excluded from evidence. Governed delivery role/category/visibility/run/fingerprint/prefix settings remain unconfigured. This is local evidence, not a deployment inventory. |
 | Backend selection with that environment | Explicit `simulator`; authenticated identity does not activate live delivery. |
 | Old local repository searched | `/home/hangoma/STUDENT-INFORMATION-MANAGEMENT-SYSTEM-DESIGN-WITH-IMPLEMENTATION-OF-MOODLE-INTEGRATION`, its working files and all locally available committed revisions/branches. Only URL origins and setting presence were reported; credentials were not printed. |
 | Recoverable old URL | `infra/moodle.env.example:13` contains `http://127.0.0.1:8090`, a local Moodle reference. No MoodleCloud origin was found. It cannot identify or replace the requested cloud tenant. |
@@ -225,4 +227,4 @@ For rollback/containment:
 
 A completed connection package contains the confirmed URL origin, actual site-course/release/numeric version, API function list, service-user role/capability review, category/visibility and role IDs, manifest/run/fingerprint reference, non-production attestation and fresh-authentication decisions, preflight timestamp, approved mapping version, remote object IDs, idempotency/correlation references, delivery results, reconciliation counts, negative/recovery tests, rollback result, named human acceptance and token-retirement confirmation before closure. No credential or complete authenticated request URL is included.
 
-The target address and authenticated read-only identity are confirmed. The service exposed only `core_webservice_get_site_info`, and the owner confirmed deleting the exposed token. No token remains stored locally. Full course/enrolment/group delivery and live grade/cohort/calendar extensions remain **pending** behind the persisted-run, manifest, mapping and claim gates. Do not describe this read-only success as a fully configured operational integration.
+The original identity-check service exposed only `core_webservice_get_site_info`, and the owner deleted the earlier chat-exposed token. The replacement local token confirmed site ID 1 and release `5.2.2 (Build: 20260810)` on 2026-10-13; its service still lacks `core_user_create_users`, `core_course_create_courses` and `enrol_manual_enrol_users`, and the reserved category is absent. Full course/enrolment/group delivery and live grade/cohort/calendar extensions remain **pending** behind the persisted-run, manifest, mapping and claim gates. Do not describe this read-only success as a fully configured operational integration.
