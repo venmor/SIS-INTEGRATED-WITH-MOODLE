@@ -37,6 +37,8 @@ let startupLog = "";
 const calls: string[] = [];
 const unexpectedCalls: string[] = [];
 let actorAvailable = true;
+let inventoryMode: "empty" | "sole" | "multiple" | "unavailable" | "paged" = "empty";
+let defaultUnregistered = false;
 
 function courseGroups() {
   return [
@@ -105,6 +107,19 @@ test.beforeAll(async () => {
   api = createServer((request, response) => {
     const url = new URL(request.url ?? "/", apiOrigin);
     response.setHeader("content-type", "application/json");
+    if (request.method === "GET" && url.pathname === "/registration/contexts") {
+      if (inventoryMode === "unavailable") {
+        response.writeHead(503).end(JSON.stringify({ message: "Study periods cannot be checked." }));
+        return;
+      }
+      const item = (period: string) => ({ attemptId, period, programmeCode: "CSC", programmeName: "Computing", intake: "2026", periodName: null, startDate: null, endDate: null, configuredCurrent: false, attemptStatus: "ACTIVE", registrationStatus: "REGISTERED" });
+      response.end(JSON.stringify({ source: "OWN_REGISTRATION_CONTEXTS", checkedAt, configuredPeriod: { code: "2026S1" },
+        items: inventoryMode === "empty" ? [] : inventoryMode === "paged" && !url.searchParams.has("cursor") ? [] : inventoryMode === "sole" ? [item("DEMO-PUBLISHED")] : [item("DEMO-PUBLISHED"), item("DEMO-OTHER")],
+        soleRegisteredContext: inventoryMode === "sole" ? { attemptId, period: "DEMO-PUBLISHED" } : null,
+        nextCursor: inventoryMode === "paged" && !url.searchParams.has("cursor") ? "owned-signed-cursor" : null,
+      }));
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/auth/me") {
       if (!actorAvailable) {
         response
@@ -136,7 +151,7 @@ test.beforeAll(async () => {
       return;
     }
     calls.push(url.pathname + url.search);
-    if (scenario === "unregistered") {
+    if (scenario === "unregistered" || (defaultUnregistered && !url.searchParams.size)) {
       response.writeHead(404).end(
         JSON.stringify({
           code: "TIMETABLE_NOT_AVAILABLE",
@@ -333,6 +348,8 @@ test.afterAll(async () => {
 test.beforeEach(async ({ page }) => {
   scenario = "pending";
   actorAvailable = true;
+  inventoryMode = "empty";
+  defaultUnregistered = false;
   calls.length = 0;
   unexpectedCalls.length = 0;
   await page
@@ -1054,4 +1071,61 @@ test("a successful default request fixes its authoritative attempt and period fo
       exact: true,
     }),
   ).toBeVisible();
+});
+
+test("generic timetable discovers the sole confirmed registered context and keeps academic links exact", async ({ page }) => {
+  inventoryMode = "sole";
+  defaultUnregistered = true;
+  scenario = "published";
+  await page.goto(`${webOrigin}/student/timetable`);
+  await expect(page).toHaveURL(`${webOrigin}/student/timetable?attemptId=${attemptId}&period=DEMO-PUBLISHED`);
+  await expect(page.getByRole("list", { name: "Published class sessions", exact: true })).toBeVisible();
+  // Both desktop and mobile menus preserve exact academic context.
+  const links = await page.locator('a[href^="/student/readiness"]').evaluateAll(links => links.map(link => link.getAttribute("href")));
+  expect(links.length).toBeGreaterThan(0);
+  for (const href of links) {
+    expect(href).toBe(`/student/readiness?attemptId=${attemptId}&period=DEMO-PUBLISHED`);
+  }
+  await noOverflow(page);
+});
+
+for (const mode of ["multiple", "paged"] as const) {
+  test(`${mode} registered contexts require an explicit visible choice`, async ({ page }) => {
+    inventoryMode = mode;
+    defaultUnregistered = true;
+    scenario = "published";
+    await page.goto(`${webOrigin}/student/timetable`);
+    await expect(page).toHaveURL(`${webOrigin}/student/timetable`);
+    await expect(page.getByRole("status", { name: "Choose a study period", exact: true })).toBeVisible();
+    await expect(page.getByText("Complete registration first", { exact: true })).toHaveCount(0);
+    if (mode === "paged") {
+      await expect(page.getByRole("button", { name: "Load more study periods", exact: true })).toBeEnabled();
+      await page.getByRole("button", { name: "Load more study periods", exact: true }).focus();
+      await page.keyboard.press("Enter");
+    }
+    await page.getByLabel("Programme and period", { exact: true }).selectOption(`${attemptId}:DEMO-OTHER`);
+    await page.getByRole("link", { name: "Open study period", exact: true }).click();
+    await expect(page).toHaveURL(`${webOrigin}/student/timetable?attemptId=${attemptId}&period=DEMO-OTHER`);
+    await expect(page.getByRole("list", { name: "Published class sessions", exact: true })).toBeVisible();
+    await noOverflow(page);
+  });
+}
+
+test("unavailable inventory never turns the generic default into proof of no registration", async ({ page }) => {
+  inventoryMode = "unavailable";
+  defaultUnregistered = true;
+  await page.goto(`${webOrigin}/student/timetable`);
+  await expect(page.getByRole("alert", { name: "Timetable status unavailable", exact: true })).toBeVisible();
+  await expect(page.getByText("Complete registration first", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Review registration", exact: true })).toHaveCount(0);
+});
+
+test("an explicit unregistered context never silently selects another registered period", async ({ page }) => {
+  inventoryMode = "sole";
+  scenario = "unregistered";
+  const query = `attemptId=${attemptId}&period=2026S1`;
+  await page.goto(`${webOrigin}/student/timetable?${query}`);
+  await expect(page).toHaveURL(`${webOrigin}/student/timetable?${query}`);
+  await expect(page.getByRole("link", { name: "Review registration", exact: true })).toHaveAttribute("href", `/student/register?${query}`);
+  expect(calls.every(call => call === `/registration/timetable?${query}`)).toBe(true);
 });

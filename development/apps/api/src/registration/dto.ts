@@ -1,4 +1,15 @@
-import { IsArray, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ArrayMaxSize, ArrayMinSize } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ArrayMaxSize,
+  ArrayMinSize,
+} from 'class-validator';
 import { KeyDto, VersionDto } from '../admissions/dto.js';
 
 // Phase 4 slice 3 readiness query (TASK-PH4-003). Both filters are optional:
@@ -111,4 +122,12 @@ export class AmendmentQuery {
   @IsString()
   @MaxLength(64)
   period?: string;
+}
+
+export class RegistrationContextsQuery {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  @IsNotEmpty()
+  cursor?: string;
 }

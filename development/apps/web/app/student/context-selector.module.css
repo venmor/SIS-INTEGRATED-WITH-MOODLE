@@ -1,0 +1,53 @@
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.panel h2 {
+  font-size: var(--font-body);
+}
+.panel p {
+  font-size: var(--font-supporting);
+  line-height: var(--line-body);
+}
+.panel label {
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+}
+.panel select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-2);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-400);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.panel button,
+.action {
+  justify-self: start;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--green-700);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--green-800);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+.panel :is(select, button, a):focus-visible {
+  outline: 2px solid var(--blue-700);
+  outline-offset: 2px;
+}
+.meta {
+  color: var(--text-secondary);
+}

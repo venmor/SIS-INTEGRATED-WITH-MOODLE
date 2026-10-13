@@ -1,3 +1,5 @@
+import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
+import { ContextSelector } from "../context-selector";
 import {
   parseAcademicContext,
   academicHref,
@@ -96,6 +98,7 @@ export default async function ReadinessPage({
     <>
       <p className={styles.eyebrow}>Registration readiness · {board.period}</p>
       <h1>Registration readiness</h1>
+      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/readiness" current={{ attemptId: board.attemptId, period: board.period }} />
       <Notice
         severity={banner.severity}
         title={banner.title}

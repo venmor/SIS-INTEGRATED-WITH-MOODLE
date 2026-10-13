@@ -1,3 +1,5 @@
+import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
+import { ContextSelector } from "../context-selector";
 import type { CoursePlanView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -72,6 +74,7 @@ export default async function CoursesPage({
     <>
       <p className={styles.eyebrow}>Course selection · {board.period}</p>
       <h1>Plan your courses</h1>
+      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/courses" current={board} />
       <p className={styles.muted}>
         Required courses, new courses and electives are listed separately.
         Unavailable courses name their reason. Saving keeps a draft; submit
@@ -84,7 +87,10 @@ export default async function CoursesPage({
           message={`Version ${board.version}. Saving again replaces the draft and bumps the version.`}
         />
       ) : null}
-      <PlanBoard initial={board} />
+      {board.status === "DRAFT" || board.status === "NONE" ? <PlanBoard initial={board} /> : <>
+        <Notice severity="info" title="Course plan is read-only" message="This plan has already been submitted or needs review. Open registration to check its official status. Course changes follow the approved change process." />
+        <ul>{board.items.map(item => <li key={item.courseId}><strong>{item.code}</strong> — {item.title}</li>)}</ul>
+      </>}
       <p>
         <a href={academicHref("/student/register", board)}>
           Review registration

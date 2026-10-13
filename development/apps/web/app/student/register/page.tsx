@@ -1,3 +1,5 @@
+import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
+import { ContextSelector } from "../context-selector";
 import { createHash } from "node:crypto";
 import type { CoursePlanView, RegistrationStatusView } from "@sis/contracts";
 import { cookies } from "next/headers";
@@ -81,6 +83,7 @@ export default async function RegisterPage({
     <>
       <p className={styles.eyebrow}>Formal registration · {plan.data.period}</p>
       <h1>Review registration</h1>
+      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/register" current={plan.data} />
       {!status.data ? (
         <Notice
           severity="warning"
