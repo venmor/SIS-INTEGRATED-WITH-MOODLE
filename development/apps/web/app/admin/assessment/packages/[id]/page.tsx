@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import type { ResultPackageDetailView } from "@sis/contracts";
+import type {
+  EntityTimelineResponse,
+  ResultPackageDetailView,
+} from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
 import { BoardDecisionForm } from "../forms";
 import styles from "../../../../page.module.css";
@@ -9,12 +12,13 @@ export const dynamic = "force-dynamic";
 
 async function loadStaff<T>(
   path: string,
+  domain = "assessment",
 ): Promise<{ ok: true; data: T } | { ok: false; status: number }> {
   const sid = (await cookies()).get("sid")?.value;
   if (!sid) return { ok: false, status: 401 };
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    const res = await fetch(`${api}/assessment${path}`, {
+    const res = await fetch(`${api}/${domain}${path}`, {
       headers: { cookie: `sid=${sid}` },
       cache: "no-store",
     });
@@ -47,11 +51,19 @@ export default async function BoardPackagePage({
             severity="warning"
             title="Package unavailable"
             message="This package needs board-package authority, or it does not exist in your workspace."
-            action={{ label: "Board packages", href: "/admin/assessment/packages" }}
+            action={{
+              label: "Board packages",
+              href: "/admin/assessment/packages",
+            }}
           />
         </main>
       </div>
     );
+  // Timeline disclosure is checked independently by the existing scoped API.
+  const history = await loadStaff<EntityTimelineResponse>(
+    `/audit/timeline/entity/result-package/${id}`,
+    "auth",
+  );
   const item = res.data;
   const trace = (item.trace ?? {}) as {
     formulaVersion?: string;
@@ -77,7 +89,9 @@ export default async function BoardPackagePage({
           <dt>Status</dt>
           <dd>
             <StatusChip
-              tone={item.status === "APPROVED_FOR_RELEASE" ? "success" : "attention"}
+              tone={
+                item.status === "APPROVED_FOR_RELEASE" ? "success" : "attention"
+              }
             >
               {item.status}
             </StatusChip>
@@ -115,11 +129,40 @@ export default async function BoardPackagePage({
             ))}
           </ul>
         )}
-        <p><Link href={`/admin/assessment/packages/${item.id}/release`}>Review official release</Link></p>
+        <p>
+          <Link href={`/admin/assessment/packages/${item.id}/release`}>
+            Review official release
+          </Link>
+        </p>
+        <section aria-labelledby="package-history-heading">
+          <h2 id="package-history-heading">History</h2>
+          <p>Up to 100 latest events, newest first.</p>
+          {!history.ok ? (
+            <Notice
+              severity="warning"
+              title="History unavailable"
+              message="Package history could not be checked. Refresh to try again, or contact the responsible examinations office."
+            />
+          ) : history.data.items.length === 0 ? (
+            <p>No history recorded yet.</p>
+          ) : (
+            <ol>
+              {history.data.items.map((event, index) => (
+                <li key={`${event.source}-${event.occurredAt}-${index}`}>
+                  <p>{event.summary}</p>
+                  <p>
+                    <time dateTime={event.occurredAt}>{event.occurredAt}</time>
+                    {event.actorRole ? ` · ${event.actorRole}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
         <h2>Record board decision</h2>
         <p>
-          Only the examinations authority records board decisions, and never
-          for a package it prepared. Approval for release never publishes to
+          Only the examinations authority records board decisions, and never for
+          a package it prepared. Approval for release never publishes to
           students; publication is a separate authorized action.
         </p>
         <BoardDecisionForm

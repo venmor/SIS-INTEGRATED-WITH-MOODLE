@@ -187,11 +187,16 @@ test("student and adviser agree and verify a dated academic follow-up", async ({
     await followUp
       .getByLabel("Follow-up due date")
       .fill(new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10));
+    const proposed = adviser.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/support/assigned/${requestId}/actions`) &&
+        response.request().method() === "POST",
+    );
     await followUp.getByRole("button", { name: "Propose follow-up" }).click();
+    expect((await proposed).ok()).toBe(true);
+    await adviser.reload();
     await expect(
-      adviser.getByText("Follow-up saved in the student portal.", {
-        exact: false,
-      }),
+      adviser.getByText("Review your registered courses"),
     ).toBeVisible();
     await page.goto(studentCaseUrl);
     await expect(
@@ -232,9 +237,16 @@ test("student and adviser agree and verify a dated academic follow-up", async ({
     await closure
       .getByLabel("Closure reason")
       .selectOption("AGREED_ACTION_COMPLETED");
+    const closed = adviser.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/support/assigned/${requestId}/close`) &&
+        response.request().method() === "POST",
+    );
     await closure.getByRole("button", { name: "Complete case" }).click();
+    expect((await closed).ok()).toBe(true);
+    await adviser.reload();
     await expect(
-      adviser.getByText("Academic-support case completed.", { exact: false }),
+      adviser.getByText("Agreed action completed", { exact: false }),
     ).toBeVisible();
     await page.reload();
     await expect(

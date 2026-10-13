@@ -104,15 +104,24 @@ function projections(path: string): unknown {
   if (["/integration/mappings", "/integration/shells", "/integration/incidents",
     "/integration/dead-letters", "/integration/reconciliation/runs"].includes(path))
     return { items: [] };
+  if (path === "/registration/contexts") return {
+    source: "OWN_REGISTRATION_CONTEXTS", checkedAt: "2026-10-07T08:00:00.000Z",
+    configuredPeriod: { code: "2026S1" },
+    items: [{ attemptId: "00000000-0000-4000-8000-000000000105", period: "2026S1",
+      attemptStatus: "ACTIVE", programmeCode: "SWE", programmeName: "Fictional Software Engineering",
+      intake: "2026", periodName: null, startDate: null, endDate: null,
+      configuredCurrent: true, registrationStatus: "REGISTERED" }],
+    soleRegisteredContext: { attemptId: "00000000-0000-4000-8000-000000000105", period: "2026S1" }, nextCursor: null,
+  };
   if (path === "/registration/plan") return {
-    planId: "synthetic-plan", attemptId: "synthetic-programme-attempt", period: "2026S1",
+    planId: "synthetic-plan", attemptId: "00000000-0000-4000-8000-000000000105", period: "2026S1",
     version: 1, status: "REGISTERED", items: [], available: [], validation: [],
     loadHalves: 2, notices: [],
   } satisfies CoursePlanView;
   if (path === "/registration/status") return {
     registration: {
       id: "synthetic-registration", receipt: "REG-UI-2026-001",
-      attemptId: "synthetic-programme-attempt", period: "2026S1", version: 1,
+      attemptId: "00000000-0000-4000-8000-000000000105", period: "2026S1", version: 1,
       status: "REGISTERED", courses: [{
         code: "SWE111", title: "Fictional Software Engineering", credits: 2,
         courseType: "CORE", semester: "1",
@@ -387,7 +396,7 @@ for (const mode of ["live-test", "live-test-disabled"] as const) {
       .toContainText("REG-UI-2026-001");
     const access = page.getByRole("status", { name: "Moodle access is being prepared", exact: true });
     await expect(access).toContainText(/do not register again/i);
-    await expect(page.getByRole("listitem").filter({ hasText: "SWE111" }))
+    await expect(page.getByRole("row").filter({ hasText: "SWE111" }))
       .toContainText("Fictional Software Engineering");
     await expect(page.getByRole("button", { name: /register|submit registration/i })).toHaveCount(0);
     await expect(page.getByText(/Moodle handoff: (Synced|Failed)/)).toHaveCount(0);

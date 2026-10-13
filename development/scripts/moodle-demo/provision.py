@@ -191,9 +191,10 @@ def execute(data, config, state_dir):
             key = '|'.join((entry['user'], entry['course'], entry['role']))
             user_id, course_id = receipt['objects'][entry['user']], receipt['objects'][entry['course']]
             role_id = config[entry['role'] + 'RoleId']
-            methods = client.call('core_enrol_get_course_enrolment_methods', {'courseid':course_id})
-            if not any(m.get('type') == 'manual' and m.get('status') == 0 for m in methods):
-                raise ValueError('Enabled manual enrolment is not confirmed.')
+            # get_course_enrolment_methods is a self-enrolment information
+            # projection: the manual plugin does not expose get_enrol_info().
+            # The manual write endpoint validates the enabled instance and role
+            # authority atomically; the read below confirms the actual outcome.
             actual = client.call('core_enrol_get_enrolled_users', {'courseid':course_id})
             matched = any(u.get('id') == user_id and any(r.get('roleid') == role_id for r in u.get('roles', [])) for u in actual)
             if matched:

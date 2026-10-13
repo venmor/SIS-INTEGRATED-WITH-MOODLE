@@ -28,6 +28,7 @@ jobs:
       # Explicit simulator fixture only; never a provider or deployment secret.
       FIN_SIM_SECRET: ci-finance-simulator-fixture-only
       SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true"
+      SIS_ENABLE_INSTITUTION_DEMO_SETUP: "true"
       APPLICATION_SCANNER: demo-fixtures
       API_INTERNAL_URL: http://127.0.0.1:3101
       PORT: "3101"
@@ -69,6 +70,8 @@ jobs:
       - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_browser_review
+      - name: Verify isolated Moodle deferral rendering
+        run: npx playwright test --config=tests/browser/moodle-live-deferral.config.ts
       # Populated finance and assessment clones were rehearsed before cleanup.
       # Also verify the clean seeded baseline independently.
       - name: Backup/restore rehearsal on the seeded database

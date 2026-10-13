@@ -102,7 +102,9 @@ class Lifecycle(unittest.TestCase):
                     owner.assertEqual(parameters['courses'][0]['visible'], 0)
                     state['course'] = {**course,'id':31,'categoryid':20}
                     return [{'id':31}]
-                if function == 'core_enrol_get_course_enrolment_methods': return [{'type':'manual','status':0}]
+                # Moodle's manual plugin inherits get_enrol_info() returning null,
+                # so this self-enrolment projection can legitimately be empty.
+                if function == 'core_enrol_get_course_enrolment_methods': return []
                 if function == 'core_enrol_get_enrolled_users': return [{'id':21,'roles':[{'roleid':5}]}] if state['enrolled'] else []
                 if function == 'enrol_manual_enrol_users':
                     state['writes'].append(function)

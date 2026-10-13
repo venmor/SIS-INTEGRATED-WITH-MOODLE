@@ -30,9 +30,8 @@ async function noOverflow(page: Page) {
 }
 
 test("fictional setup: lost save resolves once, exact version reviewed and independently activated", async ({
-  browser,
+  browser, baseURL,
 }) => {
-  const baseURL = process.env.BROWSER_BASE_URL ?? "http://127.0.0.1:3100";
   const proposerContext = await browser.newContext({
     baseURL,
     viewport: { width: 390, height: 844 },
@@ -249,6 +248,28 @@ test("older setup history remains browsable without changing unsaved entries", a
   page,
 }) => {
   await signIn(page, "nalumino.setup", "Seed-2026-Setup");
+  // Build enough immutable history through the real command API on this suite's
+  // fresh synthetic database. Never assume an earlier developer's retained rows.
+  await page.evaluate(async (url) => {
+    const read = async () => {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Setup history fixture could not be read");
+      return response.json();
+    };
+    let report = await read();
+    for (let index = 0; index < 21; index++) {
+      const response = await fetch(url, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientRequestId: crypto.randomUUID(),
+          expectedVersion: report.latestVersion,
+          expectedActivationId: report.activeActivationId,
+          reason: `Fictional browser history fixture ${index + 1}`,
+          profile: report.template }),
+      });
+      if (!response.ok) throw new Error(`Setup history fixture refused: ${response.status}`);
+      report = await read();
+    }
+  }, endpoint);
   // Use the browser's authenticated same-origin fetch, as the editor does.
   // Playwright's separate API client omits production Secure cookies on HTTP.
   const newest = await page.evaluate(async (url) => {

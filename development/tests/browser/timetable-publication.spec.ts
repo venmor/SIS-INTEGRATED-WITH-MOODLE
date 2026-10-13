@@ -103,10 +103,9 @@ test("coordinator can discover independent publication review without publishing
 });
 
 test("genuine registrations lead through independent publication, uncertain recovery and a replaced student timetable", async ({
-  browser,
+  browser, baseURL,
 }) => {
   test.setTimeout(180000);
-  const baseURL = process.env.BROWSER_BASE_URL ?? "http://127.0.0.1:3154";
   const contexts = await Promise.all(
     Array.from({ length: 3 }, () =>
       browser.newContext({

@@ -89,17 +89,6 @@ export async function createStudent() {
         status: "ACTIVE",
       },
     });
-    await db.roleAssignment.create({
-      data: {
-        accountId: account.id,
-        role: "STUDENT",
-        scopeType: "STUDENT",
-        scopeRef: "STU-2026-0001",
-        capabilities: ["study"],
-        reason: "Isolated browser fixture",
-        startsAt: new Date("2020-01-01"),
-      },
-    });
     const offering = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: "SWE" }, availability: "OPEN" },
       include: { programme: true },
@@ -117,6 +106,17 @@ export async function createStudent() {
         status: "ACTIVE",
       },
     });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "STUDENT",
+        scopeType: "STUDENT",
+        scopeRef: student.id,
+        capabilities: ["study"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
     const attempt = await db.programmeAttempt.create({
       data: {
         studentId: student.id,
@@ -131,6 +131,7 @@ export async function createStudent() {
       username,
       password,
       studentNumber: student.studentNumber,
+      accountId: account.id,
       attemptId: attempt.id,
     };
   } finally {

@@ -156,6 +156,8 @@
   line-height: var(--line-body);
 }
 .options a {
+  /* The darker link token meets AA on the tinted help-panel surface. */
+  color: var(--link-hover);
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
