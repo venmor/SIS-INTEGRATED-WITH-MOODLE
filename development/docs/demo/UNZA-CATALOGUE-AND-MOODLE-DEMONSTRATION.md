@@ -21,10 +21,10 @@ The owner explicitly authorized loading the existing MoodleCloud site for a fina
 
 ## Prepare the existing site
 
-1. Sign in to MoodleCloud Portal, confirm this site's URL and remaining user/storage allowance, and create a course category named **SIS Demonstration**. Record its numeric ID.
+1. Sign in to the MoodleCloud Portal to confirm this site's URL and remaining user/storage allowance. Then open the Moodle site at `https://sis-moodle.moodlecloud.com` and create a course category named **SIS Demonstration** under **Site administration → Courses → Manage courses and categories**. Record its numeric ID from the selected category's URL.
 2. Use either the existing **temp setup** account or the primary site administrator. The primary administrator is acceptable for this demonstration. REST is already enabled; the selected account's token must be bound to a service exposing all nine functions below.
 3. Confirm manual enrolment is enabled for newly created courses. Record the site's actual Student and Teacher role IDs and the category ID. The tool uses those IDs to enrol the intended generated participants in the right roles.
-4. Keep the token in the ignored local `.env`. The earlier chat-exposed token was deleted; use the replacement token or make a new one for the selected service.
+4. Keep the token in the ignored local `.env`. The earlier chat-exposed token was deleted; use the replacement token or make a new one for the selected service. Send only the service name, category ID, Student role ID, Teacher role ID, and remaining active-user allowance. No token value is needed in chat.
 
 ### Give the demonstration token read and write functions
 
