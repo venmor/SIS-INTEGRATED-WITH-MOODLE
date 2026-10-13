@@ -54,3 +54,8 @@ export type * from "./integration.js";
 export type * from "./assessment.js";
 export type * from "./notifications.js";
 export type * from "./ops.js";
+export * from './institution-setup.js';
+
+export type * from "./timetabling.js";
+
+export type * from "./registration.js";

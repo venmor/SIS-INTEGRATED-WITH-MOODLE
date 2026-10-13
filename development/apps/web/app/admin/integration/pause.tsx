@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import { notProvisionedMessage } from "../../../lib/moodle-status";
+import { WaitingForMoodle } from "../moodle/write-readiness";
 
 async function postIntegration(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`/api/integration${path}`, {
@@ -32,6 +34,7 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 export function PauseForm() {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -40,11 +43,17 @@ export function PauseForm() {
     setPending(true);
     setError(null);
     setNotice(null);
+    setDeferred(null);
     try {
-      await postIntegration("/delivery/pause", {
+      const out = await postIntegration("/delivery/pause", {
         paused,
         idempotencyKey: crypto.randomUUID(),
       });
+      const waiting = notProvisionedMessage(out);
+      if (waiting) {
+        setDeferred(waiting);
+        return;
+      }
       setNotice(paused ? "Delivery paused." : "Delivery resumed.");
       router.refresh();
     } catch (err) {
@@ -58,6 +67,7 @@ export function PauseForm() {
 
   return (
     <>
+      <WaitingForMoodle message={deferred} />
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}

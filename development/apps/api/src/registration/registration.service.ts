@@ -5,6 +5,7 @@ import { APPLICATION_DEMO_V1 as applications } from '@sis/config';
 import { STUDENT_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import { FinanceService } from '../finance/finance.service.js';
+import { timetableDemoDraftsEnabled } from '../timetabling/demo-rules.service.js';
 import { IntegrationService } from '../integration/integration.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
@@ -141,8 +142,7 @@ export class RegistrationService {
       where: { id: auth.accountId },
       include: { person: true },
     });
-    if (!account)
-      this.fail('NOT_FOUND', 'Student record not found.', 404);
+    if (!account) this.fail('NOT_FOUND', 'Student record not found.', 404);
     let attempt;
     if (attemptId) {
       attempt = await this.prisma.programmeAttempt.findUnique({
@@ -174,14 +174,12 @@ export class RegistrationService {
           offering: { include: { programme: true } },
         },
       });
-      if (!attempt)
-        this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
+      if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
     }
     const period = await this.prisma.academicPeriod.findUnique({
       where: { code: periodCode ?? (policy.currentPeriod as string) },
     });
-    if (!period)
-      this.fail('NOT_FOUND', 'Academic period not found.', 404);
+    if (!period) this.fail('NOT_FOUND', 'Academic period not found.', 404);
     const student = attempt.student;
     const now = new Date();
     const conditions: ReadinessCondition[] = [];
@@ -241,11 +239,12 @@ export class RegistrationService {
     // 5. Finance clearance: explicit rows beat the demo default; the demo fee
     // is NOT_REQUIRED, which implies clearance (versioned demo policy).
     const clearance = await this.prisma.financeClearance.findUnique({
-      where: { studentId_periodId: { studentId: student.id, periodId: period.id } },
+      where: {
+        studentId_periodId: { studentId: student.id, periodId: period.id },
+      },
     });
     if (clearance) {
-      const expired =
-        clearance.expiresAt != null && clearance.expiresAt <= now;
+      const expired = clearance.expiresAt != null && clearance.expiresAt <= now;
       if (clearance.status === 'CLEARED' && !expired) {
         conditions.push({
           key: 'clearance',
@@ -504,8 +503,7 @@ export class RegistrationService {
     const account = await this.prisma.account.findUnique({
       where: { id: auth.accountId },
     });
-    if (!account)
-      this.fail('NOT_FOUND', 'Student record not found.', 404);
+    if (!account) this.fail('NOT_FOUND', 'Student record not found.', 404);
     // Change requests and waitlist joins are student self-service: staff
     // review and decide, but never file on a student's behalf.
     if (ownerOnly && !studentSession) {
@@ -523,12 +521,8 @@ export class RegistrationService {
           offering: { include: { programme: true } },
         },
       });
-      if (!attempt)
-        this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
-      if (
-        studentSession &&
-        attempt.student.personId !== account.personId
-      )
+      if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
+      if (studentSession && attempt.student.personId !== account.personId)
         this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
     } else {
       if (!studentSession)
@@ -549,14 +543,12 @@ export class RegistrationService {
           offering: { include: { programme: true } },
         },
       });
-      if (!attempt)
-        this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
+      if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
     }
     const period = await this.prisma.academicPeriod.findUnique({
       where: { code: periodCode ?? (policy.currentPeriod as string) },
     });
-    if (!period)
-      this.fail('NOT_FOUND', 'Academic period not found.', 404);
+    if (!period) this.fail('NOT_FOUND', 'Academic period not found.', 404);
     return { attempt, period };
   }
 
@@ -590,9 +582,7 @@ export class RegistrationService {
       where: { attemptId_periodId: { attemptId, periodId } },
       include: { items: { include: { course: true } } },
     });
-    const selectedIds = new Set(
-      (plan?.items ?? []).map((i) => i.courseId),
-    );
+    const selectedIds = new Set((plan?.items ?? []).map((i) => i.courseId));
     const weights = policy.courseTypeWeights as Record<string, number>;
     const items = (plan?.items ?? []).map((i) => ({
       courseId: i.course.id,
@@ -669,7 +659,11 @@ export class RegistrationService {
     };
   }
 
-  async getPlan(auth: RegistrationAuthority, attemptId?: string, periodCode?: string) {
+  async getPlan(
+    auth: RegistrationAuthority,
+    attemptId?: string,
+    periodCode?: string,
+  ) {
     const { attempt, period } = await this.resolveAttempt(
       auth,
       attemptId,
@@ -693,7 +687,12 @@ export class RegistrationService {
   async savePlan(
     auth: RegistrationAuthority,
     key: string,
-    input: { attemptId?: string; period?: string; version: number; courseCodes: string[] },
+    input: {
+      attemptId?: string;
+      period?: string;
+      version: number;
+      courseCodes: string[];
+    },
   ) {
     const { attempt, period } = await this.resolveAttempt(
       auth,
@@ -708,7 +707,12 @@ export class RegistrationService {
       auth,
       key,
       'SaveCoursePlan',
-      { attemptId: attempt.id, period: period.code, version: input.version, courseCodes: codes },
+      {
+        attemptId: attempt.id,
+        period: period.code,
+        version: input.version,
+        courseCodes: codes,
+      },
       async (db) => {
         const curriculum = await db.curriculumVersion.findFirst({
           where: {
@@ -785,10 +789,18 @@ export class RegistrationService {
             },
           });
         }
-        await this.audit(db, auth, 'CoursePlanSaved', attempt.id, key, 'ALLOW', {
-          period: period.code,
-          courses: codes.length,
-        });
+        await this.audit(
+          db,
+          auth,
+          'CoursePlanSaved',
+          attempt.id,
+          key,
+          'ALLOW',
+          {
+            period: period.code,
+            courses: codes.length,
+          },
+        );
         return { body: { planId } };
       },
     );
@@ -833,22 +845,22 @@ export class RegistrationService {
     for (const item of items) {
       const full = availableById.get(item.courseId);
       if (!full) {
-      out.push({
-        courseId: item.courseId,
-        code: item.code,
-        result: 'BLOCK',
-        resultCode: 'NOT_IN_CURRICULUM',
+        out.push({
+          courseId: item.courseId,
+          code: item.code,
+          result: 'BLOCK',
+          resultCode: 'NOT_IN_CURRICULUM',
           explanation:
             'This course is not in the published curriculum for this programme.',
         });
         continue;
       }
       if (full.capacity <= 0) {
-      out.push({
-        courseId: item.courseId,
-        code: item.code,
-        result: 'BLOCK',
-        resultCode: 'CAPACITY_FULL',
+        out.push({
+          courseId: item.courseId,
+          code: item.code,
+          result: 'BLOCK',
+          resultCode: 'CAPACITY_FULL',
           explanation:
             'This course is full. Choose an alternative or contact the registry.',
         });
@@ -858,11 +870,11 @@ export class RegistrationService {
       // prerequisite counts as unmet. The rule and the reason stay explicit
       // instead of guessing from grades.
       if (item.prerequisites.length > 0) {
-      out.push({
-        courseId: item.courseId,
-        code: item.code,
-        result: 'BLOCK',
-        resultCode: 'PREREQ_UNMET',
+        out.push({
+          courseId: item.courseId,
+          code: item.code,
+          result: 'BLOCK',
+          resultCode: 'PREREQ_UNMET',
           explanation: `Requires ${item.prerequisites.join(', ')} (no completed result on record).`,
         });
         continue;
@@ -1014,7 +1026,10 @@ export class RegistrationService {
         // Required-but-missing courses stay WARNINGs, not blockers:
         // registration is per period, and later-semester required courses
         // register in their own period.
-        const bands = policy.loadBands as { minHalves: number; maxHalves: number };
+        const bands = policy.loadBands as {
+          minHalves: number;
+          maxHalves: number;
+        };
         if (
           preview.loadHalves < bands.minHalves ||
           preview.loadHalves > bands.maxHalves
@@ -1078,7 +1093,9 @@ export class RegistrationService {
             );
           }
         }
-        const seq = await db.$queryRaw<Array<{ n: bigint }>>`SELECT nextval('"RegistrationNumberSeq"') AS n`;
+        const seq = await db.$queryRaw<
+          Array<{ n: bigint }>
+        >`SELECT nextval('"RegistrationNumberSeq"') AS n`;
         const receipt = `REG-${new Date().getUTCFullYear()}-${String(Number(seq[0].n)).padStart(4, '0')}`;
         const submittedAt = new Date().toISOString();
         const snapshot = {
@@ -1098,7 +1115,8 @@ export class RegistrationService {
           conditions: [],
           declarations: required.map((k) => ({
             id: k,
-            version: (policy.registration as unknown as { version: string }).version,
+            version: (policy.registration as unknown as { version: string })
+              .version,
           })),
           policyVersion: policy.version,
           curriculumVersion: attempt.curriculumVersionId,
@@ -1167,7 +1185,11 @@ export class RegistrationService {
           registration.id,
           key,
           'ALLOW',
-          { receipt, courses: plan.items.length, loadHalves: preview.loadHalves },
+          {
+            receipt,
+            courses: plan.items.length,
+            loadHalves: preview.loadHalves,
+          },
         );
         return { body: this.receiptView(registration, period.code) };
       },
@@ -1192,9 +1214,7 @@ export class RegistrationService {
       }
       return clearance.status;
     }
-    if (
-      (applications.fee as { status: string }).status === 'NOT_REQUIRED'
-    )
+    if ((applications.fee as { status: string }).status === 'NOT_REQUIRED')
       return 'CLEARED';
     return 'NOT_ASSESSED';
   }
@@ -1209,12 +1229,13 @@ export class RegistrationService {
       attemptId,
       periodCode,
     );
-    const registration =
-      await this.prisma.institutionalRegistration.findUnique({
+    const registration = await this.prisma.institutionalRegistration.findUnique(
+      {
         where: {
           attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
         },
-      });
+      },
+    );
     if (!registration) {
       return {
         registration: null,
@@ -1231,21 +1252,30 @@ export class RegistrationService {
       },
       orderBy: { occurredAt: 'desc' },
     });
+    // Current live access needs integration-owned readiness; a historical
+    // simulator delivery timestamp is never evidence of live enrolment.
+    const deferral = this.integration.liveDeliveryDeferral();
     const synced = outbox?.deliveredAt != null;
     // Phase 6 slice 3 delivery states (TASK-PH6-003): dead-lettered
     // handoffs read Delayed, manual-review handoffs read Failed.
     // Registration stays valid in every non-synced state.
-    let moodle = synced
+    let moodle = deferral
       ? {
-          state: 'Synced',
-          detail: 'Enrolment handoff confirmed by the worker.',
-        }
-      : {
-          state: 'Queued',
+          state: 'NOT_PROVISIONED',
           detail:
-            'Enrolment is queued for handoff. Registration stays valid meanwhile.',
-        };
-    if (!synced && outbox) {
+            'Your official course registration is complete. Moodle access is being prepared. Do not register again.',
+        }
+      : synced
+        ? {
+            state: 'Synced',
+            detail: 'Enrolment handoff confirmed by the worker.',
+          }
+        : {
+            state: 'Queued',
+            detail:
+              'Enrolment is queued for handoff. Registration stays valid meanwhile.',
+          };
+    if (!deferral && !synced && outbox) {
       const flags = await this.integration.deliveryFlags([outbox.id]);
       if (flags.manual) {
         moodle = {
@@ -1281,11 +1311,41 @@ export class RegistrationService {
       attemptId,
       periodCode,
     );
+    const requireCurrentStudent = async () => {
+      if (auth.activeRole !== 'STUDENT') return;
+      const now = new Date();
+      const appointment = auth.assignmentId
+        ? await this.prisma.roleAssignment.findFirst({
+            where: {
+              id: auth.assignmentId,
+              accountId: auth.accountId,
+              role: 'STUDENT',
+              capabilities: { has: 'study' },
+              startsAt: { lte: now },
+              revokedAt: null,
+              OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+              account: {
+                status: 'ACTIVE',
+                personId: attempt.student.personId,
+                person: { status: 'ACTIVE' },
+              },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (!appointment)
+        this.fail(
+          'TIMETABLE_NOT_AVAILABLE',
+          'This student timetable workspace is unavailable. Your registration is preserved.',
+          403,
+        );
+    };
+    await requireCurrentStudent();
     // Derived from the authoritative registration: courses grouped by
     // semester. No slot times exist in this phase, so none are invented —
     // the view says when times arrive instead of showing false precision.
-    const registration =
-      await this.prisma.institutionalRegistration.findUnique({
+    const registration = await this.prisma.institutionalRegistration.findUnique(
+      {
         where: {
           attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
         },
@@ -1296,7 +1356,8 @@ export class RegistrationService {
             orderBy: { createdAt: 'asc' },
           },
         },
-      });
+      },
+    );
     if (!registration) {
       this.fail(
         'TIMETABLE_NOT_AVAILABLE',
@@ -1311,14 +1372,190 @@ export class RegistrationService {
       list.push({ code: row.course.code, title: row.course.title });
       groups.set(semester, list);
     }
+    const publication =
+      timetableDemoDraftsEnabled() &&
+      period.code.startsWith('DEMO-') &&
+      auth.activeRole === 'STUDENT' &&
+      attempt.status === 'ACTIVE' &&
+      attempt.student.status === 'ACTIVE' &&
+      registration.status === 'REGISTERED' &&
+      !['CANCELLED', 'CLOSED', 'ARCHIVED', 'SUSPENDED'].includes(period.status)
+        ? await this.prisma.timetableDemoPublication.findFirst({
+            where: { periodId: period.id },
+            orderBy: { version: 'desc' },
+            include: { masterDraft: { select: { version: true } } },
+          })
+        : null;
+    const sessions = publication
+      ? await this.prisma.timetableStudentSession.findMany({
+          where: {
+            publicationId: publication.id,
+            attemptId: attempt.id,
+            periodId: period.id,
+            courseRegistration: {
+              registrationId: registration.id,
+              status: 'ENROLLED',
+              registration: {
+                status: 'REGISTERED',
+                attemptId: attempt.id,
+                periodId: period.id,
+              },
+            },
+            attempt: {
+              status: 'ACTIVE',
+              student: { status: 'ACTIVE' },
+              curriculumVersion: { status: 'PUBLISHED' },
+            },
+            section: {
+              status: {
+                in: [
+                  'DRAFT',
+                  'DEMO_ACTIVE',
+                  'ACTIVE',
+                  'APPROVED',
+                  'OPEN_FOR_REGISTRATION',
+                  'REGISTRATION_CLOSED',
+                  'IN_PROGRESS',
+                ],
+              },
+            },
+            offering: {
+              status: {
+                in: [
+                  'DRAFT',
+                  'DEMO_ACTIVE',
+                  'ACTIVE',
+                  'APPROVED',
+                  'OPEN_FOR_REGISTRATION',
+                  'REGISTRATION_CLOSED',
+                  'IN_PROGRESS',
+                ],
+              },
+            },
+          },
+          orderBy: [{ startAt: 'asc' }, { sessionId: 'asc' }],
+          take: 101,
+        })
+      : [];
+    // A release is bounded by the master contract. Do not truncate and claim a
+    // complete student timetable if an unexpected projection violates it.
+    if (sessions.length > 100)
+      this.fail(
+        'TIMETABLE_REVIEW_REQUIRED',
+        'Timetable information needs review. Your registration is preserved.',
+        409,
+      );
+    const sessionView = (session: (typeof sessions)[number]) => ({
+      id: session.sessionId,
+      courseCode: session.courseCode,
+      courseTitle: session.courseTitle,
+      sectionCode: session.sectionCode,
+      campusCode: session.campusCode,
+      venueCode: session.venueCode,
+      teacherName: session.teacherName,
+      deliveryMode: session.deliveryMode,
+      activityType: 'Teaching session' as const,
+      startAt: session.startAt.toISOString(),
+      endAt: session.endAt.toISOString(),
+    });
+    const prior = publication?.previousPublicationId
+      ? await this.prisma.timetableDemoPublication.findUnique({
+          where: { id: publication.previousPublicationId },
+          select: { version: true },
+        })
+      : null;
+    const priorSessions = publication?.previousPublicationId
+      ? await this.prisma.timetableStudentSession.findMany({
+          where: {
+            publicationId: publication.previousPublicationId,
+            attemptId: attempt.id,
+            periodId: period.id,
+            courseRegistration: {
+              registrationId: registration.id,
+              status: 'ENROLLED',
+              registration: {
+                status: 'REGISTERED',
+                attemptId: attempt.id,
+                periodId: period.id,
+              },
+            },
+          },
+          orderBy: [{ startAt: 'asc' }, { sessionId: 'asc' }],
+          take: 101,
+        })
+      : [];
+    if (priorSessions.length > 100)
+      this.fail(
+        'TIMETABLE_REVIEW_REQUIRED',
+        'Timetable change information needs review. Your registration is preserved.',
+        409,
+      );
+    const before = new Map(
+      priorSessions.map((row) => [row.sessionId, sessionView(row)]),
+    );
+    const after = new Map(
+      sessions.map((row) => [row.sessionId, sessionView(row)]),
+    );
+    const changes: Array<{
+      kind: 'ADDED' | 'CHANGED' | 'REMOVED';
+      sessionId: string;
+      before: ReturnType<typeof sessionView> | null;
+      after: ReturnType<typeof sessionView> | null;
+    }> = [];
+    if (prior) {
+      for (const [id, row] of after) {
+        if (!before.has(id))
+          changes.push({
+            kind: 'ADDED',
+            sessionId: id,
+            before: null,
+            after: row,
+          });
+        else if (JSON.stringify(before.get(id)) !== JSON.stringify(row))
+          changes.push({
+            kind: 'CHANGED',
+            sessionId: id,
+            before: before.get(id)!,
+            after: row,
+          });
+      }
+      for (const [id, row] of before)
+        if (!after.has(id))
+          changes.push({
+            kind: 'REMOVED',
+            sessionId: id,
+            before: row,
+            after: null,
+          });
+    }
+    await requireCurrentStudent();
     return {
       attemptId: attempt.id,
       period: period.code,
+      publicationStatus: sessions.length
+        ? 'FICTIONAL_PUBLISHED'
+        : 'AWAITING_PUBLICATION',
+      checkedAt: new Date().toISOString(),
       groups: [...groups.entries()].map(([semester, courses]) => ({
         semester,
         courses,
       })),
-      note: 'Session times arrive with the teaching timetable; courses below are the registered set.',
+      publication:
+        sessions.length && publication
+          ? {
+              id: publication.id,
+              version: publication.version,
+              masterVersion: publication.masterDraft.version,
+              contentDigest: publication.contentDigest,
+              publishedAt: publication.publishedAt.toISOString(),
+              previousVersion: prior?.version ?? null,
+            }
+          : null,
+      sessions: sessions.map(sessionView),
+      changes,
+      note: sessions.length
+        ? 'Published for the fictional university rehearsal. Times use Central Africa Time (CAT).'
+        : 'The courses below are registered. Class times, rooms and meeting links are not published yet.',
     };
   }
 
@@ -1390,12 +1627,11 @@ export class RegistrationService {
       input.kind === 'ADD' ? 'RequestCourseAddition' : 'RequestCourseDrop',
       { attemptId: attempt.id, period: period.code, ...input },
       async (db) => {
-        const registration =
-          await db.institutionalRegistration.findUnique({
-            where: {
-              attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
-            },
-          });
+        const registration = await db.institutionalRegistration.findUnique({
+          where: {
+            attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
+          },
+        });
         if (!registration) {
           this.fail(
             'NO_REGISTRATION',
@@ -1520,12 +1756,13 @@ export class RegistrationService {
       attemptId,
       periodCode,
     );
-    const registration =
-      await this.prisma.institutionalRegistration.findUnique({
+    const registration = await this.prisma.institutionalRegistration.findUnique(
+      {
         where: {
           attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
         },
-      });
+      },
+    );
     if (!registration) return { items: [] };
     const rows = await this.prisma.registrationAmendment.findMany({
       where: { registrationId: registration.id },
@@ -1567,11 +1804,20 @@ export class RegistrationService {
           if (amendment.kind === 'ADD') {
             await db.$queryRaw`SELECT id FROM "Course" WHERE id = ${amendment.courseId} FOR UPDATE`;
             const existingRoster = await db.courseRegistration.findMany({
-              where: { registrationId: amendment.registrationId, status: 'ENROLLED' },
+              where: {
+                registrationId: amendment.registrationId,
+                status: 'ENROLLED',
+              },
               include: { course: true },
             });
-            if (existingRoster.some((row) => row.courseId === amendment.courseId)) {
-              this.fail('ALREADY_ENROLLED', 'This course is already registered.', 409);
+            if (
+              existingRoster.some((row) => row.courseId === amendment.courseId)
+            ) {
+              this.fail(
+                'ALREADY_ENROLLED',
+                'This course is already registered.',
+                409,
+              );
             }
             const prerequisites = await db.coursePrerequisite.findMany({
               where: { courseId: amendment.courseId },
@@ -1580,22 +1826,49 @@ export class RegistrationService {
             // The MVP has no released prior-result source yet. Never infer
             // completed prerequisites from an enrolled course or Moodle.
             if (prerequisites.length > 0) {
-              this.fail('PREREQ_UNMET', `A verified prior result is required for ${prerequisites.map((row) => row.requires.code).join(', ')}.`, 409);
+              this.fail(
+                'PREREQ_UNMET',
+                `A verified prior result is required for ${prerequisites.map((row) => row.requires.code).join(', ')}.`,
+                409,
+              );
             }
             const weights = policy.courseTypeWeights as Record<string, number>;
-            const load = existingRoster.reduce((sum, row) => sum + (weights[row.course.courseType] ?? 1), 0)
-              + (weights[amendment.course.courseType] ?? 1);
+            const load =
+              existingRoster.reduce(
+                (sum, row) => sum + (weights[row.course.courseType] ?? 1),
+                0,
+              ) + (weights[amendment.course.courseType] ?? 1);
             const band = policy.loadBands as { maxHalves: number };
             if (load > band.maxHalves) {
-              this.fail('LOAD_INVALID', `Adding this course would exceed the ${band.maxHalves} half-course limit.`, 409);
+              this.fail(
+                'LOAD_INVALID',
+                `Adding this course would exceed the ${band.maxHalves} half-course limit.`,
+                409,
+              );
             }
             const groups = policy.demoCollisionGroups as Record<string, string>;
             const requestedGroup = groups[amendment.course.code];
-            if (process.env.DEMO_MODE !== 'true' || !requestedGroup || existingRoster.some((row) => !groups[row.course.code])) {
-              this.fail('TIMETABLE_UNVERIFIED', 'A timetable compatibility check is unavailable. Registry cannot complete this addition yet.', 409);
+            if (
+              process.env.DEMO_MODE !== 'true' ||
+              !requestedGroup ||
+              existingRoster.some((row) => !groups[row.course.code])
+            ) {
+              this.fail(
+                'TIMETABLE_UNVERIFIED',
+                'A timetable compatibility check is unavailable. Registry cannot complete this addition yet.',
+                409,
+              );
             }
-            if (existingRoster.some((row) => groups[row.course.code] === requestedGroup)) {
-              this.fail('TIMETABLE_CONFLICT', 'This course overlaps an enrolled course in the demo timetable.', 409);
+            if (
+              existingRoster.some(
+                (row) => groups[row.course.code] === requestedGroup,
+              )
+            ) {
+              this.fail(
+                'TIMETABLE_CONFLICT',
+                'This course overlaps an enrolled course in the demo timetable.',
+                409,
+              );
             }
             const enrolled = await db.courseRegistration.count({
               where: {
@@ -1649,7 +1922,12 @@ export class RegistrationService {
               data: { status: 'DROPPED' },
             });
           }
-          const financeStatus = await this.finance.reassessRegistrationAmendment(db, amendment.registrationId, amendment.id);
+          const financeStatus =
+            await this.finance.reassessRegistrationAmendment(
+              db,
+              amendment.registrationId,
+              amendment.id,
+            );
           const nextVersion =
             (
               await db.registrationAmendment.aggregate({
@@ -1781,13 +2059,25 @@ export class RegistrationService {
             expiresAt: period.addDropClose,
           },
         });
-        await this.audit(db, auth, 'CourseWaitlistJoined', attempt.id, key, 'ALLOW', {
-          entryId: created.id,
-          courseCode: course.code,
-          position,
-        });
+        await this.audit(
+          db,
+          auth,
+          'CourseWaitlistJoined',
+          attempt.id,
+          key,
+          'ALLOW',
+          {
+            entryId: created.id,
+            courseCode: course.code,
+            position,
+          },
+        );
         return {
-          body: { id: created.id, position: created.position, status: created.status },
+          body: {
+            id: created.id,
+            position: created.position,
+            status: created.status,
+          },
         };
       },
     );
@@ -1889,10 +2179,9 @@ export class RegistrationService {
             409,
           );
         }
-        const registration =
-          await db.institutionalRegistration.findFirst({
-            where: { attemptId: entry.attemptId, periodId: entry.periodId },
-          });
+        const registration = await db.institutionalRegistration.findFirst({
+          where: { attemptId: entry.attemptId, periodId: entry.periodId },
+        });
         if (!registration) {
           this.fail(
             'NO_REGISTRATION',

@@ -46,3 +46,15 @@ export const ASSESSMENT_DEMO_V1 = {
   componentStates: ["DRAFT", "APPROVED", "CLOSED", "SUPERSEDED"],
   mappingStates: ["DRAFT", "TESTED", "ACTIVE", "SUPERSEDED"],
 } as const;
+
+/** Fictional result-publication profile; explicit opt-in and isolated DB
+ * checks are enforced by the assessment provider, not by this constant. */
+export const RESULT_PUBLICATION_DEMO_V1 = {
+  version: "RESULT-PUBLICATION-DEMO-v1",
+  periodCode: "DEMO-2026S1",
+  courseCodePrefix: "RESULT-DEMO-",
+  releaseAt: "2025-12-31T22:00:00.000Z", // 2026-01-01 00:00 Africa/Lusaka
+  showMarks: true,
+  reviewInstructions:
+    "For this fictional result, contact the demo examinations office to request a review.",
+} as const;

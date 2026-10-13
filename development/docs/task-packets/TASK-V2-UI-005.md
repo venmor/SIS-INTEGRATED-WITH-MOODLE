@@ -1,0 +1,7 @@
+# TASK-V2-UI-005 — Workspace shell and navigation structure
+
+- Release: v2.0 Task 7. Lead Charles Hangoma; reviewer Chitundu Milimbo. Human visual and accessibility acceptance remains pending.
+- Authority: user interface direction (2026-10-04); Section 19 Part 1 UI constitution; Section 12 portals and shared navigation; exact cross-blueprint Part 2A; approved v2.0 spec §3.3; ADR-003. No institutional policy or role authority is created here.
+- Scope: define the stable sidebar, top bar, active context, main workspace, account/help position, responsive navigation, and route manifest for staff, student and applicant surfaces. Keep existing working destinations reachable. Reserve future destinations in the architecture and design documentation, without presenting inactive links as live functions.
+- Out of scope: global search, notification counts, new role grants, academic-period selection, configurable institution branding, new backend endpoints, and feature-flag governance. These require source-owned data and separate task packets.
+- Acceptance: staff navigation remains persistent on desktop and collapses on mobile; applicant/student navigation stays focused at the top; all surfaces have one clear main region, visible workspace identity, current route state, and reachable account/workspace controls. Staff sees only destinations relevant to the active role. No placeholder implies that an unavailable task works. Keyboard navigation, 390px no-overflow, reduced motion, and existing role journeys must pass.

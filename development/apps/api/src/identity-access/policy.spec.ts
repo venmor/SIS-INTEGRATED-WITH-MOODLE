@@ -85,6 +85,16 @@ describe('policy evaluation (§15.21)', () => {
   });
 });
 
+describe('timetable own-session policy', () => {
+  it.each(['DOMAIN_ADMIN', 'TIMETABLE_COORDINATOR'])('allows %s to read and switch its live workspaces without granting IAM administration', (role) => {
+    const actor = { activeRole: role, assignmentLive: true, actorRoles: [role] };
+    expect(evaluatePolicy({ ...actor, action: 'iam.workspace.switch' }).allow).toBe(true);
+    expect(evaluatePolicy({ ...actor, action: 'iam.me.read' }).allow).toBe(true);
+    expect(evaluatePolicy({ ...actor, action: 'iam.grant.create' }).allow).toBe(false);
+    expect(evaluatePolicy({ ...actor, action: 'iam.workspace.switch', assignmentLive: false }).allow).toBe(false);
+  });
+});
+
 describe('account status gate (§11.1)', () => {
   it('authorizes Active normally', () => {
     expect(accountStatusPolicy('Active')).toEqual({ allow: true, reason: null });

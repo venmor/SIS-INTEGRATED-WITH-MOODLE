@@ -191,7 +191,10 @@ test("board packages: assemble to approve-for-release", async ({ page }) => {
   await signIn(page, lecturer.username, lecturer.password, base);
   await page.goto("/admin/assessment/packages");
   await expect(
-    page.locator("main").getByRole("heading", { name: "Board packages" }).first(),
+    page
+      .locator("main")
+      .getByRole("heading", { name: "Board packages" })
+      .first(),
   ).toBeVisible();
   await page
     .getByLabel(/I confirm that the approved results, moderation outcomes/)
@@ -202,9 +205,7 @@ test("board packages: assemble to approve-for-release", async ({ page }) => {
   await assembleButton.focus();
   await expect(assembleButton).toBeFocused();
   await assembleButton.click();
-  await expect(
-    page.getByText(/Result package assembled/),
-  ).toBeVisible();
+  await expect(page.getByText(/Result package assembled/)).toBeVisible();
   await noOverflow(page);
 
   // Open the frozen package: hash, declaration and weighted preview.
@@ -227,15 +228,24 @@ test("board packages: assemble to approve-for-release", async ({ page }) => {
   // no release exists in this slice.
   await signIn(page, officer.username, officer.password, base);
   await page.goto(`/admin/assessment/packages/${packageId}`);
-  await page.getByLabel("Board decision", { exact: true }).selectOption("APPROVE_FOR_RELEASE");
+  await page
+    .getByLabel("Board decision", { exact: true })
+    .selectOption("APPROVE_FOR_RELEASE");
   const decideButton = page.getByRole("button", {
     name: "Record board decision",
   });
   await decideButton.focus();
   await expect(decideButton).toBeFocused();
+  const decision = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/assessment/packages/${packageId}/decide`) &&
+      response.request().method() === "POST",
+  );
   await decideButton.click();
+  expect((await decision).ok()).toBe(true);
+  await page.reload();
   await expect(
-    page.getByText(/approved for release/i).first(),
+    page.getByText("Decision recorded", { exact: true }),
   ).toBeVisible();
   await expect(page.locator("main")).toContainText("APPROVED_FOR_RELEASE");
   await noOverflow(page);

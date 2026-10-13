@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
+import type { ConnectionView } from "@sis/contracts";
+import { WriteReadinessNotice } from "../../moodle/write-readiness";
 import { ReconForms } from "./forms";
 import styles from "../../../page.module.css";
 
@@ -45,9 +47,10 @@ interface ReconRun {
 // projections. Safe diffs repair by requeue; the rest open governed
 // cases. Closure needs delivery confirmation or a linked domain action.
 export default async function ReconciliationPage() {
-  const [runs, cases] = await Promise.all([
+  const [runs, cases, health] = await Promise.all([
     loadStaff<{ items: ReconRun[] }>("/reconciliation/runs"),
     loadStaff<{ items: ReconCase[] }>("/reconciliation/cases"),
+    loadStaff<ConnectionView>("/health"),
   ]);
   if (!runs.ok || !cases.ok)
     return (
@@ -73,7 +76,8 @@ export default async function ReconciliationPage() {
           <Link href="/admin/integration">Integration support</Link> ·{" "}
           <Link href="/admin/moodle">Moodle administration</Link>
         </p>
-        <ReconForms />
+        <WriteReadinessNotice readiness={health.ok ? health.data.writeReadiness : undefined} />
+        <ReconForms readiness={health.ok ? health.data.writeReadiness : undefined} />
         <h2>Runs</h2>
         {runs.data.items.length === 0 ? (
           <p>No reconciliation runs yet.</p>

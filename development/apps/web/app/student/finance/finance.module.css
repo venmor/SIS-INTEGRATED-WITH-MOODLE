@@ -33,3 +33,35 @@
 .receipts p {
   margin: 0 0 var(--space-1);
 }
+.periodPicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.periodPicker label {
+  font-weight: 650;
+}
+.periodPicker select {
+  min-height: 2.75rem;
+  min-width: min(16rem, 100%);
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.periodPicker button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--green-500);
+  border-radius: var(--radius-sm);
+  background: var(--green-500);
+  color: var(--white);
+  font-weight: 650;
+  cursor: pointer;
+}

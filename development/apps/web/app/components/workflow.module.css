@@ -1,0 +1,283 @@
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.steps a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.5rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+}
+.steps a:hover {
+  border-color: var(--green-700);
+  color: var(--green-800);
+}
+.steps a[aria-current="step"] {
+  background: var(--green-50);
+  color: var(--green-800);
+  border-color: var(--green-700);
+}
+.stepNumber {
+  display: grid;
+  place-items: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-supporting);
+}
+.table caption {
+  text-align: left;
+  padding-bottom: var(--space-3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.table thead th {
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+.table tbody tr + tr > * {
+  border-top: 1px solid var(--border);
+}
+.table tbody th {
+  color: var(--green-800);
+}
+.panel {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.panel h2 {
+  font-size: var(--font-section);
+}
+.panelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.meta {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  line-height: var(--line-body);
+}
+.conditionGrid {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.condition {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.condition h2 {
+  font-size: var(--font-body);
+}
+.condition dl {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--font-supporting);
+}
+.condition dt {
+  color: var(--text-secondary);
+}
+.condition dd {
+  margin: 0;
+  line-height: var(--line-body);
+}
+.condition details {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+.condition summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  font-weight: var(--weight-semibold);
+  color: var(--link);
+}
+.condition summary:focus-visible {
+  outline: 2px solid var(--blue-700);
+  outline-offset: 2px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--green-700);
+  border-radius: var(--radius-md);
+  background: var(--green-700);
+  color: var(--white);
+  text-decoration: none;
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+.action:hover {
+  background: var(--green-800);
+  color: var(--white);
+}
+.action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.secondary {
+  background: var(--bg-surface);
+  color: var(--green-800);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.toolbar label {
+  display: grid;
+  gap: var(--space-2);
+  flex: 1 1 12rem;
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+}
+.toolbar input,
+.toolbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gray-400);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+.toolbar input:focus-visible,
+.toolbar select:focus-visible {
+  outline: 2px solid var(--blue-700);
+  outline-offset: 2px;
+}
+.check {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+.check input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--green-700);
+  flex-shrink: 0;
+}
+.declarations {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+}
+.declarations legend {
+  padding-inline: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+@media (max-width: 44rem) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .steps a {
+    min-height: 2.75rem;
+  }
+  .conditionGrid {
+    grid-template-columns: 1fr;
+  }
+  .table,
+  .table tbody,
+  .table tr,
+  .table tbody th,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .table tbody tr {
+    padding: var(--space-3);
+  }
+  .table tbody th,
+  .table td {
+    padding: var(--space-2);
+  }
+  .table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-bottom: var(--space-1);
+  }
+  .table tbody tr + tr {
+    border-top: 1px solid var(--border);
+  }
+  .table tbody tr + tr > * {
+    border-top: 0;
+  }
+}

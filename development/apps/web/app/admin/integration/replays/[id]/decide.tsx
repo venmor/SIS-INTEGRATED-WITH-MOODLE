@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { MoodleWriteReadiness } from "@sis/contracts";
+import { notProvisionedMessage } from "../../../../../lib/moodle-status";
+import { WaitingForMoodle } from "../../../moodle/write-readiness";
 
 interface FieldError {
   fieldId: string;
@@ -35,17 +38,20 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 // UI-DECISION-001 replay decision page logic: the signatory sees the
 // frozen evidence version, gives a reason, and signs with the exact
 // declaration. Approvals never overwrite; declines need reasons.
-export function ReplayDecideForm({ replayId }: { replayId: string }) {
+export function ReplayDecideForm({ replayId, readiness }: { replayId: string; readiness?: MoodleWriteReadiness }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const disabled = readiness?.outcome !== "SIMULATOR_READY";
 
   async function submit(form: HTMLFormElement, approve: boolean) {
-    if (pending) return;
+    if (pending || disabled) return;
     setPending(true);
     setErrors([]);
     setNotice(null);
+    setDeferred(null);
     try {
       const data = new FormData(form);
       const out = (await postIntegration(`/replays/${replayId}/decide`, {
@@ -53,6 +59,11 @@ export function ReplayDecideForm({ replayId }: { replayId: string }) {
         note: String(data.get("decide-note") ?? "") || undefined,
         idempotencyKey: crypto.randomUUID(),
       })) as { status?: string };
+      const waiting = notProvisionedMessage(out);
+      if (waiting) {
+        setDeferred(waiting);
+        return;
+      }
       setNotice(`Replay decided (${out.status ?? "unknown"}).`);
       router.refresh();
     } catch (error) {
@@ -72,6 +83,7 @@ export function ReplayDecideForm({ replayId }: { replayId: string }) {
 
   return (
     <>
+      <WaitingForMoodle message={deferred} />
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
@@ -93,10 +105,10 @@ export function ReplayDecideForm({ replayId }: { replayId: string }) {
           <textarea id="decide-note" name="decide-note" rows={3} maxLength={2000} />
         </p>
         <p>
-          <button type="submit" name="decision" value="approve" disabled={pending}>
+          <button type="submit" name="decision" value="approve" disabled={pending || disabled}>
             {pending ? "Deciding…" : "Approve replay"}
           </button>{" "}
-          <button type="submit" name="decision" value="decline" disabled={pending}>
+          <button type="submit" name="decision" value="decline" disabled={pending || disabled}>
             Decline replay
           </button>
         </p>

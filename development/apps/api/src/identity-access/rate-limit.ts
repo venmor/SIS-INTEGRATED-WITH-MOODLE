@@ -78,6 +78,19 @@ export class RateLimiter {
     return SECURITY_V1.rateLimits.workspaceSwitch;
   }
 
+  // Task 1.2: Contact verification, MFA, Step-up
+  static contactVerificationLimit() {
+    return SECURITY_V1.rateLimits.contactVerification;
+  }
+
+  static mfaEnrollmentLimit() {
+    return SECURITY_V1.rateLimits.mfaEnrollment;
+  }
+
+  static stepUpLimit() {
+    return SECURITY_V1.rateLimits.stepUp;
+  }
+
   /** Progressive delay before auth failure responses (caps at 5s). */
   static failureDelayMs(failures: number): number {
     return Math.min(Math.max(failures, 1), 5) * 1000;

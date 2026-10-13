@@ -1,0 +1,15 @@
+# Registration review correction — 12 October 2026
+
+The reported review allowed an unsaved plan (version zero) to reach formal submission. A saved plan containing unmet prerequisites and a full course also offered declarations and submission. The correction hides formal submission for unsaved, empty, non-draft, blocked, approval-required or out-of-band plans. It shows all known reasons and a same-context course-planning action. All declarations must be selected; the genuine reviewed version is sent unchanged. Backend checks remain authoritative; no grades, capacity, eligibility or policies were changed.
+
+Academic query parsing rejects duplicate or malformed attempt/period values. Review, course planning, readiness, timetable registration links and academic navigation retain the selected context; draft saves and formal submissions send that same context. Registration receipts link to the matching timetable. Non-academic workspaces retain their separate filters.
+
+An uncertain response freezes one submission payload and reference in browser session storage, scoped by a one-way hash of the authenticated session and academic context. It stores no password or session token. A status check precedes an exact same-command retry; a successful status receipt resolves a lost response. Submission/navigation protection remains active while pending or uncertain, including reload recovery. These browser checks do not prove provider or institutional acceptance.
+
+## Evidence and boundaries
+
+An actual Next page with a bounded loopback fixture first reproduced the empty-plan failure. The repaired nine-case browser suite passed: empty plan, prerequisite/capacity blocks, academic approval, excessive load, declarations/exact version/context, failed status read, uncertain retry, lost successful response, and reload recovery. Two pure context parsing/navigation checks passed. Evidence is retained under ignored `.superpowers/sdd/2026-10-12-registration-review/`; the web production build and full web TypeScript check also passed. Scoped registration UI lint passed. The unchanged API unit suite passed 483 tests, with 13 skipped. The tiny same-command-refusal retention hardening was included in the final source TypeScript/lint checks; the integration build verifies the exact release snapshot.
+
+**REG-001 remains open.** The generic timetable still defaults to the configured period when no context is supplied. A bounded own-context inventory, an explicit selector and sole-confirmed-registration discovery are planned in [the task packet](../task-packets/TASK-V2-REG-001.md), but are not implemented or claimed by this bounded repair. Draft inventory/connected-navigation test files are excluded from the release until their implementation is ready. Existing readiness also contains earlier-phase placeholder selection conditions; it is not used to invent eligibility or reject all otherwise valid submissions.
+
+Human lead: Charles Hangoma. Reviewer: Chitindu Milimbo. Human review and operational acceptance pending.

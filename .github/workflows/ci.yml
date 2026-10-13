@@ -25,6 +25,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ci_review
       DEMO_MODE: "true"
+      # Explicit simulator fixture only; never a provider or deployment secret.
+      FIN_SIM_SECRET: ci-finance-simulator-fixture-only
+      SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true"
       APPLICATION_SCANNER: demo-fixtures
       API_INTERNAL_URL: http://127.0.0.1:3101
       PORT: "3101"
@@ -42,11 +45,19 @@ jobs:
         run: npm run build --workspace=apps/api
       - run: npm run scan && npm run test:scripts
       - run: npm run lint
-      - run: npm test
       - run: npx prisma validate && npx prisma migrate deploy
       - run: ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
-      - run: npm run test:e2e --workspace=apps/api -- --exclude '**/applications.e2e-spec.ts' --exclude '**/config-versions.e2e-spec.ts' --no-file-parallelism
-      - run: npm run test:e2e --workspace=apps/api -- applications.e2e-spec.ts config-versions.e2e-spec.ts --no-file-parallelism
+      - run: node scripts/prepare-test-offerings.mjs
+      - run: npm test
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install --no-install-recommends -y postgresql-client-18
+      - name: Run connected suites against independent baseline clones
+        run: node scripts/isolated-e2e.mjs
+        env:
+          CI_BACKUP_REHEARSAL: "true"
       - run: npm run build
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
@@ -54,18 +65,15 @@ jobs:
         run: |
           PGPASSWORD=ci psql -h localhost -U ci -d postgres -c 'CREATE DATABASE sis_browser_review'
           DATABASE_URL=postgresql://ci:ci@localhost:5432/sis_browser_review npx prisma migrate deploy
-          DATABASE_URL=postgresql://ci:ci@localhost:5432/sis_browser_review ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
+          DATABASE_URL=postgresql://ci:ci@localhost:5432/sis_browser_review SIS_ENABLE_INSTITUTION_DEMO_SETUP=true ALLOW_DEMO_SEED=true node prisma/seed/seed.ts
       - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_browser_review
-      # Slice PH8-007: backup/restore rehearsal on the fully seeded +
-      # suite-populated database (full-data drill incl. finance and
-      # assessment rows). Needs pg_dump/psql matching the server major.
-      - name: Install PostgreSQL 18 client tools
-        run: |
-          sudo apt-get install -y postgresql-common
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install --no-install-recommends -y postgresql-client-18
+          SIS_ENABLE_INSTITUTION_DEMO_SETUP: "true"
+      - name: Verify isolated Moodle deferral rendering
+        run: npx playwright test --config=tests/browser/moodle-live-deferral.config.ts
+      # Populated finance and assessment clones were rehearsed before cleanup.
+      # Also verify the clean seeded baseline independently.
       - name: Backup/restore rehearsal on the seeded database
         run: npm run backup:test
       - uses: actions/upload-artifact@v4

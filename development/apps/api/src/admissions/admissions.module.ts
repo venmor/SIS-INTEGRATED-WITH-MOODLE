@@ -11,6 +11,8 @@ import { ApplicationsService } from './applications.service.js';
 import { ApplicationCaseService } from './case.service.js';
 import { ReviewService } from './review.service.js';
 import { DocumentScanner } from './scanner.js';
+import { PdfSecurityService } from './pdf-security.service.js';
+import { ObjectStorageService } from './object-storage.service.js';
 @Module({
   imports: [IdentityAccessModule],
   controllers: [
@@ -23,8 +25,11 @@ import { DocumentScanner } from './scanner.js';
     ApplicationCaseService,
     ReviewService,
     DocumentScanner,
+    PdfSecurityService,
+    ObjectStorageService,
     ApplicationRateGuard,
     UploadQuotaGuard,
   ],
+  exports: [ObjectStorageService],
 })
 export class AdmissionsModule {}

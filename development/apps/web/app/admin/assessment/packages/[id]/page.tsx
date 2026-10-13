@@ -1,31 +1,24 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type {
-  AmendmentCaseDetailView,
-  AmendmentCaseView,
   EntityTimelineResponse,
-  ReleaseView,
   ResultPackageDetailView,
 } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
-import {
-  BoardDecisionForm,
-  DecideAmendmentForm,
-  ReleaseResultsForm,
-  RequestAmendmentForm,
-} from "../forms";
+import { BoardDecisionForm } from "../forms";
 import styles from "../../../../page.module.css";
 
 export const dynamic = "force-dynamic";
 
 async function loadStaff<T>(
   path: string,
+  domain = "assessment",
 ): Promise<{ ok: true; data: T } | { ok: false; status: number }> {
   const sid = (await cookies()).get("sid")?.value;
   if (!sid) return { ok: false, status: 401 };
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
-    const res = await fetch(`${api}/assessment${path}`, {
+    const res = await fetch(`${api}/${domain}${path}`, {
       headers: { cookie: `sid=${sid}` },
       cache: "no-store",
     });
@@ -58,11 +51,19 @@ export default async function BoardPackagePage({
             severity="warning"
             title="Package unavailable"
             message="This package needs board-package authority, or it does not exist in your workspace."
-            action={{ label: "Board packages", href: "/admin/assessment/packages" }}
+            action={{
+              label: "Board packages",
+              href: "/admin/assessment/packages",
+            }}
           />
         </main>
       </div>
     );
+  // Timeline disclosure is checked independently by the existing scoped API.
+  const history = await loadStaff<EntityTimelineResponse>(
+    `/audit/timeline/entity/result-package/${id}`,
+    "auth",
+  );
   const item = res.data;
   const trace = (item.trace ?? {}) as {
     formulaVersion?: string;
@@ -89,10 +90,7 @@ export default async function BoardPackagePage({
           <dd>
             <StatusChip
               tone={
-                item.status === "RELEASED" ||
-                item.status === "APPROVED_FOR_RELEASE"
-                  ? "success"
-                  : "attention"
+                item.status === "APPROVED_FOR_RELEASE" ? "success" : "attention"
               }
             >
               {item.status}
@@ -131,175 +129,48 @@ export default async function BoardPackagePage({
             ))}
           </ul>
         )}
+        <p>
+          <Link href={`/admin/assessment/packages/${item.id}/release`}>
+            Review official release
+          </Link>
+        </p>
+        <section aria-labelledby="package-history-heading">
+          <h2 id="package-history-heading">History</h2>
+          <p>Up to 100 latest events, newest first.</p>
+          {!history.ok ? (
+            <Notice
+              severity="warning"
+              title="History unavailable"
+              message="Package history could not be checked. Refresh to try again, or contact the responsible examinations office."
+            />
+          ) : history.data.items.length === 0 ? (
+            <p>No history recorded yet.</p>
+          ) : (
+            <ol>
+              {history.data.items.map((event, index) => (
+                <li key={`${event.source}-${event.occurredAt}-${index}`}>
+                  <p>{event.summary}</p>
+                  <p>
+                    <time dateTime={event.occurredAt}>{event.occurredAt}</time>
+                    {event.actorRole ? ` · ${event.actorRole}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
         <h2>Record board decision</h2>
         <p>
-          Only the examinations authority records board decisions, and never
-          for a package it prepared. Approval for release never publishes to
-          students by itself; publishing happens only through the official
-          release below.
+          Only the examinations authority records board decisions, and never for
+          a package it prepared. Approval for release never publishes to
+          students; publication is a separate authorized action.
         </p>
         <BoardDecisionForm
           packageId={item.id}
           version={item.version}
           decided={decided}
         />
-        <h2>Official release</h2>
-        {item.status === "RELEASED" ? (
-          <ReleaseSummary packageId={item.id} />
-        ) : item.status === "APPROVED_FOR_RELEASE" ? (
-          <>
-            <p>
-              Only the examinations authority releases approved packages.
-              Release publishes immutable official results; students see
-              only their own. Delivery failure never rolls back the
-              release.
-            </p>
-            <ReleaseResultsForm packageId={item.id} />
-          </>
-        ) : (
-          <p>
-            Release unlocks once the board approves this package for
-            release. Nothing is published to students before then.
-          </p>
-        )}
-        <h2>Result amendments</h2>
-        {item.status === "RELEASED" ? (
-          <AmendmentSection packageId={item.id} />
-        ) : (
-          <p>
-            Amendments open once this package is released. Corrections to
-            released results create new audited versions; history is never
-            overwritten.
-          </p>
-        )}
-        <h2>History</h2>
-        <PackageHistory packageId={item.id} />
       </main>
     </div>
-  );
-}
-
-// Cross-domain history (TASK-PH8-002): every source the caller may
-// already read — audit rows, board decisions, official versions —
-// newest first. Same allow-lists as the direct endpoints, joined.
-async function PackageHistory({ packageId }: { packageId: string }) {
-  const sid = (await cookies()).get("sid")?.value;
-  if (!sid) return null;
-  const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
-  let timeline: EntityTimelineResponse | null = null;
-  try {
-    const res = await fetch(
-      `${api}/auth/audit/timeline/entity/result-package/${packageId}?take=100`,
-      {
-        headers: { cookie: `sid=${encodeURIComponent(sid)}` },
-        cache: "no-store",
-      },
-    );
-    if (res.ok) timeline = (await res.json()) as EntityTimelineResponse;
-  } catch {
-    timeline = null;
-  }
-  if (!timeline || timeline.items.length === 0)
-    return <p>No history recorded for this package yet.</p>;
-  return (
-    <ul>
-      {timeline.items.map((entry, index) => (
-        <li key={`${entry.source}-${entry.occurredAt}-${index}`}>
-          {entry.summary} ({entry.source},{" "}
-          {entry.occurredAt.slice(0, 10)})
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-async function ReleaseSummary({ packageId }: { packageId: string }) {
-  const res = await loadStaff<ReleaseView>(`/releases/${packageId}`);
-  if (!res.ok) return null;
-  const release = res.data;
-  return (
-    <dl>
-      <dt>Release status</dt>
-      <dd>
-        <StatusChip tone="success">{release.status}</StatusChip>
-      </dd>
-      <dt>Students published</dt>
-      <dd>{release.studentCount}</dd>
-      <dt>Release hash</dt>
-      <dd>{release.releaseHash}</dd>
-      <dt>Published</dt>
-      <dd>{release.publishedAt}</dd>
-    </dl>
-  );
-}
-
-// Amendment history (TASK-PH7-007): controlled post-release cases on
-// this package. Requesters open cases with reason + evidence +
-// corrected total; the examinations authority approves (new official
-// version + progression-recalculation task) or declines with reason.
-async function AmendmentSection({ packageId }: { packageId: string }) {
-  const res = await loadStaff<{ items: AmendmentCaseView[] }>(
-    `/amendments?packageId=${packageId}`,
-  );
-  const items = res.ok ? res.data.items : [];
-  return (
-    <>
-      <p>
-        Only released results are amended, and only through a case:
-        approval publishes a new immutable official version and queues
-        a progression-recalculation task. The original stays in
-        history. Escalations and deadline signals for your scope live
-        in the <Link href="/admin/notifications">staff signals queue</Link>.
-      </p>
-      <h3>Request amendment</h3>
-      <RequestAmendmentForm packageId={packageId} />
-      <h3>Amendment cases</h3>
-      {items.length === 0 ? (
-        <p>No amendment cases for this package yet.</p>
-      ) : (
-        <ul>
-          {items.map((c) => (
-            <li key={c.id}>
-              <AmendmentCaseRow item={c} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
-}
-
-async function AmendmentCaseRow({ item }: { item: AmendmentCaseView }) {
-  const res = await loadStaff<AmendmentCaseDetailView>(
-    `/amendments/${item.id}`,
-  );
-  const decided = item.status !== "OPEN";
-  const impacts = res.ok ? res.data.impacts : [];
-  return (
-    <>
-      <p>
-        <strong>
-          {item.studentRef} · {item.status}
-        </strong>{" "}
-        <StatusChip tone={item.status === "APPROVED" ? "success" : "info"}>
-          {item.status}
-        </StatusChip>
-      </p>
-      <p>
-        Corrected total {item.correctedTotal} ({item.correctedOutcome}) —
-        requested {item.createdAt.slice(0, 10)}: {item.reason}
-      </p>
-      {impacts.length > 0 ? (
-        <p>
-          Impact tasks:{" "}
-          {impacts.map((t) => `${t.kind} ${t.status}`).join(", ")}
-        </p>
-      ) : null}
-      <DecideAmendmentForm
-        caseId={item.id}
-        version={item.version}
-        decided={decided}
-      />
-    </>
   );
 }

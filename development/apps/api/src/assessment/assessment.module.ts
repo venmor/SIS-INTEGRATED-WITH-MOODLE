@@ -1,13 +1,16 @@
+import { PublicationController } from './publication.controller.js';
+import { PublicationService } from './publication.service.js';
+import { publicationProviders } from './publication-ports.js';
 import { Module } from '@nestjs/common';
 import { IdentityAccessModule } from '../identity-access/identity-access.module.js';
-import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AssessmentController } from './assessment.controller.js';
 import { AssessmentService } from './assessment.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [IdentityAccessModule, NotificationsModule],
-  controllers: [AssessmentController],
-  providers: [AssessmentService],
+  controllers: [AssessmentController, PublicationController],
+  providers: [AssessmentService, PublicationService, ...publicationProviders],
   exports: [AssessmentService],
 })
 export class AssessmentModule {}

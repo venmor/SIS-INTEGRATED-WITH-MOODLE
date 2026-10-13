@@ -12,6 +12,7 @@ interface FieldError {
 }
 
 export interface PayInitial {
+  period: string;
   outstandingMinor: number;
   currency: string;
   dueAt: string | null;
@@ -45,8 +46,9 @@ async function postFinance(path: string, body: unknown): Promise<unknown> {
 
 function errorText(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as { detail?: { supportReference?: string; reference?: string } })
-      .detail;
+    const detail = (
+      error as { detail?: { supportReference?: string; reference?: string } }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}${detail?.reference ? ` Existing request: ${detail.reference}.` : ""}`;
   }
   return "We could not confirm the result. Check your payment requests before retrying.";
@@ -71,11 +73,13 @@ export function PayForms({ initial }: { initial: PayInitial }) {
       const body =
         kind === "initiate"
           ? {
+              period: initial.period,
               amountMinor: Number(data.get("pay-amount") ?? 0),
               method: String(data.get("pay-method") ?? ""),
               idempotencyKey: crypto.randomUUID(),
             }
           : {
+              period: initial.period,
               amountMinor: Number(data.get("report-amount") ?? 0),
               method: String(data.get("report-method") ?? ""),
               payerReference: String(data.get("report-reference") ?? ""),
@@ -125,11 +129,11 @@ export function PayForms({ initial }: { initial: PayInitial }) {
       <p className={styles.muted}>
         Amount due: {formatMinor(initial.currency, initial.outstandingMinor)}
         {initial.dueAt ? ` · Deadline ${initial.dueAt}` : ""}. Paying the full
-        amount meets the current registration payment requirement once
-        Finance confirms and reconciles it. A smaller amount reduces your
-        balance but will not complete clearance without an approved
-        arrangement. This is a labelled demonstration simulator: no real
-        money moves and no card details are entered here.
+        amount meets the current registration payment requirement once Finance
+        confirms and reconciles it. A smaller amount reduces your balance but
+        will not complete clearance without an approved arrangement. This is a
+        labelled demonstration simulator: no real money moves and no card
+        details are entered here.
       </p>
       <form
         aria-label="Initiate a simulated payment"
@@ -174,8 +178,8 @@ export function PayForms({ initial }: { initial: PayInitial }) {
       </form>
       <h2>Report a bank or cashier payment</h2>
       <p className={styles.muted}>
-        Reporting is not paying: Finance matches your reference before
-        anything is confirmed.
+        Reporting is not paying: Finance matches your reference before anything
+        is confirmed.
       </p>
       <form
         aria-label="Report an offline payment"

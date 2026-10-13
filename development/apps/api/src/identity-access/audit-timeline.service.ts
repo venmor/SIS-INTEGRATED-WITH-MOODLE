@@ -177,6 +177,7 @@ export class AuditTimelineService {
   ) {
     const application = await this.prisma.application.findUnique({
       where: { id },
+      include: { offering: true },
     });
     if (!application) {
       await this.denyEntityRead(actor, id, 'timeline-foreign-application');
@@ -196,7 +197,15 @@ export class AuditTimelineService {
         'ADMISSIONS_APPROVER',
         'decide-offer',
       );
-      staff = !!(officer || approver);
+      const grant = actor.activeRole === 'ADMISSIONS_OFFICER' ? officer
+        : actor.activeRole === 'ADMISSIONS_APPROVER' ? approver : null;
+      const inScope = grant?.scopeType === 'INTAKE' && !!grant.scopeRef
+        && application.offering.intake.startsWith(grant.scopeRef);
+      staff = !!inScope && (actor.activeRole === 'ADMISSIONS_APPROVER' || !!(
+        await this.prisma.reviewAssignment.findFirst({ where: {
+          applicationId: id, assigneeAccountId: actor.accountId, status: 'CLAIMED',
+        } })
+      ));
       if (!staff) {
         await this.denyEntityRead(actor, id, 'timeline-foreign-application');
         this.neutralNotFound();
@@ -275,25 +284,20 @@ export class AuditTimelineService {
       await this.denyEntityRead(actor, id, 'timeline-foreign-package');
       this.neutralNotFound();
     }
-    const candidates: Array<[string, string]> = [
-      ['LEC', 'stage-marks'],
-      ['COORDINATOR', 'approve-assessment'],
-      ['EXAMINATIONS_OFFICER', 'validate-results'],
-      ['MODERATOR', 'moderate-results'],
-      ['MOODLE_ADMIN', 'manage-mapping'],
-    ];
-    let staff = false;
-    for (const [role, capability] of candidates) {
-      const assignment = await this.liveRoleAssignment(
-        actor,
-        role,
-        capability,
-      );
-      if (assignment && actor.activeRole === role) {
-        staff = true;
-        break;
-      }
-    }
+    // Match AssessmentService.packageScope: technical roles cannot inspect
+    // academic evidence, and school coordinators can inspect only own packages
+    // until an authoritative school-to-offering mapping exists.
+    const role = actor.activeRole;
+    const capability = role === 'LEC' ? 'stage-marks'
+      : role === 'EXAMINATIONS_OFFICER' ? 'validate-results'
+      : role === 'COORDINATOR' ? 'approve-assessment' : null;
+    const grant = capability && role
+      ? await this.liveRoleAssignment(actor, role, capability) : null;
+    const staff = !!grant && (
+      (role === 'LEC' && grant.scopeType === 'OFFERING' && grant.scopeRef === pkg.offeringRef)
+      || (role === 'EXAMINATIONS_OFFICER' && grant.scopeType === 'PERIOD' && grant.scopeRef === pkg.periodCode)
+      || (role === 'COORDINATOR' && grant.scopeType === 'SCHOOL' && pkg.preparedByAccountId === actor.accountId)
+    );
     if (!staff) {
       await this.denyEntityRead(actor, id, 'timeline-foreign-package');
       this.neutralNotFound();
@@ -323,8 +327,8 @@ export class AuditTimelineService {
         orderBy: { decidedAt: 'desc' },
         take: 100,
       }),
-      this.prisma.officialCourseResult.findMany({
-        where: { packageId: id },
+      this.prisma.officialResultVersion.findMany({
+        where: { release: { packageId: id } },
         orderBy: { publishedAt: 'desc' },
         take: 100,
       }),
@@ -346,7 +350,7 @@ export class AuditTimelineService {
         source: 'OFFICIAL_RESULT',
         occurredAt: r.publishedAt.toISOString(),
         actorRole: null as string | null,
-        summary: `Official result v${r.version}: ${r.total} ${r.outcome}`,
+        summary: `Official result v${r.version}: ${r.mark} ${r.outcome}`,
       })),
     ]
       .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1))

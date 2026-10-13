@@ -1,3 +1,4 @@
+import { RegistrationContextsService } from './registration-contexts.service.js';
 import {
   Controller,
   Body,
@@ -16,6 +17,7 @@ import { ApplicationRateGuard } from '../admissions/applications.controller.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { RegistrationService } from './registration.service.js';
 import {
+  RegistrationContextsQuery,
   AcceptWaitlistDto,
   AmendmentQuery,
   ChangeRequestDto,
@@ -36,7 +38,17 @@ interface AuthRequest extends Request {
 @Controller('registration')
 @UseGuards(SessionGuard, ApplicationRateGuard)
 export class RegistrationController {
-  constructor(private readonly registration: RegistrationService) {}
+  constructor(
+    private readonly registration: RegistrationService,
+    private readonly contexts: RegistrationContextsService,
+  ) {}
+
+  @Get('contexts') ownedContexts(
+    @Req() r: AuthRequest,
+    @Query() q: RegistrationContextsQuery,
+  ) {
+    return this.contexts.list(r.auth, q.cursor);
+  }
 
   @Get('readiness') readiness(
     @Req() r: AuthRequest,
@@ -45,10 +57,7 @@ export class RegistrationController {
     return this.registration.readiness(r.auth, q.attemptId, q.period);
   }
 
-  @Get('plan') plan(
-    @Req() r: AuthRequest,
-    @Query() q: PlanQuery,
-  ) {
+  @Get('plan') plan(@Req() r: AuthRequest, @Query() q: PlanQuery) {
     return this.registration.getPlan(r.auth, q.attemptId, q.period);
   }
 
@@ -84,11 +93,7 @@ export class RegistrationController {
 
   @Get('status')
   status(@Req() r: AuthRequest, @Query() q: PlanQuery) {
-    return this.registration.registrationStatus(
-      r.auth,
-      q.attemptId,
-      q.period,
-    );
+    return this.registration.registrationStatus(r.auth, q.attemptId, q.period);
   }
 
   @Get('timetable')

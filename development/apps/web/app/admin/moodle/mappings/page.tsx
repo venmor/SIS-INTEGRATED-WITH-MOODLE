@@ -4,6 +4,8 @@ import type { ConnectionView, MappingView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { MappingForms } from "./forms";
 import { ConnectionValidate } from "./validate";
+import { WriteReadinessNotice } from "../write-readiness";
+import { moodleBackendLabel } from "../../../../lib/moodle-status";
 import styles from "../../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -59,8 +61,9 @@ export default async function MappingsPage() {
         <Notice
           severity={health.data.status === "HEALTHY" ? "success" : "warning"}
           title={`Connection ${health.data.status}`}
-          message={`Provider ${health.data.provider} · Backend ${(health.data as { backend?: string }).backend ?? "simulator"}. Health reports state only; credential values are never shown here.`}
+          message={`Provider ${health.data.provider} · ${moodleBackendLabel(health.data.backend)}. Health reports state only; credential values are never shown here.`}
         />
+        <WriteReadinessNotice readiness={health.data.writeReadiness} />
         <ConnectionValidate />
         <h2>Registry</h2>
         {list.data.items.length === 0 ? (
@@ -77,7 +80,7 @@ export default async function MappingsPage() {
             ))}
           </ul>
         )}
-        <MappingForms />
+        <MappingForms readiness={health.data.writeReadiness} />
       </main>
     </div>
   );

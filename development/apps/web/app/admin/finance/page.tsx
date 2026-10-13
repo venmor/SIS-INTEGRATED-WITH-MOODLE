@@ -36,12 +36,12 @@ interface WorkspaceCard {
 // live counts and one primary action each — not sentences in a list.
 // Every figure links to its queue; authority stays server-side.
 export default async function FinanceWorkspacePage() {
-  const [cases, adjustments, arrangements] = await Promise.all([
-    loadStaff<{ items: unknown[] }>("/cases"),
-    loadStaff<{ items: unknown[] }>("/adjustments"),
-    loadStaff<{ items: unknown[] }>("/arrangements"),
-  ]);
-  if (!cases.ok || !adjustments.ok || !arrangements.ok)
+  const summary = await loadStaff<{
+    reconciliationCases: number | null;
+    adjustments: number;
+    arrangements: number;
+  }>("/workspace-summary");
+  if (!summary.ok)
     return (
       <div className={styles.page}>
         <main className={styles.main}>
@@ -59,18 +59,22 @@ export default async function FinanceWorkspacePage() {
       </div>
     );
   const cards: Array<WorkspaceCard> = [
-    {
-      href: "/admin/finance/cases",
-      title: "Reconciliation queue",
-      count: cases.data.items.length,
-      countLabel: "open cases",
-      body: "Uncertain, duplicate and mismatch payments waiting for review.",
-      action: "Open queue",
-    },
+    ...(summary.data.reconciliationCases === null
+      ? []
+      : [
+          {
+            href: "/admin/finance/cases",
+            title: "Reconciliation queue",
+            count: summary.data.reconciliationCases,
+            countLabel: "open cases",
+            body: "Uncertain, duplicate and mismatch payments waiting for review.",
+            action: "Open queue",
+          },
+        ]),
     {
       href: "/admin/finance/adjustments",
       title: "Adjustments and refunds",
-      count: adjustments.data.items.length,
+      count: summary.data.adjustments,
       countLabel: "awaiting decision",
       body: "Maker/checker approvals for credits, waivers and refunds.",
       action: "Review requests",
@@ -78,27 +82,31 @@ export default async function FinanceWorkspacePage() {
     {
       href: "/admin/finance/arrangements",
       title: "Payment arrangements",
-      count: arrangements.data.items.length,
+      count: summary.data.arrangements,
       countLabel: "awaiting decision",
       body: "Student arrangement requests with terms and reasons.",
       action: "Review requests",
     },
-    {
-      href: "/admin/finance/sponsorships",
-      title: "Sponsorships",
-      count: null,
-      countLabel: "",
-      body: "Record and confirm sponsor coverage with evidence.",
-      action: "Manage sponsorships",
-    },
-    {
-      href: "/admin/finance/cashier",
-      title: "Cashier intake",
-      count: null,
-      countLabel: "",
-      body: "Record reported bank and cash payments, then confirm them.",
-      action: "Open cashier",
-    },
+    ...(summary.data.reconciliationCases === null
+      ? []
+      : [
+          {
+            href: "/admin/finance/sponsorships",
+            title: "Sponsorships",
+            count: null,
+            countLabel: "",
+            body: "Record and confirm sponsor coverage with evidence.",
+            action: "Manage sponsorships",
+          },
+          {
+            href: "/admin/finance/cashier",
+            title: "Cashier intake",
+            count: null,
+            countLabel: "",
+            body: "Record reported bank and cash payments, then confirm them.",
+            action: "Open cashier",
+          },
+        ]),
   ];
   return (
     <div className={styles.page}>

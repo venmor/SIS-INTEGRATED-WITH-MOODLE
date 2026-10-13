@@ -177,13 +177,13 @@ describe('Phase 7 Moodle grade staging snapshot', () => {
           campus: 'MAIN',
         },
       },
-      update: { availability: 'OPEN' },
+      update: { availability: 'CLOSED' },
       create: {
         programmeId: programme.id,
         intake: '2026S1',
         studyMode: 'FULLTIME',
         campus: 'MAIN',
-        availability: 'OPEN',
+        availability: 'CLOSED',
       },
     });
     // Distinct shell ref/id so this suite never mutates the shared Phase 6

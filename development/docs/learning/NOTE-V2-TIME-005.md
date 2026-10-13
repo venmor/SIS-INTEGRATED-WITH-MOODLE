@@ -1,0 +1,11 @@
+# V2 fictional teaching-window rule drafts — 2026-10-05
+
+Task: [TASK-V2-TIME-005](../task-packets/TASK-V2-TIME-005.md). Decision: [ADR-004](../adr/ADR-004-synthetic-timetable-planning-contract.md). Lead Charles Hangoma; reviewer Chitindu Milimbo; human acceptance pending.
+
+The earlier rule draft could bound room use and travel but not say which dates or hours are teachable. This slice adds a fictional academic-period reference, inclusive teaching dates, daily hours in Africa/Lusaka, selected weekdays and maximum session duration. The server validates calendar dates, ordered ranges, a bounded teaching span, distinct weekdays, daily hours and duration fitting inside the day. The schema migration is additive: older immutable versions remain readable and explicitly report `planningPolicyComplete=false`; no prior history is rewritten. New versions are saved under TIME-004's campus appointment, explicit demo switches, idempotency/version check and audit boundary. The staff screen edits these values without a seed reset.
+
+`toPlanningRules` accepts only a complete saved version. The deterministic conflict core now rejects occurrences outside that policy's local date/day/hour window or exceeding its duration. This makes the synthetic policy executable in the validation core, but does not yet create or publish a timetable.
+
+Verification: Prisma validation, isolated migration and client generation; API build and web typecheck/build; 14 timetable unit tests and 3 connected API tests; isolated production-mode browser at 390px signed in as the fictional scheduler, saw older version 1 marked incomplete, saved version 2 with `DEMO-2026-TEACHING`, and saw the period/window in history without horizontal overflow. No external data or dependency download was used. The existing 3100/3101 and 3150/3151 sessions stayed running.
+
+Remaining under ADR-004: linked session draft and whole-period master preview, course-filtered projection, explicit teacher/roster reconciliation, independent approval, atomic publication/revision and student timetable. GAP-V2-001 and GAP-021 remain open for institutional authority and live source policy. This is a completed fictional **policy-draft** slice, not timetable completion or operational acceptance.

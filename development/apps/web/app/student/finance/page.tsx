@@ -19,6 +19,17 @@ import { formatLusaka } from "../../../lib/time";
 import { formatMinor } from "../../../lib/money";
 import styles from "./finance.module.css";
 
+interface FinancePeriods {
+  source: "FINANCE_INVOICE";
+  asOf: string;
+  items: Array<{
+    code: string;
+    issuedAt: string;
+    dueAt: string | null;
+    status: string;
+  }>;
+}
+
 async function loadFinance<T>(
   path: string,
 ): Promise<{ data: T | null; message: string; missing: boolean }> {
@@ -58,14 +69,69 @@ async function loadFinance<T>(
 // Finance and clearance: summary with block-explanation, invoice and
 // statement as aligned tables, receipts list. Every figure carries
 // currency; the page formats, never calculates.
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const requested = (await searchParams).period;
+  const available = await loadFinance<FinancePeriods>("/periods");
+  if (!available.data) {
+    return (
+      <StudentUnavailable
+        message={
+          available.message ||
+          "Your finance periods are unavailable. Try again shortly."
+        }
+      />
+    );
+  }
+  if (available.data.items.length === 0) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Finance and clearance"
+          title="Finance and clearance"
+        />
+        <Notice
+          severity="info"
+          title="No invoice yet"
+          message="Finance has not issued an invoice to your account. Check again after registration or contact Student Finance."
+        />
+      </>
+    );
+  }
+  const selected = requested ?? available.data.items[0].code;
+  if (!available.data.items.some((item) => item.code === selected)) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Finance and clearance"
+          title="Finance and clearance"
+        />
+        <Notice
+          severity="warning"
+          title="Period not available"
+          message="This period has no invoice in your account. Choose a period from your own finance history."
+        />
+        <Link href="/student/finance">View latest invoice</Link>
+      </>
+    );
+  }
+  const query = `?period=${encodeURIComponent(selected)}`;
   const [account, invoice, statement, paymentList] = await Promise.all([
-    loadFinance<FinanceAccountView>("/account?period=2026S1"),
-    loadFinance<InvoiceView>("/invoices?period=2026S1"),
-    loadFinance<StatementView>("/statement?period=2026S1"),
-    loadFinance<{ items: Array<{ reference: string; status: string; amountMinor: number; currency: string; createdAt: string }> }>(
-      "/payments?period=2026S1",
-    ),
+    loadFinance<FinanceAccountView>(`/account${query}`),
+    loadFinance<InvoiceView>(`/invoices${query}`),
+    loadFinance<StatementView>(`/statement${query}`),
+    loadFinance<{
+      items: Array<{
+        reference: string;
+        status: string;
+        amountMinor: number;
+        currency: string;
+        createdAt: string;
+      }>;
+    }>(`/payments${query}`),
   ]);
   if (!account.data || !invoice.data || !statement.data) {
     const failed = [account, invoice, statement].find((r) => r.message);
@@ -104,6 +170,27 @@ export default async function FinancePage() {
         title="Finance and clearance"
         lede="Your charges, payments and clearance for the period, with what to do next."
       />
+      <form
+        action="/student/finance"
+        method="get"
+        className={styles.periodPicker}
+      >
+        <label htmlFor="finance-period">Invoice period</label>
+        <select id="finance-period" name="period" defaultValue={selected}>
+          {available.data.items.map((item, index) => (
+            <option key={item.code} value={item.code}>
+              {item.code}
+              {index === 0 ? " · Latest invoice" : ""}
+            </option>
+          ))}
+        </select>
+        <button type="submit">Show period</button>
+      </form>
+      <p className={styles.meta}>
+        Finance invoices · Updated {formatLusaka(available.data.asOf)}. Latest
+        invoice means most recently issued, not the university&apos;s current
+        academic period.
+      </p>
       <Notice
         severity={account.data.blocksRegistration ? "warning" : "success"}
         title={account.data.clearanceWording}
@@ -115,14 +202,21 @@ export default async function FinancePage() {
         {formatLusaka(account.data.refreshedAt)}
       </p>
       <p className={styles.actions}>
-        <Link href="/student/finance/pay">Make a payment</Link> ·{" "}
-        <Link href="/student/finance/arrange">Request payment arrangement</Link>
+        <Link href={`/student/finance/pay${query}`}>
+          Make a payment for {selected}
+        </Link>{" "}
+        ·{" "}
+        <Link href={`/student/finance/arrange${query}`}>
+          Request payment arrangement for {selected}
+        </Link>
       </p>
       <Card title={`Invoice for ${invoice.data.period}`}>
         <p className={styles.meta}>
           Official reference {invoice.data.reference}
-          {invoice.data.dueAt ? ` · Due ${formatLusaka(invoice.data.dueAt)}` : ""} ·
-          Fee schedule {invoice.data.policyVersion}
+          {invoice.data.dueAt
+            ? ` · Due ${formatLusaka(invoice.data.dueAt)}`
+            : ""}{" "}
+          · Fee schedule {invoice.data.policyVersion}
         </p>
         <DataTable
           hideTitle
@@ -145,7 +239,10 @@ export default async function FinancePage() {
               heading: "Amount",
               numeric: true,
               render: (line) => (
-                <Money currency={line.currency} amountMinor={line.amountMinor} />
+                <Money
+                  currency={line.currency}
+                  amountMinor={line.amountMinor}
+                />
               ),
             },
           ]}
@@ -180,7 +277,10 @@ export default async function FinancePage() {
               heading: "Amount",
               numeric: true,
               render: (line) => (
-                <Money currency={line.currency} amountMinor={line.amountMinor} />
+                <Money
+                  currency={line.currency}
+                  amountMinor={line.amountMinor}
+                />
               ),
             },
           ]}

@@ -1,0 +1,30 @@
+.page {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.page dl {
+  margin: var(--space-4) 0;
+}
+.page dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+.page dd {
+  margin: 0 0 var(--space-3);
+  font-weight: var(--weight-semibold);
+}
+.page ol {
+  padding-inline-start: var(--space-5);
+  margin-block: var(--space-3);
+}
+.page li + li {
+  margin-top: var(--space-2);
+}
+.page summary {
+  cursor: pointer;
+  padding-block: var(--space-2);
+}

@@ -6,8 +6,13 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsIn,
+  Matches,
+  Max,
+  Min,
   MaxLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { KeyDto } from '../admissions/dto.js';
 
 // Phase 5 slice 1 assessment DTOs (TASK-PH5-001). Finance officers name the
@@ -72,6 +77,40 @@ export class PaymentQuery {
   @IsString()
   @MaxLength(16)
   period?: string;
+}
+
+export class FinanceCaseQueueQuery {
+  @IsOptional() @IsIn(['ALL', 'OPEN', 'ESCALATED']) status?:
+    'ALL' | 'OPEN' | 'ESCALATED';
+  @IsOptional() @IsIn(['oldest', 'newest']) sort?: 'oldest' | 'newest';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  @Matches(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+  cursor?: string;
+}
+
+export class FinanceArrangementQueueQuery {
+  @IsOptional() @IsIn(['oldest', 'newest']) sort?: 'oldest' | 'newest';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  @Matches(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+  cursor?: string;
+}
+
+export class FinanceAdjustmentQueueQuery {
+  @IsOptional() @IsIn(['ALL', 'CREDIT_NOTE', 'WAIVER', 'REFUND']) kind?:
+    'ALL' | 'CREDIT_NOTE' | 'WAIVER' | 'REFUND';
+  @IsOptional() @IsIn(['oldest', 'newest']) sort?: 'oldest' | 'newest';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  @Matches(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+  cursor?: string;
 }
 
 // Phase 5 slice 4 callback DTOs (TASK-PH5-004). The simulator signs every
@@ -225,6 +264,18 @@ export class DecideAdjustmentDto extends KeyDto {
   @IsString()
   @MaxLength(64)
   payoutReference?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  challengeId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  codeType?: 'TOTP' | 'BACKUP_CODE';
 }
 
 export class RequestArrangementDto extends KeyDto {
@@ -249,6 +300,18 @@ export class DecideArrangementDto extends KeyDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  challengeId?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  codeType?: 'TOTP' | 'BACKUP_CODE';
 }
 
 export class CashIntakeDto extends KeyDto {

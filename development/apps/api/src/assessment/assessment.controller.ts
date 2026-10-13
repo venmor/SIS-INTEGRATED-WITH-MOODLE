@@ -19,20 +19,16 @@ import {
   ApprovePlanDto,
   AssemblePackageDto,
   CandidateListDto,
-  DecideAmendmentDto,
   DecideCaseDto,
   DecidePackageDto,
   DraftGradeMappingDto,
   DraftPlanDto,
-  ListAmendmentsQuery,
   ListBatchesQuery,
   ListFindingsQuery,
   ListMappingsQuery,
   ListModerationQuery,
   ListPackagesQuery,
   ListPlansQuery,
-  ReleaseResultsDto,
-  RequestAmendmentDto,
   StageBatchDto,
   SubmitBatchDto,
   TransitionFindingDto,
@@ -303,75 +299,6 @@ export class AssessmentController {
       dto.to,
       dto.reason,
       dto.conditions,
-    );
-  }
-
-  @Post('releases')
-  @UseGuards(CsrfGuard)
-  releaseResults(@Req() r: AuthRequest, @Body() dto: ReleaseResultsDto) {
-    return this.assessment.releaseResults(
-      r.auth,
-      dto.idempotencyKey,
-      dto.packageId,
-    );
-  }
-
-  @Get('releases/:id')
-  release(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.assessment.releaseDetail(r.auth, id);
-  }
-
-  @Get('results/mine')
-  myResults(@Req() r: AuthRequest) {
-    return this.assessment.studentResults(r.auth);
-  }
-
-  @Post('amendments')
-  @UseGuards(CsrfGuard)
-  requestAmendment(@Req() r: AuthRequest, @Body() dto: RequestAmendmentDto) {
-    return this.assessment.requestAmendment(r.auth, dto.idempotencyKey, {
-      packageId: dto.packageId,
-      studentRef: dto.studentRef,
-      correctedTotal: dto.correctedTotal,
-      reason: dto.reason,
-      evidence: dto.evidence,
-      declaration: dto.declaration,
-    });
-  }
-
-  @Get('amendments')
-  amendments(@Req() r: AuthRequest, @Query() q: ListAmendmentsQuery) {
-    return this.assessment.listAmendments(r.auth, {
-      packageId: q.packageId,
-      status: q.status,
-    });
-  }
-
-  @Get('amendments/:id')
-  amendment(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.assessment.amendmentDetail(r.auth, id);
-  }
-
-  @Post('amendments/:id/decide')
-  @UseGuards(CsrfGuard)
-  decideAmendment(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: DecideAmendmentDto,
-  ) {
-    return this.assessment.decideAmendment(
-      r.auth,
-      dto.idempotencyKey,
-      id,
-      dto.version,
-      dto.to,
-      dto.reason,
     );
   }
 }

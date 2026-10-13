@@ -10,14 +10,12 @@ export async function loadApplicant<T>(
   if (!sid) redirect(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`);
   let response: Response;
   try {
-    response = await fetch(
-      `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/applications${path}`,
-      {
-        headers: { cookie: `sid=${encodeURIComponent(sid)}` },
-        cache: "no-store",
-        signal: AbortSignal.timeout(10000),
-      },
-    );
+    const apiUrl = `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/applications${path}`;
+    response = await fetch(apiUrl, {
+      headers: { cookie: `sid=${encodeURIComponent(sid)}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
   } catch {
     return {
       data: null,

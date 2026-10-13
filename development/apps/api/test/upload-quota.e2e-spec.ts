@@ -219,6 +219,7 @@ describe('Phase 8 upload quota', () => {
         data: {
           applicationId: draft.id,
           category: 'qualification',
+          bucket: 'isolated-quota-test', key: randomUUID(),
           fileName: `old-${i}.pdf`,
           mimeType: 'application/pdf',
           size: 4,
@@ -248,6 +249,7 @@ describe('Phase 8 upload quota', () => {
         data: {
           applicationId: fullDraft.id,
           category: 'qualification',
+          bucket: 'isolated-quota-test', key: randomUUID(),
           fileName: `full-${i}.pdf`,
           mimeType: 'application/pdf',
           size: 4,

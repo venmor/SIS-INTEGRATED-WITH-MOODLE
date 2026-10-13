@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { ArrangementView } from "@sis/contracts";
 
 interface FieldError {
   fieldId: string;
@@ -42,7 +43,11 @@ function failure(error: unknown): string {
 
 // Arrangement decisions live with the approver. Approval grants a
 // time-boxed clearance entitlement; declines change nothing.
-export function ArrangementDecide() {
+export function ArrangementDecide({
+  arrangements,
+}: {
+  arrangements: ArrangementView[];
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -89,8 +94,15 @@ export function ArrangementDecide() {
         }}
       >
         <p>
-          <label htmlFor="arrange-id">Arrangement ID</label>{" "}
-          <input id="arrange-id" name="arrange-id" type="text" required />
+          <label htmlFor="arrange-id">Request</label>{" "}
+          <select id="arrange-id" name="arrange-id" required>
+            <option value="">Choose a request…</option>
+            {arrangements.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.terms.slice(0, 80)} · {item.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
         </p>
         <p>
           <label htmlFor="arrange-outcome">Decision</label>{" "}
@@ -102,7 +114,12 @@ export function ArrangementDecide() {
         </p>
         <p>
           <label htmlFor="arrange-note">Note (required to decline)</label>{" "}
-          <textarea id="arrange-note" name="arrange-note" rows={2} maxLength={2000} />
+          <textarea
+            id="arrange-note"
+            name="arrange-note"
+            rows={2}
+            maxLength={2000}
+          />
         </p>
         <p>
           <button type="submit" disabled={pending}>

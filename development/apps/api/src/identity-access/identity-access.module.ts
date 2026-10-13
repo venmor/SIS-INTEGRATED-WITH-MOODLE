@@ -8,6 +8,7 @@ import { IncidentMiddleware } from './incident.middleware.js';
 import { PolicyService } from './policy.service.js';
 import { PrismaService } from './prisma.service.js';
 import { RecoveryService } from './recovery.service.js';
+import { RecoveryReviewService } from './recovery-review.service.js';
 import { SessionGuard } from './session.guard.js';
 import { SessionService } from './session.service.js';
 import { WorkspaceController } from './workspace.controller.js';
@@ -19,6 +20,10 @@ import { BreakGlassService } from './break-glass.service.js';
 import { ReinstateService } from './reinstate.service.js';
 import { AuditTimelineService } from './audit-timeline.service.js';
 import { ExpiryDaemonService } from './expiry-daemon.service.js';
+// Task 1.2: New services
+import { ContactVerificationService } from './contact-verification.service.js';
+import { MFAService } from './mfa.service.js';
+import { StepUpService } from './step-up.service.js';
 
 @Module({
   controllers: [
@@ -32,6 +37,7 @@ import { ExpiryDaemonService } from './expiry-daemon.service.js';
     PrismaService,
     SessionService,
     RecoveryService,
+    RecoveryReviewService,
     WorkspaceService,
     GrantsService,
     PolicyService,
@@ -43,6 +49,10 @@ import { ExpiryDaemonService } from './expiry-daemon.service.js';
     ReinstateService,
     AuditTimelineService,
     ExpiryDaemonService,
+    // Task 1.2: New services
+    ContactVerificationService,
+    MFAService,
+    StepUpService,
   ],
   exports: [
     SessionGuard,
@@ -52,6 +62,12 @@ import { ExpiryDaemonService } from './expiry-daemon.service.js';
     PolicyService,
     ConfigurationService,
     CsrfGuard,
+    // Task 1.2: Export new services for use in other modules
+    ContactVerificationService,
+    MFAService,
+    StepUpService,
+    RecoveryService,
+    RecoveryReviewService,
   ],
 })
 export class IdentityAccessModule implements NestModule {

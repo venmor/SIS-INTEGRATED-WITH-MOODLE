@@ -1,7 +1,7 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import { APPLICATION_DEMO_V1 as policy } from '@sis/config';
+import { policy } from './policy.provider.js';
 import type {
   ApplicantNotification,
   ApplicantOfferView,
@@ -24,6 +24,36 @@ import { visibleTimeline } from './case.js';
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
   JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
+
+// Type for application row with included relations (matches ApplicationsService.include)
+type ApplicationRow = Prisma.ApplicationGetPayload<{
+  include: {
+    offering: {
+      include: {
+        programme: { include: { rules: { include: { route: true } } } };
+      };
+    };
+    documents: { orderBy: { createdAt: 'asc' } };
+    submission: true;
+  };
+}>;
+
+// Type helpers for JSON fields
+interface PersonalDetailsJson {
+  givenName?: string;
+  familyName?: string;
+  otherNames?: string;
+  preferredName?: string;
+  dateOfBirth?: string;
+}
+
+interface OfferingWithProgramme {
+  id: string;
+  intake: string;
+  studyMode: string;
+  campus: string;
+  programme: { id: string; name: string; code: string; rules: unknown[] };
+}
 
 // Post-submit applicant case (Part 9): status timeline, scoped clarification
 // responses, correction requests, decision viewing, support tickets,
@@ -345,7 +375,7 @@ export class ApplicationCaseService {
         await this.event(db, applicationId, {
           code: 'CorrectionRequested',
           label: 'Correction requested',
-          detail: policy.case.correctionReviewNote,
+          detail: (policy as { case?: { correctionReviewNote: string } }).case?.correctionReviewNote ?? 'Corrections require an Admissions decision. The submitted application remains unchanged until approval is granted.',
           actorRole: 'APPLICANT',
         });
         await db.application.update({
@@ -361,6 +391,41 @@ export class ApplicationCaseService {
           'ALLOW',
           { section, field, reason: reason.trim() },
         );
+
+        // Emit OutboxEvent for notification delivery
+        const correlationId = randomUUID();
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'ApplicationCorrectionRequested',
+            payload: json({
+              applicationId,
+              correctionId: created.id,
+              section,
+              field,
+              reason: reason.trim(),
+              applicantName: `${(row.personal as PersonalDetailsJson).givenName ?? ''} ${(row.personal as PersonalDetailsJson).familyName ?? ''}`,
+              reference: row.reference,
+              programmeName: (row.offering as OfferingWithProgramme)?.programme?.name ?? '',
+              recipientAccountId: row.accountId,
+              templateKey: 'CORRECTION_REQUESTED',
+              templateVars: {
+                applicantName: `${(row.personal as PersonalDetailsJson).givenName ?? ''} ${(row.personal as PersonalDetailsJson).familyName ?? ''}`,
+                reference: row.reference,
+                programmeName: (row.offering as OfferingWithProgramme)?.programme?.name ?? '',
+                section,
+                field,
+                reason: reason.trim(),
+                deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days default
+              },
+              channels: ['email', 'internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         return { body: { id: created.id, status: created.status } };
       },
     );
@@ -437,13 +502,46 @@ export class ApplicationCaseService {
           applicationId,
           key,
         );
+
+        // Emit OutboxEvent for ApplicationWithdrawalConfirmed
+        const correlationId = randomUUID();
+        const withdrawnAt = new Date().toISOString();
+        await db.outboxEvent.create({
+          data: {
+            aggregate: 'Application',
+            aggregateId: applicationId,
+            type: 'ApplicationWithdrawalConfirmed',
+            payload: json({
+              applicationId,
+              withdrawalReceipt: receipt,
+              reason: reason?.trim() || null,
+              withdrawnAt,
+              applicantName: `${(row.personal as PersonalDetailsJson).givenName ?? ''} ${(row.personal as PersonalDetailsJson).familyName ?? ''}`,
+              reference: row.reference,
+              programmeName: (row.offering as OfferingWithProgramme)?.programme?.name ?? '',
+              recipientAccountId: row.accountId,
+              templateKey: 'WITHDRAWAL_CONFIRMED',
+              templateVars: {
+                applicantName: `${(row.personal as PersonalDetailsJson).givenName ?? ''} ${(row.personal as PersonalDetailsJson).familyName ?? ''}`,
+                reference: row.reference,
+                programmeName: (row.offering as OfferingWithProgramme)?.programme?.name ?? '',
+                withdrawnAt,
+                reason: reason?.trim() || 'No reason provided',
+              },
+              channels: ['email', 'internal'],
+              correlationId,
+              idempotencyKey: key,
+            }),
+          },
+        });
+
         return {
           body: {
             applicationId,
             reference: row.reference,
             reason: reason?.trim() || null,
             receipt,
-            withdrawnAt: new Date().toISOString(),
+            withdrawnAt,
           },
         };
       },
@@ -842,7 +940,7 @@ export class ApplicationCaseService {
           // Required acceptance declarations (Part 10 s4.1) against the
           // versioned demo offer policy.
           const required = (
-            policy.offer.acceptanceDeclarations as Array<{ key: string }>
+            (policy as { offer?: { acceptanceDeclarations: Array<{ key: string }> } }).offer?.acceptanceDeclarations ?? []
           ).map((d) => d.key);
           const accepted = new Set(declarations ?? []);
           if (!required.every((k) => accepted.has(k))) {
@@ -863,12 +961,7 @@ export class ApplicationCaseService {
           },
         });
         if (decisionInput === 'ACCEPT') {
-          for (const task of policy.onboarding.tasks as Array<{
-            key: string;
-            title: string;
-            owner: string;
-            required: boolean;
-          }>) {
+          for (const task of (policy as { onboarding?: { tasks: Array<{ key: string; title: string; owner: string; required: boolean }> } }).onboarding?.tasks ?? []) {
             await db.onboardingTask.create({
               data: {
                 applicationId,
@@ -908,7 +1001,7 @@ export class ApplicationCaseService {
             receipt,
             declarations:
               decisionInput === 'ACCEPT'
-                ? (policy.offer as { version: string }).version
+                ? (policy as { offer?: { version: string } }).offer?.version ?? ''
                 : null,
           },
         );

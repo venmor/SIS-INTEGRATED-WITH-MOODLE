@@ -193,8 +193,9 @@ describe('Phase 8 ops incident queue', () => {
       });
       await api.post('/notifications/worker/run').set(csrf).set('Cookie', gov).send({}).expect(201);
     }
+    const deliveries = await db.notificationDelivery.findMany({ where: { recordId: rec.id }, select: { id: true } });
     const incidents = await db.opsIncident.findMany({
-      where: { sourceKind: 'NOTIFICATION_DELIVERY' },
+      where: { sourceKind: 'NOTIFICATION_DELIVERY', sourceRef: { in: deliveries.map((item) => item.id) } },
     });
     expect(incidents).toHaveLength(1);
     expect(incidents[0].status).toBe('OPEN');

@@ -17,36 +17,41 @@ export async function createApplicant() {
   const username = `browser.${randomUUID()}`;
   const password = "Fictional-browser-2026!";
   try {
-    const person = await db.person.create({
-      data: {
-        displayName: "Fictional browser applicant",
-        email: `${username}@demo.invalid`,
-        emailVerifiedAt: new Date(),
-      },
+    // Use a transaction to ensure all operations succeed or fail together
+    const result = await db.$transaction(async (tx) => {
+      const person = await tx.person.create({
+        data: {
+          displayName: "Fictional browser applicant",
+          email: `${username}@demo.invalid`,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const account = await tx.account.create({
+        data: { personId: person.id, username },
+      });
+      await tx.credential.create({
+        data: {
+          accountId: account.id,
+          kind: "PASSWORD",
+          secretHash: await hash(password),
+          status: "ACTIVE",
+        },
+      });
+      // Use a proper offering code as scopeRef (matching demo accounts like bwalya.m -> BWL-2026-001)
+      await tx.roleAssignment.create({
+        data: {
+          accountId: account.id,
+          role: "APP",
+          scopeType: "APPLICATION",
+          scopeRef: "BWL-2026-001",
+          capabilities: ["apply"],
+          reason: "Isolated browser fixture",
+          startsAt: new Date("2020-01-01"),
+        },
+      });
+      return { username, password };
     });
-    const account = await db.account.create({
-      data: { personId: person.id, username },
-    });
-    await db.credential.create({
-      data: {
-        accountId: account.id,
-        kind: "PASSWORD",
-        secretHash: await hash(password),
-        status: "ACTIVE",
-      },
-    });
-    await db.roleAssignment.create({
-      data: {
-        accountId: account.id,
-        role: "APP",
-        scopeType: "APPLICATION",
-        scopeRef: account.id,
-        capabilities: ["apply"],
-        reason: "Isolated browser fixture",
-        startsAt: new Date("2020-01-01"),
-      },
-    });
-    return { username, password };
+    return result;
   } finally {
     await db.$disconnect();
   }
@@ -84,17 +89,6 @@ export async function createStudent() {
         status: "ACTIVE",
       },
     });
-    await db.roleAssignment.create({
-      data: {
-        accountId: account.id,
-        role: "STUDENT",
-        scopeType: "STUDENT",
-        scopeRef: "STU-2026-0001",
-        capabilities: ["study"],
-        reason: "Isolated browser fixture",
-        startsAt: new Date("2020-01-01"),
-      },
-    });
     const offering = await db.programmeOffering.findFirstOrThrow({
       where: { programme: { code: "SWE" }, availability: "OPEN" },
       include: { programme: true },
@@ -112,6 +106,17 @@ export async function createStudent() {
         status: "ACTIVE",
       },
     });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "STUDENT",
+        scopeType: "STUDENT",
+        scopeRef: student.id,
+        capabilities: ["study"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
     const attempt = await db.programmeAttempt.create({
       data: {
         studentId: student.id,
@@ -126,9 +131,84 @@ export async function createStudent() {
       username,
       password,
       studentNumber: student.studentNumber,
-      attemptId: attempt.id,
       accountId: account.id,
+      attemptId: attempt.id,
     };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** Demo-only academic receiving route and an appointed adviser for one
+ * synthetic student. Never seeds an institutional service appointment. */
+export async function createAcademicSupportScenario() {
+  const student = await createStudent();
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname))
+    throw new Error("Browser tests require an isolated test/review database.");
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.adviser.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const record = await db.student.findUniqueOrThrow({
+      where: { studentNumber: student.studentNumber },
+      include: {
+        attempts: { include: { offering: { include: { programme: true } } } },
+      },
+    });
+    const offering = record.attempts[0].offering;
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser academic adviser",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    const appointment = await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "ADVISER",
+        scopeType: "PROGRAMME",
+        scopeRef: offering.programme.code,
+        capabilities: ["academic.support.receive"],
+        startsAt: new Date("2020-01-01"),
+        reason: "Isolated browser fixture",
+      },
+    });
+    await db.studentAdviserAssignment.create({
+      data: {
+        studentId: record.id,
+        adviserAssignmentId: appointment.id,
+        effectiveFrom: new Date("2020-01-01"),
+        sourceRef: "SYNTHETIC-BROWSER",
+      },
+    });
+    await db.academicSupportService.create({
+      data: {
+        programmeId: offering.programmeId,
+        campus: offering.campus,
+        name: "Fictional programme academic advising",
+        ownerAssignmentId: appointment.id,
+        status: "ACTIVE",
+        demoOnly: true,
+        effectiveFrom: new Date("2020-01-01"),
+        approvalRef: "SYNTHETIC-BROWSER",
+      },
+    });
+    return { student, adviser: { username, password } };
   } finally {
     await db.$disconnect();
   }
@@ -142,8 +222,7 @@ export async function assessStudentCharges(studentNumber: string) {
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
     throw new Error("Browser tests require an isolated test/review database.");
   }
-  const api =
-    process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3101";
+  const api = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3101";
   const db = new PrismaClient({
     adapter: new PrismaPg({ connectionString: url }),
   });
@@ -255,6 +334,53 @@ export async function createFinanceOfficer() {
   }
 }
 
+/** Selected finance approver workspace for read-only queue and form checks. */
+export async function createFinanceApprover() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.fin.approver.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional browser finance approver",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "FINANCE_APPROVER",
+        scopeType: "FINANCE",
+        scopeRef: "GLOBAL",
+        capabilities: ["approve-adjustment"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 /** Phase 5 slice 6: open reconciliation case fixture for queue triage. */
 export async function seedReconCase() {
   const url = process.env.DATABASE_URL;
@@ -279,6 +405,82 @@ export async function seedReconCase() {
       },
     });
     return kase.id;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A single fictional pending arrangement for a browser-owned student. */
+export async function seedArrangement(studentNumber: string) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const student = await db.student.findUniqueOrThrow({
+      where: { studentNumber },
+      include: { person: { include: { accounts: true } } },
+    });
+    const account = await db.financeAccount.create({
+      data: { studentId: student.id },
+    });
+    const period = await db.academicPeriod.findUniqueOrThrow({
+      where: { code: "2026S1" },
+    });
+    const row = await db.financeArrangement.create({
+      data: {
+        accountId: account.id,
+        periodId: period.id,
+        terms: "Fictional two instalments for browser review",
+        reason: "Fictional temporary cash shortfall",
+        status: "REQUESTED",
+        policyVersion: "BROWSER-TEST",
+        requesterAccountId: student.person.accounts[0].id,
+      },
+    });
+    return row.id;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A fictional pending waiver for the finance review browser journey. */
+export async function seedAdjustment(studentNumber: string) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const student = await db.student.findUniqueOrThrow({
+      where: { studentNumber },
+      include: { person: { include: { accounts: true } } },
+    });
+    const account = await db.financeAccount.findUniqueOrThrow({
+      where: { studentId: student.id },
+    });
+    const period = await db.academicPeriod.findUniqueOrThrow({
+      where: { code: "2026S1" },
+    });
+    const row = await db.financeAdjustment.create({
+      data: {
+        accountId: account.id,
+        periodId: period.id,
+        kind: "WAIVER",
+        amountMinor: 12345,
+        currency: "ZMW",
+        reason: "Fictional browser waiver review",
+        status: "REQUESTED",
+        policyVersion: "BROWSER-TEST",
+        requesterAccountId: student.person.accounts[0].id,
+      },
+    });
+    return row.id;
   } finally {
     await db.$disconnect();
   }
@@ -543,7 +745,12 @@ export async function createCheckpointStudent() {
         },
       },
     });
-    return { username, password, studentNumber: student.studentNumber };
+    return {
+      username,
+      password,
+      studentNumber: student.studentNumber,
+      outboxId: eventId,
+    };
   } finally {
     await db.$disconnect();
   }
@@ -572,7 +779,10 @@ async function mintSid(
       },
     });
     const account = await db.account.create({
-      data: { personId: person.id, username: `browser.${label}.${randomUUID()}` },
+      data: {
+        personId: person.id,
+        username: `browser.${label}.${randomUUID()}`,
+      },
     });
     const assignment = await db.roleAssignment.create({
       data: {
@@ -602,83 +812,25 @@ async function mintSid(
 }
 
 /** Phase 6 slice 6: privileged session cookies for API driving. */
-export const moodleAdminSid = () =>
-  mintSid("MOODLE_ADMIN", ["sync-moodle", "manage-mapping"], "SYSTEM", "MOODLE", "mdladmin");
+export const sysadminSid = () =>
+  mintSid(
+    "SYSADMIN",
+    ["administer-identity"],
+    "SYSTEM",
+    "GLOBAL",
+    "sysadmin",
+  );
 
-/** Phase 8 slice 5: synthetic startable offering for journey tests on
- * minimally seeded browser DBs (DEMO-ACADEMIC fee prefix + one rule +
- * OPEN offering with a future deadline; idempotent by programme code). */
-export async function ensureAxeOffering() {
-  const url = process.env.DATABASE_URL;
-  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
-    throw new Error("Browser tests require an isolated test/review database.");
-  }
-  const db = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: url }),
-  });
-  try {
-    const programme = await db.programme.upsert({
-      where: { code: "TEST-AXE" },
-      update: {},
-      create: {
-        code: "TEST-AXE",
-        name: "Fictional Axe Test Programme",
-        awardLevel: "Bachelor",
-        school: "Test",
-        duration: "4 years",
-        overview: "Journey-test only",
-        feeScheduleRef: "DEMO-ACADEMIC-2026-v1/test",
-        publishedVersion: "TEST-v1",
-        effectiveDate: new Date(),
-        owningOffice: "Admissions",
-      },
-    });
-    await db.requirementRule.upsert({
-      where: {
-        programmeId_ruleKey_version: {
-          programmeId: programme.id,
-          ruleKey: "math",
-          version: 1,
-        },
-      },
-      update: {},
-      create: {
-        programmeId: programme.id,
-        ruleKey: "math",
-        label: "Mathematics",
-        kind: "GRADE",
-        mandatory: true,
-        minGrade: 6,
-        evidence: "Result statement",
-      },
-    });
-    const offering = await db.programmeOffering.upsert({
-      where: {
-        programmeId_intake_studyMode_campus: {
-          programmeId: programme.id,
-          intake: "2026S1",
-          studyMode: "FULLTIME",
-          campus: "MAIN",
-        },
-      },
-      update: {
-        availability: "OPEN",
-        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
-      },
-      create: {
-        programmeId: programme.id,
-        intake: "2026S1",
-        studyMode: "FULLTIME",
-        campus: "MAIN",
-        availability: "OPEN",
-        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
-      },
-    });
-    return { offeringId: offering.id };
-  } finally {
-    await db.$disconnect();
-  }
-}export const supportSid = () =>
+export const moodleAdminSid = () =>
+  mintSid(
+    "MOODLE_ADMIN",
+    ["sync-moodle", "manage-mapping"],
+    "SYSTEM",
+    "MOODLE",
+    "mdladmin",
+  );
+
+export const supportSid = () =>
   mintSid(
     "INTEGRATION_SUPPORT",
     ["replay-event", "manage-incident"],
@@ -899,16 +1051,6 @@ export const assessmentCoordinatorSid = () =>
     "assesscoord",
   );
 
-/** Phase 8 slice 1: governance session for notification template setup. */
-export const sysadminSid = () =>
-  mintSid(
-    "SYSADMIN",
-    ["administer-identity"],
-    "SYSTEM",
-    "GLOBAL",
-    "sysadmin",
-  );
-
 export const examinationsOfficerSid = () =>
   mintSid(
     "EXAMINATIONS_OFFICER",
@@ -959,7 +1101,12 @@ export async function createModerator() {
         startsAt: new Date("2020-01-01"),
       },
     });
-    return { username, password, offeringRef: "SWE-2026S1", periodCode: "2026S1" };
+    return {
+      username,
+      password,
+      offeringRef: "SWE-2026S1",
+      periodCode: "2026S1",
+    };
   } finally {
     await db.$disconnect();
   }
@@ -993,9 +1140,182 @@ export async function ensureStagedStudent() {
   }
 }
 
-/** Phase 8 slice 3: advance the worker clock by making all pending
- * notification deliveries due now (backoff schedules them ahead;
- * browser setup resets between ticks, like the e2e clock advance). */
+/** Synthetic submitted cases for staff-queue pagination stories. */
+export async function createSyntheticAdmissionsCases(count = 2) {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const references: string[] = [];
+  try {
+    const offering = await db.programmeOffering.findFirstOrThrow({
+      where: {
+        intake: { startsWith: "2026" },
+        programme: { code: "SWE" },
+        availability: "OPEN",
+      },
+    });
+    for (let index = 0; index < count; index += 1) {
+      const suffix = randomUUID();
+      const person = await db.person.create({
+        data: {
+          displayName: "Fictional queue pagination applicant",
+          email: `queue.${suffix}@demo.invalid`,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      const account = await db.account.create({
+        data: { personId: person.id, username: `queue.${suffix}` },
+      });
+      const reference = `APP-QUEUE-${suffix}`;
+      await db.application.create({
+        data: {
+          accountId: account.id,
+          offeringId: offering.id,
+          reference,
+          state: "Submitted",
+          policyVersion: "APPLICATION-DEMO-v1",
+          requirementVersion: "SYNTHETIC-QUEUE-FIXTURE-v1",
+          submission: {
+            create: {
+              reference,
+              snapshot: { synthetic: true },
+              receipt: { reference },
+            },
+          },
+        },
+      });
+      references.push(reference);
+    }
+    return references;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/** A distinct fictional reviewer per browser journey, preserving sign-in limits. */
+export async function createAdmissionsOfficer() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  const username = `browser.officer.${randomUUID()}`;
+  const password = "Fictional-browser-2026!";
+  try {
+    const person = await db.person.create({
+      data: {
+        displayName: "Fictional admissions reviewer",
+        email: `${username}@demo.invalid`,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const account = await db.account.create({
+      data: { personId: person.id, username },
+    });
+    await db.credential.create({
+      data: {
+        accountId: account.id,
+        kind: "PASSWORD",
+        secretHash: await hash(password),
+        status: "ACTIVE",
+      },
+    });
+    await db.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        role: "ADMISSIONS_OFFICER",
+        scopeType: "INTAKE",
+        scopeRef: "2026",
+        capabilities: ["review-assigned"],
+        reason: "Isolated browser fixture",
+        startsAt: new Date("2020-01-01"),
+      },
+    });
+    return { username, password };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+
+export async function ensureAxeOffering() {
+  const url = process.env.DATABASE_URL;
+  if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
+    throw new Error("Browser tests require an isolated test/review database.");
+  }
+  const db = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: url }),
+  });
+  try {
+    const programme = await db.programme.upsert({
+      where: { code: "TEST-AXE" },
+      update: {},
+      create: {
+        code: "TEST-AXE",
+        name: "Fictional Axe Test Programme",
+        awardLevel: "Bachelor",
+        school: "Test",
+        duration: "4 years",
+        overview: "Journey-test only",
+        feeScheduleRef: "DEMO-ACADEMIC-2026-v1/test",
+        publishedVersion: "TEST-v1",
+        effectiveDate: new Date(),
+        owningOffice: "Admissions",
+      },
+    });
+    await db.requirementRule.upsert({
+      where: {
+        programmeId_ruleKey_version: {
+          programmeId: programme.id,
+          ruleKey: "math",
+          version: 1,
+        },
+      },
+      update: {},
+      create: {
+        programmeId: programme.id,
+        ruleKey: "math",
+        label: "Mathematics",
+        kind: "GRADE",
+        mandatory: true,
+        minGrade: 6,
+        evidence: "Result statement",
+      },
+    });
+    const offering = await db.programmeOffering.upsert({
+      where: {
+        programmeId_intake_studyMode_campus: {
+          programmeId: programme.id,
+          intake: "2026S1",
+          studyMode: "FULLTIME",
+          campus: "MAIN",
+        },
+      },
+      update: {
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+      create: {
+        programmeId: programme.id,
+        intake: "2026S1",
+        studyMode: "FULLTIME",
+        campus: "MAIN",
+        availability: "OPEN",
+        deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+    });
+    return { offeringId: offering.id };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 export async function resetNotificationDueDates() {
   const url = process.env.DATABASE_URL;
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
@@ -1014,9 +1334,6 @@ export async function resetNotificationDueDates() {
   }
 }
 
-/** Phase 8 slice 2: white-box result package with a board decision, an
- * official row and an audit row (writes proven by Phase 7 suites; the
- * timeline endpoint's job is gating + joining). */
 export async function ensureTimelinePackage() {
   const url = process.env.DATABASE_URL;
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
@@ -1049,18 +1366,16 @@ export async function ensureTimelinePackage() {
         decidedByAccountId: randomUUID(),
       },
     });
-    await db.officialCourseResult.create({
+    await db.resultRelease.create({
       data: {
-        offeringRef: "SWE-2026S1",
-        periodCode: "2026S1",
-        studentRef: "STU-2026-0001",
-        total: 68.8,
-        outcome: "PASS",
-        trace: {},
-        packageId: pkg.id,
-        version: 2,
-        status: "RELEASED",
-        publishedAt: new Date(),
+        packageId: pkg.id, offeringRef: 'SWE-2026S1', periodCode: '2026S1',
+        packageHash: 'fictional-hash', policySnapshot: {},
+        releasedByAccountId: randomUUID(), assignmentId: randomUUID(), declaration: 'Isolated timeline fixture',
+        results: { create: {
+          studentId: randomUUID(), studentRef: 'STU-2026-0001', courseId: randomUUID(),
+          courseCode: 'SWE111', courseTitle: 'Programming Fundamentals', courseType: 'CORE',
+          periodCode: '2026S1', version: 2, mark: 68.8, outcome: 'PASS', calculationSnapshot: {},
+        } },
       },
     });
     await db.auditEvent.create({

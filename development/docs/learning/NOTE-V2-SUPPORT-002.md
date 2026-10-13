@@ -1,0 +1,11 @@
+# Assigned academic-support queue filters — 2026-10-02
+
+[TASK-V2-SUPPORT-002](../task-packets/TASK-V2-SUPPORT-002.md) adds database-side “Needs reply” and status filtering plus exact case-reference lookup to the selected adviser appointment’s bounded queue. The UI keeps filters in the URL and restarts paging when they change. The query retains the appointment predicate before status/reference, so an adviser cannot widen their view by changing the URL. A composite owner/status/date index supports the reply-need path; the unique reference index supports exact lookup.
+
+This is triage convenience, not a prioritisation rule or an approved service target. A new request still needs an adviser to visit the queue; no notification is sent. [GAP-V2-002](../gaps/GAP-V2-002-student-support-routing-and-ownership.md) remains open for live support operations.
+
+Evidence: the focused API test was red with `400` for the new filter before implementation, then passed **5/5** with the implemented query and applied isolated migration. The filter tests include lower-case exact references and a cursor rejected after its filter changes. The web/API production builds, Prisma validation, web/API lint and `git diff --check` exited 0. API lint retains existing warnings outside this module.
+
+The browser exposed a separate Tailwind integration defect: the unlayered universal margin/padding reset overrode utility spacing. A computed-style assertion failed before the reset moved into the `base` layer. This lets existing unlayered CSS Modules retain their local rules while utility spacing applies on migrated screens. Status selection uses an explicit Apply button so it also works before client hydration.
+
+The connected support journey passed **2/2** after the CSS fix; the combined support/admissions/student/applicant browser set passed **18/18** against the isolated review database. The first combined run had a synthetic payment-dispatch failure because the local API was started without the repository environment loader; restarting it through `scripts/with-env.mjs` supplied the existing simulator secret, the focused student journey passed, and the complete set passed on rerun. No provider call, real payment or download occurred.

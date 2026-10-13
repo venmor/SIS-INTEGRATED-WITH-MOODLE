@@ -90,60 +90,69 @@ export function SearchForm({
             inputProps={{ type: "search", name: "q", maxLength: 128 }}
           />
         </div>
-        <fieldset className={styles.filters}>
-          <legend>Refine your search</legend>
-          <div className={styles.filterGrid}>
-            <Field
-              id="discover-school"
-              label="School or faculty"
-              defaultValue={initial.school ?? ""}
-              inputProps={{ name: "school", maxLength: 64 }}
-            />
-            <FilterGroup
-              id="discover-level"
-              label="Level"
-              name="level"
-              options={LEVELS.map((level) => ({ value: level, label: level }))}
-              defaultValue={initial.level ?? ""}
-            />
-            <FilterGroup
-              id="discover-mode"
-              label="Study mode"
-              name="mode"
-              options={MODES.map((mode) => ({ value: mode, label: mode }))}
-              defaultValue={initial.mode ?? ""}
-            />
-            <Field
-              id="discover-campus"
-              label="Campus or location"
-              defaultValue={initial.campus ?? ""}
-              inputProps={{ name: "campus", maxLength: 64 }}
-            />
-            <Field
-              id="discover-intake"
-              label="Intake"
-              defaultValue={initial.intake ?? ""}
-              inputProps={{ name: "intake", maxLength: 16 }}
-            />
-            <FilterGroup
-              id="discover-route"
-              label="Qualification route"
-              name="route"
-              options={routes.map((route) => ({
-                value: route.code,
-                label: route.label,
-              }))}
-              defaultValue={initial.route ?? ""}
-            />
-            <FilterGroup
-              id="discover-availability"
-              label="Availability"
-              name="availability"
-              options={AVAILABILITY}
-              defaultValue={initial.availability ?? ""}
-            />
-          </div>
-        </fieldset>
+        <details
+          className={styles.filterDisclosure}
+          open={Object.keys(FILTER_LABELS).some((key) => Boolean(initial[key]))}
+        >
+          <summary>More search filters</summary>
+          <fieldset className={styles.filters}>
+            <legend>Refine your search</legend>
+            <div className={styles.filterGrid}>
+              <Field
+                id="discover-school"
+                label="School or faculty"
+                defaultValue={initial.school ?? ""}
+                inputProps={{ name: "school", maxLength: 64 }}
+              />
+              <FilterGroup
+                id="discover-level"
+                label="Level"
+                name="level"
+                options={LEVELS.map((level) => ({
+                  value: level,
+                  label: level,
+                }))}
+                defaultValue={initial.level ?? ""}
+              />
+              <FilterGroup
+                id="discover-mode"
+                label="Study mode"
+                name="mode"
+                options={MODES.map((mode) => ({ value: mode, label: mode }))}
+                defaultValue={initial.mode ?? ""}
+              />
+              <Field
+                id="discover-campus"
+                label="Campus or location"
+                defaultValue={initial.campus ?? ""}
+                inputProps={{ name: "campus", maxLength: 64 }}
+              />
+              <Field
+                id="discover-intake"
+                label="Intake"
+                defaultValue={initial.intake ?? ""}
+                inputProps={{ name: "intake", maxLength: 16 }}
+              />
+              <FilterGroup
+                id="discover-route"
+                label="Qualification route"
+                name="route"
+                options={routes.map((route) => ({
+                  value: route.code,
+                  label: route.label,
+                }))}
+                defaultValue={initial.route ?? ""}
+              />
+              <FilterGroup
+                id="discover-availability"
+                label="Availability"
+                name="availability"
+                options={AVAILABILITY}
+                defaultValue={initial.availability ?? ""}
+              />
+            </div>
+          </fieldset>
+        </details>
         <div className={styles.searchActions}>
           <ActionButton type="submit">Search programmes</ActionButton>
         </div>

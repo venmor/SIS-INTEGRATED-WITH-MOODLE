@@ -58,3 +58,7 @@ test("uses the browser Host when the web server normalizes its internal URL", ()
     false,
   );
 });
+test("a client-supplied test header cannot bypass origin verification", () => {
+  assert.equal(isSameOriginMutation(request({ "x-playwright-test": "true" })), false);
+  assert.equal(isSameOriginMutation(request({ "x-playwright-test": "true", "sec-fetch-site": "cross-site" })), false);
+});

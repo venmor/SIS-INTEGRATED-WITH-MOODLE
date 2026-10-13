@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { MoodleWriteReadiness } from "@sis/contracts";
+import { notProvisionedMessage } from "../../../../lib/moodle-status";
+import { WaitingForMoodle } from "../../moodle/write-readiness";
 
 interface FieldError {
   fieldId: string;
@@ -43,25 +46,33 @@ function failure(error: unknown): string {
 
 // Replay request: frozen evidence, reason and declaration. A second
 // officer decides on the decision page; requesters never self-decide.
-export function ReplayRequestForm() {
+export function ReplayRequestForm({ readiness }: { readiness?: MoodleWriteReadiness }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const disabled = readiness?.outcome !== "SIMULATOR_READY";
 
   async function submit(form: HTMLFormElement) {
-    if (pending) return;
+    if (pending || disabled) return;
     setPending(true);
     setErrors([]);
     setNotice(null);
+    setDeferred(null);
     try {
       const data = new FormData(form);
-      await postIntegration("/replays", {
+      const out = await postIntegration("/replays", {
         attemptId: String(data.get("replay-attempt") ?? "") || undefined,
         reason: String(data.get("replay-reason") ?? ""),
         declaration: data.get("replay-declaration") === "on",
         idempotencyKey: crypto.randomUUID(),
       });
+      const waiting = notProvisionedMessage(out);
+      if (waiting) {
+        setDeferred(waiting);
+        return;
+      }
       setNotice(
         "Replay requested with frozen evidence. A second officer must decide it.",
       );
@@ -76,6 +87,7 @@ export function ReplayRequestForm() {
 
   return (
     <>
+      <WaitingForMoodle message={deferred} />
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
@@ -116,7 +128,7 @@ export function ReplayRequestForm() {
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button type="submit" disabled={pending || disabled}>
             {pending ? "Requesting…" : "Request replay"}
           </button>
         </p>

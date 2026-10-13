@@ -4,13 +4,9 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/identity-access/prisma.service.js';
 import { DocumentScanner } from '../src/admissions/scanner.js';
 import { user, key } from './helpers/phase6.js';
-import {
-  mkPlan,
-  mkMapping,
-  OFFERING_REF,
-  PERIOD_CODE,
-  SHELL_REF,
-} from './helpers/assessment.js';
+import { publicationFixture, declaration } from './helpers/publication.js';
+import { assessPost, OFFERING_REF, PERIOD_CODE, SHELL_REF } from './helpers/assessment.js';
+import type { Prisma } from '@prisma/client';
 import request from 'supertest';
 
 /**
@@ -79,6 +75,16 @@ describe('Phase 8 notification record and delivery status', () => {
         'Use an isolated test/review database for admissions tests.',
       );
     const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider('RESULT_PUBLICATION_POLICY')
+      .useValue({ resolve: async (tx: Prisma.TransactionClient, offeringRef: string) => {
+        const course = await tx.course.findUnique({ where: { code: offeringRef } });
+        return course ? { version: 'ISOLATED-NOTIFICATION-POLICY', courseId: course.id,
+          releaseAt: '2020-01-01', showMarks: true, restrictionsSatisfied: true,
+          reviewInstructions: 'Contact examinations.' } : null;
+      } })
+      .overrideProvider('RESULT_STEP_UP')
+      .useValue({ consume: async (_tx: unknown, context: { proof?: string }) =>
+        context.proof === 'isolated-notification-proof' })
       .overrideProvider(DocumentScanner)
       .useValue({
         scan: async () => ({
@@ -171,21 +177,22 @@ describe('Phase 8 notification record and delivery status', () => {
   });
 
   it('template-versioning: ACTIVE v1, supersede creates v2, history kept', async () => {
-    const first = (await post('/templates', templateBody(), sysadmin).expect(201)).body as {
+    const event = `TEST_TEMPLATE_${key()}`;
+    const first = (await post('/templates', templateBody({ event }), sysadmin).expect(201)).body as {
       id: string;
       version: number;
       status: string;
     };
     expect(first.version).toBe(1);
     expect(first.status).toBe('ACTIVE');
-    const second = (await post('/templates', templateBody(), sysadmin).expect(201)).body as {
+    const second = (await post('/templates', templateBody({ event }), sysadmin).expect(201)).body as {
       id: string;
       version: number;
     };
     expect(second.version).toBe(2);
     expect(second.id).not.toBe(first.id);
     const rows = await db.notificationTemplate.findMany({
-      where: { event: 'RESULT_RELEASED' },
+      where: { event },
       orderBy: { version: 'asc' },
     });
     expect(rows).toHaveLength(2);
@@ -453,177 +460,44 @@ describe('Phase 8 notification record and delivery status', () => {
   // ---- Assessment fan-out (Task 4): release + amendment approval ----
   // write per-student records in the same transaction. Full
   // plan→release flow helpers adapted from grade-release.
-  async function provisionCandidates(refs: string[], coord: string) {
-    await request(app.getHttpServer())
-      .post('/assessment/candidate-lists')
-      .set(csrf)
-      .set('Cookie', coord)
-      .send({
-        idempotencyKey: key(),
-        offeringRef: OFFERING_REF,
-        periodCode: PERIOD_CODE,
-        studentRefs: refs,
-      })
-      .expect(201);
-  }
-
-  async function releasedPackage(
-    refs: string[],
-    lec: string,
-    coord: string,
-    mod: string,
-    exam: string,
-  ): Promise<{ id: string }> {
-    const apost = (path: string, body: object, cookie: string) =>
-      request(app.getHttpServer())
-        .post(`/assessment${path}`)
-        .set(csrf)
-        .set('Cookie', cookie)
-        .send(body);
-    await provisionCandidates(refs, coord);
-    const drafted = await apost('/plans', { idempotencyKey: key(), ...mkPlan() }, lec).expect(201);
-    const plan = drafted.body as { id: string; version: number };
-    await apost(`/plans/${plan.id}/approve`, { idempotencyKey: key(), version: plan.version }, coord).expect(201);
-    const full = await db.assessmentPlan.findUniqueOrThrow({
-      where: { id: plan.id },
-      include: { components: true },
-    });
-    const marks: Record<string, number> = { 'CA-QUIZ1': 14, 'CA-ASSIGN': 21, 'FINAL-EXAM': 68 };
-    for (const component of full.components) {
-      const mapped = await apost(
-        '/mappings',
-        {
-          idempotencyKey: key(),
-          ...mkMapping(component.id, {
-            moodleActivityId: `SIM-FAN-${key().slice(0, 8).toUpperCase()}`,
-            moodleCourseRef: `${SHELL_REF}-MOD`,
-          }),
-        },
-        lec,
-      ).expect(201);
-      const mappingId = (mapped.body as { id: string }).id;
-      await apost(`/mappings/${mappingId}/test`, { idempotencyKey: key() }, lec).expect(201);
-      await apost(`/mappings/${mappingId}/activate`, { idempotencyKey: key() }, coord).expect(201);
-      const staged = await apost(
-        '/batches',
-        {
-          idempotencyKey: key(),
-          mappingId,
-          sourceRevision: `mdl-rev-${key()}`,
-          lines: refs.map((studentRef) => ({ studentRef, rawValue: marks[component.code] ?? 10 })),
-        },
-        lec,
-      ).expect(201);
-      const batchId = (staged.body as { id: string }).id;
-      await apost(`/batches/${batchId}/validate`, { idempotencyKey: key() }, exam).expect(201);
-      const submitted = await apost(
-        `/batches/${batchId}/submit`,
-        {
-          idempotencyKey: key(),
-          declaration:
-            'I confirm that this batch is complete for its scope and I submit it for moderation within my assigned authority.',
-        },
-        lec,
-      ).expect(201);
-      const caseId = (submitted.body as { id: string }).id;
-      await apost(`/moderation/${caseId}/begin`, { idempotencyKey: key() }, mod).expect(201);
-      await apost(`/moderation/${caseId}/decide`, { idempotencyKey: key(), version: 1, to: 'APPROVED' }, mod).expect(201);
-    }
-    const pkg = (await apost(
-      '/packages',
-      {
-        idempotencyKey: key(),
-        offeringRef: OFFERING_REF,
-        periodCode: PERIOD_CODE,
-        declaration:
-          'I confirm that this result package is complete for its offering and period and I submit it for board decision within my assigned authority.',
-      },
-      lec,
-    ).expect(201)).body as { id: string; version: number };
-    await apost(`/packages/${pkg.id}/decide`, {
-      idempotencyKey: key(),
-      version: pkg.version,
-      to: 'APPROVE_FOR_RELEASE',
-      reason: 'Board minute 12.',
-    }, exam).expect(201);
-    await apost('/releases', { idempotencyKey: key(), packageId: pkg.id }, exam).expect(201);
-    return { id: pkg.id };
-  }
-
-  async function studentRef(): Promise<{ cookie: string; ref: string; accountId: string }> {
-    const me = await user(db, 'STUDENT', ['study'], 'STUDENT', 'self');
-    const account = await db.account.findUniqueOrThrow({ where: { id: me.accountId } });
-    const ref = `STU-2026-${key().slice(0, 8).toUpperCase()}`;
-    await db.student.create({ data: { personId: account.personId, studentNumber: ref } });
-    return { cookie: me.cookie, ref, accountId: me.accountId };
-  }
-
-  // File-wide fan-out cohort (slice-5 pattern): assembly
-  // reconciliation compares the whole offering+period scope, so every
-  // fan-out release stages the same refs.
-  let fan: {
-    s1: { cookie: string; ref: string; accountId: string };
-    s2: { cookie: string; ref: string; accountId: string };
-    lec: string;
-    coord: string;
-    mod: string;
-    exam: string;
-  } | null = null;
-  async function fanCohort() {
-    if (!fan) {
-      const lec = (await user(db, 'LEC', ['stage-marks'], 'OFFERING', OFFERING_REF)).cookie;
-      const coord = (await user(db, 'COORDINATOR', ['approve-assessment'], 'SCHOOL', 'Computing')).cookie;
-      const mod = (await user(db, 'MODERATOR', ['moderate-results'], 'OFFERING', OFFERING_REF)).cookie;
-      const exam = (await user(db, 'EXAMINATIONS_OFFICER', ['validate-results'], 'PERIOD', PERIOD_CODE)).cookie;
-      fan = { s1: await studentRef(), s2: await studentRef(), lec, coord, mod, exam };
-    }
-    return fan;
-  }
-
-  it('fan-out-release: release writes per-student RESULT_RELEASED records in-TX', async () => {
-    const { s1, s2, lec, coord, mod, exam } = await fanCohort();
+  it('fan-out-release: governed publication writes mandatory notices for every own candidate exactly once', async () => {
     await post('/templates', templateBody({ event: 'RESULT_RELEASED' }), sysadmin).expect(201);
-    await releasedPackage([s1.ref, s2.ref], lec, coord, mod, exam);
-    for (const s of [s1, s2]) {
-      const mine = (await request(app.getHttpServer())
-        .get('/notifications/records/mine')
-        .set('Cookie', s.cookie)
-        .expect(200)).body as { items: Array<{ event: string; mandatory: boolean }> };
-      const found = mine.items.filter((i) => i.event === 'RESULT_RELEASED');
-      expect(found).toHaveLength(1);
-      expect(found[0].mandatory).toBe(true);
+    const f = await publicationFixture(app, db, 2);
+    const pkg = await f.packageAt();
+    const command = { idempotencyKey: key(), version: pkg.version, declaration, proof: 'isolated-notification-proof' };
+    const publish = assessPost(app);
+    await publish(`/packages/${pkg.id}/release`, command, f.publisher.cookie).expect(201);
+    await publish(`/packages/${pkg.id}/release`, command, f.publisher.cookie).expect(201);
+    for (const candidate of f.records) {
+      const account = await db.account.findFirstOrThrow({ where: { personId: candidate.personId } });
+      const notices = await db.notificationRecord.findMany({ where: { recipientAccountId: account.id, event: 'RESULT_RELEASED' } });
+      expect(notices).toHaveLength(1);
+      expect(notices[0].mandatory).toBe(true);
+      expect(notices[0].body).not.toMatch(/70|PASS|FAIL/);
     }
+    const mine = await get('/records/mine', f.student.cookie).expect(200);
+    expect(mine.body.items.filter((item: { event: string }) => item.event === 'RESULT_RELEASED')).toHaveLength(1);
   });
 
-  it('fan-out-amend: amendment approval writes RESULT_AMENDED record', async () => {
-    const { s1, s2, lec, coord, mod, exam } = await fanCohort();
+  it('fan-out-amend: an independently approved replacement package writes RESULT_AMENDED notices', async () => {
     await post('/templates', templateBody({ event: 'RESULT_RELEASED' }), sysadmin).expect(201);
     await post('/templates', templateBody({ event: 'RESULT_AMENDED' }), sysadmin).expect(201);
-    const pkg = await releasedPackage([s1.ref, s2.ref], lec, coord, mod, exam);
-    const opened = (await request(app.getHttpServer())
-      .post('/assessment/amendments')
-      .set(csrf)
-      .set('Cookie', lec)
-      .send({
-        idempotencyKey: key(),
-        packageId: pkg.id,
-        studentRef: s1.ref,
-        correctedTotal: 74,
-        reason: 'Verified clerical error.',
-        declaration:
-          'I confirm that this official-result amendment is complete for its student and I submit it within my assigned authority.',
-      })
-      .expect(201)).body as { id: string; version: number };
-    await request(app.getHttpServer())
-      .post(`/assessment/amendments/${opened.id}/decide`)
-      .set(csrf)
-      .set('Cookie', exam)
-      .send({ idempotencyKey: key(), version: opened.version, to: 'APPROVE' })
-      .expect(201);
-    const mine = (await request(app.getHttpServer())
-      .get('/notifications/records/mine')
-      .set('Cookie', s1.cookie)
-      .expect(200)).body as { items: Array<{ event: string }> };
-    expect(mine.items.map((i) => i.event)).toContain('RESULT_AMENDED');
+    const f = await publicationFixture(app, db, 2);
+    const publish = assessPost(app);
+    const pkg = await f.packageAt();
+    const released = await publish(`/packages/${pkg.id}/release`, {
+      idempotencyKey: key(), version: pkg.version, declaration, proof: 'isolated-notification-proof',
+    }, f.publisher.cookie).expect(201);
+    const replacement = await f.packageAt(74);
+    const opened = await publish('/amendments', {
+      idempotencyKey: key(), releaseId: released.body.id, packageId: replacement.id,
+      reason: 'Verified clerical error.', evidenceRef: 'ISOLATED-EVIDENCE',
+    }, f.examiner.cookie).expect(201);
+    const command = { idempotencyKey: key(), version: opened.body.version, declaration, proof: 'isolated-notification-proof' };
+    await publish(`/amendments/${opened.body.id}/approve`, command, f.publisher.cookie).expect(201);
+    await publish(`/amendments/${opened.body.id}/approve`, command, f.publisher.cookie).expect(201);
+    const mine = await get('/records/mine', f.student.cookie).expect(200);
+    expect(mine.body.items.filter((item: { event: string }) => item.event === 'RESULT_AMENDED')).toHaveLength(1);
+    expect(await db.resultNotice.count({ where: { studentId: f.record.id } })).toBe(2);
   });
 });

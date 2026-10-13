@@ -1,5 +1,9 @@
 "use client";
 
+import { CourseSelection } from "./course-selection";
+import workflow from "../../components/workflow.module.css";
+
+import { academicHref } from "../../../lib/academic-context";
 import { useState } from "react";
 import type { CoursePlanView } from "@sis/contracts";
 import { ErrorSummary, Notice } from "@sis/ui";
@@ -13,8 +17,9 @@ interface FieldError {
 async function postPlan(
   courseCodes: string[],
   version: number,
+  context: CoursePlanView,
 ): Promise<CoursePlanView> {
-  const res = await fetch(`/api/registration/plan`, {
+  const res = await fetch(academicHref("/api/registration/plan", context), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -73,7 +78,7 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
     setErrors([]);
     setNotice(null);
     try {
-      const saved = await postPlan([...selected], board.version);
+      const saved = await postPlan([...selected], board.version, board);
       setBoard(saved);
       setSelected(new Set(saved.items.map((i) => i.code)));
       setNotice(`Draft saved as version ${saved.version}.`);
@@ -89,39 +94,6 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
   const required = [...all.values()].filter((c) => c.required);
   const electives = [...all.values()].filter((c) => !c.required);
 
-  function card(code: string) {
-    const course = all.get(code);
-    if (!course) return null;
-    const check = board.validation.find((v) => v.code === code);
-    return (
-      <li key={code}>
-        <p>
-          <label htmlFor={`course-${code}`}>
-            <input
-              id={`course-${code}`}
-              type="checkbox"
-              checked={selected.has(code)}
-              onChange={() => toggle(code)}
-            />{" "}
-            <strong>
-              {course.code} — {course.title}
-            </strong>
-          </label>
-        </p>
-        <p className={styles.supporting}>
-          {course.credits} credits · {course.courseType}
-          {course.semester ? ` · ${course.semester}` : ""} · Capacity{" "}
-          {course.capacity}
-        </p>
-        {check ? (
-          <p className={styles.supporting}>
-            {check.result}: {check.explanation}
-          </p>
-        ) : null}
-      </li>
-    );
-  }
-
   return (
     <>
       {notice ? (
@@ -131,25 +103,33 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
         <ErrorSummary title="The plan was not saved" errors={errors} />
       ) : null}
       <p className={styles.muted}>
-        Planned load: {board.loadHalves} half-course equivalents.
+        Last saved load: {board.loadHalves} half-course equivalents.
       </p>
       {board.notices.map((note) => (
         <p key={note} className={styles.supporting}>
           {note}
         </p>
       ))}
-      <h2>Required courses</h2>
-      {required.length === 0 ? (
-        <p className={styles.muted}>No required courses configured.</p>
-      ) : (
-        <ul>{required.map((c) => card(c.code))}</ul>
-      )}
-      <h2>Electives</h2>
-      {electives.length === 0 ? (
-        <p className={styles.muted}>No electives configured.</p>
-      ) : (
-        <ul>{electives.map((c) => card(c.code))}</ul>
-      )}
+      <p className={workflow.meta} role="status">
+        {selected.size} courses selected. Save your changes to refresh the load
+        and checks below.
+      </p>
+      <CourseSelection
+        title="Required courses"
+        courses={required}
+        selected={selected}
+        validation={board.validation}
+        onToggle={toggle}
+        disabled={pending}
+      />
+      <CourseSelection
+        title="Electives"
+        courses={electives}
+        selected={selected}
+        validation={board.validation}
+        onToggle={toggle}
+        disabled={pending}
+      />
       <h2>Validation</h2>
       {board.validation.length === 0 ? (
         <p className={styles.muted}>
@@ -168,7 +148,12 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
         </ul>
       )}
       <p>
-        <button type="button" disabled={pending} onClick={() => void save()}>
+        <button
+          className={workflow.action}
+          type="button"
+          disabled={pending}
+          onClick={() => void save()}
+        >
           {pending ? "Saving…" : "Save course plan"}
         </button>
       </p>

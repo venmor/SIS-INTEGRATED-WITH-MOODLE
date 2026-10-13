@@ -1,0 +1,11 @@
+# V2 timetable fictional rule drafts — 2026-10-05
+
+Task: [TASK-V2-TIME-004](../task-packets/TASK-V2-TIME-004.md). Lead Charles Hangoma; reviewer Chitindu Milimbo; human acceptance pending.
+
+The isolated rehearsal now has a campus-scoped `DOMAIN_ADMIN` draft workspace. A fictional scheduler can save room turnaround, preview size and directed travel minutes through the UI. The API checks a live campus appointment and capability, a `DEMO-*` campus record, `DEMO_MODE`, a separate opt-in switch and a loopback review/test database on each request. Values are bounded; the request ID prevents duplicate saves; the expected version rejects stale edits. PostgreSQL prevents updates/deletes to saved drafts. The save and its minimal audit event share a transaction. Reads return only the active campus's last 20 versions. These rows do not approve, publish or alter a timetable.
+
+The synthetic seed adds `DEMO-MAIN`, `DEMO-HEALTH` and `nasilele.scheduler` only when the isolated review/test database and both demo switches are active. The example appointment is fictional and grants draft access only. The UI keeps the main SIS sign-in route and gives this actor a direct workspace link. It shows saving, saved, conflict and uncertain outcomes, plus draft history.
+
+Verification: Prisma schema validation and generation; API and web builds; three parser/gate unit tests; three connected API tests covering append-only history, retry, changed-key reuse, stale version, malformed routes, campus isolation, missing capability, revocation and switch-off denial. In an isolated 3150/3151 browser run, a fictional scheduler signed in, added a directed travel route, saved version 1 and saw the confirmation at 390px with no horizontal overflow. The pre-existing 3100/3101 servers were left running. No cloud Moodle or external data was used.
+
+Remaining: draft sessions, authoritative section/venue/staff assignment, conflict validation against saved rules, independent approval/publication, revision impact and own student timetable are open. GAP-V2-001 and GAP-021 remain open for institutional authority and real timetable validation. The browser run is a synthetic rehearsal, not human acceptance or production readiness.

@@ -2,10 +2,13 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { SECURITY_V1 } from "@sis/config";
 import { ContextBar, Notice, Status } from "@sis/ui";
+import { PublicHeader } from "./public-header";
 import { formatLusaka } from "../lib/time";
 import styles from "./page.module.css";
 import { ExpiryBanner } from "./expiry-banner";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { institutionSetupAvailable } from "../lib/institution-setup-permissions";
+import { timetablePermissions } from "../lib/timetable-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -56,38 +59,57 @@ export default async function Home() {
   const me = await loadMe();
   if (!me) {
     return (
-      <div className={styles.page}>
-        <main id="main-content" tabIndex={-1} className={styles.main}>
-          <p className={styles.context}>Admissions and student services</p>
-          <h1 className={styles.title}>Student Information System</h1>
-          <p className={styles.lede}>
-            Explore programmes and entry requirements, then sign in to start or
-            continue your application.
-          </p>
-          <Status
-            severity="info"
-            state="Start with programme discovery"
-            reason="Read requirements, compare programmes and check the intake deadline before applying."
-            updated="Programme details show their latest published version."
-            action="Choose a programme or sign in to continue."
-          />
-          <div className={styles.actions}>
-            <Link className={styles.primary} href="/discover">
-              Find a programme
-            </Link>
-          </div>
-          <p className={styles.supporting}>
-            <Link href="/applicant">Sign in to the applicant portal</Link>
-          </p>
-        </main>
-      </div>
+      <>
+        <PublicHeader current="home" />
+        <div className={styles.page}>
+          <main id="main-content" tabIndex={-1} className={styles.main}>
+            <p className={styles.context}>One place for university work</p>
+            <h1 className={styles.title}>Continue your work in the SIS</h1>
+            <p className={styles.lede}>
+              Students, applicants and staff sign in to their own workspaces.
+              You can also explore programmes without signing in.
+            </p>
+            <div className={styles.entryGrid}>
+              <section
+                className={styles.entryPrimary}
+                aria-labelledby="entry-sign-in"
+              >
+                <p className={styles.entryEyebrow}>For existing accounts</p>
+                <h2 id="entry-sign-in">Sign in to your workspace</h2>
+                <p>
+                  Continue registration, applications, teaching or university
+                  administration using your SIS account.
+                </p>
+                <Link className={styles.primary} href="/sign-in">
+                  Sign in
+                </Link>
+              </section>
+              <section
+                className={styles.entrySecondary}
+                aria-labelledby="entry-discovery"
+              >
+                <p className={styles.entryEyebrow}>
+                  For prospective applicants
+                </p>
+                <h2 id="entry-discovery">Explore programmes</h2>
+                <p>
+                  Search published programmes, check requirements and compare
+                  available study options before applying.
+                </p>
+                <Link href="/discover">Find a programme →</Link>
+              </section>
+            </div>
+          </main>
+        </div>
+      </>
     );
   }
   const active = me.activeWorkspace;
+  const [timetable, setupAvailable] = await Promise.all([timetablePermissions(active), institutionSetupAvailable(active)]);
   const breakGlass = active?.scopeType === "BREAK_GLASS" ? active : null;
   return (
     <div className={styles.page}>
-      <main id="main-content" tabIndex={-1} className={styles.main}>
+      <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
         <h1 className={styles.title}>Student Information System</h1>
         {breakGlass ? (
@@ -129,16 +151,37 @@ export default async function Home() {
           activeId={active?.assignmentId ?? null}
         />
         <div className={styles.actions}>
-          {active?.role === "APPLICANT" ? (
+          {active?.role === "APP" || active?.role === "APPLICANT" ? (
             <Link className={styles.primary} href="/applicant">
               Applicant portal
             </Link>
           ) : null}
-          {active?.role === "STUDENT" ? (
+          {active?.role === "STU" || active?.role === "STUDENT" ? (
             <Link className={styles.primary} href="/student">
               Student portal
             </Link>
           ) : null}
+          {active?.role === "ADVISER" ? (
+            <Link className={styles.primary} href="/admin/support">
+              Academic support requests
+            </Link>
+          ) : null}
+          {setupAvailable ? (
+            <Link className={styles.primary} href="/admin/setup/university">
+              University structure and calendar
+            </Link>
+          ) : null}
+          {active?.role === "DOMAIN_ADMIN" && active.scopeType === "CAMPUS" && active.scopeRef.startsWith("DEMO-") ? (
+            <Link className={styles.primary} href="/admin/timetabling/demo-rules">
+              Timetable rule drafts
+            </Link>
+          ) : null}
+          {active?.role === "TIMETABLE_COORDINATOR" && active.scopeRef === "DEMO-UNIVERSITY" ? (
+            <Link className={styles.primary} href="/admin/timetabling/master">
+              Master timetable preview
+            </Link>
+          ) : null}
+          {timetable?.canRead ? <Link className={styles.primary} href="/admin/timetabling/publications">Timetable publication</Link> : null}
           {active?.role === "ADMISSIONS_OFFICER" ? (
             <Link className={styles.primary} href="/admin/admissions/queue">
               Admissions queue
@@ -189,7 +232,7 @@ export default async function Home() {
               Role assignments
             </a>
           ) : null}
-          {active ? (
+          {active?.role === "SYSADMIN" ? (
             <Link className={styles.primary} href="/admin/reviews">
               Access reviews
             </Link>

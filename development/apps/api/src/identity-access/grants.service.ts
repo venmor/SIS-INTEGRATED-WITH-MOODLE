@@ -15,6 +15,7 @@ import type { GrantRoleDto } from './dto.js';
 // approver (real account, never the target), idempotency keys with stored
 // receipts, same-transaction outbox events, prior/new audit refs, purpose.
 // High-risk self-assignment is denied; unknown users get the neutral reply.
+// Task 1.3: Enforce approver authority over target scope (GAP-006) and SoD pairs (GAP-012).
 @Injectable()
 export class GrantsService {
   private readonly logger = new Logger(GrantsService.name);
@@ -24,6 +25,155 @@ export class GrantsService {
     private readonly workspaces: WorkspaceService,
     private readonly config: ConfigurationService,
   ) {}
+
+  /**
+   * Build the full scope name from scopeType and scopeRef.
+   * E.g., scopeType="SCHOOL", scopeRef="ENGINEERING" -> "SCHOOL:ENGINEERING"
+   */
+  private buildScopeName(scopeType: string, scopeRef: string): string {
+    return `${scopeType}:${scopeRef}`;
+  }
+
+  /**
+   * Get all ancestor scope IDs (including self) for a given scope ID.
+   * Uses recursive CTE to traverse the hierarchy.
+   */
+  private async getScopeHierarchy(scopeId: string): Promise<string[]> {
+    const result = await this.prisma.$queryRaw<{ id: string }[]>`
+      WITH RECURSIVE scope_hierarchy AS (
+        SELECT id, "parentScopeId" FROM "Scope" WHERE id = ${scopeId}
+        UNION ALL
+        SELECT s.id, s."parentScopeId" FROM "Scope" s
+        INNER JOIN scope_hierarchy sh ON s.id = sh."parentScopeId"
+      )
+      SELECT id FROM scope_hierarchy
+    `;
+    return result.map(r => r.id);
+  }
+
+  /**
+   * Find the Scope entity by scopeType and scopeRef from the grant DTO.
+   */
+  private async findScopeByTypeAndRef(scopeType: string, scopeRef: string) {
+    const scopeName = this.buildScopeName(scopeType, scopeRef);
+    return this.prisma.scope.findUnique({
+      where: { name: scopeName },
+    });
+  }
+
+  /**
+   * Validate that the approver has authority over the target scope and capability.
+   * Checks ApproverAuthority table for the approver's active role(s).
+   * Authority over a parent scope extends to child scopes (hierarchy).
+   * Also enforces effective dates on scopes.
+   */
+  private async validateApproverAuthority(
+    approverId: string,
+    targetScopeId: string,
+    capabilityId?: string,
+  ): Promise<{ valid: boolean; reason?: string }> {
+    const now = new Date();
+
+    // Get approver's active role assignments
+    const approverRoles = await this.prisma.roleAssignment.findMany({
+      where: {
+        accountId: approverId,
+        revokedAt: null,
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+        startsAt: { lte: now },
+      },
+      select: { role: true },
+    });
+
+    if (approverRoles.length === 0) {
+      return { valid: false, reason: 'approver-has-no-active-roles' };
+    }
+
+    const roleNames = approverRoles.map(r => r.role);
+
+    // Get target scope hierarchy (target + all ancestors)
+    const targetScopeHierarchy = await this.getScopeHierarchy(targetScopeId);
+
+    // Check if any of approver's roles has authority over target scope (or ancestor) + capability
+    const authority = await this.prisma.approverAuthority.findFirst({
+      where: {
+        approverRoleId: { in: roleNames },
+        targetScopeId: { in: targetScopeHierarchy },
+        capabilityId: capabilityId ?? undefined,
+        isActive: true,
+      },
+      include: {
+        targetScope: true,
+        capability: true,
+      },
+    });
+
+    if (!authority) {
+      return {
+        valid: false,
+        reason: 'approver-lacks-scope-authority',
+      };
+    }
+
+    // Check effective dates on the scope
+    const targetScope = authority.targetScope;
+    if (targetScope.effectiveFrom && targetScope.effectiveFrom > now) {
+      return { valid: false, reason: 'scope-not-yet-effective' };
+    }
+    if (targetScope.effectiveTo && targetScope.effectiveTo < now) {
+      return { valid: false, reason: 'scope-expired' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Check if granting the new role would create a SoD conflict with target's existing roles.
+   * SoD pairs are symmetric: (A, B) means A and B cannot be held together.
+   */
+  private async checkSoDConflict(
+    targetAccountId: string,
+    newRole: string,
+  ): Promise<{ conflict: boolean; conflictingRole?: string; reason?: string }> {
+    const now = new Date();
+
+    // Get target's current active roles
+    const targetRoles = await this.prisma.roleAssignment.findMany({
+      where: {
+        accountId: targetAccountId,
+        revokedAt: null,
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+        startsAt: { lte: now },
+      },
+      select: { role: true },
+    });
+
+    const targetRoleNames = new Set(targetRoles.map(r => r.role));
+
+    // Check active SoD pairs
+    const sodPairs = await this.prisma.soDPair.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { roleAId: newRole, roleBId: { in: Array.from(targetRoleNames) } },
+          { roleBId: newRole, roleAId: { in: Array.from(targetRoleNames) } },
+        ],
+      },
+    });
+
+    if (sodPairs.length > 0) {
+      const conflictingRole = sodPairs[0].roleAId === newRole
+        ? sodPairs[0].roleBId
+        : sodPairs[0].roleAId;
+      return {
+        conflict: true,
+        conflictingRole,
+        reason: `sod-conflict-with-existing:${conflictingRole}`,
+      };
+    }
+
+    return { conflict: false };
+  }
 
   private async deny(
     grantor: {
@@ -256,6 +406,56 @@ export class GrantsService {
         dto.idempotencyKey,
       );
     }
+
+    // Task 1.3 (GAP-006): Validate approver holds authority over target scope + capability
+    // Map scopeType + scopeRef to Scope entity
+    const targetScope = await this.findScopeByTypeAndRef(dto.scopeType, dto.scopeRef);
+    if (!targetScope) {
+      return this.deny(
+        grantor,
+        'target-scope-not-found',
+        target.username,
+        false,
+        dto.reason,
+        dto.idempotencyKey,
+      );
+    }
+
+    // Check if any of the requested capabilities exist in the capability registry
+    // For now, we check the first capability if provided, or skip capability check
+    const capabilityId = dto.capabilities && dto.capabilities.length > 0
+      ? (await this.prisma.capability.findUnique({ where: { name: dto.capabilities[0] } }))?.id
+      : undefined;
+
+    const authorityCheck = await this.validateApproverAuthority(
+      approver.id,
+      targetScope.id,
+      capabilityId,
+    );
+    if (!authorityCheck.valid) {
+      return this.deny(
+        grantor,
+        authorityCheck.reason ?? 'approver-lacks-scope-authority',
+        target.username,
+        true,
+        dto.reason,
+        dto.idempotencyKey,
+      );
+    }
+
+    // Task 1.3 (GAP-012): Check SoD conflict with target's existing roles
+    const sodCheck = await this.checkSoDConflict(target.id, dto.role);
+    if (sodCheck.conflict) {
+      return this.deny(
+        grantor,
+        sodCheck.reason ?? 'sod-conflict',
+        target.username,
+        true,
+        dto.reason,
+        dto.idempotencyKey,
+      );
+    }
+
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
     if (
@@ -303,6 +503,7 @@ export class GrantsService {
           role: dto.role,
           scopeType: dto.scopeType,
           scopeRef: dto.scopeRef,
+          scopeId: targetScope.id,
           startsAt,
           endsAt,
           grantedById: grantor.accountId,

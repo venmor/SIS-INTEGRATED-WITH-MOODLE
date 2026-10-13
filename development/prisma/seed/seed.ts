@@ -11,11 +11,33 @@
 // Local-demo kill-switch: this seed must never run outside an explicit local
 // reset (predictable fictional passwords). demo:reset sets the flag;
 // any other invocation aborts before touching the database.
-if (process.env.ALLOW_DEMO_SEED !== "true") {
+// Exception: isolated test/review/ci/browser databases (validated by the same
+// pattern used in tests/browser/fixtures.ts) may be seeded without the flag
+// so that browser tests have programme offerings available.
+import { isDemonstrationDatabaseTarget } from "../../packages/config/src/demo-environment.ts";
+
+const dbUrl = process.env.DATABASE_URL;
+const isTestDatabase = dbUrl && /(test|review|ci|browser)/i.test(new URL(dbUrl).pathname);
+const isPinnedCloudDemonstration =
+  process.env.SIS_ENABLE_CLOUD_DEMONSTRATION === "true" &&
+  isDemonstrationDatabaseTarget(process.env);
+if (dbUrl && ["localhost", "127.0.0.1", "[::1]"].includes(new URL(dbUrl).hostname) &&
+  !isDemonstrationDatabaseTarget({ ...process.env, DEMO_MODE: "true" }, /.*/)) {
+  console.error("refusing: demonstration seeding requires the exact approved target without connection overrides");
+  process.exit(1);
+}
+if (dbUrl && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(dbUrl).hostname) && !isPinnedCloudDemonstration) {
+  console.error("refusing: remote demonstration seeding requires the exact approved target pins and TLS");
+  process.exit(1);
+}
+if (process.env.ALLOW_DEMO_SEED !== "true" && !isTestDatabase) {
   console.error(
     "refusing: set ALLOW_DEMO_SEED=true via `npm run demo:reset` (local demo only)",
   );
   process.exit(1);
+}
+if (isTestDatabase) {
+  console.log("Seeding test database (DATABASE_URL contains test|review|ci|browser)");
 }
 
 import { createRequire } from "node:module";
@@ -26,6 +48,9 @@ const require = createRequire(import.meta.url);
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { hash } = require("argon2");
+// Use dynamic import for local ESM module
+const { seedCapabilitiesScopesSod } = await import("./capabilities-scopes-sod.ts");
+const { seedDemoUniversityAccounts } = await import("./demo-university.mjs");
 
 // Prisma 7 connects through a driver adapter (no built-in engine).
 const adapter = new PrismaPg({
@@ -1075,6 +1100,9 @@ async function ensureStudentDemo(): Promise<void> {
 }
 
 async function main(): Promise<void> {  // Identity administrator first so later grants reference a granter/approver.
+  // Seed capabilities, scopes, approver authority, and SoD pairs (GAP-003, GAP-004, GAP-006, GAP-012)
+  await seedCapabilitiesScopesSod(prisma);
+  
   const admin = SEED.find((s) => s.username === "mweene.t") as SeedAccount;
   await ensureAccount(admin, null);
   const granter = await prisma.account.findUniqueOrThrow({
@@ -1083,9 +1111,50 @@ async function main(): Promise<void> {  // Identity administrator first so later
   for (const entry of SEED.filter((s) => s.username !== admin.username)) {
     await ensureAccount(entry, granter.id);
   }
+  await seedDemoUniversityAccounts(prisma);
+  if ((isTestDatabase || isPinnedCloudDemonstration) && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+    await prisma.academicPeriod.upsert({
+      where: { code: "DEMO-2026-TEACHING" }, update: {},
+      create: { code: "DEMO-2026-TEACHING", status: "DRAFT" },
+    });
+    for (const [code, name] of [["DEMO-MAIN", "Fictional Main Campus"], ["DEMO-HEALTH", "Fictional Health Campus"]]) {
+      const unit = await prisma.institutionUnit.upsert({ where: { code }, update: {}, create: { code } });
+      await prisma.institutionUnitVersion.upsert({
+        where: { unitId_version: { unitId: unit.id, version: 1 } }, update: {},
+        create: { unitId: unit.id, version: 1, name, unitType: "CAMPUS" },
+      });
+    }
+    await ensureAccount({
+      username: "nasilele.scheduler", personName: "Nasilele Scheduler (fictional)",
+      email: "nasilele.scheduler@demo.invalid", phone: "+260950009999",
+      password: "Seed-2026-Scheduler",
+      roles: [{
+        role: "DOMAIN_ADMIN", scopeType: "CAMPUS", scopeRef: "DEMO-MAIN",
+        startsAt: "2026-01-01T00:00:00Z", endsAt: null,
+        appointmentRef: "DEMO-TIME-004", authoritySource: "Fictional operating-university rehearsal",
+        capabilities: ["timetable-demo-rules-draft"], employmentType: null,
+        reason: "Fictional timetable rule drafts only",
+      }],
+    }, granter.id);
+    await ensureAccount({
+      username: "nasilele.master", personName: "Nasilele Master Planner (fictional)",
+      email: "nasilele.master@demo.invalid", phone: "+260950009998",
+      password: "Seed-2026-Master",
+      roles: [{
+        role: "TIMETABLE_COORDINATOR", scopeType: "SYSTEM", scopeRef: "DEMO-UNIVERSITY",
+        startsAt: "2026-01-01T00:00:00Z", endsAt: null,
+        appointmentRef: "DEMO-TIME-006", authoritySource: "Fictional operating-university rehearsal",
+        capabilities: ["timetable-demo-master-draft"], employmentType: null,
+        reason: "Fictional master timetable draft only",
+      }],
+    }, granter.id);
+  }
   await ensureReviewSchedules(granter.id);
   await ensureCatalogue();
   await ensureStudentDemo();
+  if ((isTestDatabase || isPinnedCloudDemonstration) && process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true") {
+    await ensureTimetableDemoDelivery(granter.id);
+  }
   // Explicit fictional verified-contact fixture; never infer verification for real users.
   if (process.env.DEMO_MODE === "true") {
     for (const username of ["bwalya.m", "daka.c", "phiri.n"]) {
@@ -1111,6 +1180,60 @@ async function main(): Promise<void> {  // Identity administrator first so later
   console.log(
     `seed v0.2 complete: ${counts.persons} persons, ${counts.accounts} accounts, ${counts.roles} role assignments, ${counts.credentials} credentials, ${counts.programmes} programmes, ${counts.offerings} offerings, ${counts.rules} requirement rules`,
   );
+}
+
+async function ensureTimetableDemoDelivery(granterId: string): Promise<void> {
+  const campus = await prisma.institutionUnit.findUniqueOrThrow({ where: { code: "DEMO-MAIN" } });
+  const period = await prisma.academicPeriod.findUniqueOrThrow({ where: { code: "DEMO-2026-TEACHING" } });
+  const building = await prisma.teachingBuilding.upsert({
+    where: { campusUnitId_code: { campusUnitId: campus.id, code: "DEMO-B1" } }, update: {},
+    create: { campusUnitId: campus.id, code: "DEMO-B1", name: "Fictional teaching building" },
+  });
+  for (const [venueCode, capacity] of [["DEMO-R1", 40], ["DEMO-R2", 40], ["DEMO-R3", 60], ["DEMO-R4", 100]] as const) {
+    await prisma.teachingVenue.upsert({
+      where: { buildingId_code: { buildingId: building.id, code: venueCode } }, update: {},
+      create: { buildingId: building.id, code: venueCode, name: `Fictional room ${venueCode}`, teachingCapacity: capacity, stepFreeAccess: true },
+    });
+  }
+  const previewCourses = [
+    ["DEM101", "Academic Writing"], ["DEM102", "Introduction to Computing"],
+    ["DEM103", "Statistics for Decision Making"], ["DEM104", "Database Fundamentals"],
+    ["DEM105", "Computer Networks"], ["DEM106", "Web Application Development"],
+    ["DEM107", "Information Systems"], ["DEM108", "Entrepreneurship"],
+    ["DEM109", "Research Methods"], ["DEM110", "Ethics and Professional Practice"],
+  ] as const;
+  // Preview-only courses have no curriculum links or official enrolments.
+  for (const [code, title] of previewCourses) await prisma.course.upsert({
+    where: { code }, update: {},
+    create: { code, title: `${title} (fictional)`, credits: 15, courseType: "half", semester: "S1", capacity: 40 },
+  });
+  const teacher = await prisma.account.findUniqueOrThrow({ where: { username: "mutinta.l" } });
+  for (const courseCode of ["SWE111", "MTH111", ...previewCourses.map(([code]) => code)]) {
+    const course = await prisma.course.findUniqueOrThrow({ where: { code: courseCode } });
+    const version = await prisma.courseVersion.upsert({
+      where: { courseId_version: { courseId: course.id, version: 1 } }, update: {},
+      create: { courseId: course.id, version: 1, title: course.title, credits: course.credits },
+    });
+    const offering = await prisma.courseDeliveryOffering.upsert({
+      where: { courseVersionId_periodId_deliveryUnitId_campusUnitId_deliveryMode: {
+        courseVersionId: version.id, periodId: period.id, deliveryUnitId: campus.id, campusUnitId: campus.id, deliveryMode: "IN_PERSON",
+      } }, update: {},
+      create: { courseVersionId: version.id, periodId: period.id, deliveryUnitId: campus.id,
+        campusUnitId: campus.id, deliveryMode: "IN_PERSON", capacity: 40 },
+    });
+    const section = await prisma.teachingSection.upsert({
+      where: { offeringId_code: { offeringId: offering.id, code: "DEMO-A" } }, update: {},
+      create: { offeringId: offering.id, code: "DEMO-A", capacity: 40, deliveryMode: "IN_PERSON" },
+    });
+    const assignment = await prisma.roleAssignment.findFirst({
+      where: { accountId: teacher.id, role: "LEC", scopeType: "SECTION", scopeRef: section.id },
+    });
+    if (!assignment) await prisma.roleAssignment.create({ data: {
+      accountId: teacher.id, role: "LEC", scopeType: "SECTION", scopeRef: section.id,
+      startsAt: new Date("2026-01-01T00:00:00Z"), capabilities: ["teach"],
+      grantedById: granterId, approverId: granterId, reason: "Fictional teaching section appointment",
+    } });
+  }
 }
 
 await main()

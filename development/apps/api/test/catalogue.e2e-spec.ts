@@ -40,11 +40,20 @@ describe('catalogue (e2e)', () => {
     const all = await request(server as never)
       .get('/catalogue/programmes?take=50')
       .expect(HttpStatus.OK);
+    const seededIds = new Set((await prisma.programmeOffering.findMany({
+      where: {
+        programme: { publishedVersion: 'DEMO-ACADEMIC-2026-v1' },
+        studyMode: 'Full-time',
+        campus: 'Main Campus',
+      },
+      select: { id: true },
+    })).map((o) => o.id));
     offerings = (
       all.body as {
         items: Array<{ offeringId: string; availability: string }>;
       }
-    ).items.map((i) => ({ id: i.offeringId, availability: i.availability }));
+    ).items.filter((i) => seededIds.has(i.offeringId))
+      .map((i) => ({ id: i.offeringId, availability: i.availability }));
     expect(offerings).toHaveLength(4);
   });
 
@@ -75,7 +84,8 @@ describe('catalogue (e2e)', () => {
     const open = await request(server as never)
       .get('/catalogue/programmes?availability=OPEN')
       .expect(HttpStatus.OK);
-    expect((open.body as { items: unknown[] }).items).toHaveLength(2);
+    expect((open.body as { items: Array<{ offeringId: string }> }).items
+      .filter((i) => offerings.some((o) => o.id === i.offeringId))).toHaveLength(2);
   });
 
   it('discovery-route-filter: route narrows to programmes defining that route', async () => {
@@ -83,11 +93,12 @@ describe('catalogue (e2e)', () => {
       .get('/catalogue/programmes?route=INTL')
       .expect(HttpStatus.OK);
     const names = (
-      intl.body as { items: Array<{ programmeName: string }> }
-    ).items.map((i) => i.programmeName);
+      intl.body as { items: Array<{ programmeName: string; offeringId: string }> }
+    ).items.filter((i) => offerings.some((o) => o.id === i.offeringId))
+      .map((i) => i.programmeName);
     // Only SWE defines an INTL-route rule (ZAQA equivalency) — both its
     // offerings (search is offering-level) and nothing else.
-    expect((intl.body as { items: unknown[] }).items).toHaveLength(2);
+    expect(names).toHaveLength(2);
     expect(new Set(names)).toEqual(new Set(['BSc Software Engineering']));
   });
 

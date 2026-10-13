@@ -9,6 +9,7 @@
   line-height: var(--line-body);
   color: var(--text-primary);
   max-width: 40rem;
+  overflow-wrap: anywhere;
 }
 
 .bar strong {

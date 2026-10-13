@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ConnectionView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
+import { WriteReadinessNotice } from "./write-readiness";
+import { moodleBackendLabel } from "../../../lib/moodle-status";
 import styles from "../../page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -57,8 +59,9 @@ export default async function MoodleAdminPage() {
         <Notice
           severity={health.data.status === "HEALTHY" ? "success" : "warning"}
           title={`Connection ${health.data.status}`}
-          message={`Provider ${health.data.provider}. SIS registration stays authoritative through every sync state.`}
+          message={`Provider ${health.data.provider} · ${moodleBackendLabel(health.data.backend)}. SIS registration stays authoritative through every sync state.`}
         />
+        <WriteReadinessNotice readiness={health.data.writeReadiness} />
         <ul>
           <li>
             <Link href="/admin/moodle/mappings">Mappings</Link> — versioned
@@ -73,18 +76,19 @@ export default async function MoodleAdminPage() {
             scheduled windows with student-safe wording.
           </li>
         </ul>
-        <h2>Course shells ({shells.data.items.length})</h2>
+        <h2>Recorded simulator shells ({shells.data.items.length})</h2>
         {shells.data.items.length === 0 ? (
           <p>
-            No shells yet. Shells provision from approved offerings when
-            the first enrolment arrives, or provision one explicitly.
+            {health.data.writeReadiness?.outcome === "NOT_PROVISIONED"
+              ? "No recorded simulator shells. SIS live provisioning is disabled until approved setup is complete."
+              : "No simulator course shells yet. Approved offerings create simulated shells when the first enrolment arrives."}
           </p>
         ) : (
           <ul>
             {shells.data.items.map((shell) => (
               <li key={shell.shellRef}>
                 <strong>{shell.shellRef}</strong> —{" "}
-                {shell.activeEnrolments} active enrolments
+                {shell.activeEnrolments} simulated active enrolments
               </li>
             ))}
           </ul>

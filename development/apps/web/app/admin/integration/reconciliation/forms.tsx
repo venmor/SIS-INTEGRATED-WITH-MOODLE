@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import type { MoodleWriteReadiness } from "@sis/contracts";
+import { notProvisionedMessage } from "../../../../lib/moodle-status";
+import { WaitingForMoodle } from "../../moodle/write-readiness";
 
 interface FieldError {
   fieldId: string;
@@ -44,11 +47,13 @@ function failure(error: unknown): string {
 // Reconciliation runs and governed resolutions. Safe diffs repair by
 // requeue; activating SIS records, editing payloads or deleting rows
 // are refused. Resolutions need evidence, never bare notes.
-export function ReconForms() {
+export function ReconForms({ readiness }: { readiness?: MoodleWriteReadiness }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const disabled = readiness?.outcome !== "SIMULATOR_READY";
 
   async function act(
     path: string,
@@ -56,15 +61,21 @@ export function ReconForms() {
     done: string,
     form?: HTMLFormElement | null,
   ) {
-    if (pending) return;
+    if (pending || disabled) return;
     setPending(path);
     setErrors([]);
     setNotice(null);
+    setDeferred(null);
     try {
       const out = (await postIntegration(path, {
         ...body,
         idempotencyKey: crypto.randomUUID(),
       })) as { diffs?: number; repaired?: number; cases?: number; status?: string };
+      const waiting = notProvisionedMessage(out);
+      if (waiting) {
+        setDeferred(waiting);
+        return;
+      }
       const summary =
         out.diffs !== undefined
           ? ` Run found ${out.diffs} differences, repaired ${out.repaired}, opened ${out.cases} cases.`
@@ -81,6 +92,7 @@ export function ReconForms() {
 
   return (
     <>
+      <WaitingForMoodle message={deferred} />
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
@@ -95,7 +107,7 @@ export function ReconForms() {
         }}
       >
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button type="submit" disabled={pending !== null || disabled}>
             {pending ? "Running…" : "Run reconciliation"}
           </button>
         </p>
@@ -136,7 +148,7 @@ export function ReconForms() {
           <textarea id="recon-note" name="recon-note" rows={3} maxLength={4000} />
         </p>
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button type="submit" disabled={pending !== null || disabled}>
             {pending ? "Resolving…" : "Resolve case"}
           </button>
         </p>
