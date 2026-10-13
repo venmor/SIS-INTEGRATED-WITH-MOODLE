@@ -57,3 +57,5 @@ export type * from "./ops.js";
 export * from './institution-setup.js';
 
 export type * from "./timetabling.js";
+
+export type * from "./registration.js";

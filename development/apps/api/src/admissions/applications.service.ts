@@ -35,7 +35,9 @@ const include = {
       programme: { include: { rules: { include: { route: true } } } },
     },
   },
-  documents: { orderBy: { createdAt: 'asc' as const } },
+  // Multiple scanned documents can share a timestamp. Version breaks ties so
+  // replacement checks select the actual latest document in each category.
+  documents: { orderBy: [{ createdAt: 'asc' as const }, { version: 'asc' as const }, { id: 'asc' as const }] },
   submission: true,
 } satisfies Prisma.ApplicationInclude;
 type Row = Prisma.ApplicationGetPayload<{ include: typeof include }>;

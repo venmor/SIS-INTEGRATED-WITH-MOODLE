@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOriginMutation } from "../../../../lib/same-origin";
 
 // Same-origin proxy to the NestJS registration API (TASK-PH4-003/004/005).
-// Readiness, draft plans, submit, status and timetable only; every other
+// Owned contexts, readiness, draft plans, submit, status and timetable only; every other
 // method or path is refused.
-const reads = new RegExp(`^(readiness|plan|status|timetable|amendments|waitlist)$`);
+const reads = new RegExp(`^(contexts|readiness|plan|status|timetable|amendments|waitlist)$`);
 
 async function proxy(
   req: NextRequest,

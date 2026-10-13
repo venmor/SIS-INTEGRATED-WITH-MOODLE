@@ -1,4 +1,6 @@
 import { parseAcademicContext } from "../../../lib/academic-context";
+import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
+import { ContextSelector } from "../context-selector";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -193,6 +195,7 @@ async function loadAvailability(
   | { kind: "registered"; data: TimetableAvailability }
   | { kind: "published"; data: PublishedTimetableData }
   | { kind: "registration-required" }
+  | { kind: "choose-context" }
   | { kind: "unavailable"; message: string; recoverable?: boolean }
 > {
   const sid = (await cookies()).get("sid")?.value;
@@ -274,10 +277,24 @@ export default async function StudentTimetablePage({
   const parsed = parseAcademicContext(requested);
   const query = parsed.query;
   const invalidContext = !parsed.valid;
-  const [result, actor] = await Promise.all([
+  const [initialResult, actor, inventory] = await Promise.all([
     loadAvailability(query, invalidContext),
     loadActor(),
+    invalidContext ? Promise.resolve({ data: null, message: "" }) : loadRegistrationContexts(),
   ]);
+  let result = initialResult;
+  // Only an ordinary generic timetable may discover a sole confirmed own
+  // registration. Explicit choices are never replaced with guessed defaults.
+  if (!invalidContext && query.size === 0 && result.kind === "registration-required") {
+    if (!inventory.data) {
+      result = { kind: "unavailable", recoverable: true, message: inventory.message };
+    } else if (inventory.data.soleRegisteredContext) {
+      const selected = parseAcademicContext(inventory.data.soleRegisteredContext);
+      redirect(`/student/timetable?${selected.query}`);
+    } else if (inventory.data.nextCursor || inventory.data.items.some(item => item.attemptStatus === "ACTIVE" && item.registrationStatus === "REGISTERED")) {
+      result = { kind: "choose-context" };
+    }
+  }
   const confirmed =
     result.kind === "registered" || result.kind === "published"
       ? result.data
@@ -306,6 +323,7 @@ export default async function StudentTimetablePage({
         title="My timetable"
         lede="Check timetable availability for your registered courses."
       />
+      {!invalidContext ? <ContextSelector inventory={inventory} path="/student/timetable" current={Object.fromEntries(query)} /> : null}
       {scopeKey ? (
         <LastConfirmedDate
           scopeKey={scopeKey}
@@ -315,7 +333,9 @@ export default async function StudentTimetablePage({
           }
         />
       ) : null}
-      {result.kind === "registration-required" ? (
+      {result.kind === "choose-context" ? (
+        <Notice severity="info" title="Choose a study period" message="Choose the programme and period you want to view above. Timetables from different registrations are kept separate." />
+      ) : result.kind === "registration-required" ? (
         <>
           <Notice
             severity="info"

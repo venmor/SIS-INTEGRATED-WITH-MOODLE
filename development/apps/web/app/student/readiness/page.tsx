@@ -1,5 +1,7 @@
 import { RegistrationSteps } from "../../components/task-flow";
 import workflow from "../../components/workflow.module.css";
+import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
+import { ContextSelector } from "../context-selector";
 import {
   parseAcademicContext,
   academicHref,
@@ -102,6 +104,7 @@ export default async function ReadinessPage({
         current="readiness"
         context={Object.fromEntries(parsed.query)}
       />
+      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/readiness" current={{ attemptId: board.attemptId, period: board.period }} />
       <Notice
         severity={banner.severity}
         title={banner.title}
