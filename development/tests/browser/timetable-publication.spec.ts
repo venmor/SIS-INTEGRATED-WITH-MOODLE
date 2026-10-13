@@ -103,7 +103,8 @@ test("coordinator can discover independent publication review without publishing
 });
 
 test("genuine registrations lead through independent publication, uncertain recovery and a replaced student timetable", async ({
-  browser, baseURL,
+  browser,
+  baseURL,
 }) => {
   test.setTimeout(180000);
   const contexts = await Promise.all(
@@ -134,6 +135,20 @@ test("genuine registrations lead through independent publication, uncertain reco
     );
     expect(source.status).toBe("CONFLICT_FREE_FOR_REVIEW");
     expect(source.sessions).toHaveLength(12);
+    // Setup activation creates a new campus version effective now. Rehearse
+    // future occurrences rather than resubmitting dates before that version.
+    // Whole weeks retain the real rule's allowed weekdays and teaching times.
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const earliest = Math.min(
+      ...source.sessions.map((session: { startAt: string }) =>
+        Date.parse(session.startAt),
+      ),
+    );
+    const shiftMs =
+      Math.max(
+        0,
+        Math.ceil((Date.now() + 24 * 60 * 60 * 1000 - earliest) / weekMs),
+      ) * weekMs;
     const sessions = source.sessions.map((session: Record<string, unknown>) =>
       Object.fromEntries(
         [
@@ -149,6 +164,14 @@ test("genuine registrations lead through independent publication, uncertain reco
         ].map((key) => [key, session[key]]),
       ),
     );
+    for (const session of sessions) {
+      session.startAt = new Date(
+        Date.parse(session.startAt as string) + shiftMs,
+      ).toISOString();
+      session.endAt = new Date(
+        Date.parse(session.endAt as string) + shiftMs,
+      ).toISOString();
+    }
     expect(
       sessions.every(
         (session: { registrationIds: string[] }) =>
@@ -163,7 +186,7 @@ test("genuine registrations lead through independent publication, uncertain reco
       clientRequestId: randomUUID(),
     };
     const saved = await api(planner, endpoint, command);
-    expect(saved.status).toBe(201);
+    expect(saved.status, JSON.stringify(saved.data)).toBe(201);
     expect(saved.data.status).toBe("CONFLICT_FREE_FOR_REVIEW");
     await planner.reload();
     await planner
@@ -372,7 +395,7 @@ test("genuine registrations lead through independent publication, uncertain reco
       expectedVersion: saved.data.version,
       clientRequestId: randomUUID(),
     });
-    expect(revised.status).toBe(201);
+    expect(revised.status, JSON.stringify(revised.data)).toBe(201);
     expect(revised.data.status).toBe("CONFLICT_FREE_FOR_REVIEW");
     await reviewer.reload();
     await reviewer

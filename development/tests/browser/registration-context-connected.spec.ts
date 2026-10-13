@@ -33,7 +33,7 @@ test('ordinary student login discovers registered period and keeps academic navi
   await expect(page.getByRole('combobox', { name: 'Programme and period', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('registered-period-desktop.png'), fullPage: true });
-  await page.getByRole('link', { name: 'Registration', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Student navigation', exact: true }).getByRole('link', { name: 'Registration', exact: true }).click();
   await expectContext(page, '/student/readiness', attemptId);
   await page.getByRole('link', { name: 'Plan your courses', exact: true }).click();
   await expectContext(page, '/student/courses', attemptId);
