@@ -531,7 +531,7 @@ export async function prepare(db, manifest, credentials, passwords) {
         formalRegistrationsInserted: 0,
       };
     },
-    { timeout: 120000 },
+    { maxWait: 30000, timeout: 120000 },
   );
 }
 async function main() {
@@ -557,6 +557,7 @@ async function main() {
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
   });
   try {
+    await db.$connect();
     console.log(
       JSON.stringify(
         await prepare(db, manifest, credentials, passwords),

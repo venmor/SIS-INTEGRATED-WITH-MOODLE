@@ -9,6 +9,7 @@ import {
   validateInputs,
   assertSame,
   foundationPeriod,
+  prepare,
 } from "./prepare-moodle-demo-sis.mjs";
 
 const local = {
@@ -188,4 +189,14 @@ test("foundation block reuses only a currently usable shared period and otherwis
   ])
     assert.equal(foundationPeriod(existing, now), "DEMO-EE-FOUNDATION");
   assert.equal(open.registrationOpen.toISOString(), "2026-01-05T00:00:00.000Z");
+});
+
+test("cloud bootstrap allows bounded connection acquisition before its atomic transaction", async () => {
+  const {manifest, credentials} = inputs();
+  let options;
+  const sentinel = new Error('stop before database work');
+  const db = {$transaction: async (_body, config) => {options = config; throw sentinel;}};
+  await assert.rejects(prepare(db, manifest, credentials, {}), error => error === sentinel);
+  assert.equal(options.maxWait, 30000);
+  assert.equal(options.timeout, 120000);
 });
