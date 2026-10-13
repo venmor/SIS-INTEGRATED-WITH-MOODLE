@@ -156,3 +156,16 @@ test("connection query options cannot override pinned target or TLS semantics", 
     true,
   );
 });
+
+test("loopback authority cannot be replaced through PostgreSQL query options", () => {
+  const local = {
+    DEMO_MODE: "true",
+    DATABASE_URL: "postgresql://demo:private@127.0.0.1:55437/sis_time003_review_20261004",
+  };
+  for (const query of ["host=elsewhere.example", "hostaddr=203.0.113.1", "port=5432", "dbname=production", "database=production", "service=production"]) {
+    const env = { ...local, DATABASE_URL: `${local.DATABASE_URL}?${query}` };
+    assert.equal(isDemonstrationDatabaseTarget(env), false, query);
+    assert.equal(isDemonstrationApiTarget(env, "http://127.0.0.1:3155"), false, query);
+  }
+  assert.equal(isDemonstrationDatabaseTarget({ ...local, DATABASE_URL: `${local.DATABASE_URL}?schema=public&connect_timeout=15` }), true);
+});

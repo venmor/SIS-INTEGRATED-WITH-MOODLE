@@ -47,7 +47,14 @@ export function isDemonstrationDatabaseTarget(
     const url = new URL(env.DATABASE_URL ?? "");
     if (!["postgresql:", "postgres:"].includes(url.protocol)) return false;
     if (loopback(url.hostname))
-      return localNamePattern.test(decodeURIComponent(url.pathname.slice(1)));
+      return (
+        !url.hash &&
+        [...url.searchParams.keys()].every((key) =>
+          ["sslmode", "channel_binding", "connect_timeout", "application_name",
+            "schema", "connection_limit", "pool_timeout", "pgbouncer"].includes(key),
+        ) &&
+        localNamePattern.test(decodeURIComponent(url.pathname.slice(1)))
+      );
     return cloudDatabaseTarget(env, url);
   } catch {
     return false;

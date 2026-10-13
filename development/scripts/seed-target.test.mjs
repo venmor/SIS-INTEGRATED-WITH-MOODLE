@@ -14,6 +14,7 @@ test("actual seed refuses unpinned remote and query-overridden targets before da
     ["postgresql://demo:unused@other.example/demonstration?sslmode=require", {}],
     ["postgresql://demo:unused@selected.example/demonstration?sslmode=require&host=other.example", {}],
     ["postgresql://demo:unused@selected.example/other?sslmode=require", {}],
+    ["postgresql://demo:unused@127.0.0.1:1/sis_ci_review?host=127.0.0.1&port=1&dbname=production", {}],
   ]) {
     const result = spawnSync(process.execPath, ["prisma/seed/seed.ts"], {
       cwd: new URL("../", import.meta.url),
@@ -21,7 +22,7 @@ test("actual seed refuses unpinned remote and query-overridden targets before da
       encoding: "utf8", timeout: 10_000,
     });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /remote demonstration seeding requires the exact approved target/);
+    assert.match(result.stderr, /demonstration seeding requires the exact approved target/);
     assert.doesNotMatch(result.stdout, /Seeding capabilities|Seeding complete/);
   }
 });

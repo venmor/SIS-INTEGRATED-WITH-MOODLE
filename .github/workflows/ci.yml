@@ -25,6 +25,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/sis_ci_review
       DEMO_MODE: "true"
+      # Explicit simulator fixture only; never a provider or deployment secret.
+      FIN_SIM_SECRET: ci-finance-simulator-fixture-only
       SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true"
       APPLICATION_SCANNER: demo-fixtures
       API_INTERNAL_URL: http://127.0.0.1:3101

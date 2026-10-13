@@ -6,6 +6,8 @@ The shared pure target validator preserves local isolated database matching and 
 
 Review identified that connection-string query options can override authority fields in database consumers. A new denial test first failed for `host=evil.db.example`. The helper now permits only `sslmode`, `channel_binding`, `connect_timeout` and `application_name` query options in cloud mode, preventing target overrides or conflicting TLS configuration. No provider-domain wildcard is accepted.
 
+A subsequent offline check with the actual PostgreSQL driver confirmed that a loopback URL containing a query `host` is interpreted as a different destination. The local-target denial test also failed before repair. Local targets now allow only the same connection options plus existing Prisma schema/pooling options; query host, address, port, database and service overrides are refused. This protects local preparation commands as well as the cloud branch while retaining ordinary isolated URLs.
+
 Verification performed against source in the review worktree:
 
 - Nine source/seed/preparation tests passed, including the new override denial and preservation of existing actor credentials/appointments.

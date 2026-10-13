@@ -12,6 +12,8 @@ Final read-only verification: **76 completed migrations, zero incomplete migrati
 
 The separately tested [cloud demonstration gate](NOTE-V2-CLOUD-DEMO-001.md) requires explicit server-only database/origin pins and independent feature switches. Seven corresponding environment settings were saved to the existing API project's production/preview configuration. Their runtime effect still requires deployment of the tested source and representative live workflow verification. No database credential is placed in frontend configuration. Further generated accounts, the public catalogue, timetable publication and Moodle provisioning require their own evidence; migration success is not evidence that they have been loaded.
 
+All seven API settings were subsequently reopened and their persisted values/targets verified. The frontend project's two missing server-side institution-setup/timetable feature switches were also saved for production/preview so the corresponding authorized entry points can appear after redeployment. Database target pins and credentials remain exclusively on the API side.
+
 ## Subsequent generated-data preparation
 
 The existing seed was first exercised successfully against the restored isolated copy. Its remote entry point was then tightened to require the exact cloud target validator even when `ALLOW_DEMO_SEED=true`; a test invoking the actual seed verifies refusal of a missing opt-in, foreign host, query-host override and wrong database before database work. The existing timetable preparation branches now also accept the explicitly pinned demonstration target, retaining their separate feature switches.

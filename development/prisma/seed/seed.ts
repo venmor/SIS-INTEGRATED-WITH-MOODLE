@@ -21,6 +21,11 @@ const isTestDatabase = dbUrl && /(test|review|ci|browser)/i.test(new URL(dbUrl).
 const isPinnedCloudDemonstration =
   process.env.SIS_ENABLE_CLOUD_DEMONSTRATION === "true" &&
   isDemonstrationDatabaseTarget(process.env);
+if (dbUrl && ["localhost", "127.0.0.1", "[::1]"].includes(new URL(dbUrl).hostname) &&
+  !isDemonstrationDatabaseTarget({ ...process.env, DEMO_MODE: "true" }, /.*/)) {
+  console.error("refusing: demonstration seeding requires the exact approved target without connection overrides");
+  process.exit(1);
+}
 if (dbUrl && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(dbUrl).hostname) && !isPinnedCloudDemonstration) {
   console.error("refusing: remote demonstration seeding requires the exact approved target pins and TLS");
   process.exit(1);

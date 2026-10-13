@@ -4,11 +4,13 @@ import { readdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
+import { isDemonstrationDatabaseTarget } from '../packages/config/src/demo-environment.ts';
 
 export function assertIsolatedBaseline(env) {
   const url = new URL(env.DATABASE_URL ?? '');
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || env.DEMO_MODE !== 'true' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-    || !/^sis_(?:ci|setup003_test|time003_review)(?:_[A-Za-z0-9]+)*$/.test(url.pathname.slice(1))) {
+    || !/^sis_(?:ci|setup003_test|time003_review)(?:_[A-Za-z0-9]+)*$/.test(url.pathname.slice(1))
+    || !isDemonstrationDatabaseTarget(env)) {
     throw new Error('A local, explicitly named isolated demonstration baseline is required.');
   }
   return url;
