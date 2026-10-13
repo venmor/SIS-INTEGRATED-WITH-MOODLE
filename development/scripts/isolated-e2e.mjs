@@ -30,15 +30,20 @@ async function main() {
       console.log(`Isolated connected suite: ${file}`);
       let status;
       try {
-        status = await new Promise((resolve, reject) => {
-          const child = spawn(process.execPath, ['../../node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.config.e2e.ts', `test/${file}`, '--no-file-parallelism'], {
-            cwd: 'apps/api', env: { ...process.env, DATABASE_URL: target.href }, stdio: 'inherit',
-          });
-          child.once('error', reject); child.once('exit', (code) => resolve(code ?? 1));
-        });
-        if (status === 0 && process.env.CI_BACKUP_REHEARSAL === 'true' && ['finance-assessment.e2e-spec.ts', 'grade-publication.e2e-spec.ts'].includes(file)) {
+        // Rehearse the seeded baseline before a suite creates intentionally
+        // incomplete legacy rows or mutates records for negative-path tests.
+        if (process.env.CI_BACKUP_REHEARSAL === 'true' && ['finance-assessment.e2e-spec.ts', 'grade-publication.e2e-spec.ts'].includes(file)) {
           status = await new Promise((resolve, reject) => {
             const child = spawn(process.execPath, ['scripts/backup-test.mjs'], { env: { ...process.env, DATABASE_URL: target.href }, stdio: 'inherit' });
+            child.once('error', reject);
+            child.once('exit', (code) => resolve(code ?? 1));
+          });
+        }
+        if (status === undefined || status === 0) {
+          status = await new Promise((resolve, reject) => {
+            const child = spawn(process.execPath, ['../../node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.config.e2e.ts', `test/${file}`, '--no-file-parallelism'], {
+              cwd: 'apps/api', env: { ...process.env, DATABASE_URL: target.href }, stdio: 'inherit',
+            });
             child.once('error', reject); child.once('exit', (code) => resolve(code ?? 1));
           });
         }
