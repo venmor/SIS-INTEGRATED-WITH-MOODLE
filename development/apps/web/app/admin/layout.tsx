@@ -5,6 +5,9 @@ import styles from "./admin-shell.module.css";
 import { WorkspaceNav } from "./workspace-nav";
 import { institutionSetupAvailable } from "../../lib/institution-setup-permissions";
 import { timetablePermissions } from "../../lib/timetable-permissions";
+import { NavigationIcon } from "../navigation-icon";
+import { StaffBreadcrumbs } from "./staff-breadcrumbs";
+import { StaffAccountMenu } from "./staff-account-menu";
 
 interface Me {
   account: {
@@ -49,7 +52,10 @@ function workspaceLabel(role: string | undefined, scopeRef?: string) {
   if (role === "MOODLE_ADMIN") return "Moodle administration";
   if (role === "INTEGRATION_SUPPORT") return "Integration support";
   if (role === "SYSADMIN") return "System administration";
-  if (role === "DOMAIN_ADMIN") return scopeRef === "DEMO-UNIVERSITY" ? "University setup" : "Academic delivery setup";
+  if (role === "DOMAIN_ADMIN")
+    return scopeRef === "DEMO-UNIVERSITY"
+      ? "University setup"
+      : "Academic delivery setup";
   if (role === "TIMETABLE_COORDINATOR") return "Timetable planning";
   return "Staff workspace";
 }
@@ -62,8 +68,23 @@ export default async function AdminLayout({
   const me = await loadMe();
   const active = me?.activeWorkspace ?? null;
   const role = active?.role;
-  const [timetable, setupAvailable] = await Promise.all([timetablePermissions(active), institutionSetupAvailable(active)]);
-  const contextLabel = timetable?.canPublish ? "Timetable publication" : workspaceLabel(role, active?.scopeRef);
+  const [timetable, setupAvailable] = await Promise.all([
+    timetablePermissions(active),
+    institutionSetupAvailable(active),
+  ]);
+  const contextLabel = timetable?.canPublish
+    ? "Timetable publication"
+    : workspaceLabel(role, active?.scopeRef);
+  const displayName = me?.account.displayName ?? "Account unavailable";
+  const initials =
+    me?.account.displayName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((name) => name[0])
+      .join("")
+      .toLocaleUpperCase("en") || "SIS";
 
   const items: Array<{ href: string; label: string; show: boolean }> = [
     { href: "/", label: "Workspace home", show: true },
@@ -172,12 +193,17 @@ export default async function AdminLayout({
     {
       href: "/admin/timetabling/demo-rules",
       label: "Timetable rule drafts",
-      show: role === "DOMAIN_ADMIN" && active?.scopeType === "CAMPUS" && active?.scopeRef?.startsWith("DEMO-") === true,
+      show:
+        role === "DOMAIN_ADMIN" &&
+        active?.scopeType === "CAMPUS" &&
+        active?.scopeRef?.startsWith("DEMO-") === true,
     },
     {
       href: "/admin/timetabling/master",
       label: "Master timetable preview",
-      show: role === "TIMETABLE_COORDINATOR" && active?.scopeRef === "DEMO-UNIVERSITY",
+      show:
+        role === "TIMETABLE_COORDINATOR" &&
+        active?.scopeRef === "DEMO-UNIVERSITY",
     },
     {
       href: "/admin/timetabling/publications",
@@ -195,6 +221,7 @@ export default async function AdminLayout({
       show: role === "SYSADMIN",
     },
   ];
+  const visibleItems = items.filter((item) => item.show);
 
   return (
     <div className={styles.shell}>
@@ -212,24 +239,36 @@ export default async function AdminLayout({
         </div>
 
         {active ? (
-          <ContextBar
-            role={active.role}
-            scopeType={active.scopeType}
-            scopeRef={active.scopeRef}
-          />
+          <Link
+            href="/"
+            className={styles.contextSwitch}
+            aria-label="Switch active workspace"
+          >
+            <NavigationIcon href="/admin/setup/readiness" />
+            <ContextBar
+              role={active.role}
+              scopeType={active.scopeType}
+              scopeRef={active.scopeRef}
+            />
+          </Link>
         ) : null}
 
         <div className={styles.desktopMenu}>
-          <WorkspaceNav items={items.filter((item) => item.show)} />
+          <WorkspaceNav items={visibleItems} />
         </div>
         <details className={styles.menu}>
           <summary className={styles.menuToggle}>Workspace sections</summary>
-          <WorkspaceNav items={items.filter((item) => item.show)} />
+          <WorkspaceNav items={visibleItems} />
         </details>
 
         <div className={styles.account}>
-          <p>{me?.account.displayName ?? "Signed-in user"}</p>
-          <Link href="/sign-in">Switch account</Link>
+          <span className={styles.avatar} aria-hidden="true">
+            {initials}
+          </span>
+          <div className={styles.accountIdentity}>
+            <p>{displayName}</p>
+            <Link href="/sign-in">Switch account</Link>
+          </div>
         </div>
       </aside>
 
@@ -240,11 +279,15 @@ export default async function AdminLayout({
             <strong>{contextLabel}</strong>
           </div>
           <nav className={styles.topbarActions} aria-label="Account and help">
-            <Link href="/">Switch workspace</Link>
-            <Link href="/sign-in">Account</Link>
+            <Link href="/">
+              <NavigationIcon href="/" />
+              Switch workspace
+            </Link>
+            <StaffAccountMenu displayName={displayName} />
           </nav>
         </header>
         <div id="main-content" tabIndex={-1} className={styles.main}>
+          <StaffBreadcrumbs items={visibleItems} />
           {children}
         </div>
       </div>

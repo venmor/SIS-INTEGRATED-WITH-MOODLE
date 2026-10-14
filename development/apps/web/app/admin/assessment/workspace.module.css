@@ -1,0 +1,400 @@
+.page {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem clamp(1rem, 2.2vw, 2.25rem) 2.5rem;
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 88rem;
+  margin-inline: auto;
+}
+.main > header {
+  margin-bottom: 0.125rem;
+}
+.main > header > p:first-child {
+  background: var(--green-50);
+  border: 0;
+  color: var(--green-700);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.75rem;
+}
+.main > header > h1 {
+  font-size: clamp(1.8rem, 2.2vw, 2rem);
+  letter-spacing: -0.035em;
+}
+.main > header > p:last-child {
+  max-width: 66rem;
+  line-height: 1.5;
+}
+.panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--bg-surface);
+  box-shadow: 0 3px 12px rgb(15 35 50 / 0.035);
+}
+.panelHeading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.panelHeading h2 {
+  font-size: 1.4rem;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+  margin: 0 0 0.2rem;
+}
+.panelHeading p,
+.supporting {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.sectionIcon {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 auto;
+  background: var(--green-50);
+  color: var(--green-700);
+  border-radius: 0.65rem;
+}
+.sectionIcon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  padding: 0.75rem 0 0.75rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.field label > span {
+  color: var(--error);
+  margin-left: 0.2rem;
+}
+.field small {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.field input,
+.filters input,
+.filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.8rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  box-shadow: inset 0 1px 2px rgb(15 35 50 / 0.025);
+}
+.field input::placeholder,
+.filters input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+.field input:focus-visible,
+.filters input:focus-visible,
+.filters select:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+.components {
+  border: 0;
+  padding: 0.5rem 0 0;
+  margin: 0;
+  min-width: 0;
+}
+.components legend {
+  font-size: 1rem;
+  font-weight: 650;
+  padding: 0 0.7rem 0 0;
+}
+.components > p {
+  margin: 0 0 0.5rem;
+}
+.componentHead,
+.componentRow {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1.8fr) repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.125rem 0.7rem;
+}
+.componentHead {
+  background: var(--bg-sunken);
+  border-radius: 0.4rem;
+  min-height: 2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.componentRow {
+  border-bottom: 1px solid var(--border);
+}
+.componentRow .field input {
+  height: 2rem;
+  min-height: 2rem;
+  padding-block: 0.15rem;
+}
+.fieldGrid .field input {
+  min-height: 2.375rem;
+  padding-block: 0.4rem;
+}
+.rowNumber {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.rowLabel,
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.markGrid {
+  grid-template-columns: 2rem minmax(0, 1.4fr) minmax(0, 1fr);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 1.15rem;
+  border: 1px solid var(--green-700);
+  border-radius: 0.4rem;
+  background: var(--green-600);
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.actions button:hover:not(:disabled) {
+  background: var(--green-700);
+  box-shadow: 0 2px 5px rgb(0 48 13 / 0.12);
+}
+.actions button.secondary {
+  background: var(--bg-surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+.actions button.secondary:hover:not(:disabled) {
+  background: var(--bg-sunken);
+}
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.policy {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.policy summary {
+  cursor: pointer;
+  width: fit-content;
+  min-height: 1.5rem;
+  padding-block: 0.125rem;
+}
+.policy p {
+  margin-top: 0.5rem;
+  max-width: 60rem;
+}
+.registryHeading {
+  justify-content: space-between;
+}
+.filters {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin-left: auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.filters input {
+  width: 17rem;
+  max-width: 17rem;
+}
+.filters details {
+  position: relative;
+  flex: 0 0 auto;
+}
+.filters summary {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.filterPanel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: 14rem;
+  padding: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  z-index: 2;
+  display: grid;
+  gap: 0.5rem;
+}
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  text-align: center;
+  padding: 1.5rem 1rem 0.5rem;
+  color: var(--text-secondary);
+}
+.empty svg {
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.4rem;
+}
+.empty strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.empty p,
+.count {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.references {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.references summary {
+  cursor: pointer;
+}
+.references code {
+  display: block;
+}
+@media (max-width: 700px) {
+  .panel {
+    padding: 1rem;
+  }
+  .fieldGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .componentHead {
+    display: none;
+  }
+  .componentRow,
+  .markGrid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.8rem 0;
+  }
+  .rowNumber {
+    text-align: left;
+    font-weight: 600;
+  }
+  .rowNumber::before {
+    content: "Entry ";
+  }
+  .field .rowLabel {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+  .filters {
+    margin-left: 0;
+    width: 100%;
+  }
+  .filters input {
+    max-width: none;
+    flex: 1;
+    width: 9rem;
+  }
+  .actions button {
+    flex: 1;
+  }
+  .fieldGrid .field input,
+  .componentRow .field input,
+  .filters input,
+  .filters select,
+  .filters summary {
+    min-height: 2.75rem;
+  }
+  .componentRow .field input {
+    height: auto;
+    padding-block: 0.45rem;
+  }
+  .policy summary,
+  .references summary {
+    display: list-item;
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions button {
+    transition: none;
+  }
+}
+
+.permissionHint {
+  padding: 0.45rem 0.8rem;
+  margin: 0 0 0.8rem;
+  border-left: 3px solid var(--green-700);
+  background: var(--green-50);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.actions button:disabled {
+  cursor: not-allowed;
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import styles from "../workspace.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -34,9 +35,11 @@ async function postAssessment(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as {
-      detail?: { supportReference?: string; code?: string };
-    }).detail;
+    const detail = (
+      error as {
+        detail?: { supportReference?: string; code?: string };
+      }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
   }
   return "We could not confirm the result. Check the current state before retrying.";
@@ -46,14 +49,14 @@ function failure(error: unknown): string {
 // to three mark lines (student reference + raw mark). Every submit carries
 // a fresh idempotency key; the same mapping+revision replays the stored
 // batch instead of creating a second snapshot.
-export function BatchForms() {
+export function BatchForms({ canStage = false }: { canStage?: boolean }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function stage(form: HTMLFormElement) {
-    if (pending) return;
+    if (pending || !canStage) return;
     setPending(true);
     setErrors([]);
     setNotice(null);
@@ -74,10 +77,10 @@ export function BatchForms() {
         idempotencyKey: crypto.randomUUID(),
       })) as { lines?: Array<{ flagCode?: string | null }> };
       const flagged = (out.lines ?? []).filter((l) => l.flagCode).length;
+      form.reset();
       setNotice(
         `Batch staged (${(out.lines ?? []).length} lines, ${flagged} flagged). Quarantined lines stay evidence; they never become official.`,
       );
-      form.reset();
       router.refresh();
     } catch (error) {
       setErrors([{ fieldId: "batch-mapping", message: failure(error) }]);
@@ -87,67 +90,128 @@ export function BatchForms() {
   }
 
   return (
-    <>
+    <section className={styles.panel} aria-labelledby="stage-batch-heading">
+      <div className={styles.panelHeading}>
+        <div>
+          <h2 id="stage-batch-heading">Stage batch</h2>
+          <p>
+            Create a staging batch for an active grade mapping and source
+            revision, with up to three student entries.
+          </p>
+        </div>
+      </div>
       {notice ? (
-        <Notice severity="success" title="Done" message={notice} />
+        <Notice severity="success" title="Batch staged" message={notice} />
       ) : null}
-      {errors.length > 0 ? (
+      {errors.length ? (
         <ErrorSummary title="The batch was not staged" errors={errors} />
       ) : null}
-      <h2>Stage batch</h2>
+      {!canStage ? (
+        <p className={styles.permissionHint}>
+          Switch to an appointed lecturer workspace to stage marks.
+        </p>
+      ) : null}
       <form
         aria-label="Stage grade batch"
+        aria-busy={pending}
+        onReset={() => {
+          setErrors([]);
+          setNotice(null);
+        }}
         onSubmit={(e) => {
           e.preventDefault();
           void stage(e.currentTarget);
         }}
       >
-        <p>
-          <label htmlFor="batch-mapping">Mapping ID</label>{" "}
-          <input id="batch-mapping" name="batch-mapping" type="text" required />
-        </p>
-        <p>
-          <label htmlFor="batch-revision">Source revision</label>{" "}
-          <input
-            id="batch-revision"
-            name="batch-revision"
-            type="text"
-            maxLength={128}
-            required
-          />
-        </p>
-        {[1, 2, 3].map((n) => (
-          <fieldset key={n}>
-            <legend>Line {n}</legend>
-            <p>
-              <label htmlFor={`batch-line-${n}-ref`}>
-                Student reference {n}
-              </label>{" "}
-              <input
-                id={`batch-line-${n}-ref`}
-                name={`batch-line-${n}-ref`}
-                type="text"
-                maxLength={64}
-              />
-            </p>
-            <p>
-              <label htmlFor={`batch-line-${n}-mark`}>Raw mark {n}</label>{" "}
-              <input
-                id={`batch-line-${n}-mark`}
-                name={`batch-line-${n}-mark`}
-                type="number"
-                min={0}
-              />
-            </p>
-          </fieldset>
-        ))}
-        <p>
-          <button type="submit" disabled={pending}>
+        <div className={styles.fieldGrid}>
+          <div className={styles.field}>
+            <label htmlFor="batch-mapping">
+              Mapping ID <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="batch-mapping"
+              name="batch-mapping"
+              required
+              placeholder="Active mapping reference"
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="batch-revision">
+              Source revision <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="batch-revision"
+              name="batch-revision"
+              required
+              maxLength={128}
+              placeholder="e.g. REV-001"
+            />
+          </div>
+        </div>
+        <fieldset className={styles.components}>
+          <legend>Student entries (up to 3)</legend>
+          <div
+            className={`${styles.componentHead} ${styles.markGrid}`}
+            aria-hidden="true"
+          >
+            <span>#</span>
+            <span>Student reference</span>
+            <span>Raw mark</span>
+          </div>
+          {[1, 2, 3].map((n) => (
+            <div
+              className={`${styles.componentRow} ${styles.markGrid}`}
+              key={n}
+            >
+              <span className={styles.rowNumber} aria-hidden="true">
+                {n}
+              </span>
+              <div className={styles.field}>
+                <label
+                  className={styles.rowLabel}
+                  htmlFor={`batch-line-${n}-ref`}
+                >
+                  Student reference {n}
+                </label>
+                <input
+                  id={`batch-line-${n}-ref`}
+                  name={`batch-line-${n}-ref`}
+                  maxLength={64}
+                  placeholder="e.g. S1234567"
+                />
+              </div>
+              <div className={styles.field}>
+                <label
+                  className={styles.rowLabel}
+                  htmlFor={`batch-line-${n}-mark`}
+                >
+                  Raw mark {n}
+                </label>
+                <input
+                  id={`batch-line-${n}-mark`}
+                  name={`batch-line-${n}-mark`}
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 75"
+                />
+              </div>
+            </div>
+          ))}
+        </fieldset>
+        <div className={styles.actions}>
+          <button type="submit" disabled={pending || !canStage}>
             {pending ? "Staging…" : "Stage batch"}
           </button>
-        </p>
+          <button
+            className={styles.secondary}
+            type="reset"
+            disabled={pending || !canStage}
+          >
+            Reset
+          </button>
+        </div>
       </form>
-    </>
+    </section>
   );
 }
 
@@ -263,8 +327,10 @@ export function ValidateBatchButton({ batchId }: { batchId: string }) {
               idempotencyKey: crypto.randomUUID(),
             })
               .then((out) => {
-                const findings = (out as { findings?: unknown[] }).findings ?? [];
-                const state = (out as { resultState?: string | null }).resultState;
+                const findings =
+                  (out as { findings?: unknown[] }).findings ?? [];
+                const state = (out as { resultState?: string | null })
+                  .resultState;
                 setNotice(
                   `Validation complete (${findings.length} findings${state ? `, result ${state}` : ""}). Lines unchanged.`,
                 );

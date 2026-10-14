@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
-import type { GradeBatchView } from "@sis/contracts";
-import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
+import type { GradeBatchListView } from "@sis/contracts";
+import { Notice, PageHeader } from "@sis/ui";
+import { AssessmentRegistry } from "../registry";
 import { BatchForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -25,24 +25,20 @@ async function loadStaff<T>(
   }
 }
 
-function tone(status: string) {
-  if (status === "VALIDATED") return "success" as const;
-  if (status === "RECEIVED") return "attention" as const;
-  return "neutral" as const;
-}
-
 // Lecturer grade-batch workspace: immutable staging snapshots per ACTIVE
 // mapping + source revision. Staging never makes results official; invalid
 // lines are quarantined with flags while valid lines are preserved.
 export default async function GradeBatchesPage() {
-  const list = await loadStaff<{ items: GradeBatchView[] }>("/batches");
+  const list = await loadStaff<GradeBatchListView>("/batches");
   if (!list.ok) {
     const restricted = list.status === 401 || list.status === 403;
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.context}>Student Information System</p>
-          <h1 className={styles.title}>Grade batches</h1>
+          <PageHeader
+            eyebrow="Student Information System"
+            title="Grade batches"
+          />
           <Notice
             severity="warning"
             title={restricted ? "Restricted area" : "Workspace unavailable"}
@@ -65,61 +61,8 @@ export default async function GradeBatchesPage() {
           title="Grade batches"
           lede="Lecturers stage provisional Moodle marks per active mapping and source revision. Staging is a frozen snapshot — it never publishes official results."
         />
-        <p>
-          <Link href="/">Workspace home</Link> ·{" "}
-          <Link href="/admin/assessment/plans">Assessment plans</Link> ·{" "}
-          <Link href="/admin/assessment/mappings">Grade mappings</Link>
-        </p>
-        <BatchForms />
-        <h2>Batches</h2>
-        <DataTable
-          hideTitle
-          title="Grade batches"
-          description="Immutable staging snapshots with quarantine flags."
-          columns={[
-            {
-              heading: "Revision",
-              render: (item: GradeBatchView) => item.sourceRevision,
-            },
-            {
-              heading: "State",
-              render: (item: GradeBatchView) => (
-                <StatusChip tone={tone(item.status)}>{item.status}</StatusChip>
-              ),
-            },
-            {
-              heading: "Lines",
-              numeric: true,
-              render: (item: GradeBatchView) => `${item.lines.length}`,
-            },
-            {
-              heading: "Quarantined",
-              numeric: true,
-              render: (item: GradeBatchView) =>
-                `${item.lines.filter((l) => l.status !== "STAGED").length}`,
-            },
-            {
-              heading: "Detail",
-              render: (item: GradeBatchView) => (
-                <Link href={`/admin/assessment/batches/${item.id}`}>
-                  Open batch
-                </Link>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No grade batches yet."
-        />
-        {list.data.items.length > 0 ? (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                {item.sourceRevision} · {item.status} · ID {item.id}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <BatchForms canStage={list.data.canStage === true} />
+        <AssessmentRegistry kind="batches" items={list.data.items} />
       </main>
     </div>
   );

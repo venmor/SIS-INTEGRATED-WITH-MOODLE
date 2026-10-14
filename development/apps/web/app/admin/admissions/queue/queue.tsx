@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReviewQueueItem } from "@sis/contracts";
 import { DataTable, Empty, ErrorSummary, Notice, StatusChip } from "@sis/ui";
 import type { DataColumn } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
 import styles from "./queue.module.css";
+import {
+  createClaimBatch,
+  runClaimBatch,
+  type ClaimBatchItem,
+} from "./claim-batch";
 
 interface FieldError {
   fieldId: string;
@@ -129,6 +134,106 @@ export function AdmissionsQueue({
   const [preparationError, setPreparationError] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
 
+  const [batch, setBatch] = useState<ClaimBatchItem[] | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [pauseRequested, setPauseRequested] = useState(false);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const pauseClaims = useRef(false);
+  const claimsRunning = useRef(false);
+  useEffect(
+    () => () => {
+      // Navigation ends this in-memory selection. Finish the in-flight command,
+      // but never start another claim after its controls have disappeared.
+      pauseClaims.current = true;
+    },
+    [],
+  );
+  const retainedBatch = batch !== null;
+  const batchLabels = {
+    WAITING: "Waiting",
+    CONFIRMED: "Claim confirmed",
+    CHANGED: "Version changed — skipped",
+    UNAVAILABLE: "No longer claimable — skipped",
+    UNCERTAIN: "Outcome uncertain — resume to check with the same reference",
+    ACCESS_CHANGED: "Workspace access changed",
+    RATE_LIMITED: "Rate limited — wait before resuming",
+  };
+  async function claimSelected() {
+    if (
+      claimsRunning.current ||
+      stale ||
+      isLoading ||
+      isPreparing ||
+      pendingId ||
+      view !== "pool"
+    )
+      return;
+    const retained =
+      batch ??
+      createClaimBatch(
+        rows
+          .filter((item) => selected[item.applicationId] !== undefined)
+          .map((item) => ({
+            applicationId: item.applicationId,
+            reference: item.reference,
+            version: selected[item.applicationId],
+          })),
+      );
+    claimsRunning.current = true;
+    pauseClaims.current = false;
+    setPauseRequested(false);
+    setIsClaiming(true);
+    setBatch(retained);
+    setNotice(null);
+    setErrors([]);
+    try {
+      const result = await runClaimBatch(
+        retained,
+        async (item) => {
+          setClaimingId(item.applicationId);
+          return postReview(`/${item.applicationId}/claim`, {
+            version: item.version,
+            idempotencyKey: item.idempotencyKey,
+          });
+        },
+        setBatch,
+        () => pauseClaims.current,
+      );
+      if (result.some((item) => item.state === "ACCESS_CHANGED")) {
+        setBatch(null);
+        setSelected({});
+        setRows([]);
+        setPreparation(null);
+        setNextCursor(null);
+        setHasMore(false);
+        setRequestCursor(null);
+        setCursorHistory([]);
+        setErrorTitle("Admissions queue access changed");
+        setErrors([
+          {
+            fieldId: "queue-view",
+            message:
+              "The selection and queue were cleared because workspace access changed. Earlier confirmed claims remain recorded. Switch to an authorized workspace before continuing.",
+          },
+        ]);
+      } else setBatch(result);
+    } finally {
+      claimsRunning.current = false;
+      setIsClaiming(false);
+      setClaimingId(null);
+    }
+  }
+  async function finishBatch() {
+    if (
+      claimsRunning.current ||
+      batch?.some((item) => ["UNCERTAIN", "RATE_LIMITED"].includes(item.state))
+    )
+      return;
+    setBatch(null);
+    setSelected({});
+    await loadPage(view, appliedFilters, requestCursor);
+  }
+
   function queryString(
     scope: QueueScope,
     filters: QueueFilters,
@@ -236,7 +341,7 @@ export function AdmissionsQueue({
   }
 
   async function refresh() {
-    if (isPreparing) return;
+    if (isPreparing || retainedBatch || pendingId) return;
     await loadPage(view, appliedFilters, requestCursor);
   }
 
@@ -246,7 +351,7 @@ export function AdmissionsQueue({
     reference: string,
     sort: QueueSort,
   ) {
-    if (isPreparing) return;
+    if (isPreparing || retainedBatch || pendingId) return;
     const next = {
       state: view === "pool" ? "Submitted" : state,
       actionNeeded,
@@ -262,7 +367,7 @@ export function AdmissionsQueue({
   }
 
   async function changeView(scope: QueueScope) {
-    if (isPreparing) return;
+    if (isPreparing || retainedBatch || pendingId) return;
     setCursorHistory([]);
     const filters =
       scope === "pool"
@@ -276,21 +381,36 @@ export function AdmissionsQueue({
   }
 
   async function goNext() {
-    if (!hasMore || !nextCursor || isLoading || isPreparing) return;
+    if (
+      !hasMore ||
+      !nextCursor ||
+      isLoading ||
+      isPreparing ||
+      retainedBatch ||
+      pendingId
+    )
+      return;
     const previous = requestCursor;
     if (await loadPage(view, appliedFilters, nextCursor, "push"))
       setCursorHistory((history) => [...history, previous]);
   }
 
   async function goPrevious() {
-    if (!cursorHistory.length || isLoading || isPreparing) return;
+    if (
+      !cursorHistory.length ||
+      isLoading ||
+      isPreparing ||
+      retainedBatch ||
+      pendingId
+    )
+      return;
     const previous = cursorHistory[cursorHistory.length - 1];
     if (await loadPage(view, appliedFilters, previous, "replace"))
       setCursorHistory((history) => history.slice(0, -1));
   }
 
   async function act(item: ReviewQueueItem, action: "claim" | "release") {
-    if (pendingId || isPreparing) return;
+    if (pendingId || isPreparing || retainedBatch) return;
     setPendingId(item.applicationId);
     setErrors([]);
     setNotice(null);
@@ -395,39 +515,39 @@ export function AdmissionsQueue({
     !!appliedFilters.reference;
   const selectedCount = Object.keys(selected).length;
   const columns: DataColumn<ReviewQueueItem>[] = [
-    ...(view === "mine"
-      ? [
-          {
-            heading: "Prepare",
-            render: (item: ReviewQueueItem) => (
-              <input
-                className={styles.selectionBox}
-                type="checkbox"
-                aria-label={`Select case ${item.reference} for preparation`}
-                checked={selected[item.applicationId] !== undefined}
-                disabled={
-                  isLoading ||
-                  stale ||
-                  isPreparing ||
-                  (selectedCount >= 50 &&
-                    selected[item.applicationId] === undefined)
-                }
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setSelected((previous) => {
-                    const next = { ...previous };
-                    if (checked) next[item.applicationId] = item.version;
-                    else delete next[item.applicationId];
-                    return next;
-                  });
-                  setPreparation(null);
-                  setPreparationError(null);
-                }}
-              />
-            ),
-          },
-        ]
-      : []),
+    ...[
+      {
+        heading: view === "mine" ? "Prepare" : "Select",
+        render: (item: ReviewQueueItem) => (
+          <input
+            className={styles.selectionBox}
+            type="checkbox"
+            aria-label={`Select case ${item.reference} for ${view === "mine" ? "preparation" : "claim"}`}
+            checked={selected[item.applicationId] !== undefined}
+            disabled={
+              isLoading ||
+              stale ||
+              isPreparing ||
+              retainedBatch ||
+              Boolean(pendingId) ||
+              (selectedCount >= 50 &&
+                selected[item.applicationId] === undefined)
+            }
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setSelected((previous) => {
+                const next = { ...previous };
+                if (checked) next[item.applicationId] = item.version;
+                else delete next[item.applicationId];
+                return next;
+              });
+              setPreparation(null);
+              setPreparationError(null);
+            }}
+          />
+        ),
+      },
+    ],
     {
       heading: "Case",
       render: (item) => (
@@ -495,7 +615,7 @@ export function AdmissionsQueue({
       render: (item) => {
         const action = view === "mine" ? "release" : "claim";
         const pending =
-          pendingId === item.applicationId || isLoading || isPreparing;
+          Boolean(pendingId) || isLoading || isPreparing || retainedBatch;
         return (
           <span className={styles.rowActions}>
             <button
@@ -512,6 +632,11 @@ export function AdmissionsQueue({
             </button>
             <a
               href={`/admin/admissions/case/${item.applicationId}`}
+              aria-disabled={retainedBatch}
+              onClick={(event) => {
+                if (retainedBatch) event.preventDefault();
+              }}
+              tabIndex={retainedBatch ? -1 : undefined}
               aria-label={`Open case ${item.reference}`}
             >
               Open case
@@ -538,6 +663,7 @@ export function AdmissionsQueue({
       {restartRequired ? (
         <button
           type="button"
+          disabled={retainedBatch}
           onClick={() => {
             setCursorHistory([]);
             void loadPage(view, appliedFilters, null, "replace");
@@ -554,7 +680,9 @@ export function AdmissionsQueue({
             key={option}
             type="button"
             aria-pressed={view === option}
-            disabled={isLoading || isPreparing}
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
             onClick={() => void changeView(option)}
           >
             {option === "mine" ? "My cases" : "Claimable pool"}
@@ -564,7 +692,9 @@ export function AdmissionsQueue({
           className={styles.refreshButton}
           type="button"
           onClick={() => void refresh()}
-          disabled={isLoading || isPreparing}
+          disabled={
+            isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+          }
         >
           {isLoading ? "Refreshing…" : "Refresh queue"}
         </button>
@@ -595,7 +725,13 @@ export function AdmissionsQueue({
             className={styles.select}
             id="queue-state"
             value={stateFilter}
-            disabled={view === "pool" || isLoading || isPreparing}
+            disabled={
+              view === "pool" ||
+              isLoading ||
+              isPreparing ||
+              retainedBatch ||
+              Boolean(pendingId)
+            }
             onChange={(event) => setStateFilter(event.target.value)}
           >
             <option value="">All states</option>
@@ -613,7 +749,9 @@ export function AdmissionsQueue({
             maxLength={64}
             autoComplete="off"
             value={referenceInput}
-            disabled={isLoading || isPreparing}
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
             onChange={(event) => setReferenceInput(event.target.value)}
           />
           <p className="text-xs text-sis-muted">
@@ -627,7 +765,9 @@ export function AdmissionsQueue({
             className={styles.select}
             id="queue-sort"
             value={sortInput}
-            disabled={isLoading || isPreparing}
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
             onChange={(event) => setSortInput(event.target.value as QueueSort)}
           >
             <option value="oldest">Oldest first</option>
@@ -640,20 +780,29 @@ export function AdmissionsQueue({
             id="queue-action-needed"
             type="checkbox"
             checked={actionNeededOnly}
-            disabled={isLoading || isPreparing}
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
             onChange={(event) => setActionNeededOnly(event.target.checked)}
           />
           Only cases needing action
         </label>
 
         <div className={styles.filterActions}>
-          <button type="submit" disabled={isLoading || isPreparing}>
+          <button
+            type="submit"
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
+          >
             Apply filters
           </button>
           <button
             type="button"
             onClick={() => void applyFilters("", false, "", "oldest")}
-            disabled={isLoading || isPreparing}
+            disabled={
+              isLoading || isPreparing || retainedBatch || Boolean(pendingId)
+            }
           >
             Clear filters
           </button>
@@ -679,6 +828,9 @@ export function AdmissionsQueue({
           <button
             type="button"
             className={styles.filterChip}
+            disabled={
+              retainedBatch || isLoading || isPreparing || Boolean(pendingId)
+            }
             onClick={() =>
               void applyFilters(
                 "",
@@ -695,6 +847,9 @@ export function AdmissionsQueue({
           <button
             type="button"
             className={styles.filterChip}
+            disabled={
+              retainedBatch || isLoading || isPreparing || Boolean(pendingId)
+            }
             onClick={() =>
               void applyFilters(
                 appliedFilters.state,
@@ -711,6 +866,9 @@ export function AdmissionsQueue({
           <button
             type="button"
             className={styles.filterChip}
+            disabled={
+              retainedBatch || isLoading || isPreparing || Boolean(pendingId)
+            }
             onClick={() =>
               void applyFilters(
                 appliedFilters.state,
@@ -738,6 +896,105 @@ export function AdmissionsQueue({
         {hasMore ? " · More available" : ""}
       </p>
 
+      {view === "pool" ? (
+        <section
+          className={styles.claimPanel}
+          aria-label="Claim selected cases"
+        >
+          <h2>Claim selected cases</h2>
+          <p>
+            Select up to 50 cases on this page. Each claim is recorded
+            separately; some may succeed while others change or become
+            unavailable.
+          </p>
+          {!batch ? (
+            <>
+              <p role="status">{selectedCount} cases selected</p>
+              <button
+                type="button"
+                disabled={
+                  !selectedCount ||
+                  stale ||
+                  isLoading ||
+                  isPreparing ||
+                  Boolean(pendingId)
+                }
+                onClick={() => void claimSelected()}
+              >
+                Claim selected cases
+              </button>
+            </>
+          ) : (
+            <>
+              <p role="status" aria-live="polite">
+                {batch.filter((item) => item.state === "CONFIRMED").length} of{" "}
+                {batch.length} claims confirmed.{" "}
+                {isClaiming
+                  ? "Processing one case at a time."
+                  : "Batch stopped. Review each outcome below."}
+              </p>
+              <ol className={styles.claimOutcomes}>
+                {batch.map((item) => (
+                  <li key={item.applicationId}>
+                    <strong>{item.reference}</strong>
+                    <span>
+                      {claimingId === item.applicationId
+                        ? "Claim in progress…"
+                        : batchLabels[item.state]}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className={styles.rowActions}>
+                {isClaiming ? (
+                  <button
+                    type="button"
+                    disabled={pauseRequested}
+                    onClick={() => {
+                      pauseClaims.current = true;
+                      setPauseRequested(true);
+                    }}
+                  >
+                    {pauseRequested
+                      ? "Pausing after current case…"
+                      : "Pause after current case"}
+                  </button>
+                ) : (
+                  <>
+                    {batch.some((item) =>
+                      ["WAITING", "UNCERTAIN", "RATE_LIMITED"].includes(
+                        item.state,
+                      ),
+                    ) ? (
+                      <button
+                        type="button"
+                        onClick={() => void claimSelected()}
+                      >
+                        Resume claims
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={batch.some((item) =>
+                        ["UNCERTAIN", "RATE_LIMITED"].includes(item.state),
+                      )}
+                      onClick={() => void finishBatch()}
+                    >
+                      Finish batch and refresh
+                    </button>
+                  </>
+                )}
+              </div>
+              <p>
+                Keep this page open while an outcome is uncertain. Resume
+                retains the same claim references and skips confirmed or
+                unavailable cases. Reloading loses this in-memory batch; inspect
+                My cases before starting again.
+              </p>
+            </>
+          )}
+        </section>
+      ) : null}
       {view === "mine" ? (
         <section
           className={styles.preparationPanel}
@@ -869,14 +1126,27 @@ export function AdmissionsQueue({
         <button
           type="button"
           onClick={() => void goPrevious()}
-          disabled={!cursorHistory.length || isLoading || isPreparing}
+          disabled={
+            !cursorHistory.length ||
+            isLoading ||
+            isPreparing ||
+            retainedBatch ||
+            Boolean(pendingId)
+          }
         >
           Previous page
         </button>
         <button
           type="button"
           onClick={() => void goNext()}
-          disabled={!hasMore || !nextCursor || isLoading || isPreparing}
+          disabled={
+            !hasMore ||
+            !nextCursor ||
+            isLoading ||
+            isPreparing ||
+            retainedBatch ||
+            Boolean(pendingId)
+          }
         >
           {isLoading ? "Loading…" : "Next page"}
         </button>

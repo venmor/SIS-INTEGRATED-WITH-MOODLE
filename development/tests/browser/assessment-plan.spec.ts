@@ -80,7 +80,9 @@ test("assessment plan: plan to mapping activation journey", async ({
   // Four-eyes: the creator cannot approve their own plan. The lecturer
   // sees the refusal on the dedicated decision page.
   await page.goto(`/admin/assessment/plans/${planId}/decide`);
-  await expect(page.getByRole("heading", { name: /Plan approval/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Plan approval/ }),
+  ).toBeVisible();
   await expect(
     page
       .getByText(
@@ -105,7 +107,9 @@ test("assessment plan: plan to mapping activation journey", async ({
   await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
 
   await page.goto(`/admin/assessment/plans/${planId}/decide`);
-  await expect(page.getByRole("heading", { name: /Plan approval/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Plan approval/ }),
+  ).toBeVisible();
   await page
     .getByLabel(/I confirm that I have reviewed the stated evidence/)
     .check();
@@ -135,7 +139,10 @@ test("assessment plan: plan to mapping activation journey", async ({
       .getByRole("heading", { name: "Components", exact: true }),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByText(/APPROVED/).first(),
+    page
+      .locator("main")
+      .getByText(/APPROVED/)
+      .first(),
   ).toBeVisible();
   const detailText = await page.locator("main").textContent();
   expect(detailText).toContain("CA-QUIZ1");
@@ -230,7 +237,9 @@ test("assessment plan: plan to mapping activation journey", async ({
     page.keyboard.press("Enter"),
   ]);
   expect(activateResponse.status()).toBe(201);
-  await expect(page.getByText(/Decision closed or not ready/).first()).toBeVisible();
+  await expect(
+    page.getByText(/Decision closed or not ready/).first(),
+  ).toBeVisible();
   await noOverflow(page);
 
   // Slice 2 leg: the lecturer stages a batch through the ACTIVE mapping —
@@ -254,6 +263,9 @@ test("assessment plan: plan to mapping activation journey", async ({
       .first(),
   ).toBeVisible();
   await page.getByLabel("Mapping ID").fill(mappingId);
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page.getByLabel("Mapping ID")).toHaveValue("");
+  await page.getByLabel("Mapping ID").fill(mappingId);
   await page.getByLabel("Source revision").fill(revision);
   await page.getByLabel("Student reference 1").fill(stagedStudent);
   await page.getByLabel("Raw mark 1").fill("15");
@@ -273,10 +285,24 @@ test("assessment plan: plan to mapping activation journey", async ({
   expect(batchId).not.toBe("");
   await expect(page.getByText(/Batch staged/).first()).toBeVisible();
   await expect(page.locator("main")).toContainText(revision);
+  await page
+    .getByLabel("Search loaded batches", { exact: true })
+    .fill("NO-MATCH-XYZ");
+  await expect(
+    page.getByText("No batches match these filters.", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Search loaded batches", { exact: true })
+    .fill(revision);
+  await expect(
+    page.getByRole("link", { name: "Open batch", exact: true }),
+  ).toHaveCount(1);
 
   await page.goto(`/admin/assessment/batches/${batchId}`);
   await expect(
-    page.locator("main").getByRole("heading", { name: /Grade batch/, exact: false }),
+    page
+      .locator("main")
+      .getByRole("heading", { name: /Grade batch/, exact: false }),
   ).toBeVisible();
   await expect(page.locator("main")).toContainText("MOODLE_ONLY");
   await expect(page.locator("main")).toContainText("STAGED");

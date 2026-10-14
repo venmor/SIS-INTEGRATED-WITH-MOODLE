@@ -40,10 +40,8 @@ export default async function GradeMappingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const list = await loadStaff<{ items: GradeMappingView[] }>("/mappings");
-  const item = list.ok
-    ? list.data.items.find((m) => m.id === id)
-    : undefined;
+  const result = await loadStaff<GradeMappingView>(`/mappings/${id}`);
+  const item = result.ok ? result.data : undefined;
   if (!item)
     return (
       <div className={styles.page}>
@@ -52,7 +50,7 @@ export default async function GradeMappingDetailPage({
           <h1 className={styles.title}>Grade mapping</h1>
           <Notice
             severity="warning"
-            title={!list.ok && (list.status === 401 || list.status === 403) ? "Restricted area" : "Mapping unavailable"}
+            title={!result.ok && (result.status === 401 || result.status === 403) ? "Restricted area" : "Mapping unavailable"}
             message="This mapping needs assessment authority, or it does not exist in your scope."
             action={{ label: "Grade mappings", href: "/admin/assessment/mappings" }}
           />

@@ -141,9 +141,30 @@ export class AssessmentService {
     ];
     for (const [role, capability] of candidates) {
       const assignment = await this.liveAssignment(auth, role, capability);
-      if (assignment && auth.activeRole === role) return;
+      if (assignment && auth.activeRole === role) return assignment;
     }
     this.denied();
+  }
+
+  // Only these roles have an exact record coordinate in the current contract.
+  // Coordinator school resolution and technical-role field visibility remain
+  // separate authority gaps; do not invent offering prefixes for those roles.
+  private async readCoordinates(auth: AssessmentAuthority): Promise<{
+    offeringRef?: string;
+    periodCode?: string;
+  }> {
+    const assignment = await this.reader(auth);
+    if (auth.activeRole === 'LEC' || auth.activeRole === 'MODERATOR') {
+      if (assignment.scopeType !== 'OFFERING' || !assignment.scopeRef)
+        this.denied();
+      return { offeringRef: assignment.scopeRef };
+    }
+    if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
+      if (assignment.scopeType !== 'PERIOD' || !assignment.scopeRef)
+        this.denied();
+      return { periodCode: assignment.scopeRef };
+    }
+    return {};
   }
 
   private checkVersion(row: { version: number }, expected: number): void {
@@ -519,17 +540,31 @@ export class AssessmentService {
     auth: AssessmentAuthority,
     filter: { offeringRef?: string; periodCode?: string },
   ) {
-    await this.reader(auth);
+    const scope = await this.readCoordinates(auth);
     const rows = await this.prisma.assessmentPlan.findMany({
       where: {
-        offeringRef: filter.offeringRef ?? undefined,
-        periodCode: filter.periodCode ?? undefined,
+        AND: [
+          scope,
+          {
+            offeringRef: filter.offeringRef ?? undefined,
+            periodCode: filter.periodCode ?? undefined,
+          },
+        ],
       },
       include: { components: { orderBy: { code: 'asc' } } },
       orderBy: { version: 'desc' },
       take: 200,
     });
-    return { items: rows.map((r) => this.planView(r)) };
+    return { items: rows.map((r) => this.planView(r)), canDraft: auth.activeRole === 'LEC' };
+  }
+
+  async planDetail(auth: AssessmentAuthority, id: string) {
+    const scope = await this.readCoordinates(auth);
+    const row = await this.prisma.assessmentPlan.findFirst({
+      where: { id, ...scope }, include: { components: { orderBy: { code: 'asc' } } },
+    });
+    if (!row) this.fail('NOT_FOUND', 'Assessment plan not found.', 404);
+    return this.planView(row);
   }
 
   async draftMapping(
@@ -782,14 +817,29 @@ export class AssessmentService {
     return result;
   }
 
-  async listMappings(auth: AssessmentAuthority, filter: { componentId?: string }) {
-    await this.reader(auth);
+  async listMappings(
+    auth: AssessmentAuthority,
+    filter: { componentId?: string },
+  ) {
+    const scope = await this.readCoordinates(auth);
     const rows = await this.prisma.gradeActivityMapping.findMany({
-      where: { componentId: filter.componentId ?? undefined },
+      where: {
+        componentId: filter.componentId ?? undefined,
+        component: { plan: scope },
+      },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
     return { items: rows.map((r) => this.mappingView(r)) };
+  }
+
+  async mappingDetail(auth: AssessmentAuthority, id: string) {
+    const scope = await this.readCoordinates(auth);
+    const row = await this.prisma.gradeActivityMapping.findFirst({
+      where: { id, component: { plan: scope } },
+    });
+    if (!row) this.fail('NOT_FOUND', 'Grade mapping not found.', 404);
+    return this.mappingView(row);
   }
 
   private lineView(row: {
@@ -1132,9 +1182,13 @@ export class AssessmentService {
   }
 
   async listBatches(auth: AssessmentAuthority, filter: { mappingId?: string }) {
-    await this.reader(auth);
+    const scope = await this.readCoordinates(auth);
     const rows = await this.prisma.gradeBatch.findMany({
-      where: { mappingId: filter.mappingId ?? undefined },
+      where: {
+        mappingId: filter.mappingId ?? undefined,
+        ...scope,
+        mapping: { component: { plan: scope } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 200,
       include: {
@@ -1142,13 +1196,13 @@ export class AssessmentService {
         findings: { orderBy: { createdAt: 'asc' } },
       },
     });
-    return { items: rows.map((r) => this.batchView(r)) };
+    return { items: rows.map((r) => this.batchView(r)), canStage: auth.activeRole === 'LEC' };
   }
 
   async batchDetail(auth: AssessmentAuthority, id: string) {
-    await this.reader(auth);
-    const row = await this.prisma.gradeBatch.findUnique({
-      where: { id },
+    const scope = await this.readCoordinates(auth);
+    const row = await this.prisma.gradeBatch.findFirst({
+      where: { id, ...scope, mapping: { component: { plan: scope } } },
       include: {
         lines: true,
         findings: { orderBy: { createdAt: 'asc' } },
@@ -1650,7 +1704,6 @@ export class AssessmentService {
     auth: AssessmentAuthority,
     filter: { offeringRef?: string; periodCode?: string },
   ) {
-    await this.reader(auth);
     const rows = await this.assessmentCandidateList(auth, filter);
     return {
       items: rows.map((r) => ({
@@ -1668,11 +1721,16 @@ export class AssessmentService {
     auth: AssessmentAuthority,
     filter: { offeringRef?: string; periodCode?: string },
   ) {
-    void auth;
+    const scope = await this.readCoordinates(auth);
     return this.prisma.assessmentCandidateList.findMany({
       where: {
-        offeringRef: filter.offeringRef ?? undefined,
-        periodCode: filter.periodCode ?? undefined,
+        AND: [
+          scope,
+          {
+            offeringRef: filter.offeringRef ?? undefined,
+            periodCode: filter.periodCode ?? undefined,
+          },
+        ],
       },
       orderBy: { version: 'desc' },
       take: 200,

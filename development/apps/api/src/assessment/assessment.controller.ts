@@ -75,6 +75,11 @@ export class AssessmentController {
     });
   }
 
+  @Get('plans/:id')
+  plan(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.assessment.planDetail(r.auth, id);
+  }
+
   @Post('mappings')
   @UseGuards(CsrfGuard)
   draftMapping(@Req() r: AuthRequest, @Body() dto: DraftGradeMappingDto) {
@@ -110,6 +115,11 @@ export class AssessmentController {
     return this.assessment.listMappings(r.auth, {
       componentId: q.componentId,
     });
+  }
+
+  @Get('mappings/:id')
+  mapping(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.assessment.mappingDetail(r.auth, id);
   }
 
   @Post('batches')
