@@ -490,6 +490,287 @@ test("staff queue: preview two claimed cases without deciding them", async ({
   await page.getByRole("button", { name: "Preview selected cases" }).click();
   await expect(preview.getByText(references[0])).toBeVisible();
   await page.getByRole("button", { name: "Claimable pool" }).click();
-  await expect(page.getByText("0 cases selected")).toHaveCount(0);
+  await expect(page.getByText("0 cases selected")).toBeVisible();
   await expect(preview).toHaveCount(0);
+});
+
+async function signInBatchOfficer(
+  page: import("@playwright/test").Page,
+  officer: { username: string; password: string },
+) {
+  await page.goto("/sign-in");
+  await page.getByLabel("Username", { exact: true }).fill(officer.username);
+  await page.getByLabel("Password", { exact: true }).fill(officer.password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+}
+
+test("staff queue: selected claims recover a lost response using the same reference and skip a competing claim", async ({
+  page,
+  browser,
+}) => {
+  const officer = await createAdmissionsOfficer();
+  const competitor = await createAdmissionsOfficer();
+  const references = await createSyntheticAdmissionsCases(3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInBatchOfficer(page, officer);
+  await page.goto("/admin/admissions/queue?scope=pool&sort=newest");
+  for (const reference of references) {
+    const selection = page.getByRole("checkbox", {
+      name: `Select case ${reference} for claim`,
+    });
+    await selection.focus();
+    await page.keyboard.press("Space");
+    await expect(selection).toBeChecked();
+  }
+  // Competing reviewer acts after the first reviewer's page/version was read.
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:3100",
+  });
+  const other = await context.newPage();
+  try {
+    await signInBatchOfficer(other, competitor);
+    await other.goto(
+      `/admin/admissions/queue?scope=pool&reference=${references[1]}`,
+    );
+    await other
+      .getByRole("button", { name: `Claim case ${references[1]}` })
+      .click();
+    await expect(
+      other.getByText(`Case ${references[1]} claimed.`),
+    ).toBeVisible();
+  } finally {
+    await context.close();
+  }
+  const keys: string[] = [];
+  let lostId = "";
+  let dropped = false;
+  await page.route("**/api/review/*/claim", async (route) => {
+    const body = route.request().postDataJSON();
+    const id = route.request().url().split("/").at(-2)!;
+    if (!dropped) {
+      // Let the genuine server commit, then lose only its response.
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      dropped = true;
+      lostId = id;
+      keys.push(body.idempotencyKey);
+      await route.abort("failed");
+    } else {
+      if (id === lostId) keys.push(body.idempotencyKey);
+      await route.continue();
+    }
+  });
+  const batch = page.getByRole("region", { name: "Claim selected cases" });
+  await batch
+    .getByRole("button", { name: "Claim selected cases", exact: true })
+    .click();
+  await expect(batch.getByText(/Outcome uncertain/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Refresh queue", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("searchbox", { name: "Case reference" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: `Claim case ${references[0]}` }),
+  ).toBeDisabled();
+  await batch.getByRole("button", { name: "Resume claims" }).click();
+  await expect(batch.getByText(/2 of 3 claims confirmed/)).toBeVisible();
+  await expect(batch.getByText(/skipped/)).toHaveCount(1);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+  await noOverflow(page);
+  expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
+  await batch.getByRole("button", { name: "Finish batch and refresh" }).click();
+  await page.getByRole("button", { name: "My cases", exact: true }).click();
+  for (const reference of [references[0], references[2]])
+    await expect(
+      page.getByRole("link", { name: `Open case ${reference}`, exact: true }),
+    ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `Open case ${references[1]}`, exact: true }),
+  ).toHaveCount(0);
+});
+
+test("staff queue: pause waits for the current claim and resume does not repeat confirmed work", async ({
+  page,
+}) => {
+  const officer = await createAdmissionsOfficer();
+  const references = await createSyntheticAdmissionsCases(2);
+  await signInBatchOfficer(page, officer);
+  await page.goto("/admin/admissions/queue?scope=pool&sort=newest");
+  for (const reference of references)
+    await page
+      .getByRole("checkbox", { name: `Select case ${reference} for claim` })
+      .check();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requests = 0;
+  await page.route("**/api/review/*/claim", async (route) => {
+    requests++;
+    const response = await route.fetch();
+    if (requests === 1) await held;
+    await route.fulfill({ response });
+  });
+  const batch = page.getByRole("region", { name: "Claim selected cases" });
+  await batch
+    .getByRole("button", { name: "Claim selected cases", exact: true })
+    .click();
+  await expect(batch.getByText("Claim in progress…")).toBeVisible();
+  await batch.getByRole("button", { name: "Pause after current case" }).click();
+  release();
+  await expect(batch.getByText(/1 of 2 claims confirmed/)).toBeVisible();
+  await expect(
+    batch.getByRole("button", { name: "Resume claims" }),
+  ).toBeVisible();
+  expect(requests).toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Next page", exact: true }),
+  ).toBeDisabled();
+  await batch.getByRole("button", { name: "Resume claims" }).click();
+  await expect(batch.getByText(/2 of 2 claims confirmed/)).toBeVisible();
+  expect(requests).toBe(2);
+});
+
+test("staff queue: rate limited selection retains command references and access loss clears retained cases", async ({
+  page,
+}) => {
+  const officer = await createAdmissionsOfficer();
+  const [reference] = await createSyntheticAdmissionsCases(1);
+  await signInBatchOfficer(page, officer);
+  await page.goto(`/admin/admissions/queue?scope=pool&reference=${reference}`);
+  await page
+    .getByRole("checkbox", { name: `Select case ${reference} for claim` })
+    .check();
+  const keys: string[] = [];
+  let limited = true;
+  await page.route("**/api/review/*/claim", async (route) => {
+    keys.push(route.request().postDataJSON().idempotencyKey);
+    if (limited) {
+      limited = false;
+      await route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Wait before resuming." }),
+      });
+    } else await route.continue();
+  });
+  const batch = page.getByRole("region", { name: "Claim selected cases" });
+  await batch
+    .getByRole("button", { name: "Claim selected cases", exact: true })
+    .click();
+  await expect(batch.getByText(/Rate limited/)).toBeVisible();
+  await expect(
+    batch.getByRole("button", { name: "Finish batch and refresh" }),
+  ).toBeDisabled();
+  await batch.getByRole("button", { name: "Resume claims" }).click();
+  await expect(batch.getByText(/1 of 1 claims confirmed/)).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+  await batch.getByRole("button", { name: "Finish batch and refresh" }).click();
+  const [deniedReference] = await createSyntheticAdmissionsCases(1);
+  await page.goto(
+    `/admin/admissions/queue?scope=pool&reference=${deniedReference}`,
+  );
+  await page
+    .getByRole("checkbox", { name: `Select case ${deniedReference} for claim` })
+    .check();
+  await page.unroute("**/api/review/*/claim");
+  await page.route("**/api/review/*/claim", (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "Workspace access changed." }),
+    }),
+  );
+  await batch
+    .getByRole("button", { name: "Claim selected cases", exact: true })
+    .click();
+  await expect(
+    page.getByText("Admissions queue access changed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", {
+      name: `Select case ${deniedReference} for claim`,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    batch.getByRole("button", { name: "Resume claims" }),
+  ).toHaveCount(0);
+  await expect(batch.getByText("0 cases selected")).toBeVisible();
+});
+
+test("staff queue: leaving the queue stops new claims after the in-flight response", async ({
+  page,
+}) => {
+  const officer = await createAdmissionsOfficer();
+  const references = await createSyntheticAdmissionsCases(2);
+  await signInBatchOfficer(page, officer);
+  await page.goto("/admin/admissions/queue?scope=pool&sort=newest");
+  for (const reference of references)
+    await page
+      .getByRole("checkbox", { name: `Select case ${reference} for claim` })
+      .check();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requests = 0;
+  let claimedId = "";
+  let settled!: () => void;
+  const completed = new Promise<void>((resolve) => {
+    settled = resolve;
+  });
+  await page.route("**/api/review/*/claim", async (route) => {
+    requests++;
+    claimedId = route.request().url().split("/").at(-2)!;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    await held;
+    await route.fulfill({ response });
+    settled();
+  });
+  await page
+    .getByRole("region", { name: "Claim selected cases" })
+    .getByRole("button", { name: "Claim selected cases", exact: true })
+    .click();
+  await expect(page.getByText("Claim in progress…")).toBeVisible();
+  // A client navigation unmounts the queue without destroying the page's
+  // JavaScript context. A full reload would hide the missing-cleanup bug.
+  const home = page
+    .getByRole("navigation", { name: "Breadcrumb", exact: true })
+    .getByRole("link", { name: "Workspace home", exact: true });
+  await home.click();
+  await expect(
+    page.getByRole("region", { name: "Claim selected cases" }),
+  ).toHaveCount(0);
+  release();
+  await completed;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  // A server-backed queue read follows the settled command and proves that
+  // precisely one selected case remains claimable.
+  const pool = await page.request.get(
+    "/api/review/queue?scope=pool&state=Submitted&sort=newest&take=50",
+  );
+  expect(pool.ok()).toBe(true);
+  const rows = (await pool.json()).items;
+  expect(
+    rows.filter((row: { reference: string }) =>
+      references.includes(row.reference),
+    ),
+  ).toHaveLength(1);
+  expect(
+    rows.some(
+      (row: { applicationId: string }) => row.applicationId === claimedId,
+    ),
+  ).toBe(false);
+  expect(requests).toBe(1);
 });

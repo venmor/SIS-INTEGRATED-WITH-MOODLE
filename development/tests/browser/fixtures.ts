@@ -730,6 +730,15 @@ export async function createCheckpointStudent() {
         aggregate: "InstitutionalRegistration",
         aggregateId: registration.id,
         type: "MoodleEnrolmentQueued",
+        // Atomically create the source and a deferred PENDING attempt. The
+        // background worker must not deliver before the UI proves Queued.
+        attempts: {
+          create: {
+            state: "PENDING",
+            attempt: 0,
+            nextRunAt: new Date(Date.now() + 60 * 60 * 1000),
+          },
+        },
         payload: {
           eventId,
           eventType: "zm.sis.registration.course-enrolled.v1",
@@ -750,6 +759,19 @@ export async function createCheckpointStudent() {
       password,
       studentNumber: student.studentNumber,
       outboxId: eventId,
+      async releaseHandoff() {
+        const connection = new PrismaClient({
+          adapter: new PrismaPg({ connectionString: url }),
+        });
+        try {
+          await connection.integrationDeliveryAttempt.updateMany({
+            where: { outboxId: eventId, state: "PENDING" },
+            data: { nextRunAt: new Date("2020-01-01T00:00:00Z") },
+          });
+        } finally {
+          await connection.$disconnect();
+        }
+      },
     };
   } finally {
     await db.$disconnect();
@@ -813,13 +835,7 @@ async function mintSid(
 
 /** Phase 6 slice 6: privileged session cookies for API driving. */
 export const sysadminSid = () =>
-  mintSid(
-    "SYSADMIN",
-    ["administer-identity"],
-    "SYSTEM",
-    "GLOBAL",
-    "sysadmin",
-  );
+  mintSid("SYSADMIN", ["administer-identity"], "SYSTEM", "GLOBAL", "sysadmin");
 
 export const moodleAdminSid = () =>
   mintSid(
@@ -858,7 +874,7 @@ export async function releaseDueAttempts() {
 }
 
 /** Phase 7 slice 1: lecturer fixture scoped to the assessment demo offering. */
-export async function createLecturer() {
+export async function createLecturer(offeringRef = "SWE-2026S1") {
   const url = process.env.DATABASE_URL;
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
     throw new Error("Browser tests require an isolated test/review database.");
@@ -868,7 +884,6 @@ export async function createLecturer() {
   });
   const username = `browser.lec.${randomUUID()}`;
   const password = "Fictional-browser-2026!";
-  const offeringRef = "SWE-2026S1";
   try {
     const person = await db.person.create({
       data: {
@@ -1243,7 +1258,6 @@ export async function createAdmissionsOfficer() {
   }
 }
 
-
 export async function ensureAxeOffering() {
   const url = process.env.DATABASE_URL;
   if (!url || !/(test|review|ci|browser)/i.test(new URL(url).pathname)) {
@@ -1368,14 +1382,29 @@ export async function ensureTimelinePackage() {
     });
     await db.resultRelease.create({
       data: {
-        packageId: pkg.id, offeringRef: 'SWE-2026S1', periodCode: '2026S1',
-        packageHash: 'fictional-hash', policySnapshot: {},
-        releasedByAccountId: randomUUID(), assignmentId: randomUUID(), declaration: 'Isolated timeline fixture',
-        results: { create: {
-          studentId: randomUUID(), studentRef: 'STU-2026-0001', courseId: randomUUID(),
-          courseCode: 'SWE111', courseTitle: 'Programming Fundamentals', courseType: 'CORE',
-          periodCode: '2026S1', version: 2, mark: 68.8, outcome: 'PASS', calculationSnapshot: {},
-        } },
+        packageId: pkg.id,
+        offeringRef: "SWE-2026S1",
+        periodCode: "2026S1",
+        packageHash: "fictional-hash",
+        policySnapshot: {},
+        releasedByAccountId: randomUUID(),
+        assignmentId: randomUUID(),
+        declaration: "Isolated timeline fixture",
+        results: {
+          create: {
+            studentId: randomUUID(),
+            studentRef: "STU-2026-0001",
+            courseId: randomUUID(),
+            courseCode: "SWE111",
+            courseTitle: "Programming Fundamentals",
+            courseType: "CORE",
+            periodCode: "2026S1",
+            version: 2,
+            mark: 68.8,
+            outcome: "PASS",
+            calculationSnapshot: {},
+          },
+        },
       },
     });
     await db.auditEvent.create({

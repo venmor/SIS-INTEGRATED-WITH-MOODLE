@@ -34,10 +34,8 @@ export default async function MappingDecidePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const list = await loadStaff<{ items: GradeMappingView[] }>("/mappings");
-  const item = list.ok
-    ? list.data.items.find((m) => m.id === id)
-    : undefined;
+  const result = await loadStaff<GradeMappingView>(`/mappings/${id}`);
+  const item = result.ok ? result.data : undefined;
   if (!item)
     return (
       <div className={styles.page}>

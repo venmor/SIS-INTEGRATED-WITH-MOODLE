@@ -325,3 +325,55 @@
     justify-content: center;
   }
 }
+
+.claimPanel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+.claimPanel h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.claimPanel p {
+  margin: 0;
+}
+.claimPanel button {
+  min-height: 2.75rem;
+  width: fit-content;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 650;
+  cursor: pointer;
+}
+.claimPanel button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.claimOutcomes {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+.claimOutcomes li {
+  overflow-wrap: anywhere;
+}
+.claimOutcomes li span {
+  display: block;
+  color: var(--text-secondary);
+}
+@media (max-width: 600px) {
+  .claimPanel {
+    padding: var(--space-3);
+  }
+  .claimPanel button {
+    width: 100%;
+  }
+}

@@ -34,10 +34,8 @@ export default async function PlanDecidePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const list = await loadStaff<{ items: AssessmentPlanView[] }>("/plans");
-  const item = list.ok
-    ? list.data.items.find((p) => p.id === id)
-    : undefined;
+  const result = await loadStaff<AssessmentPlanView>(`/plans/${id}`);
+  const item = result.ok ? result.data : undefined;
   if (!item)
     return (
       <div className={styles.page}>

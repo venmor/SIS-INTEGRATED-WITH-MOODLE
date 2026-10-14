@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./admin-shell.module.css";
+import { NavigationIcon } from "../navigation-icon";
 
 export interface WorkspaceLink {
   href: string;
@@ -32,7 +33,8 @@ export function WorkspaceNav({ items }: { items: WorkspaceLink[] }) {
             aria-current={current ? "page" : undefined}
             className={current ? styles.current : undefined}
           >
-            {item.label}
+            <NavigationIcon href={item.href} />
+            <span>{item.label}</span>
           </Link>
         );
       })}

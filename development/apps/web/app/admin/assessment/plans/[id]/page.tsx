@@ -33,10 +33,8 @@ export default async function AssessmentPlanDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const list = await loadStaff<{ items: AssessmentPlanView[] }>("/plans");
-  const item = list.ok
-    ? list.data.items.find((p) => p.id === id)
-    : undefined;
+  const result = await loadStaff<AssessmentPlanView>(`/plans/${id}`);
+  const item = result.ok ? result.data : undefined;
   if (!item)
     return (
       <div className={styles.page}>
@@ -45,7 +43,7 @@ export default async function AssessmentPlanDetailPage({
           <h1 className={styles.title}>Assessment plan</h1>
           <Notice
             severity="warning"
-            title={!list.ok && (list.status === 401 || list.status === 403) ? "Restricted area" : "Plan unavailable"}
+            title={!result.ok && (result.status === 401 || result.status === 403) ? "Restricted area" : "Plan unavailable"}
             message="This plan needs assessment authority, or it does not exist in your scope."
             action={{ label: "Assessment plans", href: "/admin/assessment/plans" }}
           />

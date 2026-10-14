@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 import {
   createCheckpointStudent,
   moodleAdminSid,
-  releaseDueAttempts,
   supportSid,
 } from "./fixtures";
 
@@ -38,8 +37,21 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
       headers: { origin: ORIGIN, cookie },
       data: body,
     });
-    return { status: res.status(), body: (await res.json().catch(() => ({}))) as any };
+    return {
+      status: res.status(),
+      body: (await res.json().catch(() => ({}))) as any,
+    };
   }
+
+  // Exercise the real worker while this specific attempt is held. Even an
+  // immediate tick must leave the source queued until the fixture releases it.
+  const heldTick = await api(
+    "POST",
+    "/api/integration/worker/run",
+    adminCookie,
+    {},
+  );
+  expect(heldTick.status).toBe(201);
 
   // Queued handoff visible to the student; registration stays valid.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -53,19 +65,29 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
   await noOverflow(page);
 
   // Force the outage; worker ticks fail retryably, never touching SIS.
-  await api("POST", "/api/integration/simulator/mode", adminCookie, {
-    mode: "OUTAGE",
-  });
+  const outage = await api(
+    "POST",
+    "/api/integration/simulator/mode",
+    adminCookie,
+    {
+      mode: "OUTAGE",
+    },
+  );
+  expect(outage.status).toBe(201);
+  await student.releaseHandoff();
   for (let i = 0; i < 5; i++) {
     await api("POST", "/api/integration/worker/run", adminCookie, {});
-    await releaseDueAttempts();
+    await student.releaseHandoff();
   }
   const dead = await api("GET", "/api/integration/dead-letters", supportA);
   expect(dead.status).toBe(200);
   const ownAttempt = (
     dead.body as { items: Array<{ id: string; outboxId: string }> }
   ).items.find((item) => item.outboxId === student.outboxId);
-  expect(ownAttempt, "the checkpoint student's handoff should dead-letter").toBeDefined();
+  expect(
+    ownAttempt,
+    "the checkpoint student's handoff should dead-letter",
+  ).toBeDefined();
   const attemptId = ownAttempt!.id;
 
   // Approved replay by a second officer, then recovery and delivery.
@@ -77,6 +99,11 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
   });
   expect(requested.status).toBe(201);
   const replayId = (requested.body as { id: string }).id;
+  // Restore the simulator before approval makes the replay due. Otherwise
+  // the background worker may retry under OUTAGE between these two commands.
+  await api("POST", "/api/integration/simulator/mode", adminCookie, {
+    mode: "SUCCESS",
+  });
   const decided = await api(
     "POST",
     `/api/integration/replays/${replayId}/decide`,
@@ -88,9 +115,6 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
     },
   );
   expect(decided.status).toBe(201);
-  await api("POST", "/api/integration/simulator/mode", adminCookie, {
-    mode: "SUCCESS",
-  });
   await api("POST", "/api/integration/worker/run", adminCookie, {});
   await page.goto("/student/register");
   await expect(page.getByText(/Moodle handoff: Synced/)).toBeVisible();

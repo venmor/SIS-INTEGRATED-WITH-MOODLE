@@ -202,3 +202,13 @@ export interface ResultPublicationWorkspace {
     status: string;
   }>;
 }
+
+/** Read-authority and action availability are distinct. Backend remains the command authority. */
+export interface AssessmentPlanListView {
+  items: AssessmentPlanView[];
+  canDraft: boolean;
+}
+export interface GradeBatchListView {
+  items: GradeBatchView[];
+  canStage: boolean;
+}

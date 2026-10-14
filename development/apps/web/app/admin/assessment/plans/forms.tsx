@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
+import { NavigationIcon } from "../../../navigation-icon";
+import styles from "../workspace.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -34,9 +36,15 @@ async function postAssessment(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as {
-      detail?: { supportReference?: string; code?: string; currentVersion?: number };
-    }).detail;
+    const detail = (
+      error as {
+        detail?: {
+          supportReference?: string;
+          code?: string;
+          currentVersion?: number;
+        };
+      }
+    ).detail;
     const base = `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
     if (detail?.code === "VERSION_CONFLICT" && detail?.currentVersion != null)
       return `${base} Current version: v${detail.currentVersion}. Reload the list and try again with the current version.`;
@@ -49,14 +57,14 @@ function failure(error: unknown): string {
 // ASSESSMENT-DEMO-v1 scheme components (code, max mark, weight; weights
 // total 100). Every submit carries a fresh idempotency key; the list
 // refreshes after the write and the version is shown.
-export function PlanForms() {
+export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function draft(form: HTMLFormElement) {
-    if (pending) return;
+    if (pending || !canDraft) return;
     setPending(true);
     setErrors([]);
     setNotice(null);
@@ -73,10 +81,10 @@ export function PlanForms() {
         components,
         idempotencyKey: crypto.randomUUID(),
       })) as { version?: number; id?: string };
+      form.reset();
       setNotice(
         `Plan drafted (v${out.version ?? "?"}). A second officer must approve it on the decision page.`,
       );
-      form.reset();
       router.refresh();
     } catch (error) {
       setErrors([{ fieldId: "plan-offering", message: failure(error) }]);
@@ -86,139 +94,170 @@ export function PlanForms() {
   }
 
   return (
-    <>
+    <section className={styles.panel} aria-labelledby="draft-plan-heading">
+      <div className={styles.panelHeading}>
+        <span className={styles.sectionIcon}>
+          <NavigationIcon href="/admin/assessment/plans" />
+        </span>
+        <div>
+          <h2 id="draft-plan-heading">Draft plan</h2>
+          <p>
+            Create a draft assessment plan for an offering and define its
+            assessment components.
+          </p>
+        </div>
+      </div>
       {notice ? (
-        <Notice severity="success" title="Done" message={notice} />
+        <Notice severity="success" title="Plan saved" message={notice} />
       ) : null}
-      {errors.length > 0 ? (
+      {errors.length ? (
         <ErrorSummary title="The plan was not drafted" errors={errors} />
       ) : null}
-      <h2>Draft plan</h2>
+      {!canDraft ? (
+        <p className={styles.permissionHint}>
+          Switch to an appointed lecturer workspace to draft a plan.
+        </p>
+      ) : null}
       <form
         aria-label="Draft assessment plan"
+        aria-busy={pending}
+        onReset={() => {
+          setErrors([]);
+          setNotice(null);
+        }}
         onSubmit={(e) => {
           e.preventDefault();
           void draft(e.currentTarget);
         }}
       >
-        <p>
-          <label htmlFor="plan-offering">Offering reference</label>{" "}
-          <input
-            id="plan-offering"
-            name="plan-offering"
-            type="text"
-            maxLength={64}
-            required
-            placeholder="SWE-2026S1"
-          />
-        </p>
-        <p>
-          <label htmlFor="plan-period">Period code</label>{" "}
-          <input
-            id="plan-period"
-            name="plan-period"
-            type="text"
-            maxLength={16}
-            required
-            placeholder="2026S1"
-          />
-        </p>
-        <fieldset>
-          <legend>Components (ASSESSMENT-DEMO-v1, fictional demo scheme)</legend>
-          <p>
-            <label htmlFor="plan-component-1-code">Component 1 code</label>{" "}
+        <div className={styles.fieldGrid}>
+          <div className={styles.field}>
+            <label htmlFor="plan-offering">
+              Offering reference <span aria-hidden="true">*</span>
+            </label>
             <input
-              id="plan-component-1-code"
-              name="plan-component-1-code"
-              type="text"
-              maxLength={32}
+              id="plan-offering"
+              name="plan-offering"
+              maxLength={64}
               required
-              defaultValue="CA-QUIZ1"
-            />{" "}
-            <label htmlFor="plan-component-1-max">Component 1 max mark</label>{" "}
-            <input
-              id="plan-component-1-max"
-              name="plan-component-1-max"
-              type="number"
-              min={1}
-              required
-              defaultValue={20}
-            />{" "}
-            <label htmlFor="plan-component-1-weight">Component 1 weight</label>{" "}
-            <input
-              id="plan-component-1-weight"
-              name="plan-component-1-weight"
-              type="number"
-              min={0}
-              required
-              defaultValue={20}
+              placeholder="SWE-2026S1"
+              aria-describedby="offering-hint"
             />
-          </p>
-          <p>
-            <label htmlFor="plan-component-2-code">Component 2 code</label>{" "}
+            <small id="offering-hint">
+              Unique reference for this offering, such as course and period.
+            </small>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="plan-period">
+              Period code <span aria-hidden="true">*</span>
+            </label>
             <input
-              id="plan-component-2-code"
-              name="plan-component-2-code"
-              type="text"
-              maxLength={32}
+              id="plan-period"
+              name="plan-period"
+              maxLength={16}
               required
-              defaultValue="CA-ASSIGN"
-            />{" "}
-            <label htmlFor="plan-component-2-max">Component 2 max mark</label>{" "}
-            <input
-              id="plan-component-2-max"
-              name="plan-component-2-max"
-              type="number"
-              min={1}
-              required
-              defaultValue={30}
-            />{" "}
-            <label htmlFor="plan-component-2-weight">Component 2 weight</label>{" "}
-            <input
-              id="plan-component-2-weight"
-              name="plan-component-2-weight"
-              type="number"
-              min={0}
-              required
-              defaultValue={20}
+              placeholder="2026S1"
+              aria-describedby="period-hint"
             />
+            <small id="period-hint">Academic period code.</small>
+          </div>
+        </div>
+        <fieldset className={styles.components}>
+          <legend>Assessment components</legend>
+          <p className={styles.supporting}>
+            Define the components, maximum marks and weights. Weights must total
+            100%.
           </p>
-          <p>
-            <label htmlFor="plan-component-3-code">Component 3 code</label>{" "}
-            <input
-              id="plan-component-3-code"
-              name="plan-component-3-code"
-              type="text"
-              maxLength={32}
-              required
-              defaultValue="FINAL-EXAM"
-            />{" "}
-            <label htmlFor="plan-component-3-max">Component 3 max mark</label>{" "}
-            <input
-              id="plan-component-3-max"
-              name="plan-component-3-max"
-              type="number"
-              min={1}
-              required
-              defaultValue={100}
-            />{" "}
-            <label htmlFor="plan-component-3-weight">Component 3 weight</label>{" "}
-            <input
-              id="plan-component-3-weight"
-              name="plan-component-3-weight"
-              type="number"
-              min={0}
-              required
-              defaultValue={60}
-            />
-          </p>
+          <div className={styles.componentHead} aria-hidden="true">
+            <span>#</span>
+            <span>Component code *</span>
+            <span>Max mark *</span>
+            <span>Weight (%) *</span>
+          </div>
+          {[
+            ["CA-QUIZ1", 20, 20],
+            ["CA-ASSIGN", 30, 20],
+            ["FINAL-EXAM", 100, 60],
+          ].map(([code, max, weight], index) => {
+            const n = index + 1;
+            return (
+              <div className={styles.componentRow} key={n}>
+                <span className={styles.rowNumber} aria-hidden="true">
+                  {n}
+                </span>
+                <div className={styles.field}>
+                  <label
+                    className={styles.rowLabel}
+                    htmlFor={`plan-component-${n}-code`}
+                  >
+                    Component {n} code
+                  </label>
+                  <input
+                    id={`plan-component-${n}-code`}
+                    name={`plan-component-${n}-code`}
+                    maxLength={32}
+                    required
+                    defaultValue={code}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label
+                    className={styles.rowLabel}
+                    htmlFor={`plan-component-${n}-max`}
+                  >
+                    Component {n} max mark
+                  </label>
+                  <input
+                    id={`plan-component-${n}-max`}
+                    name={`plan-component-${n}-max`}
+                    type="number"
+                    min={1}
+                    required
+                    defaultValue={max}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label
+                    className={styles.rowLabel}
+                    htmlFor={`plan-component-${n}-weight`}
+                  >
+                    Component {n} weight
+                  </label>
+                  <input
+                    id={`plan-component-${n}-weight`}
+                    name={`plan-component-${n}-weight`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    required
+                    defaultValue={weight}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </fieldset>
-        <p>
-          <button type="submit" disabled={pending}>
+        <div className={styles.actions}>
+          <button type="submit" disabled={pending || !canDraft}>
+            <NavigationIcon href="/admin/assessment/plans" />
             {pending ? "Drafting…" : "Draft plan"}
           </button>
-        </p>
+          <button
+            className={styles.secondary}
+            type="reset"
+            disabled={pending || !canDraft}
+          >
+            Reset
+          </button>
+        </div>
+        <details className={styles.policy}>
+          <summary>Assessment policy</summary>
+          <p>
+            This demonstration uses ASSESSMENT-DEMO-v1. An independent officer
+            must approve a saved plan; drafting does not release results.
+          </p>
+        </details>
       </form>
-    </>
+    </section>
   );
 }
