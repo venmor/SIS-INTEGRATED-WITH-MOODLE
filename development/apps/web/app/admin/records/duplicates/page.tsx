@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { IdentityCandidateView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 import { DuplicateQueue } from "./queue";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +25,9 @@ async function loadStaff<T>(
 }
 
 export default async function DuplicatesPage() {
-  const candidates =
-    await loadStaff<{ items: IdentityCandidateView[] }>("/duplicates");
+  const candidates = await loadStaff<{ items: IdentityCandidateView[] }>(
+    "/duplicates",
+  );
   if (!candidates.ok) {
     return (
       <div className={styles.page}>

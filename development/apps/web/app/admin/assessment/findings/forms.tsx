@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -80,33 +81,44 @@ export function FindingTransitionForm({
 
   return (
     <form
+      className={staffUi.form}
       onSubmit={(e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         const to = String(data.get("finding-transition-to") ?? "ACKNOWLEDGED");
-        void transition(to, String(data.get("finding-transition-reason") ?? ""));
+        void transition(
+          to,
+          String(data.get("finding-transition-reason") ?? ""),
+        );
       }}
     >
       {errors.length > 0 ? (
         <ErrorSummary title="The decision was not recorded" errors={errors} />
       ) : null}
       {notice ? <p role="status">{notice}</p> : null}
-      <label htmlFor="finding-transition-to">Decision</label>{" "}
-      <select id="finding-transition-to" name="finding-transition-to">
+      <label className={staffUi.fieldLabel} htmlFor="finding-transition-to">
+        Decision
+      </label>{" "}
+      <select
+        className={staffUi.control}
+        id="finding-transition-to"
+        name="finding-transition-to"
+      >
         <option value="ACKNOWLEDGED">Acknowledge</option>
         <option value="RESOLVED">Resolve</option>
         <option value="DISMISSED">Dismiss</option>
       </select>{" "}
-      <label htmlFor="finding-transition-reason">
+      <label className={staffUi.fieldLabel} htmlFor="finding-transition-reason">
         Reason (required to resolve or dismiss)
       </label>{" "}
       <input
+        className={staffUi.control}
         id="finding-transition-reason"
         name="finding-transition-reason"
         type="text"
         autoComplete="off"
       />{" "}
-      <button type="submit" disabled={pending}>
+      <button className={staffUi.button} type="submit" disabled={pending}>
         Record decision
       </button>
     </form>

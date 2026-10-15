@@ -1,9 +1,10 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ResultPackageView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { AssemblePackageForm } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -73,40 +74,44 @@ export default async function BoardPackagesPage() {
           <Link href="/admin/assessment/moderation">Moderation queue</Link>
         </p>
         <AssemblePackageForm offeringRef="SWE-2026S1" periodCode="2026S1" />
-        <h2>Packages</h2>
-        <DataTable
-          hideTitle
-          title="Board packages"
-          description="Assembled result packages with board outcomes."
-          columns={[
-            {
-              heading: "State",
-              render: (item: ResultPackageView) => (
-                <StatusChip tone={tone(item.status)}>{item.status}</StatusChip>
-              ),
-            },
-            {
-              heading: "Version",
-              render: (item: ResultPackageView) => String(item.version),
-            },
-            {
-              heading: "Hash",
-              render: (item: ResultPackageView) =>
-                item.packageHash.slice(0, 12),
-            },
-            {
-              heading: "Detail",
-              render: (item: ResultPackageView) => (
-                <Link href={`/admin/assessment/packages/${item.id}`}>
-                  Open package
-                </Link>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No board packages assembled yet."
-        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Packages</h2>
+          <DataTable
+            hideTitle
+            title="Board packages"
+            description="Assembled result packages with board outcomes."
+            columns={[
+              {
+                heading: "State",
+                render: (item: ResultPackageView) => (
+                  <StatusChip tone={tone(item.status)}>
+                    {item.status}
+                  </StatusChip>
+                ),
+              },
+              {
+                heading: "Version",
+                render: (item: ResultPackageView) => String(item.version),
+              },
+              {
+                heading: "Hash",
+                render: (item: ResultPackageView) =>
+                  item.packageHash.slice(0, 12),
+              },
+              {
+                heading: "Detail",
+                render: (item: ResultPackageView) => (
+                  <Link href={`/admin/assessment/packages/${item.id}`}>
+                    Open package
+                  </Link>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No board packages assembled yet."
+          />
+        </section>
       </main>
     </div>
   );

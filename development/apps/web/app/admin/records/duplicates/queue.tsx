@@ -1,10 +1,11 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import type { IdentityCandidateView } from "@sis/contracts";
 import { Empty, ErrorSummary, Notice } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -47,8 +48,7 @@ export function DuplicateQueue({
 }: {
   initial: IdentityCandidateView[];
 }) {
-  const [items, setItems] =
-    useState<IdentityCandidateView[]>(initial);
+  const [items, setItems] = useState<IdentityCandidateView[]>(initial);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -99,12 +99,15 @@ export function DuplicateQueue({
   }
 
   return (
-    <section aria-label="Identity review queue">
+    <section className={staffUi.panel} aria-label="Identity review queue">
       {notice ? (
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
       {errors.length > 0 ? (
-        <ErrorSummary title="The review action did not complete" errors={errors} />
+        <ErrorSummary
+          title="The review action did not complete"
+          errors={errors}
+        />
       ) : null}
       {items.length === 0 ? (
         <Empty
@@ -113,7 +116,7 @@ export function DuplicateQueue({
           message="Possible duplicates awaiting review appear here."
         />
       ) : (
-        <ul>
+        <ul className={staffUi.recordList}>
           {items.map((candidate) => (
             <li key={candidate.id}>
               <p>
@@ -123,16 +126,21 @@ export function DuplicateQueue({
                 Flagged {formatLusaka(candidate.createdAt)}
               </p>
               <form
+                className={staffUi.form}
                 aria-label={`Resolve identity match ${candidate.id}`}
                 onSubmit={(e) => {
                   e.preventDefault();
                 }}
               >
-                <p>
-                  <label htmlFor={`reason-${candidate.id}`}>
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`reason-${candidate.id}`}
+                  >
                     Evidence for this decision
                   </label>{" "}
                   <input
+                    className={staffUi.control}
                     id={`reason-${candidate.id}`}
                     name={`reason-${candidate.id}`}
                     type="text"
@@ -142,6 +150,7 @@ export function DuplicateQueue({
                 </p>
                 <p>
                   <button
+                    className={staffUi.button}
                     type="button"
                     disabled={pending !== null}
                     onClick={(e) => {
@@ -159,6 +168,7 @@ export function DuplicateQueue({
                       : "Link to existing person"}
                   </button>{" "}
                   <button
+                    className={staffUi.button}
                     type="button"
                     disabled={pending !== null}
                     onClick={(e) => {

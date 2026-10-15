@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,66 +82,117 @@ export function MaintenanceForms() {
       {errors.length > 0 ? (
         <ErrorSummary title="The window was not updated" errors={errors} />
       ) : null}
-      <h2>Schedule maintenance</h2>
-      <form
-        aria-label="Schedule Moodle maintenance"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            "/maintenance",
-            {
-              reason: String(data.get("maint-reason") ?? ""),
-              startsAt: new Date(String(data.get("maint-start") ?? "")).toISOString(),
-              endsAt: new Date(String(data.get("maint-end") ?? "")).toISOString(),
-            },
-            "Maintenance scheduled. Deliveries inside the window defer to its end.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="maint-reason">Reason</label>{" "}
-          <input id="maint-reason" name="maint-reason" type="text" maxLength={2000} required />
-        </p>
-        <p>
-          <label htmlFor="maint-start">Starts at</label>{" "}
-          <input id="maint-start" name="maint-start" type="datetime-local" required />
-        </p>
-        <p>
-          <label htmlFor="maint-end">Ends at</label>{" "}
-          <input id="maint-end" name="maint-end" type="datetime-local" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Scheduling…" : "Schedule maintenance"}
-          </button>
-        </p>
-      </form>
-      <h2>Cancel a window</h2>
-      <form
-        aria-label="Cancel maintenance window"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/maintenance/${String(data.get("maint-id") ?? "")}/cancel`,
-            {},
-            "Window cancelled.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="maint-id">Window ID</label>{" "}
-          <input id="maint-id" name="maint-id" type="text" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Cancelling…" : "Cancel window"}
-          </button>
-        </p>
-      </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Schedule maintenance</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Schedule Moodle maintenance"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              "/maintenance",
+              {
+                reason: String(data.get("maint-reason") ?? ""),
+                startsAt: new Date(
+                  String(data.get("maint-start") ?? ""),
+                ).toISOString(),
+                endsAt: new Date(
+                  String(data.get("maint-end") ?? ""),
+                ).toISOString(),
+              },
+              "Maintenance scheduled. Deliveries inside the window defer to its end.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="maint-reason">
+              Reason
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="maint-reason"
+              name="maint-reason"
+              type="text"
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="maint-start">
+              Starts at
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="maint-start"
+              name="maint-start"
+              type="datetime-local"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="maint-end">
+              Ends at
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="maint-end"
+              name="maint-end"
+              type="datetime-local"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Scheduling…" : "Schedule maintenance"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Cancel a window</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Cancel maintenance window"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/maintenance/${String(data.get("maint-id") ?? "")}/cancel`,
+              {},
+              "Window cancelled.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="maint-id">
+              Window ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="maint-id"
+              name="maint-id"
+              type="text"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Cancelling…" : "Cancel window"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

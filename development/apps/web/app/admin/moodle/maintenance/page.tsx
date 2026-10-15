@@ -1,8 +1,9 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
 import { MaintenanceForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -59,20 +60,22 @@ export default async function MaintenancePage() {
         <p>
           <Link href="/admin/moodle">Moodle administration</Link>
         </p>
-        <h2>Scheduled windows</h2>
-        {list.data.items.length === 0 ? (
-          <p>No maintenance windows scheduled.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>{item.reason}</strong> — {item.status} ·{" "}
-                {item.startsAt} → {item.endsAt}
-              </li>
-            ))}
-          </ul>
-        )}
-        <MaintenanceForms />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Scheduled windows</h2>
+          {list.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No maintenance windows scheduled.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.reason}</strong> — {item.status} ·{" "}
+                  {item.startsAt} → {item.endsAt}
+                </li>
+              ))}
+            </ul>
+          )}
+          <MaintenanceForms />
+        </section>
       </main>
     </div>
   );

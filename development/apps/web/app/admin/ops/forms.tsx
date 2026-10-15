@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,9 +36,11 @@ async function postOps(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as {
-      detail?: { supportReference?: string; code?: string };
-    }).detail;
+    const detail = (
+      error as {
+        detail?: { supportReference?: string; code?: string };
+      }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
   }
   return "We could not confirm the result. Check the current state before retrying.";
@@ -62,6 +65,7 @@ export function OpenIncidentForm() {
         <ErrorSummary title="The incident was not opened" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Open operations incident"
         onSubmit={(e) => {
           e.preventDefault();
@@ -92,18 +96,27 @@ export function OpenIncidentForm() {
             });
         }}
       >
-        <p>
-          <label htmlFor="incident-title">Title</label>{" "}
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="incident-title">
+            Title
+          </label>{" "}
           <input
+            className={staffUi.control}
             id="incident-title"
             name="incident-title"
             type="text"
             autoComplete="off"
           />
         </p>
-        <p>
-          <label htmlFor="incident-severity">Severity</label>{" "}
-          <select id="incident-severity" name="incident-severity">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="incident-severity">
+            Severity
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="incident-severity"
+            name="incident-severity"
+          >
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
             <option value="HIGH">High</option>
@@ -111,7 +124,7 @@ export function OpenIncidentForm() {
           </select>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Opening…" : "Open incident"}
           </button>
         </p>
@@ -153,6 +166,7 @@ export function TransitionIncidentForm({ item }: { item: OpsIncidentView }) {
         <ErrorSummary title="The incident was not updated" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label={`Move incident to ${action}`}
         onSubmit={(e) => {
           e.preventDefault();
@@ -199,33 +213,45 @@ export function TransitionIncidentForm({ item }: { item: OpsIncidentView }) {
       >
         {action === "resolve" ? (
           <>
-            <p>
-              <label htmlFor={`incident-root-cause-${item.id}`}>
+            <p className={staffUi.formField}>
+              <label
+                className={staffUi.fieldLabel}
+                htmlFor={`incident-root-cause-${item.id}`}
+              >
                 Root cause
               </label>{" "}
               <input
+                className={staffUi.control}
                 id={`incident-root-cause-${item.id}`}
                 name="incident-root-cause"
                 type="text"
                 autoComplete="off"
               />
             </p>
-            <p>
-              <label htmlFor={`incident-evidence-${item.id}`}>
+            <p className={staffUi.formField}>
+              <label
+                className={staffUi.fieldLabel}
+                htmlFor={`incident-evidence-${item.id}`}
+              >
                 Recovery evidence (20+ characters)
               </label>{" "}
               <input
+                className={staffUi.control}
                 id={`incident-evidence-${item.id}`}
                 name="incident-recovery-evidence"
                 type="text"
                 autoComplete="off"
               />
             </p>
-            <p>
-              <label htmlFor={`incident-preventive-${item.id}`}>
+            <p className={staffUi.formField}>
+              <label
+                className={staffUi.fieldLabel}
+                htmlFor={`incident-preventive-${item.id}`}
+              >
                 Preventive action (optional)
               </label>{" "}
               <input
+                className={staffUi.control}
                 id={`incident-preventive-${item.id}`}
                 name="incident-preventive-action"
                 type="text"
@@ -235,7 +261,7 @@ export function TransitionIncidentForm({ item }: { item: OpsIncidentView }) {
           </>
         ) : null}
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending
               ? "Recording…"
               : action === "acknowledge"

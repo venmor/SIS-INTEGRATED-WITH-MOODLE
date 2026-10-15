@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -91,85 +92,116 @@ export function MappingForms() {
       {errors.length > 0 ? (
         <ErrorSummary title="The mapping was not updated" errors={errors} />
       ) : null}
-      <h2>Draft mapping</h2>
-      <form
-        aria-label="Draft grade mapping"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            "/mappings",
-            {
-              componentId: String(data.get("mapping-component") ?? ""),
-              moodleActivityId: String(data.get("mapping-activity") ?? ""),
-              moodleCourseRef: String(data.get("mapping-course") ?? ""),
-            },
-            "Mapping drafted. Run a synthetic test, then have a second officer activate it on the decision page.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="mapping-component">Component ID</label>{" "}
-          <input
-            id="mapping-component"
-            name="mapping-component"
-            type="text"
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="mapping-activity">Moodle activity ID</label>{" "}
-          <input
-            id="mapping-activity"
-            name="mapping-activity"
-            type="text"
-            maxLength={128}
-            required
-            placeholder="SIM-QUIZ-CA1"
-          />
-        </p>
-        <p>
-          <label htmlFor="mapping-course">Moodle course reference</label>{" "}
-          <input
-            id="mapping-course"
-            name="mapping-course"
-            type="text"
-            maxLength={128}
-            required
-            placeholder="SIM-SH-SWE-2026S1"
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Drafting…" : "Draft mapping"}
-          </button>
-        </p>
-      </form>
-      <h2>Test mapping</h2>
-      <form
-        aria-label="Test grade mapping"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/mappings/${String(data.get("mapping-id") ?? "")}/test`,
-            {},
-            "Synthetic test recorded. It writes nothing.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="mapping-id">Mapping ID</label>{" "}
-          <input id="mapping-id" name="mapping-id" type="text" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Testing…" : "Run synthetic test"}
-          </button>
-        </p>
-      </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Draft mapping</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Draft grade mapping"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              "/mappings",
+              {
+                componentId: String(data.get("mapping-component") ?? ""),
+                moodleActivityId: String(data.get("mapping-activity") ?? ""),
+                moodleCourseRef: String(data.get("mapping-course") ?? ""),
+              },
+              "Mapping drafted. Run a synthetic test, then have a second officer activate it on the decision page.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-component">
+              Component ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-component"
+              name="mapping-component"
+              type="text"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-activity">
+              Moodle activity ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-activity"
+              name="mapping-activity"
+              type="text"
+              maxLength={128}
+              required
+              placeholder="SIM-QUIZ-CA1"
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-course">
+              Moodle course reference
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-course"
+              name="mapping-course"
+              type="text"
+              maxLength={128}
+              required
+              placeholder="SIM-SH-SWE-2026S1"
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Drafting…" : "Draft mapping"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Test mapping</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Test grade mapping"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/mappings/${String(data.get("mapping-id") ?? "")}/test`,
+              {},
+              "Synthetic test recorded. It writes nothing.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-id">
+              Mapping ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-id"
+              name="mapping-id"
+              type="text"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Testing…" : "Run synthetic test"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

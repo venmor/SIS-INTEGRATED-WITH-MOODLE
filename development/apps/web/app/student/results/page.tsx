@@ -12,7 +12,7 @@ export default async function ResultsPage() {
     "/student/results",
   );
   return (
-    <main id="main-content" tabIndex={-1} className={styles.page}>
+    <div className={styles.page}>
       <PageHeader
         eyebrow="Student portal"
         title="Official results"
@@ -47,7 +47,7 @@ export default async function ResultsPage() {
                   Official result — released
                 </StatusChip>
               </p>
-              <dl>
+              <dl className={styles.facts}>
                 <dt>Outcome</dt>
                 <dd>{item.outcome}</dd>
                 <dt>Official mark</dt>
@@ -74,8 +74,10 @@ export default async function ResultsPage() {
                     : "This course result does not itself decide progression, supplementary eligibility or a repeat requirement."
                 }
               />
-              <h2>Result review</h2>
-              <p>{item.reviewInstructions}</p>
+              <section className={styles.review}>
+                <h3>Result review</h3>
+                <p>{item.reviewInstructions}</p>
+              </section>
               <details>
                 <summary>Published version history</summary>
                 <ol>
@@ -97,6 +99,6 @@ export default async function ResultsPage() {
           ))}
         </>
       )}
-    </main>
+    </div>
   );
 }

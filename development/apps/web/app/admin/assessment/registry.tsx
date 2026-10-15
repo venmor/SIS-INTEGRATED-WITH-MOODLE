@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -54,7 +55,9 @@ export function AssessmentRegistry(props: RegistryProps) {
           <NavigationIcon href={`/admin/assessment/${name}`} />
         </span>
         <div>
-          <h2 id={`${name}-heading`}>{isPlan ? "Plans" : "Batches"}</h2>
+          <h2 className={staffUi.sectionHeading} id={`${name}-heading`}>
+            {isPlan ? "Plans" : "Batches"}
+          </h2>
           <p>
             {isPlan
               ? "Versioned assessment schemes with components, weights and approval state."
@@ -66,6 +69,7 @@ export function AssessmentRegistry(props: RegistryProps) {
             Search loaded {name}
           </label>
           <input
+            className={staffUi.control}
             id={`${name}-search`}
             type="search"
             value={search}
@@ -73,12 +77,13 @@ export function AssessmentRegistry(props: RegistryProps) {
             placeholder={`Search ${name}…`}
           />
           <details>
-            <summary>Filter</summary>
+            <summary className={staffUi.disclosure}>Filter</summary>
             <div className={styles.filterPanel}>
-              <label htmlFor={`${name}-state`}>
+              <label className={staffUi.fieldLabel} htmlFor={`${name}-state`}>
                 {isPlan ? "Plan state" : "Batch state"}
               </label>
               <select
+                className={staffUi.control}
                 id={`${name}-state`}
                 value={state}
                 onChange={(event) => setState(event.target.value)}
@@ -166,7 +171,7 @@ export function AssessmentRegistry(props: RegistryProps) {
                     Decide
                   </Link>
                   <details className={styles.references}>
-                    <summary>Details</summary>
+                    <summary className={staffUi.disclosure}>Details</summary>
                     <span>Policy: {item.policyVersion}</span>
                     <code>{item.id}</code>
                   </details>
@@ -215,7 +220,7 @@ export function AssessmentRegistry(props: RegistryProps) {
                     Open batch
                   </Link>
                   <details className={styles.references}>
-                    <summary>Details</summary>
+                    <summary className={staffUi.disclosure}>Details</summary>
                     <code>{item.id}</code>
                   </details>
                 </>

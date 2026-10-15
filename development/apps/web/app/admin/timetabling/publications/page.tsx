@@ -1,3 +1,4 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import { Notice } from "@sis/ui";
 import type { MasterDraft, Catalogue } from "../master/planner";
@@ -68,7 +69,7 @@ export default async function TimetablePublicationsPage() {
     }
   }
   return (
-    <div className="grid gap-6">
+    <main className={staffUi.workspace}>
       <header className="grid gap-2">
         <p className="text-sm font-semibold text-muted">
           Academic delivery · fictional rehearsal
@@ -96,6 +97,6 @@ export default async function TimetablePublicationsPage() {
           actorRef={actorRef}
         />
       )}
-    </div>
+    </main>
   );
 }

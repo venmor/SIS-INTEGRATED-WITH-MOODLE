@@ -4,7 +4,7 @@ Date: 2026-10-08. Status: fictional implementation contract under the user's ins
 
 ## Scope and source ownership
 
-Use **Chisomo Demonstration University**, `DEMO-UNIVERSITY`, and synthetic records only. The timetable workflow requires `DEMO_MODE=true`, `SIS_ENABLE_TIMETABLE_DEMO_DRAFTS=true` and a loopback database identified as review/test/CI. A disabled boundary denies both publication and its fictional student projection. All external delivery remains outside this policy.
+Use **Chisomo Demonstration University**, `DEMO-UNIVERSITY`, and synthetic records only. The timetable workflow requires `DEMO_MODE=true`, `SIS_ENABLE_TIMETABLE_DEMO_DRAFTS=true` and either a loopback database identified as review/test/CI or the existing explicitly pinned cloud demonstration boundary. This 15 October clarification follows the owner's instruction to demonstrate the same workflows on Vercel; the shared cloud flag, exact database host/name pins and secure-connection validation remain required. A disabled boundary denies both publication and its fictional student projection. All external delivery remains outside this policy. It grants no institutional or production authority.
 
 Academic registration remains authoritative for enrolment, student/attempt status and assigned curriculum. Academic delivery supplies course versions, period-bound offerings/sections and active teaching appointments. Timetabling supplies the immutable master, current validation and publication history. A programme admissions offering is not a teaching offering; tutorial-group text and student IDs alone cannot establish section membership.
 
@@ -55,6 +55,8 @@ Matching actor/request reference and complete target/decision fingerprint return
 Replacement reviews the new complete master, predecessor and exact changed/cancelled activities. The old version stays auditable and current until atomic replacement succeeds. A receipt reports **`FICTIONAL_PUBLISHED`**, the publication/master/period/version, time and source references; the UI also shows whether that publication remains current.
 
 `DemoTimetablePublished` is a durable **pending Timetabling owner handoff**, with **`externalDelivery: NONE`**. It is not evidence of delivered email, SMS, Moodle calendar updates or completed notification processing. In-system change notices become authoritative only when their owner creates the actual records; until then show that handoff as pending. Do not invent a successful delivery row or mark the full notification workstream complete from an outbox insertion.
+
+The 2026-10-15 [NOTIFY-001 owner](../task-packets/TASK-V2-NOTIFY-001.md), under [NOTIFY-TIMETABLE-v1](SYNTHETIC-TIMETABLE-NOTIFICATION-POLICY.md), implements that bounded in-system handoff. Its separate dispatch ledger records actual notice creation and page completion. New events remain pending until processed; an event or completed publication does not itself assert delivery. Email/SMS and other external handoffs remain outside both fictional policies.
 
 ## Student visibility and change handling
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { AdjustmentView } from "@sis/contracts";
 import { DataTable, Money, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { AdjustmentForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -136,52 +136,54 @@ export default async function AdjustmentsPage({
           {list.data.total} requests match this view · Showing{" "}
           {list.data.items.length} on this page
         </p>
-        <DataTable
-          title="Adjustments awaiting decision"
-          description="Credit notes, waivers and refunds with reasons and amounts."
-          columns={[
-            {
-              heading: "Kind",
-              render: (item) => <strong>{item.kind}</strong>,
-            },
-            {
-              heading: "Amount",
-              numeric: true,
-              render: (item) => (
-                <Money
-                  currency={item.currency}
-                  amountMinor={item.amountMinor}
-                />
-              ),
-            },
-            {
-              heading: "Reason",
-              render: (item) => item.reason,
-            },
-            {
-              heading: "State",
-              render: (item) => (
-                <StatusChip tone="attention">{item.status}</StatusChip>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No adjustments awaiting decision."
-        />
-        <nav
-          aria-label="Adjustment pages"
-          className="flex flex-wrap gap-4 text-sm font-semibold"
-        >
-          {cursor ? <Link href={firstPage}>First page</Link> : null}
-          {list.data.nextCursor ? (
-            <Link
-              href={`/admin/finance/adjustments?${new URLSearchParams({ ...Object.fromEntries(context), cursor: list.data.nextCursor })}`}
-            >
-              Next page
-            </Link>
-          ) : null}
-        </nav>
+        <section className={styles.panel} aria-label="Adjustment review queue">
+          <DataTable
+            title="Adjustments awaiting decision"
+            description="Credit notes, waivers and refunds with reasons and amounts."
+            columns={[
+              {
+                heading: "Kind",
+                render: (item) => <strong>{item.kind}</strong>,
+              },
+              {
+                heading: "Amount",
+                numeric: true,
+                render: (item) => (
+                  <Money
+                    currency={item.currency}
+                    amountMinor={item.amountMinor}
+                  />
+                ),
+              },
+              {
+                heading: "Reason",
+                render: (item) => item.reason,
+              },
+              {
+                heading: "State",
+                render: (item) => (
+                  <StatusChip tone="attention">{item.status}</StatusChip>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No adjustments awaiting decision."
+          />
+          <nav
+            aria-label="Adjustment pages"
+            className="flex flex-wrap gap-4 text-sm font-semibold"
+          >
+            {cursor ? <Link href={firstPage}>First page</Link> : null}
+            {list.data.nextCursor ? (
+              <Link
+                href={`/admin/finance/adjustments?${new URLSearchParams({ ...Object.fromEntries(context), cursor: list.data.nextCursor })}`}
+              >
+                Next page
+              </Link>
+            ) : null}
+          </nav>
+        </section>
         <AdjustmentForms
           adjustments={list.data.items}
           canRequest={list.data.actions.request}

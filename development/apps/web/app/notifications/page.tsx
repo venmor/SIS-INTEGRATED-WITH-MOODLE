@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import type { NotificationRecordView } from "@sis/contracts";
+import type { OwnNotificationRecordView } from "@sis/contracts";
 import { Card, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { NotificationActions } from "./actions";
-import styles from "../student/student.module.css";
+import styles from "./notifications.module.css";
+import { formatLusaka } from "../../lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 // state rolls up across channels. Mandatory notices cannot be
 // suppressed; optional ones honor preferences.
 async function loadMine(): Promise<{
-  data: { items: NotificationRecordView[] } | null;
+  data: { items: OwnNotificationRecordView[] } | null;
   message: string;
 }> {
   const sid = (await cookies()).get("sid")?.value;
@@ -40,18 +41,31 @@ async function loadMine(): Promise<{
       message: "Your notifications are unavailable right now.",
     };
   }
-  return { data: (await response.json()) as { items: NotificationRecordView[] }, message: "" };
+  return {
+    data: (await response.json()) as { items: OwnNotificationRecordView[] },
+    message: "",
+  };
+}
+
+// Notice actions stay on this SIS origin. Malformed or external destinations
+// cannot become a link even if a template writer supplied one.
+function localAction(path: string | null): string | null {
+  return path?.startsWith("/") &&
+    !path.startsWith("//") &&
+    !/[\\\u0000-\u0020]/u.test(path)
+    ? path
+    : null;
 }
 
 export default async function NotificationsPage() {
   const res = await loadMine();
   if (!res.data)
     return (
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" tabIndex={-1} className={styles.main}>
         <PageHeader
           eyebrow="Notification centre"
           title="Notifications"
-          lede="Authoritative in-system record. Email and SMS are delivery channels only."
+          lede="Updates to your study and account."
         />
         <Notice severity="warning" title="Unavailable" message={res.message} />
         <p>
@@ -61,11 +75,11 @@ export default async function NotificationsPage() {
     );
   const items = res.data.items;
   return (
-    <main id="main-content" tabIndex={-1}>
+    <main id="main-content" tabIndex={-1} className={styles.main}>
       <PageHeader
         eyebrow="Notification centre"
         title="Notifications"
-        lede="Authoritative in-system record. Mandatory academic, financial, safety and regulatory notices cannot be disabled."
+        lede="Read and manage updates to your study and account."
       />
       {items.length === 0 ? (
         <Notice
@@ -77,14 +91,34 @@ export default async function NotificationsPage() {
         <ul className={styles.history}>
           {items.map((item) => (
             <li key={item.id}>
-              <p>
+              <p className={styles.noticeHeading}>
                 <strong>{item.title}</strong>{" "}
-                <StatusChip
-                  tone={item.state === "READ" ? "info" : "success"}
-                >
+                <StatusChip tone={item.state === "READ" ? "info" : "success"}>
                   {item.state}
                 </StatusChip>
               </p>
+              <p className={styles.body}>{item.body}</p>
+              <p className={styles.meta}>
+                {item.office ? <span>{item.office}</span> : null}
+                {item.office ? " · " : ""}
+                <time dateTime={item.createdAt}>
+                  {formatLusaka(item.createdAt)}
+                </time>
+              </p>
+              {localAction(item.actionPath) ? (
+                <p className={styles.actions}>
+                  <Link
+                    className={styles.actionLink}
+                    href={localAction(item.actionPath)!}
+                  >
+                    {item.category === "TIMETABLE"
+                      ? "View timetable"
+                      : item.category === "RESULT"
+                        ? "View results"
+                        : "View update"}
+                  </Link>
+                </p>
+              ) : null}
               <NotificationActions item={item} />
             </li>
           ))}
@@ -93,8 +127,8 @@ export default async function NotificationsPage() {
       <Card title="About these notices">
         <p className={styles.meta}>
           In-system notices are the authoritative record. Previews sent
-          elsewhere stay neutral and never reveal results, balances or
-          support details.
+          elsewhere stay neutral and never reveal results, balances or support
+          details.
         </p>
       </Card>
     </main>

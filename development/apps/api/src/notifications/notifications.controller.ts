@@ -131,7 +131,7 @@ export class NotificationsController {
 
   @Post('worker/run')
   @UseGuards(CsrfGuard)
-  runWorker() {
-    return this.notifications.runWorker();
+  runWorker(@Req() r: AuthRequest) {
+    return this.notifications.runWorkerAs(r.auth);
   }
 }

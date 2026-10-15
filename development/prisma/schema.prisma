@@ -356,8 +356,10 @@ model OutboxEvent {
   occurredAt  DateTime @default(now())
   deliveredAt DateTime?
   attempts    IntegrationDeliveryAttempt[]
+  timetableNotificationDispatch TimetableNotificationDispatch?
 
   @@index([deliveredAt, occurredAt])
+  @@index([type, aggregate, occurredAt])
 }
 
 // Configuration Item - single source of truth for ALL configurable values
@@ -2552,6 +2554,7 @@ model TimetableDemoPublication {
   impact Json
   publishedAt DateTime @default(now())
   studentSessions TimetableStudentSession[]
+  notificationDispatches TimetableNotificationDispatch[]
   @@unique([periodId, version])
   @@unique([approvedByAccountId, clientRequestId])
   @@index([periodId, publishedAt])
@@ -2591,4 +2594,24 @@ model TimetableStudentSession {
   @@unique([publicationId, courseRegistrationId, sessionId])
   @@index([attemptId, periodId, publicationId])
   @@index([courseRegistrationId, publicationId])
+}
+
+// Source-owned timetable -> notifications handoff. Consumer progress is separate
+// from OutboxEvent.deliveredAt so another domain cannot acknowledge this owner.
+model TimetableNotificationDispatch {
+  eventId String @id
+  event OutboxEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  publicationId String?
+  publication TimetableDemoPublication? @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  policyVersion String
+  state String @default("PENDING")
+  lastAccountId String?
+  recipientCount Int @default(0)
+  notificationCount Int @default(0)
+  failureCode String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([state, createdAt])
+  @@index([publicationId])
 }

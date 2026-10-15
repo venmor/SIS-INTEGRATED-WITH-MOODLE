@@ -1,15 +1,14 @@
 "use client";
 
+import styles from "../../applicant.module.css";
+
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActionButton } from "@sis/ui";
 import { ErrorSummary } from "@sis/ui";
 import { Field } from "@sis/ui";
 import { Notice } from "@sis/ui";
-import {
-  applicantRequest,
-  errorMessage,
-} from "../../api";
+import { applicantRequest, errorMessage } from "../../api";
 
 interface FieldError {
   fieldId: string;
@@ -74,7 +73,11 @@ export function TicketForm({
   }
 
   return (
-    <form onSubmit={onSubmit} aria-label="Open a support ticket">
+    <form
+      className={styles.form}
+      onSubmit={onSubmit}
+      aria-label="Open a support ticket"
+    >
       <h2>Open a ticket</h2>
       {done ? (
         <Notice
@@ -130,7 +133,11 @@ export function ReplyForm({
   }
 
   return (
-    <form onSubmit={onSubmit} aria-label="Reply to support ticket">
+    <form
+      className={styles.form}
+      onSubmit={onSubmit}
+      aria-label="Reply to support ticket"
+    >
       {done ? (
         <Notice severity="success" title="Reply sent" message="Sent." />
       ) : null}

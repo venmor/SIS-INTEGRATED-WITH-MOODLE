@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,7 +39,13 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 // UI-DECISION-001 replay decision page logic: the signatory sees the
 // frozen evidence version, gives a reason, and signs with the exact
 // declaration. Approvals never overwrite; declines need reasons.
-export function ReplayDecideForm({ replayId, readiness }: { replayId: string; readiness?: MoodleWriteReadiness }) {
+export function ReplayDecideForm({
+  replayId,
+  readiness,
+}: {
+  replayId: string;
+  readiness?: MoodleWriteReadiness;
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -91,24 +98,45 @@ export function ReplayDecideForm({ replayId, readiness }: { replayId: string; re
         <ErrorSummary title="The replay was not decided" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Decide integration replay"
         onSubmit={(e) => {
           e.preventDefault();
-          const action = (
-            e.nativeEvent as SubmitEvent
-          ).submitter?.getAttribute("value");
+          const action = (e.nativeEvent as SubmitEvent).submitter?.getAttribute(
+            "value",
+          );
           void submit(e.currentTarget, action === "approve");
         }}
       >
-        <p>
-          <label htmlFor="decide-note">Decision note (required to decline)</label>{" "}
-          <textarea id="decide-note" name="decide-note" rows={3} maxLength={2000} />
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="decide-note">
+            Decision note (required to decline)
+          </label>{" "}
+          <textarea
+            className={staffUi.control}
+            id="decide-note"
+            name="decide-note"
+            rows={3}
+            maxLength={2000}
+          />
         </p>
         <p>
-          <button type="submit" name="decision" value="approve" disabled={pending || disabled}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            name="decision"
+            value="approve"
+            disabled={pending || disabled}
+          >
             {pending ? "Deciding…" : "Approve replay"}
           </button>{" "}
-          <button type="submit" name="decision" value="decline" disabled={pending || disabled}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            name="decision"
+            value="decline"
+            disabled={pending || disabled}
+          >
             Decline replay
           </button>
         </p>

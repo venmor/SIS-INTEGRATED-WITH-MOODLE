@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import styles from "../applicant.module.css";
+import { StatusChip } from "@sis/ui";
 import { ActionButton } from "@sis/ui";
 import { Notice } from "@sis/ui";
 import type { ApplicantNotification } from "@sis/contracts";
-import {
-  applicantRequest,
-  errorMessage,
-} from "../api";
+import { applicantRequest, errorMessage } from "../api";
 
 // Pollable inbox projection (no delivery provider in this slice). Mandatory
 // decision/deadline notices cannot be disabled; there is no preference UI
@@ -17,8 +16,7 @@ export function NotificationsList({
 }: {
   initial: ApplicantNotification[];
 }) {
-  const [items, setItems] =
-    useState<ApplicantNotification[]>(initial);
+  const [items, setItems] = useState<ApplicantNotification[]>(initial);
   const [error, setError] = useState<string | null>(null);
 
   async function markRead(id: string) {
@@ -27,9 +25,7 @@ export function NotificationsList({
       await applicantRequest(`/notifications/${id}/read`, {});
       setItems((prev) =>
         prev.map((item) =>
-          item.id === id
-            ? { ...item, readAt: new Date().toISOString() }
-            : item,
+          item.id === id ? { ...item, readAt: new Date().toISOString() } : item,
         ),
       );
     } catch (unknownError) {
@@ -52,12 +48,14 @@ export function NotificationsList({
       {error ? (
         <Notice severity="error" title="Not marked as read" message={error} />
       ) : null}
-      <ul>
+      <ul className={styles.recordList}>
         {items.map((item) => (
-          <li key={item.id}>
+          <li key={item.id} className={styles.inboxItem}>
             <p>
               <strong>{item.title}</strong>{" "}
-              {item.readAt ? "(read)" : "(unread)"}
+              <StatusChip tone={item.readAt ? "neutral" : "info"}>
+                {item.readAt ? "Read" : "Unread"}
+              </StatusChip>
             </p>
             {item.readAt ? null : (
               <p>

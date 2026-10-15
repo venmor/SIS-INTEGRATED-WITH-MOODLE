@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import {
   useEffect,
@@ -179,7 +180,9 @@ function Field({
   const id = target ?? generatedId;
   return (
     <div className={styles.field}>
-      <label htmlFor={id}>{label}</label>
+      <label className={staffUi.fieldLabel} htmlFor={id}>
+        {label}
+      </label>
       {isValidElement<{
         id?: string;
         "aria-describedby"?: string;
@@ -236,7 +239,10 @@ function PagedRows<T>({
       className={styles.collection}
       open={initiallyOpen || undefined}
     >
-      <summary id={`demo-setup-collection-${collection}-summary`}>
+      <summary
+        className={staffUi.disclosure}
+        id={`demo-setup-collection-${collection}-summary`}
+      >
         {title} · {rows.length}
       </summary>
       <p className={styles.supporting}>
@@ -381,7 +387,7 @@ function ReviewCollection({
   const current = Math.min(page, pages - 1);
   return (
     <details className={styles.collection} open={initiallyOpen || undefined}>
-      <summary>
+      <summary className={staffUi.disclosure}>
         {title} · {rows.length}
       </summary>
       <ul className={styles.reviewRows}>
@@ -966,7 +972,7 @@ export function UniversitySetupEditor({
       <section className={styles.panel} aria-labelledby="setup-state">
         <div className={styles.header}>
           <div>
-            <h2 id="setup-state">
+            <h2 className={staffUi.sectionHeading} id="setup-state">
               {active ? "Fictional setup active" : "No active setup version"}
             </h2>
             <p className={styles.supporting}>
@@ -1058,13 +1064,16 @@ export function UniversitySetupEditor({
       </section>
 
       <section className={styles.panel} aria-labelledby="version-review">
-        <h2 id="version-review">Review a saved version</h2>
+        <h2 className={staffUi.sectionHeading} id="version-review">
+          Review a saved version
+        </h2>
         <p className={styles.supporting}>
           Select the exact stored version. A proposal stays a draft until
           another person activates it.
         </p>
         <Field label="Saved version">
           <select
+            className={staffUi.control}
             value={selectedId}
             onChange={(event) => selectVersion(event.target.value)}
             disabled={pending !== null || activationUncertain}
@@ -1172,7 +1181,7 @@ export function UniversitySetupEditor({
                 activation.
               </p>
             ) : report.canApprove ? (
-              <form onSubmit={activate}>
+              <form className={staffUi.form} onSubmit={activate}>
                 <p className={styles.notice}>
                   Approval immediately installs this version for the fictional
                   university. Existing academic decisions stay unchanged; owner
@@ -1228,6 +1237,7 @@ export function UniversitySetupEditor({
                     {...validationField("command", "password")}
                   >
                     <input
+                      className={staffUi.control}
                       type="password"
                       autoComplete="current-password"
                       value={password}
@@ -1287,7 +1297,9 @@ export function UniversitySetupEditor({
         >
           <div className={styles.header}>
             <div>
-              <h2 id="draft-editor">Prepare a draft</h2>
+              <h2 className={staffUi.sectionHeading} id="draft-editor">
+                Prepare a draft
+              </h2>
               <p className={styles.supporting}>
                 Use codes to connect units and periods. Saving does not activate
                 your changes.
@@ -1355,6 +1367,7 @@ export function UniversitySetupEditor({
                 {...validationField("profile", "name")}
               >
                 <input
+                  className={staffUi.control}
                   value={profile.name}
                   onChange={(event) => {
                     clearValidation();
@@ -1369,6 +1382,7 @@ export function UniversitySetupEditor({
                 {...validationField("profile", "rootUnitCode")}
               >
                 <select
+                  className={staffUi.control}
                   value={profile.rootUnitCode}
                   onChange={(event) => {
                     clearValidation();
@@ -1415,6 +1429,7 @@ export function UniversitySetupEditor({
                     {...validationField("unitTypes", "code", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.code}
                       onChange={(event) =>
                         editRow("unitTypes", index, {
@@ -1430,6 +1445,7 @@ export function UniversitySetupEditor({
                     {...validationField("unitTypes", "label", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.label}
                       onChange={(event) =>
                         editRow("unitTypes", index, {
@@ -1445,6 +1461,7 @@ export function UniversitySetupEditor({
                     {...validationField("unitTypes", "kind", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.kind}
                       onChange={(event) =>
                         editRow("unitTypes", index, {
@@ -1487,6 +1504,7 @@ export function UniversitySetupEditor({
                     {...validationField("units", "code", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.code}
                       onChange={(event) =>
                         editRow("units", index, { code: event.target.value })
@@ -1500,6 +1518,7 @@ export function UniversitySetupEditor({
                     {...validationField("units", "name", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.name}
                       onChange={(event) =>
                         editRow("units", index, { name: event.target.value })
@@ -1513,6 +1532,7 @@ export function UniversitySetupEditor({
                     {...validationField("units", "typeCode", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.typeCode}
                       onChange={(event) =>
                         editRow("units", index, {
@@ -1552,6 +1572,7 @@ export function UniversitySetupEditor({
                     {...validationField("relationships", "fromCode", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.fromCode}
                       onChange={(event) =>
                         editRow("relationships", index, {
@@ -1569,6 +1590,7 @@ export function UniversitySetupEditor({
                     {...validationField("relationships", "type", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.type}
                       onChange={(event) =>
                         editRow("relationships", index, {
@@ -1588,6 +1610,7 @@ export function UniversitySetupEditor({
                     {...validationField("relationships", "toCode", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.toCode}
                       onChange={(event) =>
                         editRow("relationships", index, {
@@ -1627,6 +1650,7 @@ export function UniversitySetupEditor({
                     {...validationField("periodTypes", "code", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.code}
                       onChange={(event) =>
                         editRow("periodTypes", index, {
@@ -1642,6 +1666,7 @@ export function UniversitySetupEditor({
                     {...validationField("periodTypes", "label", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.label}
                       onChange={(event) =>
                         editRow("periodTypes", index, {
@@ -1686,6 +1711,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "code", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.code}
                       onChange={(event) =>
                         editRow("periods", index, { code: event.target.value })
@@ -1699,6 +1725,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "name", index)}
                   >
                     <input
+                      className={staffUi.control}
                       value={row.name}
                       onChange={(event) =>
                         editRow("periods", index, { name: event.target.value })
@@ -1712,6 +1739,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "typeCode", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.typeCode}
                       onChange={(event) =>
                         editRow("periods", index, {
@@ -1729,6 +1757,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "parentCode", index)}
                   >
                     <select
+                      className={staffUi.control}
                       value={row.parentCode ?? ""}
                       onChange={(event) =>
                         editRow("periods", index, {
@@ -1749,6 +1778,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "startDate", index)}
                   >
                     <input
+                      className={staffUi.control}
                       type="date"
                       value={row.startDate}
                       onChange={(event) =>
@@ -1764,6 +1794,7 @@ export function UniversitySetupEditor({
                     {...validationField("periods", "endDate", index)}
                   >
                     <input
+                      className={staffUi.control}
                       type="date"
                       value={row.endDate}
                       onChange={(event) =>
@@ -1783,6 +1814,7 @@ export function UniversitySetupEditor({
                 {...validationField("command", "reason")}
               >
                 <textarea
+                  className={staffUi.control}
                   value={reason}
                   onChange={(event) => {
                     clearValidation();
@@ -1814,7 +1846,9 @@ export function UniversitySetupEditor({
       )}
 
       <section className={styles.panel} aria-labelledby="next-handoffs">
-        <h2 id="next-handoffs">Owner handoffs</h2>
+        <h2 className={staffUi.sectionHeading} id="next-handoffs">
+          Owner handoffs
+        </h2>
         <p className={styles.supporting}>
           These workflows remain separate from installing the structure and
           calendar.
@@ -1834,7 +1868,9 @@ export function UniversitySetupEditor({
         </p>
       </section>
       <section className={styles.panel} aria-labelledby="setup-history">
-        <h2 id="setup-history">Version history</h2>
+        <h2 className={staffUi.sectionHeading} id="setup-history">
+          Version history
+        </h2>
         <p className={styles.supporting}>
           {report.versions.length} saved versions on history page{" "}
           {historyBatch + 1}. Use older and newer versions to inspect retained

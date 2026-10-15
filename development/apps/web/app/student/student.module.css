@@ -333,3 +333,33 @@
   height: 0.625rem;
   accent-color: var(--green-700);
 }
+
+.taskForm {
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+  min-width: 0;
+}
+.taskForm > p:has(label) {
+  display: grid;
+  gap: 0.5rem;
+}
+.taskForm > p:last-child {
+  padding-top: 0.5rem;
+}
+.taskForm :where(textarea) {
+  min-height: 7rem;
+  resize: vertical;
+}
+.taskForm
+  :where(label:has(input[type="radio"]), label:has(input[type="checkbox"])) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding-block: var(--space-2);
+  cursor: pointer;
+}
+.taskForm :where(input[type="radio"], input[type="checkbox"]) {
+  flex: 0 0 auto;
+}

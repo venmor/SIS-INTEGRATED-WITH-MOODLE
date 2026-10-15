@@ -1,10 +1,11 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
 import type { ConnectionView } from "@sis/contracts";
 import { WriteReadinessNotice } from "../../moodle/write-readiness";
 import { ReconForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -76,40 +77,50 @@ export default async function ReconciliationPage() {
           <Link href="/admin/integration">Integration support</Link> ·{" "}
           <Link href="/admin/moodle">Moodle administration</Link>
         </p>
-        <WriteReadinessNotice readiness={health.ok ? health.data.writeReadiness : undefined} />
-        <ReconForms readiness={health.ok ? health.data.writeReadiness : undefined} />
-        <h2>Runs</h2>
-        {runs.data.items.length === 0 ? (
-          <p>No reconciliation runs yet.</p>
-        ) : (
-          <ul>
-            {runs.data.items.map((run) => (
-              <li key={run.id}>
-                <strong>
-                  {run.scope} · {run.status}
-                </strong>{" "}
-                — diffs {run.summary?.diffs ?? 0}, repaired{" "}
-                {run.summary?.repaired ?? 0}, cases {run.summary?.cases ?? 0}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2>Cases</h2>
-        {cases.data.items.length === 0 ? (
-          <p>No reconciliation cases. Differences open governed cases here.</p>
-        ) : (
-          <ul>
-            {cases.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.kind} · {item.status}
-                </strong>{" "}
-                · ID {item.id}
-                {item.resolution ? ` — ${item.resolution}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
+        <WriteReadinessNotice
+          readiness={health.ok ? health.data.writeReadiness : undefined}
+        />
+        <ReconForms
+          readiness={health.ok ? health.data.writeReadiness : undefined}
+        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Runs</h2>
+          {runs.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No reconciliation runs yet.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {runs.data.items.map((run) => (
+                <li key={run.id}>
+                  <strong>
+                    {run.scope} · {run.status}
+                  </strong>{" "}
+                  — diffs {run.summary?.diffs ?? 0}, repaired{" "}
+                  {run.summary?.repaired ?? 0}, cases {run.summary?.cases ?? 0}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Cases</h2>
+          {cases.data.items.length === 0 ? (
+            <p className={staffUi.empty}>
+              No reconciliation cases. Differences open governed cases here.
+            </p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {cases.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.kind} · {item.status}
+                  </strong>{" "}
+                  · ID {item.id}
+                  {item.resolution ? ` — ${item.resolution}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </div>
   );

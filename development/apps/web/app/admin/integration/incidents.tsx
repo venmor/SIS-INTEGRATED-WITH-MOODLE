@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,82 +82,131 @@ export function IncidentForms() {
       {errors.length > 0 ? (
         <ErrorSummary title="The incident was not updated" errors={errors} />
       ) : null}
-      <h2>Open incident</h2>
-      <form
-        aria-label="Open integration incident"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            "/incidents",
-            {
-              title: String(data.get("incident-title") ?? ""),
-              severity: String(data.get("incident-severity") ?? ""),
-              detail: String(data.get("incident-detail") ?? "") || undefined,
-            },
-            "Incident opened and owned.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="incident-title">Title</label>{" "}
-          <input id="incident-title" name="incident-title" type="text" maxLength={200} required />
-        </p>
-        <p>
-          <label htmlFor="incident-severity">Severity</label>{" "}
-          <select id="incident-severity" name="incident-severity" required>
-            <option value="">Choose…</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
-          </select>
-        </p>
-        <p>
-          <label htmlFor="incident-detail">Detail (optional)</label>{" "}
-          <textarea id="incident-detail" name="incident-detail" rows={2} maxLength={4000} />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Opening…" : "Open incident"}
-          </button>
-        </p>
-      </form>
-      <h2>Close incident</h2>
-      <form
-        aria-label="Close integration incident"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/incidents/${String(data.get("close-id") ?? "")}/close`,
-            { evidence: String(data.get("close-evidence") ?? "") },
-            "Incident closed with recovery evidence.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="close-id">Incident ID</label>{" "}
-          <input id="close-id" name="close-id" type="text" required />
-        </p>
-        <p>
-          <label htmlFor="close-evidence">Recovery evidence</label>{" "}
-          <textarea
-            id="close-evidence"
-            name="close-evidence"
-            rows={3}
-            maxLength={4000}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Closing…" : "Close incident"}
-          </button>
-        </p>
-      </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Open incident</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Open integration incident"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              "/incidents",
+              {
+                title: String(data.get("incident-title") ?? ""),
+                severity: String(data.get("incident-severity") ?? ""),
+                detail: String(data.get("incident-detail") ?? "") || undefined,
+              },
+              "Incident opened and owned.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="incident-title">
+              Title
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="incident-title"
+              name="incident-title"
+              type="text"
+              maxLength={200}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="incident-severity">
+              Severity
+            </label>{" "}
+            <select
+              className={staffUi.control}
+              id="incident-severity"
+              name="incident-severity"
+              required
+            >
+              <option value="">Choose…</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="incident-detail">
+              Detail (optional)
+            </label>{" "}
+            <textarea
+              className={staffUi.control}
+              id="incident-detail"
+              name="incident-detail"
+              rows={2}
+              maxLength={4000}
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Opening…" : "Open incident"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Close incident</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Close integration incident"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/incidents/${String(data.get("close-id") ?? "")}/close`,
+              { evidence: String(data.get("close-evidence") ?? "") },
+              "Incident closed with recovery evidence.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="close-id">
+              Incident ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="close-id"
+              name="close-id"
+              type="text"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="close-evidence">
+              Recovery evidence
+            </label>{" "}
+            <textarea
+              className={staffUi.control}
+              id="close-evidence"
+              name="close-evidence"
+              rows={3}
+              maxLength={4000}
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Closing…" : "Close incident"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

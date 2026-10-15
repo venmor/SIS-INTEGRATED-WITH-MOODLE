@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -88,14 +89,15 @@ export function MappingDecideForm({ mappingId }: { mappingId: string }) {
         <ErrorSummary title="The mapping was not activated" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Activate grade mapping"
         onSubmit={(e) => {
           e.preventDefault();
           void submit(e.currentTarget);
         }}
       >
-        <p>
-          <label htmlFor="mapping-declaration">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="mapping-declaration">
             <input
               id="mapping-declaration"
               name="mapping-declaration"
@@ -108,7 +110,7 @@ export function MappingDecideForm({ mappingId }: { mappingId: string }) {
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Activating…" : "Activate mapping"}
           </button>
         </p>

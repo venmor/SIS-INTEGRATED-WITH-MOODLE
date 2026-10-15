@@ -1,6 +1,6 @@
 import styles from "../../page.module.css";
 import Link from "next/link";
-import { Empty } from "@sis/ui";
+import { Card, DataTable, Empty } from "@sis/ui";
 import { Notice } from "@sis/ui";
 import { Status } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
@@ -120,30 +120,52 @@ export default async function OfferingPage({
         {detail.statusNote ? (
           <p className={styles.supporting}>{detail.statusNote}</p>
         ) : null}
-        <h2>What the programme covers</h2>
-        <p className={styles.supporting}>{detail.overview}</p>
-        <h2>Entry requirements</h2>
-        <ul>
-          {detail.entryRequirements.map((rule) => (
-            <li key={rule.id}>
-              <strong>{rule.label}</strong> —{" "}
-              {rule.mandatory ? "Mandatory" : "If applicable"} · Evidence:{" "}
-              {rule.evidence}
-              {rule.kind === "GRADE" && rule.minGrade !== null
-                ? ` · Minimum grade ${rule.minGrade} (lower is better)`
-                : null}
-              {rule.requiresVerification
-                ? " · Formal verification required before a final decision"
-                : null}
-            </li>
-          ))}
-        </ul>
-        <h2>Application checklist</h2>
-        <ul>
-          {detail.checklist.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+        <Card title="What the programme covers">
+          <p className={styles.supporting}>{detail.overview}</p>
+        </Card>
+        <Card title="Entry requirements">
+          <DataTable
+            hideTitle
+            title="Entry requirements"
+            description="Published requirements and the evidence Admissions will review."
+            rows={detail.entryRequirements}
+            keyOf={(rule) => rule.id}
+            emptyText="No entry requirements have been published. Contact Admissions before applying."
+            columns={[
+              {
+                heading: "Requirement",
+                render: (rule) => (
+                  <>
+                    <strong>{rule.label}</strong>
+                    <br />
+                    {rule.mandatory ? "Mandatory" : "If applicable"}
+                  </>
+                ),
+              },
+              { heading: "Evidence", render: (rule) => rule.evidence },
+              {
+                heading: "Condition",
+                render: (rule) => (
+                  <>
+                    {rule.kind === "GRADE" && rule.minGrade !== null
+                      ? `Minimum grade ${rule.minGrade} (lower is better). `
+                      : ""}
+                    {rule.requiresVerification
+                      ? "Formal verification required before a final decision."
+                      : "Reviewed with your application."}
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Card>
+        <Card title="Application checklist">
+          <ul className={styles.checklist}>
+            {detail.checklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </Card>
         <p className={styles.supporting}>
           Fee information: {detail.feeScheduleRef}. The approved fee schedule
           applies at application.

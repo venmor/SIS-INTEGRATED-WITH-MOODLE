@@ -19,7 +19,7 @@ export default function ApplicantLayout({
       <a className={styles.skip} href="#applicant-content">
         Skip to application content
       </a>
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-sis-border py-4 sm:py-5">
+      <header className={styles.header}>
         <Link
           href="/applicant"
           className="group flex min-h-11 items-center gap-3 text-sis-text no-underline"
@@ -40,7 +40,7 @@ export default function ApplicantLayout({
           </span>
         </Link>
         <nav
-          className="flex w-full flex-wrap items-center gap-1 sm:w-auto"
+          className={styles.nav}
           aria-label="Applicant account"
         >
           <Link href="/">Switch workspace</Link>

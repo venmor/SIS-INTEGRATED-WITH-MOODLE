@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -56,8 +57,7 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
     try {
       const data = new FormData(form);
       const out = (await postFinance("/sponsorships", {
-        attemptId:
-          attemptId ?? String(data.get("sponsor-attempt") ?? ""),
+        attemptId: attemptId ?? String(data.get("sponsor-attempt") ?? ""),
         sponsorName: String(data.get("sponsor-name") ?? ""),
         categories: [String(data.get("sponsor-category") ?? "")],
         coverageType: String(data.get("sponsor-coverage-type") ?? ""),
@@ -101,9 +101,13 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
         <Notice severity="success" title="Done" message={notice} />
       ) : null}
       {errors.length > 0 ? (
-        <ErrorSummary title="The sponsorship was not recorded" errors={errors} />
+        <ErrorSummary
+          title="The sponsorship was not recorded"
+          errors={errors}
+        />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Record sponsorship"
         onSubmit={(e) => {
           e.preventDefault();
@@ -111,9 +115,12 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
         }}
       >
         {!attemptId ? (
-          <p>
-            <label htmlFor="sponsor-attempt">Programme attempt ID</label>{" "}
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="sponsor-attempt">
+              Programme attempt ID
+            </label>{" "}
             <input
+              className={staffUi.control}
               id="sponsor-attempt"
               name="sponsor-attempt"
               type="text"
@@ -121,30 +128,59 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
             />
           </p>
         ) : null}
-        <p>
-          <label htmlFor="sponsor-name">Sponsoring organisation</label>{" "}
-          <input id="sponsor-name" name="sponsor-name" type="text" maxLength={200} required />
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="sponsor-name">
+            Sponsoring organisation
+          </label>{" "}
+          <input
+            className={staffUi.control}
+            id="sponsor-name"
+            name="sponsor-name"
+            type="text"
+            maxLength={200}
+            required
+          />
         </p>
-        <p>
-          <label htmlFor="sponsor-category">Covered category</label>{" "}
-          <select id="sponsor-category" name="sponsor-category" required>
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="sponsor-category">
+            Covered category
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="sponsor-category"
+            name="sponsor-category"
+            required
+          >
             <option value="">Choose…</option>
             <option value="Tuition">Tuition</option>
             <option value="Registration fee">Registration fee</option>
             <option value="Accommodation fee">Accommodation fee</option>
           </select>
         </p>
-        <p>
-          <label htmlFor="sponsor-coverage-type">Coverage type</label>{" "}
-          <select id="sponsor-coverage-type" name="sponsor-coverage-type" required>
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="sponsor-coverage-type">
+            Coverage type
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="sponsor-coverage-type"
+            name="sponsor-coverage-type"
+            required
+          >
             <option value="">Choose…</option>
             <option value="AMOUNT">Fixed amount (tambala)</option>
             <option value="PERCENT">Percentage (1–100)</option>
           </select>
         </p>
-        <p>
-          <label htmlFor="sponsor-coverage-value">Coverage value</label>{" "}
+        <p className={staffUi.formField}>
+          <label
+            className={staffUi.fieldLabel}
+            htmlFor="sponsor-coverage-value"
+          >
+            Coverage value
+          </label>{" "}
           <input
+            className={staffUi.control}
             id="sponsor-coverage-value"
             name="sponsor-coverage-value"
             type="number"
@@ -152,11 +188,12 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
             required
           />
         </p>
-        <p>
-          <label htmlFor="sponsor-evidence">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="sponsor-evidence">
             Evidence reference (confirms immediately)
           </label>{" "}
           <input
+            className={staffUi.control}
             id="sponsor-evidence"
             name="sponsor-evidence"
             type="text"
@@ -164,7 +201,7 @@ export function SponsorshipForms({ attemptId }: { attemptId?: string }) {
           />
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Recording…" : "Record sponsorship"}
           </button>
         </p>
@@ -184,15 +221,19 @@ function ConfirmButton({
   const [id, setId] = useState("");
   return (
     <form
+      className={staffUi.form}
       aria-label="Confirm draft sponsorship"
       onSubmit={(e) => {
         e.preventDefault();
         if (id.trim()) onConfirm(id.trim());
       }}
     >
-      <p>
-        <label htmlFor="sponsor-confirm-id">Draft sponsorship ID</label>{" "}
+      <p className={staffUi.formField}>
+        <label className={staffUi.fieldLabel} htmlFor="sponsor-confirm-id">
+          Draft sponsorship ID
+        </label>{" "}
         <input
+          className={staffUi.control}
           id="sponsor-confirm-id"
           name="sponsor-confirm-id"
           type="text"
@@ -201,7 +242,7 @@ function ConfirmButton({
         />
       </p>
       <p>
-        <button type="submit" disabled={pending}>
+        <button className={staffUi.button} type="submit" disabled={pending}>
           Confirm sponsorship
         </button>
       </p>

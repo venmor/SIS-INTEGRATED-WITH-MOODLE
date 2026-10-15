@@ -24,8 +24,8 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${shell.shell} mx-auto w-full max-w-6xl px-4 pb-16 text-sis-text sm:px-6`}>
-      <header className={`${shell.header} flex flex-wrap items-center justify-between gap-3 border-b border-sis-border py-4 sm:py-5`}>
+    <div className={shell.shell}>
+      <header className={shell.header}>
         <Link
           href="/student"
           className={`${shell.brand} flex min-h-11 items-center gap-3 no-underline`}
@@ -43,19 +43,20 @@ export default function StudentLayout({
             </span>
           </span>
         </Link>
-        <Link
-          href="/"
-          className={`${shell.switch} inline-flex min-h-11 items-center rounded-sis px-3 text-sm font-semibold transition-colors duration-150 motion-reduce:transition-none`}
-        >
-          Switch workspace
-        </Link>
+        <nav className={shell.account} aria-label="Student account">
+          <Link
+            href="/"
+            className={`${shell.switch} inline-flex min-h-11 items-center rounded-sis px-3 text-sm font-semibold transition-colors duration-150 motion-reduce:transition-none`}
+          >
+            Switch workspace
+          </Link>
+          <Link href="/sign-in" className={shell.switch}>
+            Switch account
+          </Link>
+        </nav>
       </header>
       <PortalNav label="Student navigation" links={navigation} />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className={`${shell.main} flex min-w-0 flex-col gap-6 pt-8 sm:gap-8 sm:pt-10`}
-      >
+      <main id="main-content" tabIndex={-1} className={shell.main}>
         {children}
       </main>
     </div>

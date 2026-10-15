@@ -1,3 +1,4 @@
+import staffUi from "../../staff-workspace.module.css";
 import Link from "next/link";
 import { Notice, PageHeader } from "@sis/ui";
 import { formatLusakaDate } from "../../../../lib/time";
@@ -37,7 +38,9 @@ export default async function AssignedFollowUpsPage({
   }>(`assigned/actions?${query}`, "/admin/support/follow-ups");
   const firstPage = `/admin/support/follow-ups?view=${encodeURIComponent(selected)}`;
   return (
-    <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-8">
+    <main
+      className={`${staffUi.workspace} ${"mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-8"}`}
+    >
       <Link className="w-fit text-sm font-semibold" href="/admin/support">
         ← Assigned requests
       </Link>

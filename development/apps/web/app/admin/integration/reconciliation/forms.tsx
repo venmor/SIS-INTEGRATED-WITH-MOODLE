@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,8 +38,9 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as { detail?: { supportReference?: string; code?: string } })
-      .detail;
+    const detail = (
+      error as { detail?: { supportReference?: string; code?: string } }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
   }
   return "We could not confirm the result. Check the current state before retrying.";
@@ -47,7 +49,11 @@ function failure(error: unknown): string {
 // Reconciliation runs and governed resolutions. Safe diffs repair by
 // requeue; activating SIS records, editing payloads or deleting rows
 // are refused. Resolutions need evidence, never bare notes.
-export function ReconForms({ readiness }: { readiness?: MoodleWriteReadiness }) {
+export function ReconForms({
+  readiness,
+}: {
+  readiness?: MoodleWriteReadiness;
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -70,7 +76,12 @@ export function ReconForms({ readiness }: { readiness?: MoodleWriteReadiness }) 
       const out = (await postIntegration(path, {
         ...body,
         idempotencyKey: crypto.randomUUID(),
-      })) as { diffs?: number; repaired?: number; cases?: number; status?: string };
+      })) as {
+        diffs?: number;
+        repaired?: number;
+        cases?: number;
+        status?: string;
+      };
       const waiting = notProvisionedMessage(out);
       if (waiting) {
         setDeferred(waiting);
@@ -100,59 +111,99 @@ export function ReconForms({ readiness }: { readiness?: MoodleWriteReadiness }) 
         <ErrorSummary title="Reconciliation did not complete" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Run reconciliation"
         onSubmit={(e) => {
           e.preventDefault();
-          void act("/reconciliation/runs", {}, "Reconciliation run completed.", null);
-        }}
-      >
-        <p>
-          <button type="submit" disabled={pending !== null || disabled}>
-            {pending ? "Running…" : "Run reconciliation"}
-          </button>
-        </p>
-      </form>
-      <h2>Resolve a case</h2>
-      <form
-        aria-label="Resolve reconciliation case"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
           void act(
-            `/reconciliation/cases/${String(data.get("recon-case") ?? "")}/resolve`,
-            {
-              action: String(data.get("recon-action") ?? ""),
-              note: String(data.get("recon-note") ?? "") || undefined,
-            },
-            "Resolution recorded.",
-            e.currentTarget,
+            "/reconciliation/runs",
+            {},
+            "Reconciliation run completed.",
+            null,
           );
         }}
       >
         <p>
-          <label htmlFor="recon-case">Case ID</label>{" "}
-          <input id="recon-case" name="recon-case" type="text" required />
-        </p>
-        <p>
-          <label htmlFor="recon-action">Resolution</label>{" "}
-          <select id="recon-action" name="recon-action" required>
-            <option value="">Choose…</option>
-            <option value="REQUEUE">Requeue for redelivery</option>
-            <option value="SUSPEND_ACCESS">Suspend simulator access</option>
-            <option value="ESCALATE">Escalate</option>
-            <option value="MARK_RESOLVED">Mark resolved with evidence</option>
-          </select>
-        </p>
-        <p>
-          <label htmlFor="recon-note">Evidence note</label>{" "}
-          <textarea id="recon-note" name="recon-note" rows={3} maxLength={4000} />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null || disabled}>
-            {pending ? "Resolving…" : "Resolve case"}
+          <button
+            className={staffUi.button}
+            type="submit"
+            disabled={pending !== null || disabled}
+          >
+            {pending ? "Running…" : "Run reconciliation"}
           </button>
         </p>
       </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Resolve a case</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Resolve reconciliation case"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/reconciliation/cases/${String(data.get("recon-case") ?? "")}/resolve`,
+              {
+                action: String(data.get("recon-action") ?? ""),
+                note: String(data.get("recon-note") ?? "") || undefined,
+              },
+              "Resolution recorded.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="recon-case">
+              Case ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="recon-case"
+              name="recon-case"
+              type="text"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="recon-action">
+              Resolution
+            </label>{" "}
+            <select
+              className={staffUi.control}
+              id="recon-action"
+              name="recon-action"
+              required
+            >
+              <option value="">Choose…</option>
+              <option value="REQUEUE">Requeue for redelivery</option>
+              <option value="SUSPEND_ACCESS">Suspend simulator access</option>
+              <option value="ESCALATE">Escalate</option>
+              <option value="MARK_RESOLVED">Mark resolved with evidence</option>
+            </select>
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="recon-note">
+              Evidence note
+            </label>{" "}
+            <textarea
+              className={staffUi.control}
+              id="recon-note"
+              name="recon-note"
+              rows={3}
+              maxLength={4000}
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null || disabled}
+            >
+              {pending ? "Resolving…" : "Resolve case"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

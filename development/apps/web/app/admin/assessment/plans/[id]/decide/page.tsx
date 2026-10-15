@@ -1,9 +1,10 @@
+import staffUi from "../../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { AssessmentPlanView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { PlanDecideForm } from "./decide";
-import styles from "../../../../../page.module.css";
+import styles from "../../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,10 @@ export default async function PlanDecidePage({
             severity="warning"
             title="Plan unavailable"
             message="This plan needs assessment approval authority, or it does not exist in your scope."
-            action={{ label: "Assessment plans", href: "/admin/assessment/plans" }}
+            action={{
+              label: "Assessment plans",
+              href: "/admin/assessment/plans",
+            }}
           />
         </main>
       </div>
@@ -67,56 +71,60 @@ export default async function PlanDecidePage({
           title="Frozen evidence package"
           message={`Version v${item.version} · policy ${item.policyVersion} · status ${item.status}. The evidence below is the exact version you sign; a later change invalidates this decision.`}
         />
-        <h2>Evidence</h2>
-        <dl>
-          <dt>Offering</dt>
-          <dd>{item.offeringRef}</dd>
-          <dt>Period</dt>
-          <dd>{item.periodCode}</dd>
-          <dt>Version</dt>
-          <dd>v{item.version}</dd>
-          <dt>Policy version</dt>
-          <dd>{item.policyVersion}</dd>
-          <dt>Status</dt>
-          <dd>{item.status}</dd>
-        </dl>
-        <h3>Components</h3>
-        <ul>
-          {item.components.map((c) => (
-            <li key={c.id}>
-              {c.code} · max {c.maxMark} · weight {c.weight} · scale{" "}
-              {c.scaleRef} · moderation{" "}
-              {c.moderationRequired ? "required" : "not required"} · ID {c.id}
-            </li>
-          ))}
-        </ul>
-        <pre>{JSON.stringify(item, null, 2)}</pre>
-        {item.status === "DRAFT" ? (
-          <>
-            <h2>Sign the decision</h2>
-            <p>
-              Authority: programme coordinator with approve-assessment
-              (school scope). The creator cannot approve their own plan — a
-              second officer must decide.
-            </p>
-            <p>
-              Consequence: approval supersedes any earlier approved plan for
-              this offering and period; components become bindable for
-              grade-activity mappings. This cannot be undone by editing.
-            </p>
-            <p>
-              I confirm that I have reviewed the stated evidence and make
-              this decision within my assigned authority.
-            </p>
-            <PlanDecideForm planId={item.id} version={item.version} />
-          </>
-        ) : (
-          <Notice
-            severity="info"
-            title="Decision closed"
-            message={`This plan is ${item.status}. Decided plans are never re-approved; draft a new version instead.`}
-          />
-        )}
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Evidence</h2>
+          <dl className={staffUi.factGrid}>
+            <dt>Offering</dt>
+            <dd>{item.offeringRef}</dd>
+            <dt>Period</dt>
+            <dd>{item.periodCode}</dd>
+            <dt>Version</dt>
+            <dd>v{item.version}</dd>
+            <dt>Policy version</dt>
+            <dd>{item.policyVersion}</dd>
+            <dt>Status</dt>
+            <dd>{item.status}</dd>
+          </dl>
+          <h3>Components</h3>
+          <ul className={staffUi.recordList}>
+            {item.components.map((c) => (
+              <li key={c.id}>
+                {c.code} · max {c.maxMark} · weight {c.weight} · scale{" "}
+                {c.scaleRef} · moderation{" "}
+                {c.moderationRequired ? "required" : "not required"} · ID {c.id}
+              </li>
+            ))}
+          </ul>
+          <pre>{JSON.stringify(item, null, 2)}</pre>
+          {item.status === "DRAFT" ? (
+            <>
+              <section className={staffUi.panel}>
+                <h2 className={staffUi.sectionHeading}>Sign the decision</h2>
+                <p>
+                  Authority: programme coordinator with approve-assessment
+                  (school scope). The creator cannot approve their own plan — a
+                  second officer must decide.
+                </p>
+                <p>
+                  Consequence: approval supersedes any earlier approved plan for
+                  this offering and period; components become bindable for
+                  grade-activity mappings. This cannot be undone by editing.
+                </p>
+                <p>
+                  I confirm that I have reviewed the stated evidence and make
+                  this decision within my assigned authority.
+                </p>
+                <PlanDecideForm planId={item.id} version={item.version} />
+              </section>
+            </>
+          ) : (
+            <Notice
+              severity="info"
+              title="Decision closed"
+              message={`This plan is ${item.status}. Decided plans are never re-approved; draft a new version instead.`}
+            />
+          )}
+        </section>
       </main>
     </div>
   );

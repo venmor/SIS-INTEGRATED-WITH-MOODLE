@@ -180,3 +180,26 @@
     padding: var(--space-4);
   }
 }
+
+/* Shared public entry, catalogue detail, eligibility and recovery hierarchy. */
+.page { background: #f3f6f7; }
+.context { color: #255943; background: #e1eee7; }
+.title { font-size: clamp(1.9rem, 3vw, 2.4rem); color: #101d16; }
+.lede { font-size: 1rem; line-height: 1.6; }
+.primary { background: #006c3f; border-color: #0a6941; border-radius: 0.45rem; }
+.primary:hover { background: #005331; }
+.section, .entryPrimary, .entrySecondary { border-color: #dfe6eb; border-radius: 0.75rem; box-shadow: 0 2px 8px rgb(22 42 33 / 0.035); }
+.entryPrimary { border-top-color: #006c3f; }
+.entrySecondary { background: #edf5f0; }
+.main :where(form) { display: grid; gap: 1rem; max-width: 56rem; min-width: 0; }
+.main :where(form > p:has(label)) { display: grid; gap: 0.5rem; }
+.main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
+  width: 100%; min-width: 0; min-height: 2.75rem; padding: 0.6rem 0.75rem;
+  border: 1px solid #b8c5ce; border-radius: 0.45rem; color: var(--text-primary); background: #fff; font: inherit;
+}
+.main :where(input, select, textarea):focus-visible { outline: 2px solid var(--blue-700); outline-offset: 2px; }
+.main :where(fieldset) { min-width: 0; padding: 1rem; border: 1px solid #d7dfe4; border-radius: 0.45rem; }
+.main :where(button) { min-height: 2.75rem; padding: 0.6rem 1rem; border: 1px solid #0a6941; border-radius: 0.45rem; background: #006c3f; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+.main :where(button):disabled { opacity: 0.65; cursor: not-allowed; }
+.checklist { display: grid; gap: 0.75rem; padding-left: 1.25rem; }
+.checklist li::marker { color: #006c3f; }

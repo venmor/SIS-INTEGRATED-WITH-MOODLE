@@ -1,10 +1,11 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
 import type { ConnectionView } from "@sis/contracts";
 import { WriteReadinessNotice } from "../../../moodle/write-readiness";
 import { ReplayDecideForm } from "./decide";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +47,7 @@ export default async function ReplayDecidePage({
     loadStaff<{ items: ReplayItem[] }>("/replays"),
     loadStaff<ConnectionView>("/health"),
   ]);
-  const item = list.ok
-    ? list.data.items.find((r) => r.id === id)
-    : undefined;
+  const item = list.ok ? list.data.items.find((r) => r.id === id) : undefined;
   if (!item)
     return (
       <div className={styles.page}>
@@ -59,7 +58,10 @@ export default async function ReplayDecidePage({
             severity="warning"
             title="Replay unavailable"
             message="This replay needs integration authority, or it does not exist in your scope."
-            action={{ label: "Integration support", href: "/admin/integration" }}
+            action={{
+              label: "Integration support",
+              href: "/admin/integration",
+            }}
           />
         </main>
       </div>
@@ -68,9 +70,7 @@ export default async function ReplayDecidePage({
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>
-          Replay decision · {item.status}
-        </h1>
+        <h1 className={styles.title}>Replay decision · {item.status}</h1>
         <p>
           <Link href="/admin/integration">Integration support</Link>
         </p>
@@ -79,19 +79,28 @@ export default async function ReplayDecidePage({
           title="Frozen evidence package"
           message="This replay preserves correlation and idempotency. It will not create a second enrolment or record change if the destination already processed it. The evidence below is the exact version you sign."
         />
-        <WriteReadinessNotice readiness={health.ok ? health.data.writeReadiness : undefined} />
-        <h2>Evidence</h2>
-        <pre>{JSON.stringify(item.evidence, null, 2)}</pre>
-        {item.status === "PENDING" ? (
-          <>
-            <h2>Sign the decision</h2>
-            <p>
-              I confirm that I have reviewed the stated evidence and make
-              this decision within my assigned authority.
-            </p>
-            <ReplayDecideForm replayId={item.id} readiness={health.ok ? health.data.writeReadiness : undefined} />
-          </>
-        ) : null}
+        <WriteReadinessNotice
+          readiness={health.ok ? health.data.writeReadiness : undefined}
+        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Evidence</h2>
+          <pre>{JSON.stringify(item.evidence, null, 2)}</pre>
+          {item.status === "PENDING" ? (
+            <>
+              <section className={staffUi.panel}>
+                <h2 className={staffUi.sectionHeading}>Sign the decision</h2>
+                <p>
+                  I confirm that I have reviewed the stated evidence and make
+                  this decision within my assigned authority.
+                </p>
+                <ReplayDecideForm
+                  replayId={item.id}
+                  readiness={health.ok ? health.data.writeReadiness : undefined}
+                />
+              </section>
+            </>
+          ) : null}
+        </section>
       </main>
     </div>
   );

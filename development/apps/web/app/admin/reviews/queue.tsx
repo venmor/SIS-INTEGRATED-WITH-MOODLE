@@ -1,10 +1,11 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import type { ReviewSchedule } from "@sis/contracts";
 import { Empty } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 
 async function getJson(path: string): Promise<ReviewSchedule[]> {
   const res = await fetch(path, { credentials: "same-origin" });
@@ -44,7 +45,7 @@ export function ReviewQueue({ initial }: { initial: ReviewSchedule[] }) {
   }
 
   return (
-    <section aria-label="Pending access reviews">
+    <section className={staffUi.panel} aria-label="Pending access reviews">
       <p className={styles.supporting} role="status">
         {loading
           ? "Loading…"
@@ -76,7 +77,7 @@ export function ReviewQueue({ initial }: { initial: ReviewSchedule[] }) {
           action={{ label: "Back home", href: "/" }}
         />
       ) : (
-        <ul>
+        <ul className={staffUi.recordList}>
           {rows.map((row) => (
             <li key={row.id}>
               <strong>

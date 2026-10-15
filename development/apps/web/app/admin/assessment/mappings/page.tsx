@@ -1,9 +1,10 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeMappingView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { MappingForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -70,64 +71,58 @@ export default async function GradeMappingsPage() {
           <Link href="/admin/assessment/plans">Assessment plans</Link>
         </p>
         <MappingForms />
-        <h2>Mappings</h2>
-        <DataTable
-          hideTitle
-          title="Grade mappings"
-          description="Moodle activities bound to approved components with test and activation state."
-          columns={[
-            {
-              heading: "Component",
-              render: (item: GradeMappingView) => item.componentId,
-            },
-            {
-              heading: "Activity",
-              render: (item: GradeMappingView) => item.moodleActivityId,
-            },
-            {
-              heading: "Course",
-              render: (item: GradeMappingView) => item.moodleCourseRef,
-            },
-            {
-              heading: "State",
-              render: (item: GradeMappingView) => (
-                <StatusChip tone={tone(item.status)}>{item.status}</StatusChip>
-              ),
-            },
-            {
-              heading: "Version",
-              numeric: true,
-              render: (item: GradeMappingView) => `v${item.version}`,
-            },
-            {
-              heading: "Detail",
-              render: (item: GradeMappingView) => (
-                <span>
-                  <Link href={`/admin/assessment/mappings/${item.id}`}>
-                    Open mapping
-                  </Link>{" "}
-                  ·{" "}
-                  <Link href={`/admin/assessment/mappings/${item.id}/decide`}>
-                    Decide
-                  </Link>
-                </span>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No grade mappings yet."
-        />
-        {list.data.items.length > 0 ? (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                {item.moodleActivityId} ↔ {item.componentId} · {item.status} ·
-                v{item.version} · ID {item.id}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <section className={staffUi.panel} aria-label="Mapping registry">
+          <h2 className={staffUi.sectionHeading}>Mappings</h2>
+          <DataTable
+            hideTitle
+            title="Grade mappings"
+            description="Moodle activities bound to approved components with test and activation state."
+            columns={[
+              {
+                heading: "Component",
+                render: (item: GradeMappingView) => item.componentId,
+              },
+              {
+                heading: "Activity",
+                render: (item: GradeMappingView) => item.moodleActivityId,
+              },
+              {
+                heading: "Course",
+                render: (item: GradeMappingView) => item.moodleCourseRef,
+              },
+              {
+                heading: "State",
+                render: (item: GradeMappingView) => (
+                  <StatusChip tone={tone(item.status)}>
+                    {item.status}
+                  </StatusChip>
+                ),
+              },
+              {
+                heading: "Version",
+                numeric: true,
+                render: (item: GradeMappingView) => `v${item.version}`,
+              },
+              {
+                heading: "Detail",
+                render: (item: GradeMappingView) => (
+                  <span>
+                    <Link href={`/admin/assessment/mappings/${item.id}`}>
+                      Open mapping
+                    </Link>{" "}
+                    ·{" "}
+                    <Link href={`/admin/assessment/mappings/${item.id}/decide`}>
+                      Decide
+                    </Link>
+                  </span>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No grade mappings yet."
+          />
+        </section>
       </main>
     </div>
   );

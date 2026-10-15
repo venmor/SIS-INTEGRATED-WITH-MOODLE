@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,8 +38,9 @@ async function postIntegration(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as { detail?: { supportReference?: string; code?: string } })
-      .detail;
+    const detail = (
+      error as { detail?: { supportReference?: string; code?: string } }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
   }
   return "We could not confirm the result. Check the current state before retrying.";
@@ -46,7 +48,11 @@ function failure(error: unknown): string {
 
 // Replay request: frozen evidence, reason and declaration. A second
 // officer decides on the decision page; requesters never self-decide.
-export function ReplayRequestForm({ readiness }: { readiness?: MoodleWriteReadiness }) {
+export function ReplayRequestForm({
+  readiness,
+}: {
+  readiness?: MoodleWriteReadiness;
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -95,19 +101,30 @@ export function ReplayRequestForm({ readiness }: { readiness?: MoodleWriteReadin
         <ErrorSummary title="The replay was not requested" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Request integration replay"
         onSubmit={(e) => {
           e.preventDefault();
           void submit(e.currentTarget);
         }}
       >
-        <p>
-          <label htmlFor="replay-attempt">Dead-letter attempt ID</label>{" "}
-          <input id="replay-attempt" name="replay-attempt" type="text" />
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="replay-attempt">
+            Dead-letter attempt ID
+          </label>{" "}
+          <input
+            className={staffUi.control}
+            id="replay-attempt"
+            name="replay-attempt"
+            type="text"
+          />
         </p>
-        <p>
-          <label htmlFor="replay-reason">Why is this replay safe?</label>{" "}
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="replay-reason">
+            Why is this replay safe?
+          </label>{" "}
           <textarea
+            className={staffUi.control}
             id="replay-reason"
             name="replay-reason"
             rows={3}
@@ -115,8 +132,8 @@ export function ReplayRequestForm({ readiness }: { readiness?: MoodleWriteReadin
             required
           />
         </p>
-        <p>
-          <label htmlFor="replay-declaration">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="replay-declaration">
             <input
               id="replay-declaration"
               name="replay-declaration"
@@ -128,7 +145,11 @@ export function ReplayRequestForm({ readiness }: { readiness?: MoodleWriteReadin
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending || disabled}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            disabled={pending || disabled}
+          >
             {pending ? "Requesting…" : "Request replay"}
           </button>
         </p>

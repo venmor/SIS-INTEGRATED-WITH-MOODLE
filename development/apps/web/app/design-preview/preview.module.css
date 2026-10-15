@@ -135,13 +135,13 @@
   }
 }
 
-
 .workspace {
   width: min(72rem, 100%);
   margin: 0 auto;
   display: grid;
   gap: var(--space-8);
-  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-10)) var(--space-12);
+  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-10))
+    var(--space-12);
 }
 
 .workspaceHeader {
@@ -323,7 +323,6 @@
   }
 }
 
-
 .readinessList {
   list-style: none;
   padding: 0;
@@ -395,7 +394,6 @@
     align-self: center;
   }
 }
-
 
 .workQueue,
 .courseList,
@@ -502,7 +500,6 @@
   }
 }
 
-
 .courseNav {
   display: flex;
   flex-wrap: wrap;
@@ -595,7 +592,6 @@
   }
 }
 
-
 .opsList,
 .healthList,
 .reconciliationList {
@@ -687,7 +683,6 @@
   }
 }
 
-
 .reconciliationHeader {
   display: grid;
   gap: var(--space-2);
@@ -767,7 +762,6 @@
     grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1.2fr);
   }
 }
-
 
 .eventHeader {
   display: grid;
@@ -854,4 +848,37 @@
     grid-template-columns: 1fr;
     gap: var(--space-1);
   }
+}
+
+/* Preview routes share the approved surface language; previews stay labelled. */
+.previewChoices {
+  gap: 1rem;
+  border: 0;
+}
+.previewChoices a {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+.previewChoices a:nth-child(odd) {
+  padding-right: 1.25rem;
+}
+.previewContext {
+  color: var(--green-700);
+  background: var(--green-50);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+}
+.previewNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+.previewNav a:hover {
+  background: var(--green-50);
+  color: var(--green-800);
 }

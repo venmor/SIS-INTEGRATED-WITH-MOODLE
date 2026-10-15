@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -100,7 +101,9 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
           <NavigationIcon href="/admin/assessment/plans" />
         </span>
         <div>
-          <h2 id="draft-plan-heading">Draft plan</h2>
+          <h2 className={staffUi.sectionHeading} id="draft-plan-heading">
+            Draft plan
+          </h2>
           <p>
             Create a draft assessment plan for an offering and define its
             assessment components.
@@ -119,6 +122,7 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
         </p>
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Draft assessment plan"
         aria-busy={pending}
         onReset={() => {
@@ -132,10 +136,11 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
       >
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
-            <label htmlFor="plan-offering">
+            <label className={staffUi.fieldLabel} htmlFor="plan-offering">
               Offering reference <span aria-hidden="true">*</span>
             </label>
             <input
+              className={staffUi.control}
               id="plan-offering"
               name="plan-offering"
               maxLength={64}
@@ -148,10 +153,11 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
             </small>
           </div>
           <div className={styles.field}>
-            <label htmlFor="plan-period">
+            <label className={staffUi.fieldLabel} htmlFor="plan-period">
               Period code <span aria-hidden="true">*</span>
             </label>
             <input
+              className={staffUi.control}
               id="plan-period"
               name="plan-period"
               maxLength={16}
@@ -193,6 +199,7 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
                     Component {n} code
                   </label>
                   <input
+                    className={staffUi.control}
                     id={`plan-component-${n}-code`}
                     name={`plan-component-${n}-code`}
                     maxLength={32}
@@ -208,6 +215,7 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
                     Component {n} max mark
                   </label>
                   <input
+                    className={staffUi.control}
                     id={`plan-component-${n}-max`}
                     name={`plan-component-${n}-max`}
                     type="number"
@@ -224,6 +232,7 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
                     Component {n} weight
                   </label>
                   <input
+                    className={staffUi.control}
                     id={`plan-component-${n}-weight`}
                     name={`plan-component-${n}-weight`}
                     type="number"
@@ -238,7 +247,11 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
           })}
         </fieldset>
         <div className={styles.actions}>
-          <button type="submit" disabled={pending || !canDraft}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            disabled={pending || !canDraft}
+          >
             <NavigationIcon href="/admin/assessment/plans" />
             {pending ? "Drafting…" : "Draft plan"}
           </button>
@@ -251,7 +264,7 @@ export function PlanForms({ canDraft = false }: { canDraft?: boolean }) {
           </button>
         </div>
         <details className={styles.policy}>
-          <summary>Assessment policy</summary>
+          <summary className={staffUi.disclosure}>Assessment policy</summary>
           <p>
             This demonstration uses ASSESSMENT-DEMO-v1. An independent officer
             must approve a saved plan; drafting does not release results.

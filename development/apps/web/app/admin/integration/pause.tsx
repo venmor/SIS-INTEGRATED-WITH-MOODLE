@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -79,6 +80,7 @@ export function PauseForm() {
       ) : null}
       <p>
         <button
+          className={staffUi.button}
           type="button"
           disabled={pending}
           onClick={() => void act(true)}
@@ -86,6 +88,7 @@ export function PauseForm() {
           Pause delivery
         </button>{" "}
         <button
+          className={staffUi.button}
           type="button"
           disabled={pending}
           onClick={() => void act(false)}

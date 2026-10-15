@@ -1,10 +1,11 @@
 "use client";
+import staffUi from "../staff-workspace.module.css";
 
 import { useState } from "react";
 import type { AuditTimelineResponse, AuditTimelineRow } from "@sis/contracts";
 import { Empty } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 
 const TAKE = 20;
 
@@ -53,13 +54,17 @@ export function AuditTimeline({ initial }: { initial: AuditTimelineResponse }) {
   return (
     <section aria-label="Audit timeline">
       <form
+        className={staffUi.form}
         onSubmit={(event) => {
           event.preventDefault();
           void load(action, 0);
         }}
       >
-        <label htmlFor="audit-action">Filter by action</label>{" "}
+        <label className={staffUi.fieldLabel} htmlFor="audit-action">
+          Filter by action
+        </label>{" "}
         <input
+          className={staffUi.control}
           id="audit-action"
           name="action"
           value={action}
@@ -94,7 +99,7 @@ export function AuditTimeline({ initial }: { initial: AuditTimelineResponse }) {
                 {row.purpose ? ` · ${row.purpose}` : ""}
               </span>{" "}
               <details>
-                <summary>Reference</summary>
+                <summary className={staffUi.disclosure}>Reference</summary>
                 <code>{row.correlationId}</code>
               </details>
             </li>

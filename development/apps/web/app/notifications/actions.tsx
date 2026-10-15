@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NotificationRecordView } from "@sis/contracts";
 import { ErrorSummary, Notice } from "@sis/ui";
-import styles from "../student/student.module.css";
+import styles from "./notifications.module.css";
 
 async function postNotification(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`/api/notifications${path}`, {
@@ -32,7 +32,11 @@ async function postNotification(path: string, body: unknown): Promise<unknown> {
 // Per-notice read + suppression actions (TASK-PH8-001). Reads mark
 // every channel READ; suppression applies to optional notices only —
 // mandatory refusals surface the server reason without leaking policy.
-export function NotificationActions({ item }: { item: NotificationRecordView }) {
+export function NotificationActions({
+  item,
+}: {
+  item: NotificationRecordView;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -46,7 +50,9 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
       router.refresh();
     } catch (unknown) {
       setError(
-        unknown instanceof Error ? unknown.message : "Request failed. Try again shortly.",
+        unknown instanceof Error
+          ? unknown.message
+          : "Request failed. Try again shortly.",
       );
     } finally {
       setPending(false);
@@ -56,7 +62,10 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
   return (
     <>
       {error ? (
-        <ErrorSummary title="The notice was not updated" errors={[{ fieldId: `notice-${item.id}`, message: error }]} />
+        <ErrorSummary
+          title="The notice was not updated"
+          errors={[{ fieldId: `notice-${item.id}`, message: error }]}
+        />
       ) : null}
       {item.mandatory ? (
         <Notice
@@ -69,7 +78,7 @@ export function NotificationActions({ item }: { item: NotificationRecordView }) 
         {item.event} · {item.category}
         {item.mandatory ? " · mandatory" : " · optional"}
       </p>
-      <p>
+      <p className={styles.actions}>
         {item.state !== "READ" ? (
           <button
             type="button"

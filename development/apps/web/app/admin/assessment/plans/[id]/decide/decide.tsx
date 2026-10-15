@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,9 +35,15 @@ async function postAssessment(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as {
-      detail?: { supportReference?: string; code?: string; currentVersion?: number };
-    }).detail;
+    const detail = (
+      error as {
+        detail?: {
+          supportReference?: string;
+          code?: string;
+          currentVersion?: number;
+        };
+      }
+    ).detail;
     const base = `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
     if (detail?.code === "VERSION_CONFLICT" && detail?.currentVersion != null)
       return `${base} Current version: v${detail.currentVersion}. Reload the list and try again with the current version.`;
@@ -68,9 +75,7 @@ export function PlanDecideForm({
     try {
       const data = new FormData(form);
       if (data.get("plan-declaration") !== "confirmed")
-        throw new Error(
-          "Confirm the declaration before approving this plan.",
-        );
+        throw new Error("Confirm the declaration before approving this plan.");
       const out = (await postAssessment(`/plans/${planId}/approve`, {
         version,
         idempotencyKey: crypto.randomUUID(),
@@ -100,6 +105,7 @@ export function PlanDecideForm({
         <ErrorSummary title="The plan was not approved" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Approve assessment plan"
         onSubmit={(e) => {
           e.preventDefault();
@@ -107,8 +113,8 @@ export function PlanDecideForm({
         }}
       >
         <p>Version v{version} is the frozen evidence you sign.</p>
-        <p>
-          <label htmlFor="plan-declaration">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="plan-declaration">
             <input
               id="plan-declaration"
               name="plan-declaration"
@@ -121,7 +127,7 @@ export function PlanDecideForm({
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Approving…" : "Approve plan"}
           </button>
         </p>

@@ -1,9 +1,10 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { TutorialGroupView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { GroupForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -54,9 +55,9 @@ export default async function TeachingGroupsPage() {
           <Link href="/">Workspace home</Link>
         </p>
         {list.data.items.length === 0 ? (
-          <p>No tutorial groups yet.</p>
+          <p className={staffUi.empty}>No tutorial groups yet.</p>
         ) : (
-          <ul>
+          <ul className={staffUi.recordList}>
             {list.data.items.map((item) => (
               <li key={item.id}>
                 <strong>

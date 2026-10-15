@@ -1,4 +1,6 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
+
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorSummary, Notice } from "@sis/ui";
@@ -101,6 +103,7 @@ export function PublicationDecisionForm({
         />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label={
           amendment ? "Approve result amendment" : "Release official results"
         }
@@ -121,7 +124,7 @@ export function PublicationDecisionForm({
             ? "Approval creates a new official version for the batch and opens academic impact reviews. Original results remain in history."
             : "Publication makes this approved batch visible to its students. Notification delivery is tracked separately."}
         </p>
-        <label htmlFor={id}>
+        <label className={staffUi.fieldLabel} htmlFor={id}>
           <input
             id={id}
             name={id}
@@ -135,7 +138,11 @@ export function PublicationDecisionForm({
           Approved release policy and verified step-up authentication are
           required. If either is unavailable, this decision will remain blocked.
         </p>
-        <button type="submit" disabled={command.pending || !!command.receipt}>
+        <button
+          className={staffUi.button}
+          type="submit"
+          disabled={command.pending || !!command.receipt}
+        >
           {command.pending
             ? "Checking publication…"
             : command.uncertain
@@ -172,6 +179,7 @@ export function AmendmentRequestForm({
         />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Request result amendment"
         onSubmit={(event) => {
           event.preventDefault();
@@ -188,10 +196,17 @@ export function AmendmentRequestForm({
           disabled={command.pending || command.uncertain || !!command.receipt}
         >
           <legend>New correction request</legend>
-          <p>
-            <label htmlFor="amendment-release">Current official release</label>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="amendment-release">
+              Current official release
+            </label>
             <br />
-            <select id="amendment-release" name="release" required>
+            <select
+              className={staffUi.control}
+              id="amendment-release"
+              name="release"
+              required
+            >
               <option value="">Select a release</option>
               {releases.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -200,12 +215,17 @@ export function AmendmentRequestForm({
               ))}
             </select>
           </p>
-          <p>
-            <label htmlFor="amendment-package">
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="amendment-package">
               Replacement approved package
             </label>
             <br />
-            <select id="amendment-package" name="package" required>
+            <select
+              className={staffUi.control}
+              id="amendment-package"
+              name="package"
+              required
+            >
               <option value="">Select a reviewed package</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -214,22 +234,26 @@ export function AmendmentRequestForm({
               ))}
             </select>
           </p>
-          <p>
-            <label htmlFor="amendment-reason">Verified correction reason</label>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="amendment-reason">
+              Verified correction reason
+            </label>
             <br />
             <textarea
+              className={staffUi.control}
               id="amendment-reason"
               name="reason"
               required
               maxLength={1000}
             />
           </p>
-          <p>
-            <label htmlFor="amendment-evidence">
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="amendment-evidence">
               Review or evidence reference
             </label>
             <br />
             <input
+              className={staffUi.control}
               id="amendment-evidence"
               name="evidence"
               required
@@ -240,7 +264,7 @@ export function AmendmentRequestForm({
             A separate authorized result approver must review this request.
             Requesting an amendment does not change published results.
           </p>
-          <button type="submit">
+          <button className={staffUi.button} type="submit">
             {command.pending ? "Recording request…" : "Request amendment"}
           </button>
         </fieldset>
@@ -249,6 +273,7 @@ export function AmendmentRequestForm({
         <p>
           Keep this page open.{" "}
           <button
+            className={staffUi.button}
             type="button"
             disabled={command.pending}
             onClick={command.retry}

@@ -1,3 +1,4 @@
+import staffUi from "../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
@@ -6,7 +7,7 @@ import { WriteReadinessNotice } from "../moodle/write-readiness";
 import { ReplayRequestForm } from "./replays/forms";
 import { PauseForm } from "./pause";
 import { IncidentForms } from "./incidents";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 import { DeferredSources } from "./deferred-sources";
 
 export const dynamic = "force-dynamic";
@@ -72,75 +73,92 @@ export default async function IntegrationPage() {
         <h1 className={styles.title}>Integration support</h1>
         <WriteReadinessNotice readiness={queue.data.writeReadiness} />
         <PauseForm />
-        <h2>Waiting for Moodle</h2>
-        <DeferredSources sources={queue.data.deferredSources} truncated={queue.data.deferredSourcesTruncated} />
-        <h2>Recent delivery attempts</h2>
-        <p>Showing up to 100 recent delivery attempts.</p>
-        {queue.data.items.length === 0 ? (
-          <p>No delivery attempts yet.</p>
-        ) : (
-          <ul>
-            {queue.data.items.map((item) => (
-              <li key={item.id}>
-                <Link href={`/admin/integration/deliveries/${item.id}`}>
-                  {item.eventType} · {item.state}
-                </Link>{" "}
-                — attempt {item.attempt}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2>Dead letters</h2>
-        {dead.data.items.length === 0 ? (
-          <p>No dead letters. Exhausted and permanent failures appear here.</p>
-        ) : (
-          <ul>
-            {dead.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.eventType} · {item.state}
-                </strong>{" "}
-                — {item.id}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2>Request replay</h2>
-        <ReplayRequestForm readiness={queue.data.writeReadiness} />
-        <h2>Replay decisions</h2>
-        {replays.data.items.length === 0 ? (
-          <p>No replay requests.</p>
-        ) : (
-          <ul>
-            {replays.data.items.map((item) => (
-              <li key={item.id}>
-                <Link href={`/admin/integration/replays/${item.id}`}>
-                  {item.id.slice(0, 8)} · {item.status}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p>
-          <Link href="/admin/integration/reconciliation">Reconciliation</Link>{" "}
-          — expected-vs-actual runs and governed cases.
-        </p>
-        <h2>Incidents</h2>
-        {incidents.data.items.length === 0 ? (
-          <p>No incidents.</p>
-        ) : (
-          <ul>
-            {incidents.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.title} · {item.severity} · {item.status}
-                </strong>{" "}
-                · ID {item.id}
-              </li>
-            ))}
-          </ul>
-        )}
-        <IncidentForms />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Waiting for Moodle</h2>
+          <DeferredSources
+            sources={queue.data.deferredSources}
+            truncated={queue.data.deferredSourcesTruncated}
+          />
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Recent delivery attempts</h2>
+          <p>Showing up to 100 recent delivery attempts.</p>
+          {queue.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No delivery attempts yet.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {queue.data.items.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/admin/integration/deliveries/${item.id}`}>
+                    {item.eventType} · {item.state}
+                  </Link>{" "}
+                  — attempt {item.attempt}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Dead letters</h2>
+          {dead.data.items.length === 0 ? (
+            <p className={staffUi.empty}>
+              No dead letters. Exhausted and permanent failures appear here.
+            </p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {dead.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.eventType} · {item.state}
+                  </strong>{" "}
+                  — {item.id}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Request replay</h2>
+          <ReplayRequestForm readiness={queue.data.writeReadiness} />
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Replay decisions</h2>
+          {replays.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No replay requests.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {replays.data.items.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/admin/integration/replays/${item.id}`}>
+                    {item.id.slice(0, 8)} · {item.status}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p>
+            <Link href="/admin/integration/reconciliation">Reconciliation</Link>{" "}
+            — expected-vs-actual runs and governed cases.
+          </p>
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Incidents</h2>
+          {incidents.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No incidents.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {incidents.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.title} · {item.severity} · {item.status}
+                  </strong>{" "}
+                  · ID {item.id}
+                </li>
+              ))}
+            </ul>
+          )}
+          <IncidentForms />
+        </section>
       </main>
     </div>
   );

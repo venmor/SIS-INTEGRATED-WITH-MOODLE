@@ -1,9 +1,10 @@
+import staffUi from "../../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeMappingView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { MappingDecideForm } from "./decide";
-import styles from "../../../../../page.module.css";
+import styles from "../../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,10 @@ export default async function MappingDecidePage({
             severity="warning"
             title="Mapping unavailable"
             message="This mapping needs assessment activation authority, or it does not exist in your scope."
-            action={{ label: "Grade mappings", href: "/admin/assessment/mappings" }}
+            action={{
+              label: "Grade mappings",
+              href: "/admin/assessment/mappings",
+            }}
           />
         </main>
       </div>
@@ -74,65 +78,72 @@ export default async function MappingDecidePage({
           title="Frozen evidence package"
           message={`Version v${item.version} · status ${item.status}. The evidence below is the exact version you sign; only a TESTED mapping with a passing synthetic test can activate.`}
         />
-        <h2>Evidence</h2>
-        <dl>
-          <dt>Component ID</dt>
-          <dd>{item.componentId}</dd>
-          <dt>Moodle activity ID</dt>
-          <dd>{item.moodleActivityId}</dd>
-          <dt>Moodle course reference</dt>
-          <dd>{item.moodleCourseRef}</dd>
-          <dt>Version</dt>
-          <dd>v{item.version}</dd>
-          <dt>Status</dt>
-          <dd>{item.status}</dd>
-        </dl>
-        <h3>Synthetic test (6 validity conditions)</h3>
-        {!test || !test.result ? (
-          <p>No test recorded. Activation is refused until a passing test exists.</p>
-        ) : (
-          <>
-            <p>
-              Result <strong>{test.result}</strong>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Evidence</h2>
+          <dl className={staffUi.factGrid}>
+            <dt>Component ID</dt>
+            <dd>{item.componentId}</dd>
+            <dt>Moodle activity ID</dt>
+            <dd>{item.moodleActivityId}</dd>
+            <dt>Moodle course reference</dt>
+            <dd>{item.moodleCourseRef}</dd>
+            <dt>Version</dt>
+            <dd>v{item.version}</dd>
+            <dt>Status</dt>
+            <dd>{item.status}</dd>
+          </dl>
+          <h3>Synthetic test (6 validity conditions)</h3>
+          {!test || !test.result ? (
+            <p className={staffUi.empty}>
+              No test recorded. Activation is refused until a passing test
+              exists.
             </p>
-            <ul>
-              {(test.conditions ?? []).map((c) => (
-                <li key={c.condition}>
-                  {c.condition}: {c.passed ? "pass" : "fail"}
-                </li>
-              ))}
-            </ul>
-            <pre>{JSON.stringify(test, null, 2)}</pre>
-          </>
-        )}
-        {item.status === "TESTED" ? (
-          <>
-            <h2>Sign the decision</h2>
-            <p>
-              Authority: programme coordinator with approve-assessment
-              (school scope). Moodle administrators wire mappings but never
-              activate academic mappings; lecturers capture but never
-              activate; the creator cannot self-activate — a second officer
-              must decide.
-            </p>
-            <p>
-              Consequence: activation supersedes any earlier active mapping
-              for this component; grades may then stage through this binding.
-              This cannot be undone by editing.
-            </p>
-            <p>
-              I confirm that I have reviewed the stated evidence and make
-              this decision within my assigned authority.
-            </p>
-            <MappingDecideForm mappingId={item.id} />
-          </>
-        ) : (
-          <Notice
-            severity="info"
-            title="Decision closed or not ready"
-            message={`This mapping is ${item.status}. Only TESTED mappings with a passing test can be activated; decided mappings are never re-activated.`}
-          />
-        )}
+          ) : (
+            <>
+              <p>
+                Result <strong>{test.result}</strong>
+              </p>
+              <ul className={staffUi.recordList}>
+                {(test.conditions ?? []).map((c) => (
+                  <li key={c.condition}>
+                    {c.condition}: {c.passed ? "pass" : "fail"}
+                  </li>
+                ))}
+              </ul>
+              <pre>{JSON.stringify(test, null, 2)}</pre>
+            </>
+          )}
+          {item.status === "TESTED" ? (
+            <>
+              <section className={staffUi.panel}>
+                <h2 className={staffUi.sectionHeading}>Sign the decision</h2>
+                <p>
+                  Authority: programme coordinator with approve-assessment
+                  (school scope). Moodle administrators wire mappings but never
+                  activate academic mappings; lecturers capture but never
+                  activate; the creator cannot self-activate — a second officer
+                  must decide.
+                </p>
+                <p>
+                  Consequence: activation supersedes any earlier active mapping
+                  for this component; grades may then stage through this
+                  binding. This cannot be undone by editing.
+                </p>
+                <p>
+                  I confirm that I have reviewed the stated evidence and make
+                  this decision within my assigned authority.
+                </p>
+                <MappingDecideForm mappingId={item.id} />
+              </section>
+            </>
+          ) : (
+            <Notice
+              severity="info"
+              title="Decision closed or not ready"
+              message={`This mapping is ${item.status}. Only TESTED mappings with a passing test can be activated; decided mappings are never re-activated.`}
+            />
+          )}
+        </section>
       </main>
     </div>
   );

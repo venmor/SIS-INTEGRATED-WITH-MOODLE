@@ -1,8 +1,9 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeMappingView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +51,16 @@ export default async function GradeMappingDetailPage({
           <h1 className={styles.title}>Grade mapping</h1>
           <Notice
             severity="warning"
-            title={!result.ok && (result.status === 401 || result.status === 403) ? "Restricted area" : "Mapping unavailable"}
+            title={
+              !result.ok && (result.status === 401 || result.status === 403)
+                ? "Restricted area"
+                : "Mapping unavailable"
+            }
             message="This mapping needs assessment authority, or it does not exist in your scope."
-            action={{ label: "Grade mappings", href: "/admin/assessment/mappings" }}
+            action={{
+              label: "Grade mappings",
+              href: "/admin/assessment/mappings",
+            }}
           />
         </main>
       </div>
@@ -76,7 +84,7 @@ export default async function GradeMappingDetailPage({
           title="Frozen evidence package"
           message={`Version v${item.version} · status ${item.status}. The activator signs exactly this version; a later change invalidates the decision.`}
         />
-        <dl>
+        <dl className={staffUi.factGrid}>
           <dt>Component ID</dt>
           <dd>{item.componentId}</dd>
           <dt>Moodle activity ID</dt>
@@ -85,41 +93,47 @@ export default async function GradeMappingDetailPage({
           <dd>{item.moodleCourseRef}</dd>
           <dt>Status</dt>
           <dd>
-            <StatusChip tone={item.status === "ACTIVE" ? "success" : "attention"}>
+            <StatusChip
+              tone={item.status === "ACTIVE" ? "success" : "attention"}
+            >
               {item.status}
             </StatusChip>
           </dd>
           <dt>Version</dt>
           <dd>v{item.version}</dd>
         </dl>
-        <h2>Synthetic test result</h2>
-        {!test || !test.result ? (
-          <p>No passing test recorded. Run a synthetic test before activation.</p>
-        ) : (
-          <>
-            <p>
-              Result <strong>{test.result}</strong>
-              {test.testedAt ? ` · tested ${test.testedAt}` : ""}
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Synthetic test result</h2>
+          {!test || !test.result ? (
+            <p className={staffUi.empty}>
+              No passing test recorded. Run a synthetic test before activation.
             </p>
-            {(test.conditions ?? []).length > 0 ? (
-              <ul>
-                {(test.conditions ?? []).map((c) => (
-                  <li key={c.condition}>
-                    {c.condition}: {c.passed ? "pass" : "fail"}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {(test.reasons ?? []).length > 0 ? (
-              <ul>
-                {(test.reasons ?? []).map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
-            ) : null}
-            <pre>{JSON.stringify(test, null, 2)}</pre>
-          </>
-        )}
+          ) : (
+            <>
+              <p>
+                Result <strong>{test.result}</strong>
+                {test.testedAt ? ` · tested ${test.testedAt}` : ""}
+              </p>
+              {(test.conditions ?? []).length > 0 ? (
+                <ul className={staffUi.recordList}>
+                  {(test.conditions ?? []).map((c) => (
+                    <li key={c.condition}>
+                      {c.condition}: {c.passed ? "pass" : "fail"}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {(test.reasons ?? []).length > 0 ? (
+                <ul className={staffUi.recordList}>
+                  {(test.reasons ?? []).map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <pre>{JSON.stringify(test, null, 2)}</pre>
+            </>
+          )}
+        </section>
       </main>
     </div>
   );

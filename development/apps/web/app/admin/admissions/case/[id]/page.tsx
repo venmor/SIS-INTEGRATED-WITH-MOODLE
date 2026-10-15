@@ -5,7 +5,7 @@ import type {
   ReviewTimelineEvent,
 } from "@sis/contracts";
 import { Notice } from "@sis/ui";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 import { ReviewCase } from "./case";
 
 export const dynamic = "force-dynamic";
@@ -83,10 +83,10 @@ export default async function ReviewCasePage({
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>
-          Review case {evidence.data.reference}
-        </h1>
-        <p className={styles.lede}>Review evidence and record the case outcome.</p>
+        <h1 className={styles.title}>Review case {evidence.data.reference}</h1>
+        <p className={styles.lede}>
+          Review evidence and record the case outcome.
+        </p>
         <ReviewCase
           evidence={evidence.data}
           initialFindings={findings.data.items}

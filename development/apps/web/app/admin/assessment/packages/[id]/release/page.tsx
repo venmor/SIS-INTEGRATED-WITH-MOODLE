@@ -1,3 +1,4 @@
+import staffUi from "../../../../staff-workspace.module.css";
 import Link from "next/link";
 import type { ResultPackageDetailView } from "@sis/contracts";
 import { Notice, PageHeader } from "@sis/ui";
@@ -15,7 +16,7 @@ export default async function ReleasePage({
     `/admin/assessment/packages/${id}/release`,
   );
   return (
-    <main>
+    <main className={staffUi.workspace}>
       <PageHeader
         eyebrow="Examinations"
         title="Review official result release"
@@ -35,7 +36,7 @@ export default async function ReleasePage({
         />
       ) : (
         <>
-          <dl>
+          <dl className={staffUi.factGrid}>
             <dt>Offering and period</dt>
             <dd>
               {data.offeringRef} · {data.periodCode}

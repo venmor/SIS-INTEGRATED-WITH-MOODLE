@@ -1,8 +1,9 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ModerationCaseView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -70,35 +71,40 @@ export default async function ModerationQueuePage() {
           <Link href="/">Workspace home</Link> ·{" "}
           <Link href="/admin/assessment/batches">Grade batches</Link>
         </p>
-        <h2>Cases</h2>
-        <DataTable
-          hideTitle
-          title="Moderation cases"
-          description="Submitted batches with moderation outcomes."
-          columns={[
-            {
-              heading: "State",
-              render: (item: ModerationCaseView) => (
-                <StatusChip tone={tone(item.status)}>{item.status}</StatusChip>
-              ),
-            },
-            {
-              heading: "Submitted",
-              render: (item: ModerationCaseView) => item.submittedAt.slice(0, 10),
-            },
-            {
-              heading: "Detail",
-              render: (item: ModerationCaseView) => (
-                <Link href={`/admin/assessment/moderation/${item.id}`}>
-                  Open case
-                </Link>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No moderation cases in your lane."
-        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Cases</h2>
+          <DataTable
+            hideTitle
+            title="Moderation cases"
+            description="Submitted batches with moderation outcomes."
+            columns={[
+              {
+                heading: "State",
+                render: (item: ModerationCaseView) => (
+                  <StatusChip tone={tone(item.status)}>
+                    {item.status}
+                  </StatusChip>
+                ),
+              },
+              {
+                heading: "Submitted",
+                render: (item: ModerationCaseView) =>
+                  item.submittedAt.slice(0, 10),
+              },
+              {
+                heading: "Detail",
+                render: (item: ModerationCaseView) => (
+                  <Link href={`/admin/assessment/moderation/${item.id}`}>
+                    Open case
+                  </Link>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No moderation cases in your lane."
+          />
+        </section>
       </main>
     </div>
   );

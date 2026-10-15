@@ -91,7 +91,8 @@
   --neutral-text: var(--gray-700);
 
   /* Links — A1: resting state is blue-700 (AA on white); blue-600 for large/bold only. */
-  --link: var(--blue-700);
+  /* AA body-text contrast on white and the approved tinted notice surfaces. */
+  --link: var(--blue-800);
   --link-hover: var(--blue-800);
 
   /* Roles (light) */

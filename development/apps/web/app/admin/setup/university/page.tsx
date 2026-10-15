@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { Notice } from "@sis/ui";
 import type { DemoUniversitySetupReport } from "@sis/contracts";
-import pageStyles from "../../../page.module.css";
+import pageStyles from "../../staff-workspace.module.css";
 import { UniversitySetupEditor } from "./editor";
 
 export const dynamic = "force-dynamic";

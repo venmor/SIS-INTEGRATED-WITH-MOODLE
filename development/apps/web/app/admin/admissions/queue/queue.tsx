@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useEffect, useRef, useState } from "react";
 import type { ReviewQueueItem } from "@sis/contracts";
@@ -619,6 +620,7 @@ export function AdmissionsQueue({
         return (
           <span className={styles.rowActions}>
             <button
+              className={staffUi.button}
               type="button"
               disabled={pending || stale}
               onClick={() => void act(item, action)}
@@ -662,6 +664,7 @@ export function AdmissionsQueue({
       ) : null}
       {restartRequired ? (
         <button
+          className={staffUi.button}
           type="button"
           disabled={retainedBatch}
           onClick={() => {
@@ -720,7 +723,9 @@ export function AdmissionsQueue({
         }}
       >
         <div className={styles.filterField}>
-          <label htmlFor="queue-state">State</label>
+          <label className={staffUi.fieldLabel} htmlFor="queue-state">
+            State
+          </label>
           <select
             className={styles.select}
             id="queue-state"
@@ -741,7 +746,9 @@ export function AdmissionsQueue({
         </div>
 
         <div className={styles.filterField}>
-          <label htmlFor="queue-reference">Case reference</label>
+          <label className={staffUi.fieldLabel} htmlFor="queue-reference">
+            Case reference
+          </label>
           <input
             className={styles.select}
             id="queue-reference"
@@ -760,7 +767,9 @@ export function AdmissionsQueue({
         </div>
 
         <div className={styles.filterField}>
-          <label htmlFor="queue-sort">Order</label>
+          <label className={staffUi.fieldLabel} htmlFor="queue-sort">
+            Order
+          </label>
           <select
             className={styles.select}
             id="queue-sort"
@@ -790,6 +799,7 @@ export function AdmissionsQueue({
 
         <div className={styles.filterActions}>
           <button
+            className={staffUi.button}
             type="submit"
             disabled={
               isLoading || isPreparing || retainedBatch || Boolean(pendingId)
@@ -798,6 +808,7 @@ export function AdmissionsQueue({
             Apply filters
           </button>
           <button
+            className={staffUi.button}
             type="button"
             onClick={() => void applyFilters("", false, "", "oldest")}
             disabled={
@@ -901,7 +912,7 @@ export function AdmissionsQueue({
           className={styles.claimPanel}
           aria-label="Claim selected cases"
         >
-          <h2>Claim selected cases</h2>
+          <h2 className={staffUi.sectionHeading}>Claim selected cases</h2>
           <p>
             Select up to 50 cases on this page. Each claim is recorded
             separately; some may succeed while others change or become
@@ -911,6 +922,7 @@ export function AdmissionsQueue({
             <>
               <p role="status">{selectedCount} cases selected</p>
               <button
+                className={staffUi.button}
                 type="button"
                 disabled={
                   !selectedCount ||
@@ -948,6 +960,7 @@ export function AdmissionsQueue({
               <div className={styles.rowActions}>
                 {isClaiming ? (
                   <button
+                    className={staffUi.button}
                     type="button"
                     disabled={pauseRequested}
                     onClick={() => {
@@ -967,6 +980,7 @@ export function AdmissionsQueue({
                       ),
                     ) ? (
                       <button
+                        className={staffUi.button}
                         type="button"
                         onClick={() => void claimSelected()}
                       >
@@ -974,6 +988,7 @@ export function AdmissionsQueue({
                       </button>
                     ) : null}
                     <button
+                      className={staffUi.button}
                       type="button"
                       disabled={batch.some((item) =>
                         ["UNCERTAIN", "RATE_LIMITED"].includes(item.state),
@@ -1001,7 +1016,7 @@ export function AdmissionsQueue({
           aria-label="Prepare assigned cases"
         >
           <div>
-            <h2>Prepare assigned cases</h2>
+            <h2 className={staffUi.sectionHeading}>Prepare assigned cases</h2>
             <p>
               Select up to 50 cases on this page to compare their current file
               and open-request counts.
@@ -1011,6 +1026,7 @@ export function AdmissionsQueue({
             </p>
           </div>
           <button
+            className={staffUi.button}
             type="button"
             disabled={
               !selectedCount ||
@@ -1039,7 +1055,7 @@ export function AdmissionsQueue({
           aria-label="Preparation preview"
         >
           <div className={styles.preparationHeading}>
-            <h2>Preparation preview</h2>
+            <h2 className={staffUi.sectionHeading}>Preparation preview</h2>
             <p>Checked {formatLusaka(preparation.generatedAt)}</p>
           </div>
           <p>
@@ -1124,6 +1140,7 @@ export function AdmissionsQueue({
 
       <nav className={styles.pagination} aria-label="Queue pages">
         <button
+          className={staffUi.button}
           type="button"
           onClick={() => void goPrevious()}
           disabled={
@@ -1137,6 +1154,7 @@ export function AdmissionsQueue({
           Previous page
         </button>
         <button
+          className={staffUi.button}
           type="button"
           onClick={() => void goNext()}
           disabled={

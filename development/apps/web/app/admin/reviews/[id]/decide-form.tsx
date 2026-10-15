@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import type { DecideReviewBody, ReviewSchedule } from "@sis/contracts";
@@ -124,7 +125,7 @@ export function DecideForm({ review }: { review: ReviewSchedule }) {
   }
 
   return (
-    <form onSubmit={(event) => void onSubmit(event)}>
+    <form className={staffUi.form} onSubmit={(event) => void onSubmit(event)}>
       <Status
         severity="neutral"
         state={`${review.riskLevel} risk · due ${formatLusaka(review.nextDueAt)}`}
@@ -146,7 +147,11 @@ export function DecideForm({ review }: { review: ReviewSchedule }) {
       <fieldset>
         <legend>Decision</legend>
         {DECISIONS.map((option) => (
-          <label key={option} htmlFor={`decision-${option}`}>
+          <label
+            className={staffUi.fieldLabel}
+            key={option}
+            htmlFor={`decision-${option}`}
+          >
             <input
               id={`decision-${option}`}
               name="decision"

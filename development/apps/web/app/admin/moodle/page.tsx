@@ -1,10 +1,12 @@
+import staffUi from "../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ConnectionView } from "@sis/contracts";
-import { Notice } from "@sis/ui";
+import { DataTable, Notice, PageHeader } from "@sis/ui";
+import { NavigationIcon } from "../../navigation-icon";
 import { WriteReadinessNotice } from "./write-readiness";
 import { moodleBackendLabel } from "../../../lib/moodle-status";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +42,11 @@ export default async function MoodleAdminPage() {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.context}>Student Information System</p>
-          <h1 className={styles.title}>Moodle administration</h1>
+          <PageHeader
+            eyebrow="Student Information System"
+            title="Moodle administration"
+            lede="Manage learning connections, mappings and scheduled maintenance. Official registration and results stay in SIS."
+          />
           <Notice
             severity="warning"
             title="Workspace unavailable"
@@ -62,37 +67,69 @@ export default async function MoodleAdminPage() {
           message={`Provider ${health.data.provider} · ${moodleBackendLabel(health.data.backend)}. SIS registration stays authoritative through every sync state.`}
         />
         <WriteReadinessNotice readiness={health.data.writeReadiness} />
-        <ul>
-          <li>
-            <Link href="/admin/moodle/mappings">Mappings</Link> — versioned
-            course, user, role and group mappings.
-          </li>
-          <li>
-            <Link href="/admin/integration/reconciliation">Reconciliation</Link>{" "}
-            — expected-vs-actual runs and governed cases.
-          </li>
-          <li>
-            <Link href="/admin/moodle/maintenance">Maintenance</Link> —
-            scheduled windows with student-safe wording.
-          </li>
-        </ul>
-        <h2>Recorded simulator shells ({shells.data.items.length})</h2>
-        {shells.data.items.length === 0 ? (
-          <p>
-            {health.data.writeReadiness?.outcome === "NOT_PROVISIONED"
-              ? "No recorded simulator shells. SIS live provisioning is disabled until approved setup is complete."
-              : "No simulator course shells yet. Approved offerings create simulated shells when the first enrolment arrives."}
-          </p>
-        ) : (
-          <ul>
-            {shells.data.items.map((shell) => (
-              <li key={shell.shellRef}>
-                <strong>{shell.shellRef}</strong> —{" "}
-                {shell.activeEnrolments} simulated active enrolments
-              </li>
-            ))}
-          </ul>
-        )}
+        <nav className={staffUi.taskGrid} aria-label="Moodle tasks">
+          {[
+            {
+              href: "/admin/moodle/mappings",
+              title: "Mappings",
+              body: "Course, user, role and group connections.",
+            },
+            {
+              href: "/admin/integration/reconciliation",
+              title: "Reconciliation",
+              body: "Compare expected enrolments and review differences.",
+            },
+            {
+              href: "/admin/moodle/maintenance",
+              title: "Maintenance",
+              body: "Schedule service windows and learner guidance.",
+            },
+          ].map((task) => (
+            <Link key={task.href} href={task.href} className={staffUi.taskLink}>
+              <NavigationIcon href={task.href} />
+              <strong>{task.title}</strong>
+              <span>{task.body}</span>
+            </Link>
+          ))}
+        </nav>
+        <section className={staffUi.panel} aria-label="Recorded course shells">
+          <h2 className={staffUi.sectionHeading}>
+            Recorded simulator shells ({shells.data.items.length})
+          </h2>
+          {shells.data.items.length === 0 ? (
+            <p className={staffUi.empty}>
+              {health.data.writeReadiness?.outcome === "NOT_PROVISIONED"
+                ? "No recorded simulator shells. SIS live provisioning is disabled until approved setup is complete."
+                : "No simulator course shells yet. Approved offerings create simulated shells when the first enrolment arrives."}
+            </p>
+          ) : (
+            <DataTable
+              hideTitle
+              title="Recorded simulator shells"
+              description="Simulator records only. These counts do not certify live Moodle course delivery."
+              columns={[
+                {
+                  heading: "Course reference",
+                  render: (shell: {
+                    shellRef: string;
+                    activeEnrolments: number;
+                  }) => shell.shellRef,
+                },
+                {
+                  heading: "Active enrolments",
+                  numeric: true,
+                  render: (shell: {
+                    shellRef: string;
+                    activeEnrolments: number;
+                  }) => shell.activeEnrolments,
+                },
+              ]}
+              rows={shells.data.items}
+              keyOf={(shell) => shell.shellRef}
+              emptyText="No recorded simulator shells."
+            />
+          )}
+        </section>
       </main>
     </div>
   );

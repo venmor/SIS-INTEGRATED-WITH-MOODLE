@@ -1,3 +1,4 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ConnectionView, MappingView } from "@sis/contracts";
@@ -6,7 +7,7 @@ import { MappingForms } from "./forms";
 import { ConnectionValidate } from "./validate";
 import { WriteReadinessNotice } from "../write-readiness";
 import { moodleBackendLabel } from "../../../../lib/moodle-status";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -65,22 +66,24 @@ export default async function MappingsPage() {
         />
         <WriteReadinessNotice readiness={health.data.writeReadiness} />
         <ConnectionValidate />
-        <h2>Registry</h2>
-        {list.data.items.length === 0 ? (
-          <p>No mappings yet.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>
-                  {item.kind} · {item.status} · v{item.version}
-                </strong>{" "}
-                — {item.sisType} {item.sisId} ↔ {item.moodleId}
-              </li>
-            ))}
-          </ul>
-        )}
-        <MappingForms readiness={health.data.writeReadiness} />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Registry</h2>
+          {list.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No mappings yet.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.kind} · {item.status} · v{item.version}
+                  </strong>{" "}
+                  — {item.sisType} {item.sisId} ↔ {item.moodleId}
+                </li>
+              ))}
+            </ul>
+          )}
+          <MappingForms readiness={health.data.writeReadiness} />
+        </section>
       </main>
     </div>
   );

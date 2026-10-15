@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -87,15 +88,23 @@ export function ArrangementDecide({
         <ErrorSummary title="The arrangement was not decided" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Decide payment arrangement"
         onSubmit={(e) => {
           e.preventDefault();
           void submit(e.currentTarget);
         }}
       >
-        <p>
-          <label htmlFor="arrange-id">Request</label>{" "}
-          <select id="arrange-id" name="arrange-id" required>
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="arrange-id">
+            Request
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="arrange-id"
+            name="arrange-id"
+            required
+          >
             <option value="">Choose a request…</option>
             {arrangements.map((item) => (
               <option key={item.id} value={item.id}>
@@ -104,17 +113,27 @@ export function ArrangementDecide({
             ))}
           </select>
         </p>
-        <p>
-          <label htmlFor="arrange-outcome">Decision</label>{" "}
-          <select id="arrange-outcome" name="arrange-outcome" required>
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="arrange-outcome">
+            Decision
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="arrange-outcome"
+            name="arrange-outcome"
+            required
+          >
             <option value="">Choose…</option>
             <option value="approve">Approve</option>
             <option value="decline">Decline</option>
           </select>
         </p>
-        <p>
-          <label htmlFor="arrange-note">Note (required to decline)</label>{" "}
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="arrange-note">
+            Note (required to decline)
+          </label>{" "}
           <textarea
+            className={staffUi.control}
             id="arrange-note"
             name="arrange-note"
             rows={2}
@@ -122,7 +141,7 @@ export function ArrangementDecide({
           />
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Deciding…" : "Decide arrangement"}
           </button>
         </p>

@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,106 +82,196 @@ export function GroupForms() {
       {errors.length > 0 ? (
         <ErrorSummary title="The group was not updated" errors={errors} />
       ) : null}
-      <h2>Create tutorial group</h2>
-      <form
-        aria-label="Create tutorial group"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            "/groups",
-            {
-              offeringId: String(data.get("tg-offering") ?? ""),
-              name: String(data.get("tg-name") ?? ""),
-              capacity: Number(data.get("tg-capacity") ?? 0),
-              meetingPattern: String(data.get("tg-pattern") ?? "") || undefined,
-            },
-            "Tutorial group created as a draft. Assign a tutor, then activate it.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="tg-offering">Programme offering ID</label>{" "}
-          <input id="tg-offering" name="tg-offering" type="text" required />
-        </p>
-        <p>
-          <label htmlFor="tg-name">Group name</label>{" "}
-          <input id="tg-name" name="tg-name" type="text" maxLength={32} required />
-        </p>
-        <p>
-          <label htmlFor="tg-capacity">Capacity</label>{" "}
-          <input id="tg-capacity" name="tg-capacity" type="number" min={1} required />
-        </p>
-        <p>
-          <label htmlFor="tg-pattern">Meeting pattern (optional)</label>{" "}
-          <input id="tg-pattern" name="tg-pattern" type="text" maxLength={200} />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Creating…" : "Create group"}
-          </button>
-        </p>
-      </form>
-      <h2>Allocate a student</h2>
-      <form
-        aria-label="Allocate student to group"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/groups/${String(data.get("alloc-group") ?? "")}/allocate`,
-            {
-              studentNumber: String(data.get("alloc-student") ?? ""),
-              reason: String(data.get("alloc-reason") ?? ""),
-            },
-            "Student allocated. Over-enrolled or duplicate allocations are refused.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="alloc-group">Group ID</label>{" "}
-          <input id="alloc-group" name="alloc-group" type="text" required />
-        </p>
-        <p>
-          <label htmlFor="alloc-student">Student number</label>{" "}
-          <input id="alloc-student" name="alloc-student" type="text" maxLength={32} required />
-        </p>
-        <p>
-          <label htmlFor="alloc-reason">Reason</label>{" "}
-          <input id="alloc-reason" name="alloc-reason" type="text" maxLength={2000} required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Allocating…" : "Allocate student"}
-          </button>
-        </p>
-      </form>
-      <h2>Activate a group</h2>
-      <form
-        aria-label="Activate tutorial group"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/groups/${String(data.get("activate-group") ?? "")}/activate`,
-            {},
-            "Group activated. Students may now be allocated.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="activate-group">Group ID</label>{" "}
-          <input id="activate-group" name="activate-group" type="text" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Activating…" : "Activate group"}
-          </button>
-        </p>
-      </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Create tutorial group</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Create tutorial group"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              "/groups",
+              {
+                offeringId: String(data.get("tg-offering") ?? ""),
+                name: String(data.get("tg-name") ?? ""),
+                capacity: Number(data.get("tg-capacity") ?? 0),
+                meetingPattern:
+                  String(data.get("tg-pattern") ?? "") || undefined,
+              },
+              "Tutorial group created as a draft. Assign a tutor, then activate it.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="tg-offering">
+              Programme offering ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="tg-offering"
+              name="tg-offering"
+              type="text"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="tg-name">
+              Group name
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="tg-name"
+              name="tg-name"
+              type="text"
+              maxLength={32}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="tg-capacity">
+              Capacity
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="tg-capacity"
+              name="tg-capacity"
+              type="number"
+              min={1}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="tg-pattern">
+              Meeting pattern (optional)
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="tg-pattern"
+              name="tg-pattern"
+              type="text"
+              maxLength={200}
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Creating…" : "Create group"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Allocate a student</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Allocate student to group"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/groups/${String(data.get("alloc-group") ?? "")}/allocate`,
+              {
+                studentNumber: String(data.get("alloc-student") ?? ""),
+                reason: String(data.get("alloc-reason") ?? ""),
+              },
+              "Student allocated. Over-enrolled or duplicate allocations are refused.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="alloc-group">
+              Group ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="alloc-group"
+              name="alloc-group"
+              type="text"
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="alloc-student">
+              Student number
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="alloc-student"
+              name="alloc-student"
+              type="text"
+              maxLength={32}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="alloc-reason">
+              Reason
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="alloc-reason"
+              name="alloc-reason"
+              type="text"
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Allocating…" : "Allocate student"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Activate a group</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Activate tutorial group"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/groups/${String(data.get("activate-group") ?? "")}/activate`,
+              {},
+              "Group activated. Students may now be allocated.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="activate-group">
+              Group ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="activate-group"
+              name="activate-group"
+              type="text"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null}
+            >
+              {pending ? "Activating…" : "Activate group"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

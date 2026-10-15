@@ -1,7 +1,8 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import { Notice } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
-import pageStyles from "../../../page.module.css";
+import pageStyles from "../../staff-workspace.module.css";
 import styles from "./readiness.module.css";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ export default async function SetupReadinessPage() {
               {loaded.report.sections.map((section) => (
                 <li key={section.id} className={styles.section}>
                   <div className={styles.sectionHeader}>
-                    <h2>{section.label}</h2>
+                    <h2 className={staffUi.sectionHeading}>{section.label}</h2>
                     <span className={styles.status}>
                       {statusLabel(section.status)}
                     </span>
