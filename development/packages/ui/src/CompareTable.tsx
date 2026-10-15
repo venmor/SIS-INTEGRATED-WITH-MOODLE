@@ -146,7 +146,17 @@ export function CompareTable({ columns, limitNote }: CompareTableProps) {
                 >
                   Check eligibility
                 </a>{" "}
-                <a className={styles.action} href={column.removeHref}>
+                <a
+                  className={styles.action}
+                  href={column.removeHref}
+                  aria-label={
+                    column.removeLabel
+                      .toLowerCase()
+                      .includes(column.heading.toLowerCase())
+                      ? column.removeLabel
+                      : `${column.removeLabel}: ${column.heading}`
+                  }
+                >
                   {column.removeLabel}
                 </a>
               </td>
