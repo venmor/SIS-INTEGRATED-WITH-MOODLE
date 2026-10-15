@@ -30,6 +30,11 @@ export function Field({ id, label, help, error, autoComplete, defaultValue, inpu
     <div className={styles.field}>
       <label className={styles.label} htmlFor={id}>
         {label}
+        {inputProps?.required ? (
+          <span className={styles.required} aria-hidden="true">
+            *
+          </span>
+        ) : null}
       </label>
       {help ? (
         <p className={styles.help} id={helpId}>
