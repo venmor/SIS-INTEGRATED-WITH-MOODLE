@@ -1,5 +1,5 @@
 import { Skeleton, SkeletonCard } from "@sis/ui";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export default function ReviewCaseLoading() {
   return (

@@ -258,9 +258,8 @@ export default async function FinancePage({
           />
         </p>
       </Card>
-      <Card title="Statement">
+      <Card>
         <DataTable
-          hideTitle
           title="Statement"
           description="Posted charges for this period."
           columns={[

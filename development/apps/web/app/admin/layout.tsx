@@ -8,6 +8,7 @@ import { timetablePermissions } from "../../lib/timetable-permissions";
 import { NavigationIcon } from "../navigation-icon";
 import { StaffBreadcrumbs } from "./staff-breadcrumbs";
 import { StaffAccountMenu } from "./staff-account-menu";
+import { StaffScrollReset } from "./staff-scroll-reset";
 
 interface Me {
   account: {
@@ -253,7 +254,12 @@ export default async function AdminLayout({
           </Link>
         ) : null}
 
-        <div className={styles.desktopMenu}>
+        <div
+          className={styles.desktopMenu}
+          role="region"
+          aria-label="Workspace navigation scroll area"
+          tabIndex={0}
+        >
           <WorkspaceNav items={visibleItems} />
         </div>
         <details className={styles.menu}>
@@ -287,6 +293,7 @@ export default async function AdminLayout({
           </nav>
         </header>
         <div id="main-content" tabIndex={-1} className={styles.main}>
+          <StaffScrollReset />
           <StaffBreadcrumbs items={visibleItems} />
           {children}
         </div>

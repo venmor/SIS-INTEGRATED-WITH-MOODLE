@@ -1,9 +1,7 @@
 import styles from "../../../page.module.css";
-import { Empty } from "@sis/ui";
+import { Card, Empty } from "@sis/ui";
 import { Notice } from "@sis/ui";
-import type {
-  ProgrammeOfferingDetail,
-} from "@sis/contracts";
+import type { ProgrammeOfferingDetail } from "@sis/contracts";
 import { EligibilityForm } from "./form";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +12,9 @@ export const metadata = {
     "Compare your qualifications with published requirements. Guidance only — never an admission decision.",
 };
 
-async function loadOffering(id: string): Promise<ProgrammeOfferingDetail | null> {
+async function loadOffering(
+  id: string,
+): Promise<ProgrammeOfferingDetail | null> {
   const api = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
   try {
     const res = await fetch(`${api}/catalogue/offerings/${id}`, {
@@ -94,15 +94,17 @@ export default async function EligibilityPage({
           answers stay in this session unless you save them after creating an
           account.
         </p>
-        <EligibilityForm
-          offeringId={id}
-          programmeName={detail.programmeName}
-          intake={detail.intake}
-          canStart={detail.canStart}
-          closedNote={detail.statusNote}
-          routes={routes}
-          rules={detail.entryRequirements}
-        />
+        <Card title="Your qualifications">
+          <EligibilityForm
+            offeringId={id}
+            programmeName={detail.programmeName}
+            intake={detail.intake}
+            canStart={detail.canStart}
+            closedNote={detail.statusNote}
+            routes={routes}
+            rules={detail.entryRequirements}
+          />
+        </Card>
       </main>
     </div>
   );

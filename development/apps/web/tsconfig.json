@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,9 +23,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-      "@sis/ui": ["../../packages/ui/src/index.ts"],
-      "@sis/contracts": ["../../packages/contracts/src/index.ts"]
+      "@/*": [
+        "./*"
+      ],
+      "@sis/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
+      "@sis/contracts": [
+        "../../packages/contracts/src/index.ts"
+      ]
     }
   },
   "include": [
@@ -30,7 +40,13 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-registration-review-browser/types/**/*.ts",
+    ".next-registration-review-browser/dev/types/**/*.ts",
+    ".next-student-timetable-browser/types/**/*.ts",
+    ".next-student-timetable-browser/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

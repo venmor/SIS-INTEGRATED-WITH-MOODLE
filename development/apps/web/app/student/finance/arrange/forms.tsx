@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ErrorSummary, Notice } from "@sis/ui";
+import styles from "../../student.module.css";
+import { Card, ErrorSummary, Notice } from "@sis/ui";
 
 interface FieldError {
   fieldId: string;
@@ -76,39 +77,42 @@ export function ArrangementForm({ period }: { period: string }) {
       {errors.length > 0 ? (
         <ErrorSummary title="The request was not recorded" errors={errors} />
       ) : null}
-      <form
-        aria-label="Request payment arrangement"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit(e.currentTarget);
-        }}
-      >
-        <p>
-          <label htmlFor="arrange-terms">Proposed terms</label>{" "}
-          <textarea
-            id="arrange-terms"
-            name="arrange-terms"
-            rows={3}
-            maxLength={2000}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="arrange-reason">Reason</label>{" "}
-          <textarea
-            id="arrange-reason"
-            name="arrange-reason"
-            rows={3}
-            maxLength={2000}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending}>
-            {pending ? "Requesting…" : "Request arrangement"}
-          </button>
-        </p>
-      </form>
+      <Card title="Proposed arrangement">
+        <form
+          className={styles.taskForm}
+          aria-label="Request payment arrangement"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit(e.currentTarget);
+          }}
+        >
+          <p>
+            <label htmlFor="arrange-terms">Proposed terms</label>{" "}
+            <textarea
+              id="arrange-terms"
+              name="arrange-terms"
+              rows={3}
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p>
+            <label htmlFor="arrange-reason">Reason</label>{" "}
+            <textarea
+              id="arrange-reason"
+              name="arrange-reason"
+              rows={3}
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending}>
+              {pending ? "Requesting…" : "Request arrangement"}
+            </button>
+          </p>
+        </form>
+      </Card>
     </>
   );
 }

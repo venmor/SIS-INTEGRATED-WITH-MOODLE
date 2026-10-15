@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { SECURITY_V1 } from "@sis/config";
 import { Notice } from "@sis/ui";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 import { GrantForm } from "./form";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ async function activeRole(): Promise<string | null> {
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { activeWorkspace: { role: string } | null };
+    const body = (await res.json()) as {
+      activeWorkspace: { role: string } | null;
+    };
     return body.activeWorkspace?.role ?? null;
   } catch {
     return null;
@@ -34,9 +36,15 @@ export default async function GrantsPage() {
         {allowed ? (
           <>
             <p className={styles.lede}>
-              Create a scoped, time-bound assignment. Missing appointment evidence never yields a privileged workspace.
+              Create a scoped, time-bound assignment. Missing appointment
+              evidence never yields a privileged workspace.
             </p>
-            <GrantForm />
+            <section
+              className={styles.panel}
+              aria-label="Scoped role assignment"
+            >
+              <GrantForm />
+            </section>
           </>
         ) : (
           <Notice

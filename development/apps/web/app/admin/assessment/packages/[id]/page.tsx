@@ -1,3 +1,4 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type {
@@ -6,7 +7,7 @@ import type {
 } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
 import { BoardDecisionForm } from "../forms";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,7 @@ export default async function BoardPackagePage({
           title="Package declaration"
           message={item.declaration}
         />
-        <dl>
+        <dl className={staffUi.factGrid}>
           <dt>Status</dt>
           <dd>
             <StatusChip
@@ -109,67 +110,77 @@ export default async function BoardPackagePage({
           <dt>Moderation cases referenced</dt>
           <dd>{trace.moderationRefs?.length ?? 0}</dd>
         </dl>
-        <h2>Weighted preview</h2>
-        <ul>
-          {(trace.students ?? []).map((s) => (
-            <li key={s.studentRef}>
-              {s.studentRef}: {s.rounded}
-            </li>
-          ))}
-        </ul>
-        <h2>Board decisions</h2>
-        {item.decisions.length === 0 ? (
-          <p>No board decision recorded yet.</p>
-        ) : (
-          <ul>
-            {item.decisions.map((d) => (
-              <li key={`${d.version}-${d.to}`}>
-                {d.to} — {d.reason ?? "no reason recorded"} ({d.decidedAt})
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Weighted preview</h2>
+          <ul className={staffUi.recordList}>
+            {(trace.students ?? []).map((s) => (
+              <li key={s.studentRef}>
+                {s.studentRef}: {s.rounded}
               </li>
             ))}
           </ul>
-        )}
-        <p>
-          <Link href={`/admin/assessment/packages/${item.id}/release`}>
-            Review official release
-          </Link>
-        </p>
-        <section aria-labelledby="package-history-heading">
-          <h2 id="package-history-heading">History</h2>
-          <p>Up to 100 latest events, newest first.</p>
-          {!history.ok ? (
-            <Notice
-              severity="warning"
-              title="History unavailable"
-              message="Package history could not be checked. Refresh to try again, or contact the responsible examinations office."
-            />
-          ) : history.data.items.length === 0 ? (
-            <p>No history recorded yet.</p>
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Board decisions</h2>
+          {item.decisions.length === 0 ? (
+            <p className={staffUi.empty}>No board decision recorded yet.</p>
           ) : (
-            <ol>
-              {history.data.items.map((event, index) => (
-                <li key={`${event.source}-${event.occurredAt}-${index}`}>
-                  <p>{event.summary}</p>
-                  <p>
-                    <time dateTime={event.occurredAt}>{event.occurredAt}</time>
-                    {event.actorRole ? ` · ${event.actorRole}` : ""}
-                  </p>
+            <ul className={staffUi.recordList}>
+              {item.decisions.map((d) => (
+                <li key={`${d.version}-${d.to}`}>
+                  {d.to} — {d.reason ?? "no reason recorded"} ({d.decidedAt})
                 </li>
               ))}
-            </ol>
+            </ul>
           )}
+          <p>
+            <Link href={`/admin/assessment/packages/${item.id}/release`}>
+              Review official release
+            </Link>
+          </p>
+          <section aria-labelledby="package-history-heading">
+            <h2 className={staffUi.sectionHeading} id="package-history-heading">
+              History
+            </h2>
+            <p>Up to 100 latest events, newest first.</p>
+            {!history.ok ? (
+              <Notice
+                severity="warning"
+                title="History unavailable"
+                message="Package history could not be checked. Refresh to try again, or contact the responsible examinations office."
+              />
+            ) : history.data.items.length === 0 ? (
+              <p className={staffUi.empty}>No history recorded yet.</p>
+            ) : (
+              <ol>
+                {history.data.items.map((event, index) => (
+                  <li key={`${event.source}-${event.occurredAt}-${index}`}>
+                    <p>{event.summary}</p>
+                    <p>
+                      <time dateTime={event.occurredAt}>
+                        {event.occurredAt}
+                      </time>
+                      {event.actorRole ? ` · ${event.actorRole}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
         </section>
-        <h2>Record board decision</h2>
-        <p>
-          Only the examinations authority records board decisions, and never for
-          a package it prepared. Approval for release never publishes to
-          students; publication is a separate authorized action.
-        </p>
-        <BoardDecisionForm
-          packageId={item.id}
-          version={item.version}
-          decided={decided}
-        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Record board decision</h2>
+          <p>
+            Only the examinations authority records board decisions, and never
+            for a package it prepared. Approval for release never publishes to
+            students; publication is a separate authorized action.
+          </p>
+          <BoardDecisionForm
+            packageId={item.id}
+            version={item.version}
+            decided={decided}
+          />
+        </section>
       </main>
     </div>
   );

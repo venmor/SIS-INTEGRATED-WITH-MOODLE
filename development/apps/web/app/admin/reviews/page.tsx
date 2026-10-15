@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { ReviewSchedule } from "@sis/contracts";
 import { Notice } from "@sis/ui";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 import { ReviewQueue } from "./queue";
 
 export const dynamic = "force-dynamic";

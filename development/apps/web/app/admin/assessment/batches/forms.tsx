@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -93,7 +94,9 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
     <section className={styles.panel} aria-labelledby="stage-batch-heading">
       <div className={styles.panelHeading}>
         <div>
-          <h2 id="stage-batch-heading">Stage batch</h2>
+          <h2 className={staffUi.sectionHeading} id="stage-batch-heading">
+            Stage batch
+          </h2>
           <p>
             Create a staging batch for an active grade mapping and source
             revision, with up to three student entries.
@@ -112,6 +115,7 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
         </p>
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Stage grade batch"
         aria-busy={pending}
         onReset={() => {
@@ -125,10 +129,11 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
       >
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
-            <label htmlFor="batch-mapping">
+            <label className={staffUi.fieldLabel} htmlFor="batch-mapping">
               Mapping ID <span aria-hidden="true">*</span>
             </label>
             <input
+              className={staffUi.control}
               id="batch-mapping"
               name="batch-mapping"
               required
@@ -136,10 +141,11 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
             />
           </div>
           <div className={styles.field}>
-            <label htmlFor="batch-revision">
+            <label className={staffUi.fieldLabel} htmlFor="batch-revision">
               Source revision <span aria-hidden="true">*</span>
             </label>
             <input
+              className={staffUi.control}
               id="batch-revision"
               name="batch-revision"
               required
@@ -174,6 +180,7 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
                   Student reference {n}
                 </label>
                 <input
+                  className={staffUi.control}
                   id={`batch-line-${n}-ref`}
                   name={`batch-line-${n}-ref`}
                   maxLength={64}
@@ -188,6 +195,7 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
                   Raw mark {n}
                 </label>
                 <input
+                  className={staffUi.control}
                   id={`batch-line-${n}-mark`}
                   name={`batch-line-${n}-mark`}
                   type="number"
@@ -199,7 +207,11 @@ export function BatchForms({ canStage = false }: { canStage?: boolean }) {
           ))}
         </fieldset>
         <div className={styles.actions}>
-          <button type="submit" disabled={pending || !canStage}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            disabled={pending || !canStage}
+          >
             {pending ? "Staging…" : "Stage batch"}
           </button>
           <button
@@ -234,6 +246,7 @@ export function SubmitBatchButton({ batchId }: { batchId: string }) {
         <ErrorSummary title="The batch was not submitted" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Submit batch for moderation"
         onSubmit={(e) => {
           e.preventDefault();
@@ -275,20 +288,20 @@ export function SubmitBatchButton({ batchId }: { batchId: string }) {
             });
         }}
       >
-        <p>
+        <p className={staffUi.formField}>
           <input
             id="submit-batch-confirm"
             name="submit-batch-confirm"
             type="checkbox"
             value="yes"
           />{" "}
-          <label htmlFor="submit-batch-confirm">
+          <label className={staffUi.fieldLabel} htmlFor="submit-batch-confirm">
             I confirm that I have reviewed the stated evidence and make this
             submission within my assigned authority.
           </label>
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Submitting…" : "Submit for moderation"}
           </button>
         </p>
@@ -316,6 +329,7 @@ export function ValidateBatchButton({ batchId }: { batchId: string }) {
       ) : null}
       <p>
         <button
+          className={staffUi.button}
           type="button"
           disabled={pending}
           onClick={() => {

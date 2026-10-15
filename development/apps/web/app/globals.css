@@ -100,3 +100,11 @@ html {
 .globalSkip:focus {
   top: var(--space-4);
 }
+
+/* Native controls share the interface font; route-specific classes own layout. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

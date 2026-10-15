@@ -1,9 +1,10 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeFindingView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
 import { FindingTransitionForm } from "../forms";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,10 @@ export default async function FindingDetailPage({
             severity="warning"
             title="Finding unavailable"
             message="This finding needs queue authority, or it does not exist in your lane."
-            action={{ label: "Validation queue", href: "/admin/assessment/findings" }}
+            action={{
+              label: "Validation queue",
+              href: "/admin/assessment/findings",
+            }}
           />
         </main>
       </div>
@@ -55,16 +59,14 @@ export default async function FindingDetailPage({
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>
-          Finding · {item.code}
-        </h1>
+        <h1 className={styles.title}>Finding · {item.code}</h1>
         <p>
           <Link href="/admin/assessment/findings">Validation queue</Link> ·{" "}
           <Link href={`/admin/assessment/batches/${item.batchId}`}>
             Source batch
           </Link>
         </p>
-        <dl>
+        <dl className={staffUi.factGrid}>
           <dt>Code</dt>
           <dd>{item.code}</dd>
           <dt>Lane</dt>
@@ -82,12 +84,14 @@ export default async function FindingDetailPage({
           <dt>Recorded</dt>
           <dd>{item.createdAt}</dd>
         </dl>
-        <h2>Examinations triage</h2>
-        <p>
-          Acknowledging, resolving or dismissing records a queue decision
-          only. Staged marks stay exactly as captured.
-        </p>
-        <FindingTransitionForm findingId={item.id} version={item.version} />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Examinations triage</h2>
+          <p>
+            Acknowledging, resolving or dismissing records a queue decision
+            only. Staged marks stay exactly as captured.
+          </p>
+          <FindingTransitionForm findingId={item.id} version={item.version} />
+        </section>
       </main>
     </div>
   );

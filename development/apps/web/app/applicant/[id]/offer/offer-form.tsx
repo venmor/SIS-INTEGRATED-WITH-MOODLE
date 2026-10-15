@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "../../applicant.module.css";
+
 import { useState } from "react";
 import type { ApplicantOfferView } from "@sis/contracts";
 import { ErrorSummary, Notice } from "@sis/ui";
@@ -31,7 +33,9 @@ const DECLARATIONS = [
 
 export function OfferForm({ offer }: { offer: ApplicantOfferView }) {
   const [step, setStep] = useState<"choose" | "accept" | "decline">("choose");
-  const [errors, setErrors] = useState<Array<{ fieldId: string; message: string }>>([]);
+  const [errors, setErrors] = useState<
+    Array<{ fieldId: string; message: string }>
+  >([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -110,6 +114,7 @@ export function OfferForm({ offer }: { offer: ApplicantOfferView }) {
       ) : null}
       {step === "accept" ? (
         <form
+          className={styles.form}
           aria-label="Confirm acceptance of the admission offer"
           onSubmit={(e) => {
             e.preventDefault();
@@ -126,7 +131,10 @@ export function OfferForm({ offer }: { offer: ApplicantOfferView }) {
             condition or deadline can affect registration where the condition
             requires it.
           </p>
-          <p>You will then complete required onboarding actions. Acceptance does not yet mean you are registered for classes.</p>
+          <p>
+            You will then complete required onboarding actions. Acceptance does
+            not yet mean you are registered for classes.
+          </p>
           <fieldset>
             <legend>Acceptance declarations (all required)</legend>
             {DECLARATIONS.map((declaration) => (
@@ -162,6 +170,7 @@ export function OfferForm({ offer }: { offer: ApplicantOfferView }) {
       ) : null}
       {step === "decline" ? (
         <form
+          className={styles.form}
           aria-label="Confirm decline of the admission offer"
           onSubmit={(e) => {
             e.preventDefault();

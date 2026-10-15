@@ -7,26 +7,30 @@
   display: grid;
   grid-template-columns: 19rem minmax(0, 1fr);
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--staff-canvas);
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   padding: var(--space-5) var(--space-3) var(--space-6);
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--staff-sidebar);
   color: var(--white);
   border-right: 1px solid var(--staff-sidebar-border);
 }
 
 .brand {
+  flex-shrink: 0;
   padding: 0 var(--space-2);
 }
 .brand a {
@@ -66,6 +70,7 @@
 }
 
 .contextSwitch {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -148,6 +153,7 @@
 }
 
 .account {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -193,9 +199,15 @@
   min-width: 0;
 }
 .content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--staff-canvas);
 }
 .topbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -430,5 +442,49 @@
 @media (prefers-reduced-motion: reduce) {
   .nav a {
     transition: none;
+  }
+}
+
+.desktopMenu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #659480 transparent;
+}
+.desktopMenu:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+.main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+@media (max-width: 900px) {
+  .shell {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+  .sidebar {
+    min-height: 0;
+  }
+  .content {
+    height: auto;
+    overflow: visible;
+  }
+  .main {
+    flex: initial;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+  .desktopMenu {
+    display: none;
   }
 }

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ErrorSummary, Notice } from "@sis/ui";
+import { Card, ErrorSummary, Notice } from "@sis/ui";
 import { formatMinor } from "../../../../lib/money";
 import styles from "../../../applicant/applicant.module.css";
+import task from "../../student.module.css";
 
 interface FieldError {
   fieldId: string;
@@ -125,103 +126,107 @@ export function PayForms({ initial }: { initial: PayInitial }) {
           message={`Request ${initial.openReference} (${initial.openStatus}) is still open. Do not pay again until its status is updated.`}
         />
       ) : null}
-      <h2>Make a payment (simulated)</h2>
-      <p className={styles.muted}>
-        Amount due: {formatMinor(initial.currency, initial.outstandingMinor)}
-        {initial.dueAt ? ` · Deadline ${initial.dueAt}` : ""}. Paying the full
-        amount meets the current registration payment requirement once Finance
-        confirms and reconciles it. A smaller amount reduces your balance but
-        will not complete clearance without an approved arrangement. This is a
-        labelled demonstration simulator: no real money moves and no card
-        details are entered here.
-      </p>
-      <form
-        aria-label="Initiate a simulated payment"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit("initiate", e.currentTarget);
-        }}
-      >
-        <fieldset>
-          <legend>Payment method (choose one)</legend>
-          {initial.methods.map((method) => (
-            <p key={method.key}>
-              <label htmlFor={`pay-method-${method.key}`}>
-                <input
-                  id={`pay-method-${method.key}`}
-                  name="pay-method"
-                  type="radio"
-                  value={method.key}
-                  required
-                />{" "}
-                {method.label}
-              </label>
-            </p>
-          ))}
-        </fieldset>
-        <p>
-          <label htmlFor="pay-amount">Amount in tambala</label>{" "}
-          <input
-            id="pay-amount"
-            name="pay-amount"
-            type="number"
-            min={1}
-            defaultValue={initial.outstandingMinor}
-            required
-          />
+      <Card title="Make a payment (simulated)">
+        <p className={styles.muted}>
+          Amount due: {formatMinor(initial.currency, initial.outstandingMinor)}
+          {initial.dueAt ? ` · Deadline ${initial.dueAt}` : ""}. Paying the full
+          amount meets the current registration payment requirement once Finance
+          confirms and reconciles it. A smaller amount reduces your balance but
+          will not complete clearance without an approved arrangement. This is a
+          labelled demonstration simulator: no real money moves and no card
+          details are entered here.
         </p>
-        <p>
-          <button type="submit" disabled={pending}>
-            {pending ? "Starting payment…" : "Start simulated payment"}
-          </button>
+        <form
+          className={task.taskForm}
+          aria-label="Initiate a simulated payment"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit("initiate", e.currentTarget);
+          }}
+        >
+          <fieldset>
+            <legend>Payment method (choose one)</legend>
+            {initial.methods.map((method) => (
+              <p key={method.key}>
+                <label htmlFor={`pay-method-${method.key}`}>
+                  <input
+                    id={`pay-method-${method.key}`}
+                    name="pay-method"
+                    type="radio"
+                    value={method.key}
+                    required
+                  />{" "}
+                  {method.label}
+                </label>
+              </p>
+            ))}
+          </fieldset>
+          <p>
+            <label htmlFor="pay-amount">Amount in tambala</label>{" "}
+            <input
+              id="pay-amount"
+              name="pay-amount"
+              type="number"
+              min={1}
+              defaultValue={initial.outstandingMinor}
+              required
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending}>
+              {pending ? "Starting payment…" : "Start simulated payment"}
+            </button>
+          </p>
+        </form>
+      </Card>
+      <Card title="Report a bank or cashier payment">
+        <p className={styles.muted}>
+          Reporting is not paying: Finance matches your reference before
+          anything is confirmed.
         </p>
-      </form>
-      <h2>Report a bank or cashier payment</h2>
-      <p className={styles.muted}>
-        Reporting is not paying: Finance matches your reference before anything
-        is confirmed.
-      </p>
-      <form
-        aria-label="Report an offline payment"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit("report", e.currentTarget);
-        }}
-      >
-        <p>
-          <label htmlFor="report-method">Method</label>{" "}
-          <select id="report-method" name="report-method" required>
-            <option value="">Choose…</option>
-            <option value="BANK_TRANSFER">Bank transfer / deposit</option>
-            <option value="CASHIER">In-person cashier</option>
-          </select>
-        </p>
-        <p>
-          <label htmlFor="report-amount">Amount in tambala</label>{" "}
-          <input
-            id="report-amount"
-            name="report-amount"
-            type="number"
-            min={1}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="report-reference">Bank or cashier reference</label>{" "}
-          <input
-            id="report-reference"
-            name="report-reference"
-            type="text"
-            maxLength={64}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending}>
-            {pending ? "Reporting payment…" : "Report payment"}
-          </button>
-        </p>
-      </form>
+        <form
+          className={task.taskForm}
+          aria-label="Report an offline payment"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit("report", e.currentTarget);
+          }}
+        >
+          <p>
+            <label htmlFor="report-method">Method</label>{" "}
+            <select id="report-method" name="report-method" required>
+              <option value="">Choose…</option>
+              <option value="BANK_TRANSFER">Bank transfer / deposit</option>
+              <option value="CASHIER">In-person cashier</option>
+            </select>
+          </p>
+          <p>
+            <label htmlFor="report-amount">Amount in tambala</label>{" "}
+            <input
+              id="report-amount"
+              name="report-amount"
+              type="number"
+              min={1}
+              required
+            />
+          </p>
+          <p>
+            <label htmlFor="report-reference">Bank or cashier reference</label>{" "}
+            <input
+              id="report-reference"
+              name="report-reference"
+              type="text"
+              maxLength={64}
+              required
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending}>
+              {pending ? "Reporting payment…" : "Report payment"}
+            </button>
+          </p>
+        </form>
+      </Card>
     </>
   );
 }

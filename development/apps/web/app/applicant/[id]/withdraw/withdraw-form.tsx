@@ -1,14 +1,13 @@
 "use client";
 
+import styles from "../../applicant.module.css";
+
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { ActionButton } from "@sis/ui";
 import { ErrorSummary } from "@sis/ui";
 import { Notice } from "@sis/ui";
-import {
-  applicantRequest,
-  errorMessage,
-} from "../../api";
+import { applicantRequest, errorMessage } from "../../api";
 
 interface FieldError {
   fieldId: string;
@@ -85,7 +84,11 @@ export function WithdrawForm({
   }
 
   return (
-    <form onSubmit={onSubmit} aria-label="Withdraw application">
+    <form
+      className={styles.form}
+      onSubmit={onSubmit}
+      aria-label="Withdraw application"
+    >
       {errors.length > 0 ? (
         <ErrorSummary title="The withdrawal was not sent" errors={errors} />
       ) : null}

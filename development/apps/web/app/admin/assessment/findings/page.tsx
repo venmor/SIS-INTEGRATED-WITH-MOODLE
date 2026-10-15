@@ -1,8 +1,9 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { GradeFindingView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -71,43 +72,47 @@ export default async function ValidationQueuePage() {
           <Link href="/">Workspace home</Link> ·{" "}
           <Link href="/admin/assessment/batches">Grade batches</Link>
         </p>
-        <h2>Findings</h2>
-        <DataTable
-          hideTitle
-          title="Validation findings"
-          description="Immutable validation findings with owning units and escalation deadlines."
-          columns={[
-            {
-              heading: "Code",
-              render: (item: GradeFindingView) => item.code,
-            },
-            {
-              heading: "Lane",
-              render: (item: GradeFindingView) => item.lane,
-            },
-            {
-              heading: "State",
-              render: (item: GradeFindingView) => (
-                <StatusChip tone={tone(item.status)}>{item.status}</StatusChip>
-              ),
-            },
-            {
-              heading: "Owner",
-              render: (item: GradeFindingView) => item.ownerUnit ?? "—",
-            },
-            {
-              heading: "Detail",
-              render: (item: GradeFindingView) => (
-                <Link href={`/admin/assessment/findings/${item.id}`}>
-                  Open finding
-                </Link>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No findings in your lane."
-        />
+        <section className={staffUi.panel} aria-label="Finding review">
+          <h2 className={staffUi.sectionHeading}>Findings</h2>
+          <DataTable
+            hideTitle
+            title="Validation findings"
+            description="Immutable validation findings with owning units and escalation deadlines."
+            columns={[
+              {
+                heading: "Code",
+                render: (item: GradeFindingView) => item.code,
+              },
+              {
+                heading: "Lane",
+                render: (item: GradeFindingView) => item.lane,
+              },
+              {
+                heading: "State",
+                render: (item: GradeFindingView) => (
+                  <StatusChip tone={tone(item.status)}>
+                    {item.status}
+                  </StatusChip>
+                ),
+              },
+              {
+                heading: "Owner",
+                render: (item: GradeFindingView) => item.ownerUnit ?? "—",
+              },
+              {
+                heading: "Detail",
+                render: (item: GradeFindingView) => (
+                  <Link href={`/admin/assessment/findings/${item.id}`}>
+                    Open finding
+                  </Link>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No findings in your lane."
+          />
+        </section>
       </main>
     </div>
   );

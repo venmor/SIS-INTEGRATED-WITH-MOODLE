@@ -1,8 +1,9 @@
+import staffUi from "../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { NotificationRecordView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export default async function StaffSignalsPage() {
             message="Escalations and deadline signals for your scope will appear here."
           />
         ) : (
-          <ul>
+          <ul className={staffUi.recordList}>
             {res.items.map((item) => (
               <li key={item.id}>
                 <p>

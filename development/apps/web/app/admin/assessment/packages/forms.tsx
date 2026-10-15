@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,9 +35,11 @@ async function postAssessment(path: string, body: unknown): Promise<unknown> {
 
 function failure(error: unknown): string {
   if (error instanceof Error) {
-    const detail = (error as {
-      detail?: { supportReference?: string; code?: string };
-    }).detail;
+    const detail = (
+      error as {
+        detail?: { supportReference?: string; code?: string };
+      }
+    ).detail;
     return `${error.message}${detail?.supportReference ? ` Support reference: ${detail.supportReference}.` : ""}`;
   }
   return "We could not confirm the result. Check the current state before retrying.";
@@ -67,70 +70,80 @@ export function AssemblePackageForm({
       {errors.length > 0 ? (
         <ErrorSummary title="The package was not assembled" errors={errors} />
       ) : null}
-      <h2>Assemble result package</h2>
-      <form
-        aria-label="Assemble result package"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (pending) return;
-          setPending(true);
-          setErrors([]);
-          setNotice(null);
-          const data = new FormData(e.currentTarget);
-          if (!data.get("assemble-package-confirm")) {
-            setErrors([
-              {
-                fieldId: "assemble-package-confirm",
-                message:
-                  "Confirm that you have reviewed the stated evidence before assembling.",
-              },
-            ]);
-            setPending(false);
-            return;
-          }
-          postAssessment("/packages", {
-            offeringRef,
-            periodCode,
-            declaration:
-              "I confirm that this result package is complete for its offering and period and I submit it for board decision within my assigned authority.",
-            idempotencyKey: crypto.randomUUID(),
-          })
-            .then((out) => {
-              const hash = (out as { packageHash?: string }).packageHash ?? "";
-              setNotice(
-                `Result package assembled. Package hash ${hash.slice(0, 16)}…. The package makes no release; the board decides next.`,
-              );
-              router.refresh();
-            })
-            .catch((error: unknown) => {
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Assemble result package</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Assemble result package"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pending) return;
+            setPending(true);
+            setErrors([]);
+            setNotice(null);
+            const data = new FormData(e.currentTarget);
+            if (!data.get("assemble-package-confirm")) {
               setErrors([
-                { fieldId: "assemble-package-confirm", message: failure(error) },
+                {
+                  fieldId: "assemble-package-confirm",
+                  message:
+                    "Confirm that you have reviewed the stated evidence before assembling.",
+                },
               ]);
-            })
-            .finally(() => {
               setPending(false);
-            });
-        }}
-      >
-        <p>
-          <input
-            id="assemble-package-confirm"
-            name="assemble-package-confirm"
-            type="checkbox"
-            value="yes"
-          />{" "}
-          <label htmlFor="assemble-package-confirm">
-            I confirm that the approved results, moderation outcomes and
-            candidate list for {offeringRef} {periodCode} are complete, and I
-            assemble this package within my assigned authority.
-          </label>
-        </p>
-        <p>
-          <button type="submit" disabled={pending}>
-            {pending ? "Assembling…" : "Assemble package"}
-          </button>
-        </p>
-      </form>
+              return;
+            }
+            postAssessment("/packages", {
+              offeringRef,
+              periodCode,
+              declaration:
+                "I confirm that this result package is complete for its offering and period and I submit it for board decision within my assigned authority.",
+              idempotencyKey: crypto.randomUUID(),
+            })
+              .then((out) => {
+                const hash =
+                  (out as { packageHash?: string }).packageHash ?? "";
+                setNotice(
+                  `Result package assembled. Package hash ${hash.slice(0, 16)}…. The package makes no release; the board decides next.`,
+                );
+                router.refresh();
+              })
+              .catch((error: unknown) => {
+                setErrors([
+                  {
+                    fieldId: "assemble-package-confirm",
+                    message: failure(error),
+                  },
+                ]);
+              })
+              .finally(() => {
+                setPending(false);
+              });
+          }}
+        >
+          <p className={staffUi.formField}>
+            <input
+              id="assemble-package-confirm"
+              name="assemble-package-confirm"
+              type="checkbox"
+              value="yes"
+            />{" "}
+            <label
+              className={staffUi.fieldLabel}
+              htmlFor="assemble-package-confirm"
+            >
+              I confirm that the approved results, moderation outcomes and
+              candidate list for {offeringRef} {periodCode} are complete, and I
+              assemble this package within my assigned authority.
+            </label>
+          </p>
+          <p>
+            <button className={staffUi.button} type="submit" disabled={pending}>
+              {pending ? "Assembling…" : "Assemble package"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }
@@ -171,6 +184,7 @@ export function BoardDecisionForm({
         <ErrorSummary title="The decision was not recorded" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Record board decision"
         onSubmit={(e) => {
           e.preventDefault();
@@ -214,9 +228,15 @@ export function BoardDecisionForm({
             });
         }}
       >
-        <p>
-          <label htmlFor="board-decision-to">Board decision</label>{" "}
-          <select id="board-decision-to" name="board-decision-to">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="board-decision-to">
+            Board decision
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="board-decision-to"
+            name="board-decision-to"
+          >
             <option value="APPROVE_FOR_RELEASE">Approve for release</option>
             <option value="RETURN">Return</option>
             <option value="CLARIFY">Request clarification</option>
@@ -225,22 +245,27 @@ export function BoardDecisionForm({
             <option value="REFER">Refer</option>
           </select>
         </p>
-        <p>
-          <label htmlFor="board-decision-reason">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="board-decision-reason">
             Reason (required unless approving for release)
           </label>{" "}
           <input
+            className={staffUi.control}
             id="board-decision-reason"
             name="board-decision-reason"
             type="text"
             autoComplete="off"
           />
         </p>
-        <p>
-          <label htmlFor="board-decision-condition">
+        <p className={staffUi.formField}>
+          <label
+            className={staffUi.fieldLabel}
+            htmlFor="board-decision-condition"
+          >
             Condition (stored for release enforcement, optional)
           </label>{" "}
           <input
+            className={staffUi.control}
             id="board-decision-condition"
             name="board-decision-condition"
             type="text"
@@ -248,7 +273,7 @@ export function BoardDecisionForm({
           />
         </p>
         <p>
-          <button type="submit" disabled={pending}>
+          <button className={staffUi.button} type="submit" disabled={pending}>
             {pending ? "Recording…" : "Record board decision"}
           </button>
         </p>

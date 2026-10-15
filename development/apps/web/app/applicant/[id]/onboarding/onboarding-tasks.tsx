@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import styles from "../../applicant.module.css";
 import type { OnboardingTaskView } from "@sis/contracts";
-import { ActionButton, ErrorSummary, Notice } from "@sis/ui";
+import { ActionButton, ErrorSummary, Notice, StatusChip } from "@sis/ui";
 import { applicantRequest, errorMessage } from "../../api";
 
 // Applicant-owned tasks complete here with a fresh idempotency key per
@@ -15,7 +16,9 @@ export function OnboardingTasks({
   initial: OnboardingTaskView[];
 }) {
   const [tasks, setTasks] = useState(initial);
-  const [errors, setErrors] = useState<Array<{ fieldId: string; message: string }>>([]);
+  const [errors, setErrors] = useState<
+    Array<{ fieldId: string; message: string }>
+  >([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -66,17 +69,37 @@ export function OnboardingTasks({
       {errors.length > 0 ? (
         <ErrorSummary title="The task was not completed" errors={errors} />
       ) : null}
-      <p>
-        {requiredComplete} of {required.length} required tasks complete.
-      </p>
-      <ul>
+      <section
+        className={styles.progressPanel}
+        aria-label="Required task progress"
+      >
+        <p>
+          {requiredComplete} of {required.length} required tasks complete.
+        </p>
+        {required.length > 0 ? (
+          <progress
+            aria-label="Required tasks complete"
+            value={requiredComplete}
+            max={required.length}
+          />
+        ) : null}
+      </section>
+      <ul className={styles.recordList}>
         {tasks.map((task) => (
-          <li key={task.taskKey}>
-            <strong>{task.title}</strong> —{" "}
-            {task.required ? "Required" : "Optional"} · {task.status} ·{" "}
-            {task.owner === "APPLICANT" ? "You" : "Admissions"}
-            {task.status === "COMPLETED" ? null : task.owner ===
-              "APPLICANT" ? (
+          <li key={task.taskKey} className={styles.card}>
+            <div className={styles.recordHeading}>
+              <strong>{task.title}</strong>
+              <StatusChip
+                tone={task.status === "COMPLETED" ? "success" : "neutral"}
+              >
+                {task.status}
+              </StatusChip>
+            </div>
+            <p className={styles.muted}>
+              {task.required ? "Required" : "Optional"} · Responsible:{" "}
+              {task.owner === "APPLICANT" ? "You" : "Admissions"}
+            </p>
+            {task.status === "COMPLETED" ? null : task.owner === "APPLICANT" ? (
               <p>
                 <ActionButton
                   type="button"

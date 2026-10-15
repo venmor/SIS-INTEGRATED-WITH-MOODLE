@@ -59,7 +59,7 @@ All source paths above are relative to development/apps/api/src, development/app
 
 **Authority:** Central TIMETABLE_COORDINATOR at SYSTEM:DEMO-UNIVERSITY with timetable-demo-master-draft prepares/reads. Independent DOMAIN_ADMIN at that exact scope with timetable-demo-master-publish reviews/publishes. Legacy drafts without verifiable proposer person/appointment provenance remain unpublishable.
 
-**Event:** DemoTimetablePublished, durable owner handoff, externalDelivery NONE. Root must report any notification/projection owner work still pending; an outbox event alone proves no external delivery.
+**Event:** DemoTimetablePublished, durable owner handoff, externalDelivery NONE. [NOTIFY-001](TASK-V2-NOTIFY-001.md) now consumes the owned event into actual entitlement-filtered in-system records, with bounded durable progress and replay/concurrency/failure proof. [Notification evidence](../learning/NOTE-V2-NOTIFY-001.md) records the separate owner verification; an outbox event alone still proves no notification creation or external delivery.
 
 ## Task 1 — Prepare real source membership, without adding a parallel allocation system
 
@@ -102,4 +102,4 @@ Checked steps above record implemented behavior and fresh verification. The prei
 
 This packet closes only when genuine synthetic course registrations lead through valid master creation, fresh independent publication and the correct student's current timetable with failure/replacement evidence. An unchanged blocked 12-course preview is an honest separate planning state, not a failure to complete this defined publication scenario.
 
-Broader governed curriculum/offering/section configuration and high-volume membership allocation, notification owner processing where still pending, examination timetables, timetable imports/optimisation, calendar downloads/subscriptions, institutional overrides and production/cloud Moodle rollout retain explicit owner tasks in v2. Do not mark all TASK-101–105 or institutional authority gaps complete. The user's synthetic-policy authorization removes the need for institutional approval of fictional values; it does not permit fake successes or unverified completion claims.
+Broader governed curriculum/offering/section configuration and high-volume membership allocation, external notification delivery, examination timetables, timetable imports/optimisation, calendar downloads/subscriptions, institutional overrides and production/cloud Moodle rollout retain explicit owner tasks in v2. The bounded in-system notification owner is implemented and verified separately under [NOTIFY-001](TASK-V2-NOTIFY-001.md); this does not close the full notification workstream. Do not mark all TASK-101–105 or institutional authority gaps complete. The user's synthetic-policy authorization removes the need for institutional approval of fictional values; it does not permit fake successes or unverified completion claims.

@@ -75,6 +75,7 @@ test("notifications: centre shows notice, read receipt, no mute on mandatory", a
       event: "RESULT_RELEASED",
       title: "Official results released",
       body: "Your official results are available securely in the portal.",
+      actionPath: "/student/results",
       office: "Examinations",
       category: "RESULT",
       mandatory: true,
@@ -92,7 +93,21 @@ test("notifications: centre shows notice, read receipt, no mute on mandatory", a
   await expect(
     page.locator("main").getByText("Official results released").first(),
   ).toBeVisible();
-  await expect(page.locator("main").getByText("Mandatory notice")).toBeVisible();
+  await expect(
+    page.locator("main").getByText("Mandatory notice"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Your official results are available securely in the portal.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.locator("main").getByText("Examinations", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View results", exact: true }),
+  ).toHaveAttribute("href", "/student/results");
   await expect(
     page.locator("main").getByRole("button", { name: "Mute these notices" }),
   ).toHaveCount(0);
@@ -102,7 +117,37 @@ test("notifications: centre shows notice, read receipt, no mute on mandatory", a
   await readButton.focus();
   await expect(readButton).toBeFocused();
   await readButton.click();
-  await expect(page.locator("main").getByText("READ")).toBeVisible();
+  await expect(
+    page.locator("main").getByText("READ", { exact: true }),
+  ).toBeVisible();
+  // A template writer cannot turn the recipient centre into an external
+  // redirect, including protocol-relative destinations.
+  await apiPost(
+    "/records",
+    {
+      idempotencyKey: randomUUID(),
+      templateId: tpl.id as string,
+      event: "RESULT_RELEASED",
+      title: "External action rejected",
+      body: "Open your results through the student portal.",
+      actionPath: "//example.invalid/results",
+      office: "Examinations",
+      category: "RESULT",
+      mandatory: true,
+      recipientAccountId: stu.accountId,
+      dedupeKey: randomUUID(),
+      channels: ["IN_SYSTEM"],
+    },
+    gov,
+  );
+  await page.reload();
+  await expect(
+    page.getByText("External action rejected", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View results", exact: true }),
+  ).toHaveCount(1);
+  await expect(page.locator('a[href^="//"]')).toHaveCount(0);
   await noOverflow(page);
   await page.context().clearCookies();
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);

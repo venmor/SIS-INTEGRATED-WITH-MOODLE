@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,6 +82,7 @@ export function ResolveForm({ caseId }: { caseId: string }) {
         <ErrorSummary title="The case was not updated" errors={errors} />
       ) : null}
       <form
+        className={staffUi.form}
         aria-label="Resolve reconciliation case"
         onSubmit={(e) => {
           e.preventDefault();
@@ -102,31 +104,44 @@ export function ResolveForm({ caseId }: { caseId: string }) {
           );
         }}
       >
-        <p>
-          <label htmlFor="resolve-action">Action</label>{" "}
-          <select id="resolve-action" name="resolve-action" required>
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="resolve-action">
+            Action
+          </label>{" "}
+          <select
+            className={staffUi.control}
+            id="resolve-action"
+            name="resolve-action"
+            required
+          >
             <option value="">Choose…</option>
             <option value="MATCH_CONFIRM">
               Confirm at the provider evidence amount
             </option>
-            <option value="MARK_DUPLICATE">Mark duplicate (no money moves)</option>
+            <option value="MARK_DUPLICATE">
+              Mark duplicate (no money moves)
+            </option>
             <option value="ESCALATE">Escalate for bank trace</option>
           </select>
         </p>
-        <p>
-          <label htmlFor="resolve-amount">
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="resolve-amount">
             Confirmed amount in tambala (match only)
           </label>{" "}
           <input
+            className={staffUi.control}
             id="resolve-amount"
             name="resolve-amount"
             type="number"
             min={1}
           />
         </p>
-        <p>
-          <label htmlFor="resolve-note">Officer note</label>{" "}
+        <p className={staffUi.formField}>
+          <label className={staffUi.fieldLabel} htmlFor="resolve-note">
+            Officer note
+          </label>{" "}
           <textarea
+            className={staffUi.control}
             id="resolve-note"
             name="resolve-note"
             rows={3}
@@ -134,7 +149,11 @@ export function ResolveForm({ caseId }: { caseId: string }) {
           />
         </p>
         <p>
-          <button type="submit" disabled={pending !== null}>
+          <button
+            className={staffUi.button}
+            type="submit"
+            disabled={pending !== null}
+          >
             {pending ? "Updating case…" : "Resolve case"}
           </button>
         </p>

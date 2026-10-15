@@ -9,7 +9,6 @@ import { formatLusaka } from "../../lib/time";
 import { SearchForm } from "./search-form";
 import { availabilityText } from "./availability";
 import type { CataloguePage } from "@sis/contracts";
-import { PublicHeader } from "../public-header";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +139,6 @@ export default async function DiscoverPage({
   const showPager = page !== null && page.total > page.take;
   return (
     <>
-      <PublicHeader current="discover" />
       <div className={discovery.page}>
         <main id="main-content" tabIndex={-1} className={discovery.main}>
           <header

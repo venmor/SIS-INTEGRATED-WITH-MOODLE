@@ -1,3 +1,4 @@
+import staffUi from "../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@sis/ui";
@@ -44,7 +45,7 @@ export default async function FinanceWorkspacePage() {
   if (!summary.ok)
     return (
       <div className={styles.page}>
-        <main className={styles.main}>
+        <main className={`${staffUi.workspace} ${styles.main}`}>
           <PageHeader
             eyebrow="Student Information System"
             title="Finance workspace"
@@ -110,7 +111,7 @@ export default async function FinanceWorkspacePage() {
   ];
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main className={`${staffUi.workspace} ${styles.main}`}>
         <PageHeader
           eyebrow="Student Information System"
           title="Finance workspace"

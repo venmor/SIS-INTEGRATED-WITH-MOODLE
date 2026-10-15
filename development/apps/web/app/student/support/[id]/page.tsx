@@ -1,4 +1,5 @@
 import Link from "next/link";
+import panel from "../../student.module.css";
 import { Notice, PageHeader } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
 import {
@@ -76,7 +77,7 @@ export default async function StudentSupportCasePage({
           </div>
         ) : null}
       </section>
-      <section aria-labelledby="follow-up-title" className="grid gap-3">
+      <section aria-labelledby="follow-up-title" className={panel.recordPanel}>
         <h2 id="follow-up-title" className="text-xl font-semibold">
           Academic follow-up
         </h2>
@@ -98,7 +99,7 @@ export default async function StudentSupportCasePage({
           </div>
         )}
       </section>
-      <section aria-labelledby="messages-title" className="grid gap-4">
+      <section aria-labelledby="messages-title" className={panel.recordPanel}>
         <h2 id="messages-title" className="text-xl font-semibold">
           Secure replies
         </h2>

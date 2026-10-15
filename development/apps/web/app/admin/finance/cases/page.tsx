@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReconCaseView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 

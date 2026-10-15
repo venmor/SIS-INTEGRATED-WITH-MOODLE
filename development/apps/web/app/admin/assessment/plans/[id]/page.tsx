@@ -1,8 +1,9 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { AssessmentPlanView } from "@sis/contracts";
 import { DataTable, Notice, StatusChip } from "@sis/ui";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,16 @@ export default async function AssessmentPlanDetailPage({
           <h1 className={styles.title}>Assessment plan</h1>
           <Notice
             severity="warning"
-            title={!result.ok && (result.status === 401 || result.status === 403) ? "Restricted area" : "Plan unavailable"}
+            title={
+              !result.ok && (result.status === 401 || result.status === 403)
+                ? "Restricted area"
+                : "Plan unavailable"
+            }
             message="This plan needs assessment authority, or it does not exist in your scope."
-            action={{ label: "Assessment plans", href: "/admin/assessment/plans" }}
+            action={{
+              label: "Assessment plans",
+              href: "/admin/assessment/plans",
+            }}
           />
         </main>
       </div>
@@ -69,51 +77,65 @@ export default async function AssessmentPlanDetailPage({
           message={`Version v${item.version} is the frozen evidence the approver signs. Approvals supersede; they never edit.`}
         />
         <p>
-          Status <StatusChip tone={item.status === "APPROVED" ? "success" : item.status === "DRAFT" ? "attention" : "neutral"}>{item.status}</StatusChip> ·
-          Version v{item.version} · Policy {item.policyVersion}
+          Status{" "}
+          <StatusChip
+            tone={
+              item.status === "APPROVED"
+                ? "success"
+                : item.status === "DRAFT"
+                  ? "attention"
+                  : "neutral"
+            }
+          >
+            {item.status}
+          </StatusChip>{" "}
+          · Version v{item.version} · Policy {item.policyVersion}
         </p>
-        <h2>Components</h2>
-        <DataTable
-          hideTitle
-          title="Plan components"
-          description="Component codes with maximum marks, weights, scales and moderation."
-          columns={[
-            {
-              heading: "Code",
-              render: (c: AssessmentPlanView["components"][number]) => (
-                <strong>{c.code}</strong>
-              ),
-            },
-            {
-              heading: "Max mark",
-              numeric: true,
-              render: (c: AssessmentPlanView["components"][number]) =>
-                String(c.maxMark),
-            },
-            {
-              heading: "Weight",
-              numeric: true,
-              render: (c: AssessmentPlanView["components"][number]) =>
-                String(c.weight),
-            },
-            {
-              heading: "Scale",
-              render: (c: AssessmentPlanView["components"][number]) => c.scaleRef,
-            },
-            {
-              heading: "Moderation",
-              render: (c: AssessmentPlanView["components"][number]) =>
-                c.moderationRequired ? "Required" : "Not required",
-            },
-            {
-              heading: "Component ID",
-              render: (c: AssessmentPlanView["components"][number]) => c.id,
-            },
-          ]}
-          rows={item.components}
-          keyOf={(c) => c.id}
-          emptyText="No components on this plan."
-        />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Components</h2>
+          <DataTable
+            hideTitle
+            title="Plan components"
+            description="Component codes with maximum marks, weights, scales and moderation."
+            columns={[
+              {
+                heading: "Code",
+                render: (c: AssessmentPlanView["components"][number]) => (
+                  <strong>{c.code}</strong>
+                ),
+              },
+              {
+                heading: "Max mark",
+                numeric: true,
+                render: (c: AssessmentPlanView["components"][number]) =>
+                  String(c.maxMark),
+              },
+              {
+                heading: "Weight",
+                numeric: true,
+                render: (c: AssessmentPlanView["components"][number]) =>
+                  String(c.weight),
+              },
+              {
+                heading: "Scale",
+                render: (c: AssessmentPlanView["components"][number]) =>
+                  c.scaleRef,
+              },
+              {
+                heading: "Moderation",
+                render: (c: AssessmentPlanView["components"][number]) =>
+                  c.moderationRequired ? "Required" : "Not required",
+              },
+              {
+                heading: "Component ID",
+                render: (c: AssessmentPlanView["components"][number]) => c.id,
+              },
+            ]}
+            rows={item.components}
+            keyOf={(c) => c.id}
+            emptyText="No components on this plan."
+          />
+        </section>
       </main>
     </div>
   );

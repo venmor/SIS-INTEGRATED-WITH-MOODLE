@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../../staff-workspace.module.css";
 
 import { useState } from "react";
 import type {
@@ -8,7 +9,7 @@ import type {
 } from "@sis/contracts";
 import { Empty, ErrorSummary, Notice, Status } from "@sis/ui";
 import { formatLusaka } from "../../../../../lib/time";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 import caseStyles from "./case.module.css";
 
 interface FieldError {
@@ -72,7 +73,10 @@ function EvidenceFacts({
   values: Record<string, string>;
 }) {
   return (
-    <section className={caseStyles.evidenceGroup} aria-labelledby={`evidence-${label.toLowerCase()}`}>
+    <section
+      className={caseStyles.evidenceGroup}
+      aria-labelledby={`evidence-${label.toLowerCase()}`}
+    >
       <h3 id={`evidence-${label.toLowerCase()}`}>{label}</h3>
       {Object.keys(values).length === 0 ? (
         <p className={caseStyles.emptyLine}>No submitted information.</p>
@@ -126,8 +130,7 @@ export function ReviewCase({
           cache: "no-store",
         }),
       ]);
-      if (evRes.ok)
-        setCurrent((await evRes.json()) as ReviewEvidenceView);
+      if (evRes.ok) setCurrent((await evRes.json()) as ReviewEvidenceView);
       if (fRes.ok) {
         const data = (await fRes.json()) as { items: ReviewFindingView[] };
         setFindings(data.items);
@@ -219,7 +222,9 @@ export function ReviewCase({
         <div className={caseStyles.summaryHeading}>
           <div>
             <p className={caseStyles.reference}>{current.reference}</p>
-            <h2>{current.offering.programmeName}</h2>
+            <h2 className={staffUi.sectionHeading}>
+              {current.offering.programmeName}
+            </h2>
             <p className={caseStyles.summaryMeta}>
               {current.offering.programmeCode} · {current.offering.intake}
             </p>
@@ -268,11 +273,16 @@ export function ReviewCase({
         message="Assigned staff only. Access is audited."
       />
 
-      <section className={caseStyles.evidenceReview} aria-labelledby="evidence-review-heading">
+      <section
+        className={caseStyles.evidenceReview}
+        aria-labelledby="evidence-review-heading"
+      >
         <div className={caseStyles.sectionHeading}>
           <div>
             <p className={caseStyles.sectionEyebrow}>Submitted application</p>
-            <h2 id="evidence-review-heading">Evidence review</h2>
+            <h2 className={staffUi.sectionHeading} id="evidence-review-heading">
+              Evidence review
+            </h2>
           </div>
           <p className={caseStyles.sectionMeta}>
             Version {current.version} · {current.requirementVersion}
@@ -283,7 +293,10 @@ export function ReviewCase({
         <EvidenceFacts label="Contact" values={contact} />
         <EvidenceFacts label="Qualifications" values={qualifications} />
 
-        <section className={caseStyles.evidenceGroup} aria-labelledby="evidence-documents">
+        <section
+          className={caseStyles.evidenceGroup}
+          aria-labelledby="evidence-documents"
+        >
           <h3 id="evidence-documents">Documents</h3>
           {current.documents.length === 0 ? (
             <Empty
@@ -302,7 +315,9 @@ export function ReviewCase({
                   <div className={caseStyles.documentState}>
                     <span>{document.status}</span>
                     <span>v{document.version}</span>
-                    {!document.canPreview ? <span>Preview unavailable</span> : null}
+                    {!document.canPreview ? (
+                      <span>Preview unavailable</span>
+                    ) : null}
                   </div>
                 </li>
               ))}
@@ -312,8 +327,13 @@ export function ReviewCase({
       </section>
 
       {isReviewer ? (
-        <section className={caseStyles.taskRegion} aria-labelledby="findings-heading">
-            <h2 id="findings-heading">Findings</h2>
+        <section
+          className={caseStyles.taskRegion}
+          aria-labelledby="findings-heading"
+        >
+          <h2 className={staffUi.sectionHeading} id="findings-heading">
+            Findings
+          </h2>
           {findings.length === 0 ? (
             <Empty
               caseVariant="nothing"
@@ -321,7 +341,7 @@ export function ReviewCase({
               message="No review findings recorded."
             />
           ) : (
-            <ul>
+            <ul className={staffUi.recordList}>
               {findings.map((f) => (
                 <li key={f.id}>
                   <strong>
@@ -335,6 +355,7 @@ export function ReviewCase({
             </ul>
           )}
           <form
+            className={staffUi.form}
             aria-label="Record a review finding"
             onSubmit={(e) => {
               e.preventDefault();
@@ -352,19 +373,31 @@ export function ReviewCase({
               );
             }}
           >
-            <p>
-              <label htmlFor="finding-kind">Kind</label>{" "}
-              <select id="finding-kind" name="kind" defaultValue="NOTE">
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="finding-kind">
+                Kind
+              </label>{" "}
+              <select
+                className={staffUi.control}
+                id="finding-kind"
+                name="kind"
+                defaultValue="NOTE"
+              >
                 <option value="COMPLETENESS">Completeness</option>
-                <option value="DECLARATION_MISMATCH">Declaration mismatch</option>
+                <option value="DECLARATION_MISMATCH">
+                  Declaration mismatch
+                </option>
                 <option value="DOCUMENT_QUALITY">Document quality</option>
                 <option value="PAYMENT_STATUS">Payment status</option>
                 <option value="NOTE">Note</option>
               </select>
             </p>
-            <p>
-              <label htmlFor="finding-subject">Subject</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="finding-subject">
+                Subject
+              </label>{" "}
               <input
+                className={staffUi.control}
                 id="finding-subject"
                 name="subject"
                 type="text"
@@ -372,9 +405,12 @@ export function ReviewCase({
                 required
               />
             </p>
-            <p>
-              <label htmlFor="finding-detail">Detail</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="finding-detail">
+                Detail
+              </label>{" "}
               <textarea
+                className={staffUi.control}
                 id="finding-detail"
                 name="detail"
                 rows={3}
@@ -382,31 +418,45 @@ export function ReviewCase({
                 required
               />
             </p>
-            <p>
-              <label htmlFor="finding-severity">Severity</label>{" "}
-              <select id="finding-severity" name="severity" defaultValue="INFO">
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="finding-severity">
+                Severity
+              </label>{" "}
+              <select
+                className={staffUi.control}
+                id="finding-severity"
+                name="severity"
+                defaultValue="INFO"
+              >
                 <option value="INFO">Info</option>
                 <option value="ACTION_NEEDED">Action needed</option>
               </select>
             </p>
             <p>
-              <button type="submit" disabled={pending}>
+              <button
+                className={staffUi.button}
+                type="submit"
+                disabled={pending}
+              >
                 {pending ? "Working…" : "Record finding"}
               </button>
             </p>
           </form>
-
-
         </section>
       ) : null}
 
-      <section className={caseStyles.taskRegion} aria-labelledby="recommendation-heading">
-          <h2 id="recommendation-heading">Recommendation</h2>
-          <p className={styles.supporting}>
-            Eligibility and reviewer recommendation. Final decision is separate.
-          </p>
+      <section
+        className={caseStyles.taskRegion}
+        aria-labelledby="recommendation-heading"
+      >
+        <h2 className={staffUi.sectionHeading} id="recommendation-heading">
+          Recommendation
+        </h2>
+        <p className={styles.supporting}>
+          Eligibility and reviewer recommendation. Final decision is separate.
+        </p>
         {current.recommendation ? (
-          <ul>
+          <ul className={staffUi.recordList}>
             <li>
               <strong>
                 {current.recommendation.eligibilityOutcome} ·{" "}
@@ -434,6 +484,7 @@ export function ReviewCase({
 
         {isReviewer ? (
           <form
+            className={staffUi.form}
             aria-label="Record a recommendation"
             onSubmit={(e) => {
               e.preventDefault();
@@ -460,9 +511,12 @@ export function ReviewCase({
               );
             }}
           >
-            <p>
-              <label htmlFor="rec-eligibility">Eligibility outcome</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="rec-eligibility">
+                Eligibility outcome
+              </label>{" "}
               <select
+                className={staffUi.control}
                 id="rec-eligibility"
                 name="eligibilityOutcome"
                 defaultValue="UNDETERMINED"
@@ -472,9 +526,12 @@ export function ReviewCase({
                 <option value="UNDETERMINED">Undetermined</option>
               </select>
             </p>
-            <p>
-              <label htmlFor="rec-decision">Recommendation</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="rec-decision">
+                Recommendation
+              </label>{" "}
               <select
+                className={staffUi.control}
                 id="rec-decision"
                 name="recommendation"
                 defaultValue="NEEDS_INFORMATION"
@@ -492,8 +549,11 @@ export function ReviewCase({
                 "DOCUMENT_QUALITY",
                 "MINIMUM_ELIGIBILITY",
               ].map((criterion) => (
-                <p key={criterion}>
-                  <label htmlFor={`rec-criterion-${criterion}`}>
+                <p className={staffUi.formField} key={criterion}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`rec-criterion-${criterion}`}
+                  >
                     <input
                       id={`rec-criterion-${criterion}`}
                       name="criteria"
@@ -505,9 +565,12 @@ export function ReviewCase({
                 </p>
               ))}
             </fieldset>
-            <p>
-              <label htmlFor="rec-rationale">Rationale</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="rec-rationale">
+                Rationale
+              </label>{" "}
               <textarea
+                className={staffUi.control}
                 id="rec-rationale"
                 name="rationale"
                 rows={3}
@@ -516,7 +579,11 @@ export function ReviewCase({
               />
             </p>
             <p>
-              <button type="submit" disabled={pending}>
+              <button
+                className={staffUi.button}
+                type="submit"
+                disabled={pending}
+              >
                 {pending
                   ? "Working…"
                   : current.recommendation
@@ -529,21 +596,26 @@ export function ReviewCase({
       </section>
 
       {isApprover ? (
-        <section className={caseStyles.taskRegion} aria-labelledby="decision-heading">
-              <h2 id="decision-heading">Decision</h2>
-              <h3>Release decision</h3>
-              <p className={caseStyles.decisionMeta}>
-                {current.offering.intake} · {current.policyVersion} /{" "}
-                {current.requirementVersion}
-                {current.recommendation ? (
-                  <> · Recommendation v{current.recommendation.version}</>
-                ) : (
-                  <> · No recommendation</>
-                )}
-              </p>
-              <p className={styles.supporting}>
-                Released decisions take effect immediately.
-              </p>
+        <section
+          className={caseStyles.taskRegion}
+          aria-labelledby="decision-heading"
+        >
+          <h2 className={staffUi.sectionHeading} id="decision-heading">
+            Decision
+          </h2>
+          <h3>Release decision</h3>
+          <p className={caseStyles.decisionMeta}>
+            {current.offering.intake} · {current.policyVersion} /{" "}
+            {current.requirementVersion}
+            {current.recommendation ? (
+              <> · Recommendation v{current.recommendation.version}</>
+            ) : (
+              <> · No recommendation</>
+            )}
+          </p>
+          <p className={styles.supporting}>
+            Released decisions take effect immediately.
+          </p>
           {current.hasDecision ? (
             <Notice
               severity="info"
@@ -552,6 +624,7 @@ export function ReviewCase({
             />
           ) : null}
           <form
+            className={staffUi.form}
             aria-label="Release a decision"
             onSubmit={(e) => {
               e.preventDefault();
@@ -582,7 +655,9 @@ export function ReviewCase({
               submit(
                 `/${current.applicationId}/decision/release`,
                 {
-                  outcome: String(data.get("outcome") ?? "REQUEST_FURTHER_REVIEW"),
+                  outcome: String(
+                    data.get("outcome") ?? "REQUEST_FURTHER_REVIEW",
+                  ),
                   message: String(data.get("decision-message") ?? ""),
                   acceptBy: (() => {
                     const day = String(data.get("accept-by-day") ?? "");
@@ -597,15 +672,20 @@ export function ReviewCase({
               );
             }}
           >
-            <p>
-              <label htmlFor="release-outcome">Decision outcome</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="release-outcome">
+                Decision outcome
+              </label>{" "}
               <select
+                className={staffUi.control}
                 id="release-outcome"
                 name="outcome"
                 defaultValue="REQUEST_FURTHER_REVIEW"
               >
                 <option value="ADMIT">Admit</option>
-                <option value="ADMIT_WITH_CONDITIONS">Admit with conditions</option>
+                <option value="ADMIT_WITH_CONDITIONS">
+                  Admit with conditions
+                </option>
                 <option value="WAITLIST">Waitlist</option>
                 <option value="REJECT">Reject</option>
                 <option value="REFER_TO_ALTERNATIVE_PROGRAMME">
@@ -618,13 +698,17 @@ export function ReviewCase({
             </p>
             <p className={styles.supporting}>
               Consequences: Admit opens an offer the applicant may accept; Admit
-              with conditions adds the conditions below; Waitlist and Refer keep the
-              applicant informed without a place; Reject closes this application;
-              Request further review returns it to the queue without deciding.
+              with conditions adds the conditions below; Waitlist and Refer keep
+              the applicant informed without a place; Reject closes this
+              application; Request further review returns it to the queue
+              without deciding.
             </p>
-            <p>
-              <label htmlFor="release-message">Authorized message</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="release-message">
+                Authorized message
+              </label>{" "}
               <textarea
+                className={staffUi.control}
                 id="release-message"
                 name="decision-message"
                 rows={3}
@@ -632,38 +716,60 @@ export function ReviewCase({
                 required
               />
             </p>
-            <p>
-              <label htmlFor="accept-by-day">
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="accept-by-day">
                 Offer response deadline (CAT date)
               </label>{" "}
-              <input id="accept-by-day" name="accept-by-day" type="date" required />
+              <input
+                className={staffUi.control}
+                id="accept-by-day"
+                name="accept-by-day"
+                type="date"
+                required
+              />
             </p>
             {[1, 2].map((index) => (
               <fieldset key={index}>
                 <legend>Condition {index} (optional)</legend>
-                <p>
-                  <label htmlFor={`condition-${index}-text`}>Text</label>{" "}
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`condition-${index}-text`}
+                  >
+                    Text
+                  </label>{" "}
                   <input
+                    className={staffUi.control}
                     id={`condition-${index}-text`}
                     name={`condition-${index}-text`}
                     type="text"
                     maxLength={500}
                   />
                 </p>
-                <p>
-                  <label htmlFor={`condition-${index}-detail`}>
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`condition-${index}-detail`}
+                  >
                     Why it is required (optional)
                   </label>{" "}
                   <input
+                    className={staffUi.control}
                     id={`condition-${index}-detail`}
                     name={`condition-${index}-detail`}
                     type="text"
                     maxLength={500}
                   />
                 </p>
-                <p>
-                  <label htmlFor={`condition-${index}-owner`}>Responsible</label>{" "}
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`condition-${index}-owner`}
+                  >
+                    Responsible
+                  </label>{" "}
                   <select
+                    className={staffUi.control}
                     id={`condition-${index}-owner`}
                     name={`condition-${index}-owner`}
                     defaultValue="APPLICANT"
@@ -674,18 +780,25 @@ export function ReviewCase({
                     <option value="OTHER">Other office</option>
                   </select>
                 </p>
-                <p>
-                  <label htmlFor={`condition-${index}-day`}>
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`condition-${index}-day`}
+                  >
                     Deadline (CAT date)
                   </label>{" "}
                   <input
+                    className={staffUi.control}
                     id={`condition-${index}-day`}
                     name={`condition-${index}-day`}
                     type="date"
                   />
                 </p>
-                <p>
-                  <label htmlFor={`condition-${index}-blocks`}>
+                <p className={staffUi.formField}>
+                  <label
+                    className={staffUi.fieldLabel}
+                    htmlFor={`condition-${index}-blocks`}
+                  >
                     <input
                       id={`condition-${index}-blocks`}
                       name={`condition-${index}-blocks`}
@@ -697,8 +810,11 @@ export function ReviewCase({
                 </p>
               </fieldset>
             ))}
-            <p>
-              <label htmlFor="release-declaration">
+            <p className={staffUi.formField}>
+              <label
+                className={staffUi.fieldLabel}
+                htmlFor="release-declaration"
+              >
                 <input
                   id="release-declaration"
                   name="release-declaration"
@@ -712,6 +828,7 @@ export function ReviewCase({
             </p>
             <p>
               <button
+                className={staffUi.button}
                 type="submit"
                 disabled={pending || current.hasDecision}
                 title={
@@ -729,20 +846,29 @@ export function ReviewCase({
               </p>
             ) : null}
           </form>
-
-
         </section>
       ) : isReviewer ? (
-        <section className={caseStyles.roleBoundary} aria-labelledby="decision-heading">
-          <h2 id="decision-heading">Decision</h2>
+        <section
+          className={caseStyles.roleBoundary}
+          aria-labelledby="decision-heading"
+        >
+          <h2 className={staffUi.sectionHeading} id="decision-heading">
+            Decision
+          </h2>
           <p>Separate approver.</p>
         </section>
       ) : null}
 
       {isReviewer ? (
-        <section className={caseStyles.taskRegion} aria-labelledby="clarification-heading">
-            <h2 id="clarification-heading">Clarification</h2>
+        <section
+          className={caseStyles.taskRegion}
+          aria-labelledby="clarification-heading"
+        >
+          <h2 className={staffUi.sectionHeading} id="clarification-heading">
+            Clarification
+          </h2>
           <form
+            className={staffUi.form}
             aria-label="Raise a clarification request"
             onSubmit={(e) => {
               e.preventDefault();
@@ -763,9 +889,12 @@ export function ReviewCase({
               );
             }}
           >
-            <p>
-              <label htmlFor="clarify-question">Exact items needed</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="clarify-question">
+                Exact items needed
+              </label>{" "}
               <textarea
+                className={staffUi.control}
                 id="clarify-question"
                 name="question"
                 rows={3}
@@ -773,9 +902,12 @@ export function ReviewCase({
                 required
               />
             </p>
-            <p>
-              <label htmlFor="clarify-days">Response deadline (days)</label>{" "}
+            <p className={staffUi.formField}>
+              <label className={staffUi.fieldLabel} htmlFor="clarify-days">
+                Response deadline (days)
+              </label>{" "}
               <input
+                className={staffUi.control}
                 id="clarify-days"
                 name="deadlineDays"
                 type="number"
@@ -785,13 +917,15 @@ export function ReviewCase({
               />
             </p>
             <p>
-              <button type="submit" disabled={pending}>
+              <button
+                className={staffUi.button}
+                type="submit"
+                disabled={pending}
+              >
                 {pending ? "Working…" : "Raise clarification"}
               </button>
             </p>
           </form>
-
-
         </section>
       ) : null}
 
@@ -799,7 +933,9 @@ export function ReviewCase({
         className={caseStyles.historyRegion}
         aria-labelledby="case-history-heading"
       >
-        <h2 id="case-history-heading">Case history</h2>
+        <h2 className={staffUi.sectionHeading} id="case-history-heading">
+          Case history
+        </h2>
         {history.length === 0 ? (
           <Empty
             caseVariant="nothing"
@@ -835,7 +971,12 @@ export function ReviewCase({
           className={caseStyles.correctionsRegion}
           aria-labelledby="pending-corrections-heading"
         >
-          <h2 id="pending-corrections-heading">Pending corrections</h2>
+          <h2
+            className={staffUi.sectionHeading}
+            id="pending-corrections-heading"
+          >
+            Pending corrections
+          </h2>
           {current.pendingCorrections.length === 0 ? (
             <Empty
               caseVariant="nothing"
@@ -848,21 +989,29 @@ export function ReviewCase({
                 <li key={correction.id}>
                   <div className={caseStyles.correctionHeading}>
                     <strong>
-                      {fieldLabel(correction.section)} · {fieldLabel(correction.field)}
+                      {fieldLabel(correction.section)} ·{" "}
+                      {fieldLabel(correction.field)}
                     </strong>
                     <span>{formatLusaka(correction.createdAt)}</span>
                   </div>
                   <p>{correction.reason}</p>
                   <form
+                    className={staffUi.form}
                     aria-label={`Decide correction ${correction.section} ${correction.field}`}
                     onSubmit={(event) => {
                       event.preventDefault();
                       decide(correction.id, true, event.currentTarget);
                     }}
                   >
-                    <p>
-                      <label htmlFor={`note-${correction.id}`}>Decision note</label>
+                    <p className={staffUi.formField}>
+                      <label
+                        className={staffUi.fieldLabel}
+                        htmlFor={`note-${correction.id}`}
+                      >
+                        Decision note
+                      </label>
                       <input
+                        className={staffUi.control}
                         id={`note-${correction.id}`}
                         name={`note-${correction.id}`}
                         type="text"
@@ -870,10 +1019,15 @@ export function ReviewCase({
                       />
                     </p>
                     <div className={caseStyles.correctionActions}>
-                      <button type="submit" disabled={pending}>
+                      <button
+                        className={staffUi.button}
+                        type="submit"
+                        disabled={pending}
+                      >
                         {pending ? "Working…" : "Approve correction"}
                       </button>
                       <button
+                        className={staffUi.button}
                         type="button"
                         disabled={pending}
                         onClick={(event) => {
@@ -896,7 +1050,6 @@ export function ReviewCase({
           )}
         </section>
       ) : null}
-
     </div>
   );
 }

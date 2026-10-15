@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ErrorSummary, Notice } from "@sis/ui";
+import styles from "../student.module.css";
+import { Card, ErrorSummary, Notice } from "@sis/ui";
 
 interface FieldError {
   fieldId: string;
   message: string;
 }
 
-async function postRegistration(
-  path: string,
-  body: unknown,
-): Promise<unknown> {
+async function postRegistration(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`/api/registration${path}`, {
     method: "POST",
     headers: {
@@ -70,7 +68,13 @@ export function ChangeForms() {
       // request appears without a manual reload.
       router.refresh();
     } catch (error) {
-      setErrors([{ fieldId: "course-change", message: errorText(error) }]);
+      setErrors([
+        {
+          fieldId:
+            form.querySelector<HTMLInputElement>("input[id]")?.id ?? "add-code",
+          message: errorText(error),
+        },
+      ]);
     } finally {
       setPending(null);
     }
@@ -84,134 +88,141 @@ export function ChangeForms() {
       {errors.length > 0 ? (
         <ErrorSummary title="The change was not recorded" errors={errors} />
       ) : null}
-      <h2>Request an addition</h2>
-      <form
-        aria-label="Request a course addition"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void submit(
-            "/changes",
-            {
-              kind: "ADD",
-              courseCode: String(data.get("add-code") ?? ""),
-              reason: String(data.get("add-reason") ?? ""),
-              evidenceNote: String(data.get("add-evidence") ?? "") || undefined,
-            },
-            "Addition requested. It takes effect only after approval.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="add-code">Course code</label>{" "}
-          <input
-            id="add-code"
-            name="add-code"
-            type="text"
-            maxLength={16}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="add-reason">Reason</label>{" "}
-          <textarea
-            id="add-reason"
-            name="add-reason"
-            rows={3}
-            maxLength={2000}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="add-evidence">Evidence reference (optional)</label>{" "}
-          <input
-            id="add-evidence"
-            name="add-evidence"
-            type="text"
-            maxLength={500}
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Working…" : "Request addition"}
-          </button>
-        </p>
-      </form>
-      <h2>Request a drop</h2>
-      <form
-        aria-label="Request a course drop"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void submit(
-            "/changes",
-            {
-              kind: "DROP",
-              courseCode: String(data.get("drop-code") ?? ""),
-              reason: String(data.get("drop-reason") ?? ""),
-            },
-            "Drop requested. It takes effect only after approval.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="drop-code">Course code</label>{" "}
-          <input
-            id="drop-code"
-            name="drop-code"
-            type="text"
-            maxLength={16}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="drop-reason">Reason</label>{" "}
-          <textarea
-            id="drop-reason"
-            name="drop-reason"
-            rows={3}
-            maxLength={2000}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Working…" : "Request drop"}
-          </button>
-        </p>
-      </form>
-      <h2>Join a waitlist</h2>
-      <form
-        aria-label="Join a course waitlist"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void submit(
-            "/waitlist",
-            { courseCode: String(data.get("waitlist-code") ?? "") },
-            "Waitlist place requested.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="waitlist-code">Course code</label>{" "}
-          <input
-            id="waitlist-code"
-            name="waitlist-code"
-            type="text"
-            maxLength={16}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null}>
-            {pending ? "Working…" : "Join waitlist"}
-          </button>
-        </p>
-      </form>
+      <Card title="Request an addition">
+        <form
+          className={styles.taskForm}
+          aria-label="Request a course addition"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void submit(
+              "/changes",
+              {
+                kind: "ADD",
+                courseCode: String(data.get("add-code") ?? ""),
+                reason: String(data.get("add-reason") ?? ""),
+                evidenceNote:
+                  String(data.get("add-evidence") ?? "") || undefined,
+              },
+              "Addition requested. It takes effect only after approval.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p>
+            <label htmlFor="add-code">Course code</label>{" "}
+            <input
+              id="add-code"
+              name="add-code"
+              type="text"
+              maxLength={16}
+              required
+            />
+          </p>
+          <p>
+            <label htmlFor="add-reason">Reason</label>{" "}
+            <textarea
+              id="add-reason"
+              name="add-reason"
+              rows={3}
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p>
+            <label htmlFor="add-evidence">Evidence reference (optional)</label>{" "}
+            <input
+              id="add-evidence"
+              name="add-evidence"
+              type="text"
+              maxLength={500}
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending !== null}>
+              {pending ? "Working…" : "Request addition"}
+            </button>
+          </p>
+        </form>
+      </Card>
+      <Card title="Request a drop">
+        <form
+          className={styles.taskForm}
+          aria-label="Request a course drop"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void submit(
+              "/changes",
+              {
+                kind: "DROP",
+                courseCode: String(data.get("drop-code") ?? ""),
+                reason: String(data.get("drop-reason") ?? ""),
+              },
+              "Drop requested. It takes effect only after approval.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p>
+            <label htmlFor="drop-code">Course code</label>{" "}
+            <input
+              id="drop-code"
+              name="drop-code"
+              type="text"
+              maxLength={16}
+              required
+            />
+          </p>
+          <p>
+            <label htmlFor="drop-reason">Reason</label>{" "}
+            <textarea
+              id="drop-reason"
+              name="drop-reason"
+              rows={3}
+              maxLength={2000}
+              required
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending !== null}>
+              {pending ? "Working…" : "Request drop"}
+            </button>
+          </p>
+        </form>
+      </Card>
+      <Card title="Join a waitlist">
+        <form
+          className={styles.taskForm}
+          aria-label="Join a course waitlist"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void submit(
+              "/waitlist",
+              { courseCode: String(data.get("waitlist-code") ?? "") },
+              "Waitlist place requested.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p>
+            <label htmlFor="waitlist-code">Course code</label>{" "}
+            <input
+              id="waitlist-code"
+              name="waitlist-code"
+              type="text"
+              maxLength={16}
+              required
+            />
+          </p>
+          <p>
+            <button type="submit" disabled={pending !== null}>
+              {pending ? "Working…" : "Join waitlist"}
+            </button>
+          </p>
+        </form>
+      </Card>
     </>
   );
 }

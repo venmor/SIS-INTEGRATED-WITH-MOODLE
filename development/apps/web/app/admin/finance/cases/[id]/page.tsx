@@ -1,9 +1,10 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReconCaseDetailView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { ResolveForm } from "./resolve";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,10 @@ export default async function FinanceCasePage({
             severity="warning"
             title="Case unavailable"
             message="This case needs finance authority, or it does not exist in your scope."
-            action={{ label: "Reconciliation queue", href: "/admin/finance/cases" }}
+            action={{
+              label: "Reconciliation queue",
+              href: "/admin/finance/cases",
+            }}
           />
         </main>
       </div>
@@ -65,38 +69,50 @@ export default async function FinanceCasePage({
           title={kase.safeMessage}
           message={`Provider reference: ${kase.providerRef ?? "unknown"}. The original records below are never edited or deleted.`}
         />
-        <h2>Evidence</h2>
-        <pre>{JSON.stringify(kase.detail, null, 2)}</pre>
-        <h2>Callback history</h2>
-        {kase.callbacks.length === 0 ? (
-          <p>No callbacks recorded for this reference.</p>
-        ) : (
-          <ul>
-            {kase.callbacks.map((callback, index) => (
-              <li key={`${callback.receivedAt}-${index}`}>
-                {callback.status} · {callback.receivedAt}
-              </li>
-            ))}
-          </ul>
-        )}
-        <h2>Allocations on this account</h2>
-        {kase.allocations.length === 0 ? (
-          <p>No allocations yet.</p>
-        ) : (
-          <ul>
-            {kase.allocations.map((allocation, index) => (
-              <li key={`${allocation.chargeCode}-${index}`}>
-                {allocation.chargeCode} — {allocation.amountMinor}
-              </li>
-            ))}
-          </ul>
-        )}
-        {kase.status === "OPEN" || kase.status === "ESCALATED" ? (
-          <>
-            <h2>Resolve</h2>
-            <ResolveForm caseId={kase.id} />
-          </>
-        ) : null}
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Evidence</h2>
+          <pre>{JSON.stringify(kase.detail, null, 2)}</pre>
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Callback history</h2>
+          {kase.callbacks.length === 0 ? (
+            <p className={staffUi.empty}>
+              No callbacks recorded for this reference.
+            </p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {kase.callbacks.map((callback, index) => (
+                <li key={`${callback.receivedAt}-${index}`}>
+                  {callback.status} · {callback.receivedAt}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>
+            Allocations on this account
+          </h2>
+          {kase.allocations.length === 0 ? (
+            <p className={staffUi.empty}>No allocations yet.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {kase.allocations.map((allocation, index) => (
+                <li key={`${allocation.chargeCode}-${index}`}>
+                  {allocation.chargeCode} — {allocation.amountMinor}
+                </li>
+              ))}
+            </ul>
+          )}
+          {kase.status === "OPEN" || kase.status === "ESCALATED" ? (
+            <>
+              <section className={staffUi.panel}>
+                <h2 className={staffUi.sectionHeading}>Resolve</h2>
+                <ResolveForm caseId={kase.id} />
+              </section>
+            </>
+          ) : null}
+        </section>
       </main>
     </div>
   );

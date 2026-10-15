@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { ReviewSchedule } from "@sis/contracts";
 import { Empty } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 import { DecideForm } from "./decide-form";
 
 export const dynamic = "force-dynamic";

@@ -152,9 +152,15 @@ test("student portal: home, contact update, correction request", async ({
   ).toBeVisible();
   await noOverflow(page);
 
-  // Moodle handoff is queued: registration stays valid while sync pends.
+  // Registration remains complete before and after the asynchronous worker
+  // confirms handoff; a fast worker may already have changed Queued to Synced.
   await page.goto("/student/register");
-  await expect(page.getByText(/Moodle handoff: Queued/)).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Registration completed", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: /Moodle handoff: (Queued|Synced)/ }),
+  ).toBeVisible();
   await noOverflow(page);
 
   // Course changes: request an addition, join a waitlist, see history.
@@ -171,8 +177,18 @@ test("student portal: home, contact update, correction request", async ({
   await waitForm.getByLabel("Course code").fill("BUS112");
   await waitForm.getByRole("button", { name: "Join waitlist" }).click();
   await expect(page.getByText("Waitlist place requested.")).toBeVisible();
-  await expect(page.getByText("BUS111")).toBeVisible();
-  await expect(page.getByText("BUS112")).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Change history", exact: true })
+      .getByText("BUS111", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Waitlist", exact: true })
+      .getByText("BUS112", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
   await noOverflow(page);
 
   // Finance invoice: assessed through the real API, read in the portal.

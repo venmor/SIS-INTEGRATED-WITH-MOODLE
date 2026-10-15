@@ -26,5 +26,45 @@
 }
 .page summary {
   cursor: pointer;
+  min-height: 2.75rem;
   padding-block: var(--space-2);
+}
+
+.review {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.review h3 {
+  font-size: var(--font-body);
+  margin-bottom: var(--space-2);
+}
+
+.page {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  gap: 1.25rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.6fr) minmax(0, 1.4fr);
+  gap: 0.65rem 1rem;
+  padding: 1rem;
+  background: #f7f9fa;
+  border: 1px solid #e4e9ed;
+  border-radius: 0.5rem;
+}
+.facts dt,
+.facts dd {
+  margin: 0;
+}
+@media (max-width: 44rem) {
+  .facts {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  .facts dd {
+    margin-bottom: 0.6rem;
+  }
 }

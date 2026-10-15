@@ -1,9 +1,10 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ArrangementView } from "@sis/contracts";
 import { DataTable, Notice, PageHeader, StatusChip } from "@sis/ui";
 import { ArrangementDecide } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -115,41 +116,48 @@ export default async function ArrangementsPage({
           {list.data.total} requests awaiting decision · Showing{" "}
           {list.data.items.length} on this page
         </p>
-        <DataTable
-          title="Awaiting decision"
-          description="Requested terms and reasons. Select one request below for an individual decision."
-          columns={[
-            {
-              heading: "Terms",
-              render: (item) => <strong>{item.terms}</strong>,
-            },
-            { heading: "Reason", render: (item) => item.reason ?? "—" },
-            {
-              heading: "State",
-              render: (item) => (
-                <StatusChip tone="attention">{item.status}</StatusChip>
-              ),
-            },
-          ]}
-          rows={list.data.items}
-          keyOf={(item) => item.id}
-          emptyText="No arrangements awaiting decision."
-        />
-        <nav
-          aria-label="Payment arrangement pages"
-          className="flex flex-wrap gap-4 text-sm font-semibold"
+        <section
+          className={staffUi.panel}
+          aria-label="Arrangement review queue"
         >
-          {cursor ? <Link href={firstPage}>First page</Link> : null}
-          {list.data.nextCursor ? (
-            <Link
-              href={`/admin/finance/arrangements?${new URLSearchParams({ ...(sort ? { sort } : {}), cursor: list.data.nextCursor })}`}
-            >
-              Next page
-            </Link>
-          ) : null}
-        </nav>
-        <h2>Decide (approver only)</h2>
-        <ArrangementDecide arrangements={list.data.items} />
+          <DataTable
+            title="Awaiting decision"
+            description="Requested terms and reasons. Select one request below for an individual decision."
+            columns={[
+              {
+                heading: "Terms",
+                render: (item) => <strong>{item.terms}</strong>,
+              },
+              { heading: "Reason", render: (item) => item.reason ?? "—" },
+              {
+                heading: "State",
+                render: (item) => (
+                  <StatusChip tone="attention">{item.status}</StatusChip>
+                ),
+              },
+            ]}
+            rows={list.data.items}
+            keyOf={(item) => item.id}
+            emptyText="No arrangements awaiting decision."
+          />
+          <nav
+            aria-label="Payment arrangement pages"
+            className="flex flex-wrap gap-4 text-sm font-semibold"
+          >
+            {cursor ? <Link href={firstPage}>First page</Link> : null}
+            {list.data.nextCursor ? (
+              <Link
+                href={`/admin/finance/arrangements?${new URLSearchParams({ ...(sort ? { sort } : {}), cursor: list.data.nextCursor })}`}
+              >
+                Next page
+              </Link>
+            ) : null}
+          </nav>
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Decide (approver only)</h2>
+          <ArrangementDecide arrangements={list.data.items} />
+        </section>
       </main>
     </div>
   );

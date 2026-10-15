@@ -1,7 +1,8 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,10 @@ export default async function DeliveryDetailPage({
             severity="warning"
             title="Delivery unavailable"
             message="This delivery needs integration authority, or it does not exist in your scope."
-            action={{ label: "Event-delivery queue", href: "/admin/integration" }}
+            action={{
+              label: "Event-delivery queue",
+              href: "/admin/integration",
+            }}
           />
         </main>
       </div>
@@ -73,8 +77,10 @@ export default async function DeliveryDetailPage({
           {item.nextRunAt ? ` · Next run ${item.nextRunAt}` : ""} ·{" "}
           {item.lastError ?? "No errors recorded."}
         </p>
-        <h2>Envelope</h2>
-        <pre>{JSON.stringify(item.envelope, null, 2)}</pre>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Envelope</h2>
+          <pre>{JSON.stringify(item.envelope, null, 2)}</pre>
+        </section>
       </main>
     </div>
   );

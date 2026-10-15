@@ -284,3 +284,8 @@
     gap: var(--space-4);
   }
 }
+
+.page { background: #f3f6f7; }
+.searchForm { border-color: #dfe6eb; border-radius: 0.75rem; border-top: 3px solid #006c3f; gap: 1.25rem; }
+.journey { background: #edf5f0; border-color: #cbded1; }
+.pageLink { border-radius: 0.45rem; }

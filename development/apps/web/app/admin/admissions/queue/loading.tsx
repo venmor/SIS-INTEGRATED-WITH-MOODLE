@@ -1,5 +1,5 @@
 import { Skeleton, SkeletonQueue } from "@sis/ui";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export default function AdmissionsQueueLoading() {
   return (

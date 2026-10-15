@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -561,10 +562,11 @@ export function PublicationReview({
       <section className={styles.panel}>
         <div className={styles.heading}>
           <div>
-            <h2>Saved master</h2>
+            <h2 className={staffUi.sectionHeading}>Saved master</h2>
             <p>Select an academic period, then review its saved proposals.</p>
           </div>
           <button
+            className={staffUi.button}
             type="button"
             disabled={
               !recoveryReady ||
@@ -581,6 +583,7 @@ export function PublicationReview({
         <label className={styles.field}>
           Academic period
           <select
+            className={staffUi.control}
             value={periodId}
             disabled={
               !recoveryReady ||
@@ -601,6 +604,7 @@ export function PublicationReview({
         <label className={styles.field}>
           Master proposal
           <select
+            className={staffUi.control}
             value={selectedId}
             disabled={
               !recoveryReady || pending || draftLoading || Boolean(intent)
@@ -620,6 +624,7 @@ export function PublicationReview({
         </label>
         <nav className={styles.actions} aria-label="Saved proposal pages">
           <button
+            className={staffUi.button}
             type="button"
             disabled={
               !recoveryReady ||
@@ -640,6 +645,7 @@ export function PublicationReview({
             Proposal page {draftPages.length} · {drafts.length} shown
           </span>
           <button
+            className={staffUi.button}
             type="button"
             disabled={
               !recoveryReady ||
@@ -659,6 +665,7 @@ export function PublicationReview({
             Older proposals
           </button>
           <button
+            className={staffUi.button}
             type="button"
             disabled={
               !recoveryReady ||
@@ -688,7 +695,9 @@ export function PublicationReview({
           </p>
         )}
         {loading && <p role="status">Checking current sources…</p>}
-        {!drafts.length && <p>No master proposals yet.</p>}
+        {!drafts.length && (
+          <p className={staffUi.empty}>No master proposals yet.</p>
+        )}
         {selected && (
           <>
             <p className={styles.context}>
@@ -698,6 +707,7 @@ export function PublicationReview({
             <label className={styles.field}>
               Course preview
               <select
+                className={staffUi.control}
                 value={course}
                 onChange={(event) => {
                   setCourse(event.target.value);
@@ -754,6 +764,7 @@ export function PublicationReview({
             </ul>
             <nav className={styles.actions} aria-label="Saved session pages">
               <button
+                className={staffUi.button}
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => setPage(currentPage - 1)}
@@ -764,6 +775,7 @@ export function PublicationReview({
                 Page {currentPage} of {pageCount} · {sessions.length} sessions
               </span>
               <button
+                className={staffUi.button}
                 type="button"
                 disabled={currentPage >= pageCount}
                 onClick={() => setPage(currentPage + 1)}
@@ -780,7 +792,9 @@ export function PublicationReview({
             className={styles.panel}
             aria-labelledby="publication-readiness"
           >
-            <h2 id="publication-readiness">Current source checks</h2>
+            <h2 className={staffUi.sectionHeading} id="publication-readiness">
+              Current source checks
+            </h2>
             <p className={styles.context}>
               Master {report.draft.version} · prepared by{" "}
               {report.draft.proposerName} · checked{" "}
@@ -798,7 +812,7 @@ export function PublicationReview({
                   : "Publication blocked"}
             </p>
             {report.currentIssues.length > 0 && (
-              <ul>
+              <ul className={staffUi.recordList}>
                 {report.currentIssues.map((finding, index) => (
                   <li key={`${finding.code}:${index}`}>
                     {findingLabels[finding.code] ??
@@ -835,7 +849,7 @@ export function PublicationReview({
               </span>
             </div>
             <details>
-              <summary>
+              <summary className={staffUi.disclosure}>
                 Activity changes ({report.impact.changes.length})
               </summary>
               <ul className={styles.sessions}>
@@ -884,12 +898,15 @@ export function PublicationReview({
                   </li>
                 ))}
               </ul>
-              {changes.length === 0 && <p>No activity changes.</p>}
+              {changes.length === 0 && (
+                <p className={staffUi.empty}>No activity changes.</p>
+              )}
               <nav
                 className={styles.actions}
                 aria-label="Activity change pages"
               >
                 <button
+                  className={staffUi.button}
                   type="button"
                   disabled={currentImpactPage <= 1}
                   onClick={() => setImpactPage(currentImpactPage - 1)}
@@ -901,6 +918,7 @@ export function PublicationReview({
                   changes
                 </span>
                 <button
+                  className={staffUi.button}
                   type="button"
                   disabled={currentImpactPage >= impactPages}
                   onClick={() => setImpactPage(currentImpactPage + 1)}
@@ -910,7 +928,9 @@ export function PublicationReview({
               </nav>
             </details>
             <details>
-              <summary>Policy and source details</summary>
+              <summary className={staffUi.disclosure}>
+                Policy and source details
+              </summary>
               <p>{report.policyVersion} · fictional rehearsal only.</p>
               <h3>Saved teaching rule</h3>
               <p>
@@ -950,7 +970,7 @@ export function PublicationReview({
                   : "No cross-campus travel pairs configured."}
               </p>
               {report.sources.rule.campusTravelMinutes.length > 0 && (
-                <ul>
+                <ul className={staffUi.recordList}>
                   {report.sources.rule.campusTravelMinutes.map((pair) => (
                     <li key={`${pair.fromCampus}:${pair.toCampus}`}>
                       {pair.fromCampus} to {pair.toCampus} · {pair.minutes}{" "}
@@ -977,7 +997,7 @@ export function PublicationReview({
                   ? `version ${report.sources.calendar.version} · ${report.sources.calendar.startDate} to ${report.sources.calendar.endDate}`
                   : "No versioned calendar is currently configured."}
               </p>
-              <ul>
+              <ul className={staffUi.recordList}>
                 {report.sources.savedUnits.map((unit) => (
                   <li key={unit.id}>
                     {unit.code} · {unit.kind} · {unit.status} ·{" "}
@@ -988,7 +1008,7 @@ export function PublicationReview({
                 ))}
               </ul>
               <details>
-                <summary>
+                <summary className={staffUi.disclosure}>
                   References for shown sessions ({visible.length})
                 </summary>
                 <ul className={styles.sessions}>
@@ -1022,7 +1042,7 @@ export function PublicationReview({
                   {report.sources.currentFingerprint ?? "Unavailable"}
                 </code>
               </p>
-              <ul>
+              <ul className={staffUi.recordList}>
                 {report.limits.map((limit) => (
                   <li key={limit}>{limit}</li>
                 ))}
@@ -1030,7 +1050,7 @@ export function PublicationReview({
             </details>
           </section>
           <section className={styles.panel}>
-            <h2>Independent approval</h2>
+            <h2 className={staffUi.sectionHeading}>Independent approval</h2>
             {currentPublished ? (
               <p>This master is the current published fictional timetable.</p>
             ) : report.ownProposal ? (
@@ -1047,6 +1067,7 @@ export function PublicationReview({
                 <label className={styles.field}>
                   Reason for publication
                   <textarea
+                    className={staffUi.control}
                     required
                     minLength={10}
                     maxLength={500}
@@ -1077,6 +1098,7 @@ export function PublicationReview({
                 <label className={styles.field}>
                   Confirm your password
                   <input
+                    className={staffUi.control}
                     type="password"
                     autoComplete="current-password"
                     required
@@ -1114,7 +1136,7 @@ export function PublicationReview({
             )}
           </section>
           <section className={styles.panel}>
-            <h2>Publication history</h2>
+            <h2 className={staffUi.sectionHeading}>Publication history</h2>
             {report.latestPublication && (
               <p>
                 Current timetable: fictional publication{" "}
@@ -1143,13 +1165,16 @@ export function PublicationReview({
                 ))}
               </ol>
             ) : (
-              <p>No timetable published for this period.</p>
+              <p className={staffUi.empty}>
+                No timetable published for this period.
+              </p>
             )}
             <nav
               className={styles.actions}
               aria-label="Publication history pages"
             >
               <button
+                className={staffUi.button}
                 type="button"
                 disabled={
                   historyPages.length <= 1 ||
@@ -1166,6 +1191,7 @@ export function PublicationReview({
               </button>
               <span aria-live="polite">History page {historyPages.length}</span>
               <button
+                className={staffUi.button}
                 type="button"
                 disabled={
                   !report.olderVersionCursor ||

@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { Notice } from "@sis/ui";
@@ -68,7 +69,12 @@ export function ConnectionValidate() {
   return (
     <>
       <p>
-        <button type="button" disabled={pending} onClick={() => void validate()}>
+        <button
+          className={staffUi.button}
+          type="button"
+          disabled={pending}
+          onClick={() => void validate()}
+        >
           {pending ? "Checking…" : "Test connection"}
         </button>
       </p>

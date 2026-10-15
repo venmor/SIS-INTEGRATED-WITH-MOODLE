@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,11 @@ function failure(error: unknown): string {
 
 // Mapping registry workspace: draft with both identifiers, synthetic
 // test, four-eyes activation. Tests never write mappings.
-export function MappingForms({ readiness }: { readiness?: MoodleWriteReadiness }) {
+export function MappingForms({
+  readiness,
+}: {
+  readiness?: MoodleWriteReadiness;
+}) {
   const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -93,107 +98,170 @@ export function MappingForms({ readiness }: { readiness?: MoodleWriteReadiness }
       {errors.length > 0 ? (
         <ErrorSummary title="The mapping was not updated" errors={errors} />
       ) : null}
-      <h2>Draft mapping</h2>
-      <form
-        aria-label="Draft Moodle mapping"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            "/mappings",
-            {
-              kind: String(data.get("mapping-kind") ?? ""),
-              sisType: String(data.get("mapping-sis-type") ?? ""),
-              sisId: String(data.get("mapping-sis-id") ?? ""),
-              moodleId: String(data.get("mapping-moodle-id") ?? ""),
-            },
-            "Mapping drafted. Run a synthetic test, then have a second officer activate it.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="mapping-kind">Kind</label>{" "}
-          <select id="mapping-kind" name="mapping-kind" required>
-            <option value="">Choose…</option>
-            <option value="SHELL">Course shell</option>
-            <option value="USER">User</option>
-            <option value="ROLE">Role</option>
-            <option value="GROUP">Tutorial group</option>
-            <option value="SECTION">Section</option>
-          </select>
-        </p>
-        <p>
-          <label htmlFor="mapping-sis-type">SIS type</label>{" "}
-          <input id="mapping-sis-type" name="mapping-sis-type" type="text" maxLength={64} required />
-        </p>
-        <p>
-          <label htmlFor="mapping-sis-id">SIS identifier</label>{" "}
-          <input id="mapping-sis-id" name="mapping-sis-id" type="text" maxLength={128} required />
-        </p>
-        <p>
-          <label htmlFor="mapping-moodle-id">Moodle identifier</label>{" "}
-          <input
-            id="mapping-moodle-id"
-            name="mapping-moodle-id"
-            type="text"
-            maxLength={128}
-            required
-          />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null || disabled}>
-            {pending ? "Drafting…" : "Draft mapping"}
-          </button>
-        </p>
-      </form>
-      <h2>Test and activate</h2>
-      <form
-        aria-label="Test Moodle mapping"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/mappings/${String(data.get("mapping-id") ?? "")}/test`,
-            {},
-            "Synthetic test recorded. It writes nothing.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="mapping-id">Mapping ID</label>{" "}
-          <input id="mapping-id" name="mapping-id" type="text" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null || disabled}>
-            {pending ? "Testing…" : "Run synthetic test"}
-          </button>
-        </p>
-      </form>
-      <form
-        aria-label="Activate Moodle mapping"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          void act(
-            `/mappings/${String(data.get("activate-id") ?? "")}/activate`,
-            {},
-            "Mapping activated. A second officer must do this; creators cannot self-activate.",
-            e.currentTarget,
-          );
-        }}
-      >
-        <p>
-          <label htmlFor="activate-id">Mapping ID</label>{" "}
-          <input id="activate-id" name="activate-id" type="text" required />
-        </p>
-        <p>
-          <button type="submit" disabled={pending !== null || disabled}>
-            {pending ? "Activating…" : "Activate mapping"}
-          </button>
-        </p>
-      </form>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Draft mapping</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Draft Moodle mapping"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              "/mappings",
+              {
+                kind: String(data.get("mapping-kind") ?? ""),
+                sisType: String(data.get("mapping-sis-type") ?? ""),
+                sisId: String(data.get("mapping-sis-id") ?? ""),
+                moodleId: String(data.get("mapping-moodle-id") ?? ""),
+              },
+              "Mapping drafted. Run a synthetic test, then have a second officer activate it.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-kind">
+              Kind
+            </label>{" "}
+            <select
+              className={staffUi.control}
+              id="mapping-kind"
+              name="mapping-kind"
+              required
+            >
+              <option value="">Choose…</option>
+              <option value="SHELL">Course shell</option>
+              <option value="USER">User</option>
+              <option value="ROLE">Role</option>
+              <option value="GROUP">Tutorial group</option>
+              <option value="SECTION">Section</option>
+            </select>
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-sis-type">
+              SIS type
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-sis-type"
+              name="mapping-sis-type"
+              type="text"
+              maxLength={64}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-sis-id">
+              SIS identifier
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-sis-id"
+              name="mapping-sis-id"
+              type="text"
+              maxLength={128}
+              required
+            />
+          </p>
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-moodle-id">
+              Moodle identifier
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-moodle-id"
+              name="mapping-moodle-id"
+              type="text"
+              maxLength={128}
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null || disabled}
+            >
+              {pending ? "Drafting…" : "Draft mapping"}
+            </button>
+          </p>
+        </form>
+      </section>
+      <section className={staffUi.panel}>
+        <h2 className={staffUi.sectionHeading}>Test and activate</h2>
+        <form
+          className={staffUi.form}
+          aria-label="Test Moodle mapping"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/mappings/${String(data.get("mapping-id") ?? "")}/test`,
+              {},
+              "Synthetic test recorded. It writes nothing.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="mapping-id">
+              Mapping ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="mapping-id"
+              name="mapping-id"
+              type="text"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null || disabled}
+            >
+              {pending ? "Testing…" : "Run synthetic test"}
+            </button>
+          </p>
+        </form>
+        <form
+          className={staffUi.form}
+          aria-label="Activate Moodle mapping"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            void act(
+              `/mappings/${String(data.get("activate-id") ?? "")}/activate`,
+              {},
+              "Mapping activated. A second officer must do this; creators cannot self-activate.",
+              e.currentTarget,
+            );
+          }}
+        >
+          <p className={staffUi.formField}>
+            <label className={staffUi.fieldLabel} htmlFor="activate-id">
+              Mapping ID
+            </label>{" "}
+            <input
+              className={staffUi.control}
+              id="activate-id"
+              name="activate-id"
+              type="text"
+              required
+            />
+          </p>
+          <p>
+            <button
+              className={staffUi.button}
+              type="submit"
+              disabled={pending !== null || disabled}
+            >
+              {pending ? "Activating…" : "Activate mapping"}
+            </button>
+          </p>
+        </form>
+      </section>
     </>
   );
 }

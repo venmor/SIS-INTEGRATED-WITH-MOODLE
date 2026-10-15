@@ -1,3 +1,4 @@
+import staffUi from "../../../../staff-workspace.module.css";
 import Link from "next/link";
 import type { ResultPublicationWorkspace } from "@sis/contracts";
 import { Notice, PageHeader } from "@sis/ui";
@@ -15,7 +16,7 @@ export default async function AmendmentPage({
   >(`/amendments/${id}`, `/admin/assessment/publications/amendments/${id}`);
   const item = workspace.data;
   return (
-    <main>
+    <main className={staffUi.workspace}>
       <PageHeader
         eyebrow="Examinations"
         title="Review result amendment"
@@ -35,7 +36,7 @@ export default async function AmendmentPage({
         />
       ) : (
         <>
-          <dl>
+          <dl className={staffUi.factGrid}>
             <dt>Reason</dt>
             <dd>{item.reason}</dd>
             <dt>Evidence reference</dt>

@@ -121,10 +121,9 @@ export default async function PayPage({
           openStatus: open?.status ?? null,
         }}
       />
-      <Card title="Your payment requests">
+      <Card>
         <DataTable
-          hideTitle
-          title="Payment requests"
+          title="Your payment requests"
           description="Every attempt with its state. An open request blocks a second attempt."
           columns={[
             {

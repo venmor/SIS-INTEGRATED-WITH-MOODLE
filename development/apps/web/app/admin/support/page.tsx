@@ -1,3 +1,4 @@
+import staffUi from "../staff-workspace.module.css";
 import Link from "next/link";
 import { Notice, PageHeader } from "@sis/ui";
 import { formatLusaka } from "../../../lib/time";
@@ -66,7 +67,9 @@ export default async function AssignedSupportPage({
     loadSupport<WorkloadOverview>("assigned/overview", "/admin/support"),
   ]);
   return (
-    <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-8">
+    <main
+      className={`${staffUi.workspace} ${"mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-8"}`}
+    >
       <PageHeader
         eyebrow="Adviser workspace · Academic help"
         title="Assigned support requests"

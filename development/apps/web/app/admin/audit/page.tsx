@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { SECURITY_V1 } from "@sis/config";
 import type { AuditTimelineResponse } from "@sis/contracts";
 import { Notice } from "@sis/ui";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 import { AuditTimeline } from "./timeline";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +61,9 @@ export default async function AuditPage() {
               Immutable security record. Entries show local institutional time
               with actor, role and outcome.
             </p>
-            <AuditTimeline initial={gate.initial} />
+            <section className={styles.panel} aria-label="Audit events">
+              <AuditTimeline initial={gate.initial} />
+            </section>
           </>
         )}
       </main>

@@ -38,46 +38,49 @@ export default async function OfferPage({
     <>
       <p className={styles.eyebrow}>Application {offer.reference}</p>
       <h1>Admission offer</h1>
-      <p>
-        {offer.programmeName} · {offer.intake} · {offer.studyMode} ·{" "}
-        {offer.campus}
-      </p>
-      <p className={styles.muted}>
-        {offer.message}
-      </p>
-      <p className={styles.muted}>
-        Respond by{" "}
-        {offer.acceptBy ? formatLusaka(offer.acceptBy) : "the stated deadline"} (offer version {offer.version}).
-        Accepting does not register you; registration opens separately.
-      </p>
-      {offer.conditions.length > 0 ? (
-        <>
-          <h2>Conditions</h2>
-          <ul>
-            {offer.conditions.map((condition) => (
-              <li key={condition.text}>
-                {condition.text}
-                {condition.detail ? <> — {condition.detail}</> : null}
-                <br />
-                Responsible:{" "}
-                {condition.owner === "APPLICANT"
-                  ? "You"
-                  : condition.owner === "ADMISSIONS"
-                    ? "Admissions"
-                    : condition.owner === "FINANCE"
-                      ? "Finance"
-                      : "Responsible office"}
-                {condition.deadline ? (
-                  <> · meet by {formatLusaka(condition.deadline)}</>
-                ) : null}
-                {condition.blocksMatriculation ? (
-                  <> (required before registration)</>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+      <section className={styles.card} aria-label="Offer details">
+        <p>
+          {offer.programmeName} · {offer.intake} · {offer.studyMode} ·{" "}
+          {offer.campus}
+        </p>
+        <p className={styles.muted}>{offer.message}</p>
+        <p className={styles.muted}>
+          Respond by{" "}
+          {offer.acceptBy
+            ? formatLusaka(offer.acceptBy)
+            : "the stated deadline"}{" "}
+          (offer version {offer.version}). Accepting does not register you;
+          registration opens separately.
+        </p>
+        {offer.conditions.length > 0 ? (
+          <>
+            <h2>Conditions</h2>
+            <ul>
+              {offer.conditions.map((condition) => (
+                <li key={condition.text}>
+                  {condition.text}
+                  {condition.detail ? <> — {condition.detail}</> : null}
+                  <br />
+                  Responsible:{" "}
+                  {condition.owner === "APPLICANT"
+                    ? "You"
+                    : condition.owner === "ADMISSIONS"
+                      ? "Admissions"
+                      : condition.owner === "FINANCE"
+                        ? "Finance"
+                        : "Responsible office"}
+                  {condition.deadline ? (
+                    <> · meet by {formatLusaka(condition.deadline)}</>
+                  ) : null}
+                  {condition.blocksMatriculation ? (
+                    <> (required before registration)</>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </section>
       {answered ? (
         <Notice
           severity="success"

@@ -1,9 +1,10 @@
+import staffUi from "../../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ModerationCaseView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
 import { ModerationDecisionForm } from "../forms";
-import styles from "../../../../page.module.css";
+import styles from "../../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,10 @@ export default async function ModerationCasePage({
             severity="warning"
             title="Case unavailable"
             message="This case needs moderation authority, or it does not exist in your lane."
-            action={{ label: "Moderation queue", href: "/admin/assessment/moderation" }}
+            action={{
+              label: "Moderation queue",
+              href: "/admin/assessment/moderation",
+            }}
           />
         </main>
       </div>
@@ -56,9 +60,7 @@ export default async function ModerationCasePage({
     <div className={styles.page}>
       <main className={styles.main}>
         <p className={styles.context}>Student Information System</p>
-        <h1 className={styles.title}>
-          Moderation case · {item.status}
-        </h1>
+        <h1 className={styles.title}>Moderation case · {item.status}</h1>
         <p>
           <Link href="/admin/assessment/moderation">Moderation queue</Link> ·{" "}
           <Link href={`/admin/assessment/batches/${item.batchId}`}>
@@ -70,7 +72,7 @@ export default async function ModerationCasePage({
           title="Submission declaration"
           message={item.declaration}
         />
-        <dl>
+        <dl className={staffUi.factGrid}>
           <dt>Status</dt>
           <dd>
             <StatusChip
@@ -88,14 +90,15 @@ export default async function ModerationCasePage({
           <dt>Decision reason</dt>
           <dd>{item.decisionReason ?? "—"}</dd>
         </dl>
-        <h2>Moderator decision</h2>
-        <p>
-          Only an assigned moderator who did not submit this batch may
-          decide. Approval locks the batch and writes official CA
-          records; returns come back with a reason for correction by
-          new revision.
-        </p>
-        <ModerationDecisionForm caseId={item.id} version={item.version} />
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Moderator decision</h2>
+          <p>
+            Only an assigned moderator who did not submit this batch may decide.
+            Approval locks the batch and writes official CA records; returns
+            come back with a reason for correction by new revision.
+          </p>
+          <ModerationDecisionForm caseId={item.id} version={item.version} />
+        </section>
       </main>
     </div>
   );

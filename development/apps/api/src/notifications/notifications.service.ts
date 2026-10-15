@@ -5,6 +5,7 @@ import { NOTIFY_DEMO_V1 as policy } from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { OpsService } from '../ops/ops.service.js';
+import { consumeTimetableNotifications } from './timetable-notifications.js';
 
 type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
@@ -79,7 +80,7 @@ export class NotificationsService {
         startsAt: { lte: now },
         revokedAt: null,
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        account: { status: 'ACTIVE' },
+        account: { status: 'ACTIVE', person: { status: 'ACTIVE' } },
       },
     });
   }
@@ -499,7 +500,12 @@ export class NotificationsService {
     });
     const items = [];
     for (const row of rows) {
-      items.push(this.recordView(row, await this.deliveryState(this.prisma, row.id)));
+      items.push({
+        ...this.recordView(row, await this.deliveryState(this.prisma, row.id)),
+        body: row.body,
+        office: row.office,
+        actionPath: row.actionPath,
+      });
     }
     return { items };
   }
@@ -688,7 +694,32 @@ export class NotificationsService {
    * failures to a staff follow-up record. Converges under racing
    * ticks: the row lock serializes claimants.
    */
-  async runWorker(): Promise<{ claimed: number }> {
+  async runWorkerAs(auth: NotificationAuthority) {
+    const assignment = await this.liveAssignment(auth, 'SYSADMIN', 'administer-identity');
+    if (!assignment || auth.activeRole !== 'SYSADMIN' ||
+      assignment.scopeType !== 'SYSTEM' || assignment.scopeRef !== 'GLOBAL') {
+      // A failed audit must not turn a denied global trigger into a success.
+      await this.prisma.auditEvent.create({ data: {
+        action: 'NotificationWorkerDenied', actorAccountId: auth.accountId,
+        activeRole: auth.activeRole, scope: auth.scope ?? 'NOTIFICATIONS',
+        targetRef: 'notification-worker', outcome: 'DENY',
+        correlationId: randomUUID(), policyVersion: policy.version,
+        purpose: 'manual-notification-worker', metadata: { errorCategory: 'ERR-PERM' },
+      } }).catch(() => undefined);
+      this.denied();
+    }
+    return this.runWorker();
+  }
+
+  async runWorker(): Promise<{
+    claimed: number;
+    timetableEvents: number;
+    timetableRecipients: number;
+  }> {
+    const timetable = await consumeTimetableNotifications(
+      this.prisma,
+      (db, input) => this.createFromEvent(db, input),
+    );
     const now = new Date();
     const due: Array<{ id: string }> = await this.prisma.$queryRaw`
       SELECT id FROM "NotificationDelivery"
@@ -700,6 +731,13 @@ export class NotificationsService {
     let claimed = 0;
     for (const { id } of due) {
       await this.prisma.$transaction(async (db) => {
+        // Hold the row lock in the transaction that changes the delivery.
+        const locked: Array<{ id: string }> = await db.$queryRaw`
+          SELECT id FROM "NotificationDelivery"
+          WHERE id = ${id} AND state IN ('QUEUED', 'RETRIED')
+            AND "nextRunAt" <= ${new Date()}
+          FOR UPDATE SKIP LOCKED`;
+        if (!locked.length) return;
         const delivery = await db.notificationDelivery.findUnique({
           where: { id },
         });
@@ -727,7 +765,8 @@ export class NotificationsService {
               attempts: { increment: 1 },
               sentAt: delivery.sentAt ?? at,
               deliveredAt: at,
-              providerRef: `sim-${delivery.id.slice(0, 8)}`,
+              providerRef: delivery.channel === 'IN_SYSTEM'
+                ? null : `sim-${delivery.id.slice(0, 8)}`,
               lastError: null,
             },
           });
@@ -834,6 +873,6 @@ export class NotificationsService {
         });
       });
     }
-    return { claimed };
+    return { claimed, timetableEvents: timetable.events, timetableRecipients: timetable.recipients };
   }
 }

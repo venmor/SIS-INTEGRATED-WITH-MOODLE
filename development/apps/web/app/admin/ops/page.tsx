@@ -1,9 +1,10 @@
+import staffUi from "../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { OpsIncidentView, OpsQueueView } from "@sis/contracts";
 import { Notice, StatusChip } from "@sis/ui";
 import { OpenIncidentForm, TransitionIncidentForm } from "./forms";
-import styles from "../../page.module.css";
+import styles from "../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,10 @@ async function loadQueue(): Promise<{
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return { ok: false, queue: null };
-    return { ok: true, queue: (await res.json()) as OpsQueueView & { latest: OpsIncidentView[] } };
+    return {
+      ok: true,
+      queue: (await res.json()) as OpsQueueView & { latest: OpsIncidentView[] },
+    };
   } catch {
     return { ok: false, queue: null };
   }
@@ -50,7 +54,7 @@ export default async function OpsConsolePage() {
           />
         ) : (
           <>
-            <dl>
+            <dl className={staffUi.factGrid}>
               <dt>Open incidents</dt>
               <dd>{res.queue.openIncidents}</dd>
               <dt>Acknowledged incidents</dt>
@@ -66,53 +70,66 @@ export default async function OpsConsolePage() {
               <dt>Open reconciliation cases</dt>
               <dd>{res.queue.openReconCases}</dd>
             </dl>
-            <h2>Open incidents</h2>
-            {res.queue.latest.length === 0 ? (
-              <p>No open incidents. Dead-letters open them convergently; operators open the rest here.</p>
-            ) : (
-              <ul>
-                {res.queue.latest.map((item) => (
-                  <li key={item.id}>
-                    <p>
-                      <strong>
-                        {item.title} · {item.severity}
-                      </strong>{" "}
-                      <StatusChip
-                        tone={item.status === "OPEN" ? "attention" : "info"}
-                      >
-                        {item.status}
-                      </StatusChip>
-                    </p>
-                    <p>
-                      {item.sourceKind} · owned by {item.ownerRole ?? "unassigned"}
-                    </p>
-                    <TransitionIncidentForm item={item} />
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h2>Open incident</h2>
-            <OpenIncidentForm />
-            <h2>Recently resolved</h2>
-            {res.queue.recentlyResolved.length === 0 ? (
-              <p>No resolved incidents yet. Resolution keeps its recovery evidence here.</p>
-            ) : (
-              <ul>
-                {res.queue.recentlyResolved.map((item) => (
-                  <li key={item.id}>
-                    <p>
-                      <strong>
-                        {item.title} · {item.severity}
-                      </strong>{" "}
-                      <StatusChip tone="success">{item.status}</StatusChip>
-                    </p>
-                    <p>Root cause: {item.rootCause ?? "—"}</p>
-                    <p>Recovery evidence: {item.recoveryEvidence ?? "—"}</p>
-                    <TransitionIncidentForm item={item} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            <section className={staffUi.panel}>
+              <h2 className={staffUi.sectionHeading}>Open incidents</h2>
+              {res.queue.latest.length === 0 ? (
+                <p className={staffUi.empty}>
+                  No open incidents. Dead-letters open them convergently;
+                  operators open the rest here.
+                </p>
+              ) : (
+                <ul className={staffUi.recordList}>
+                  {res.queue.latest.map((item) => (
+                    <li key={item.id}>
+                      <p>
+                        <strong>
+                          {item.title} · {item.severity}
+                        </strong>{" "}
+                        <StatusChip
+                          tone={item.status === "OPEN" ? "attention" : "info"}
+                        >
+                          {item.status}
+                        </StatusChip>
+                      </p>
+                      <p>
+                        {item.sourceKind} · owned by{" "}
+                        {item.ownerRole ?? "unassigned"}
+                      </p>
+                      <TransitionIncidentForm item={item} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className={staffUi.panel}>
+              <h2 className={staffUi.sectionHeading}>Open incident</h2>
+              <OpenIncidentForm />
+            </section>
+            <section className={staffUi.panel}>
+              <h2 className={staffUi.sectionHeading}>Recently resolved</h2>
+              {res.queue.recentlyResolved.length === 0 ? (
+                <p className={staffUi.empty}>
+                  No resolved incidents yet. Resolution keeps its recovery
+                  evidence here.
+                </p>
+              ) : (
+                <ul className={staffUi.recordList}>
+                  {res.queue.recentlyResolved.map((item) => (
+                    <li key={item.id}>
+                      <p>
+                        <strong>
+                          {item.title} · {item.severity}
+                        </strong>{" "}
+                        <StatusChip tone="success">{item.status}</StatusChip>
+                      </p>
+                      <p>Root cause: {item.rootCause ?? "—"}</p>
+                      <p>Recovery evidence: {item.recoveryEvidence ?? "—"}</p>
+                      <TransitionIncidentForm item={item} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </>
         )}
       </main>

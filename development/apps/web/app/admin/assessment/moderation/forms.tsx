@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "../../staff-workspace.module.css";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -91,6 +92,7 @@ export function ModerationDecisionForm({
 
   return (
     <form
+      className={staffUi.form}
       onSubmit={(e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
@@ -102,24 +104,34 @@ export function ModerationDecisionForm({
         <ErrorSummary title="The decision was not recorded" errors={errors} />
       ) : null}
       {notice ? <p role="status">{notice}</p> : null}
-      <label htmlFor="moderation-decision-to">Decision</label>{" "}
-      <select id="moderation-decision-to" name="moderation-decision-to">
+      <label className={staffUi.fieldLabel} htmlFor="moderation-decision-to">
+        Decision
+      </label>{" "}
+      <select
+        className={staffUi.control}
+        id="moderation-decision-to"
+        name="moderation-decision-to"
+      >
         <option value="BEGIN">Begin review</option>
         <option value="APPROVED">Approve</option>
         <option value="RETURNED">Return for correction</option>
         <option value="CLARIFICATION_REQUESTED">Request clarification</option>
         <option value="REFERRED">Refer to examinations</option>
       </select>{" "}
-      <label htmlFor="moderation-decision-reason">
+      <label
+        className={staffUi.fieldLabel}
+        htmlFor="moderation-decision-reason"
+      >
         Reason (required unless approving)
       </label>{" "}
       <input
+        className={staffUi.control}
         id="moderation-decision-reason"
         name="moderation-decision-reason"
         type="text"
         autoComplete="off"
       />{" "}
-      <button type="submit" disabled={pending}>
+      <button className={staffUi.button} type="submit" disabled={pending}>
         Record decision
       </button>
     </form>

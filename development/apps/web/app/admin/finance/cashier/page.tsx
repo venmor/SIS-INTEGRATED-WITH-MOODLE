@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Notice } from "@sis/ui";
 import { CashierForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 

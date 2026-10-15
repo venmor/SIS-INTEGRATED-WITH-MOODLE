@@ -23,6 +23,12 @@ export interface NotificationRecordView {
   state: string;
   createdAt: string;
 }
+/** Recipient-only contents; staff signal summaries keep the smaller view. */
+export interface OwnNotificationRecordView extends NotificationRecordView {
+  body: string;
+  office: string | null;
+  actionPath: string | null;
+}
 export interface NotificationDeliveryView {
   id: string;
   recordId: string;

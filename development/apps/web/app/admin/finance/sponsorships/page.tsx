@@ -1,9 +1,10 @@
+import staffUi from "../../staff-workspace.module.css";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { SponsorshipView } from "@sis/contracts";
 import { Notice } from "@sis/ui";
 import { SponsorshipForms } from "./forms";
-import styles from "../../../page.module.css";
+import styles from "../../staff-workspace.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -52,21 +53,25 @@ export default async function SponsorshipsPage() {
         <p>
           <Link href="/admin/finance">Finance workspace</Link>
         </p>
-        <h2>Record sponsorship</h2>
-        <SponsorshipForms />
-        <h2>Recent records</h2>
-        {list.data.items.length === 0 ? (
-          <p>No sponsorship records yet.</p>
-        ) : (
-          <ul>
-            {list.data.items.map((item) => (
-              <li key={item.id}>
-                <strong>{item.sponsorName}</strong> — {item.status}
-                {item.version ? ` · v${item.version}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Record sponsorship</h2>
+          <SponsorshipForms />
+        </section>
+        <section className={staffUi.panel}>
+          <h2 className={staffUi.sectionHeading}>Recent records</h2>
+          {list.data.items.length === 0 ? (
+            <p className={staffUi.empty}>No sponsorship records yet.</p>
+          ) : (
+            <ul className={staffUi.recordList}>
+              {list.data.items.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.sponsorName}</strong> — {item.status}
+                  {item.version ? ` · v${item.version}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </div>
   );

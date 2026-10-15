@@ -1,4 +1,5 @@
 "use client";
+import staffUi from "./staff-workspace.module.css";
 
 import Link from "next/link";
 
@@ -12,14 +13,18 @@ export default function AreaError({
 }) {
   void error;
   return (
-    <main>
+    <main className={staffUi.workspace}>
       <h1>We could not show this section</h1>
       <p>
-        Something unexpected happened. Your saved work is kept — nothing
-        was submitted twice by this error.
+        Something unexpected happened. Your saved work is kept — nothing was
+        submitted twice by this error.
       </p>
       <p>
-        <button type="button" onClick={() => reset()}>
+        <button
+          className={staffUi.button}
+          type="button"
+          onClick={() => reset()}
+        >
           Try again
         </button>{" "}
         <Link href="/">Back home</Link>
