@@ -57,6 +57,10 @@ export function PasswordField({
         maxLength={maxLength}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
+        onKeyDown={(event) => {
+          const caps = event.getModifierState?.("CapsLock") ?? false;
+          setCapsOn(caps);
+        }}
         onKeyUp={(event) => {
           const caps = event.getModifierState?.("CapsLock") ?? false;
           setCapsOn(caps);
