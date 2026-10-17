@@ -23,6 +23,8 @@ describe('Phase 8 upload quota', () => {
   let app: INestApplication;
   let db: PrismaService;
   let pdf: Buffer;
+  const createdOfferingIds: string[] = [];
+  const createdProgrammeIds: string[] = [];
 
   async function user() {
     const person = await db.person.create({
@@ -73,6 +75,7 @@ describe('Phase 8 upload quota', () => {
         owningOffice: 'Admissions',
       },
     });
+    createdProgrammeIds.push(programme.id);
     await db.requirementRule.create({
       data: {
         programmeId: programme.id,
@@ -94,6 +97,7 @@ describe('Phase 8 upload quota', () => {
         deadline: new Date(Date.now() + 365 * 24 * 3600 * 1000),
       },
     });
+    createdOfferingIds.push(offering.id);
     return offering.id;
   }
 
@@ -151,6 +155,20 @@ describe('Phase 8 upload quota', () => {
   }, 120000);
 
   afterAll(async () => {
+    for (const offeringId of createdOfferingIds) {
+      await db.applicationDocument.deleteMany({
+        where: { application: { offeringId } },
+      });
+      await db.applicationSubmission.deleteMany({
+        where: { application: { offeringId } },
+      });
+      await db.application.deleteMany({ where: { offeringId } });
+      await db.programmeOffering.deleteMany({ where: { id: offeringId } });
+    }
+    for (const programmeId of createdProgrammeIds) {
+      await db.requirementRule.deleteMany({ where: { programmeId } });
+      await db.programme.deleteMany({ where: { id: programmeId } });
+    }
     await app.close();
   });
 
