@@ -41,3 +41,8 @@ Desktop 1440px and mobile 390px screenshots live under `.superpowers/student-stu
 Root owns the coordinated Next/API build, connected database/browser journey, full release regression, final preview screenshots and review. This isolated suite does not prove real authentication, registration ownership/deny enforcement, institution policy, Moodle delivery, load capacity or human acceptance. The two existing `student-portal.spec.ts` prose assertions for last saved load and receipt must use the new structured regions during the connected run; the controller was notified because that file already contains another owned change.
 
 Full institutional readiness and release gates remain pending.
+
+
+## Final regression follow-up — 17 October 2026
+
+We passed all 162 cases in the complete GitHub browser suite. Its separate 26-case Moodle-deferral suite then exposed two older assertions expecting the registration reference inside the success notice. We kept the completion notice check and asserted the exact reference in the new named registration-receipt region, preserving the no-second-registration and deferred-access checks. All 26 deferral cases passed afterward. The standard backup/restore rehearsal also passed on a separately created clean seeded database with all 79 migrations: row counts, relationship checks, document hashes and schema coverage reconciled. Fresh full CI on the final test-only correction remains the release gate; no provider action or production access rule changed.
