@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { expect, test } from "@playwright/test";
 
 test("System Administrator sees a read-only setup readiness report on mobile", async ({
@@ -8,13 +9,7 @@ test("System Administrator sees a read-only setup readiness report on mobile", a
   await page.getByLabel("Username", { exact: true }).fill("mweene.t");
   await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Mweene");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(
-    new URL(
-      "/",
-      process.env.BROWSER_BASE_URL ?? "http://127.0.0.1:3100",
-    ).toString(),
-    { timeout: 20000 },
-  );
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/grants");
   await page.getByText("Workspace sections").click();

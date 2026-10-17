@@ -125,15 +125,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   // Wait for the sign-in round-trip: the form replaces to home on success.
   await expectWorkspaceLanding(page);
-  await expect(
-    page.getByRole("heading", { name: "Student Information System" }),
-  ).toBeVisible();
-  // Officer landing offers the queue directly.
-  await expect(
-    page.getByRole("link", { name: "Admissions queue" }),
-  ).toBeVisible();
-
-  await page.goto("/admin/admissions/queue");
+  // Direct entry opens the selected officer queue without an intermediate chooser.
   await expect(
     page.getByRole("heading", { name: "Admissions queue" }),
   ).toBeVisible();

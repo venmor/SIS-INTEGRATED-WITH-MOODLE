@@ -58,6 +58,7 @@ test("records duplicates: officer reviews and resolves a match", async ({
   await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Mwansa");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expectWorkspaceLanding(page);
+  await page.getByText("Workspace sections", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Identity review queue" }),
   ).toBeVisible();

@@ -35,7 +35,8 @@ test('ordinary student login discovers registered period and keeps academic navi
   await page.screenshot({ path: info.outputPath('registered-period-desktop.png'), fullPage: true });
   await page.getByRole('navigation', { name: 'Student navigation', exact: true }).getByRole('link', { name: 'Registration', exact: true }).click();
   await expectContext(page, '/student/readiness', attemptId);
-  await page.getByRole('link', { name: 'Plan your courses', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Registration completed', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Registration steps' }).getByRole('link', { name: 'Choose courses', exact: true }).click();
   await expectContext(page, '/student/courses', attemptId);
   await expect(page.getByRole('button', { name: 'Save course plan', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Review registration', exact: true }).click();

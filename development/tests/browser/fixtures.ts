@@ -669,8 +669,8 @@ export async function createCheckpointStudent() {
       data: {
         accountId: account.id,
         role: "STUDENT",
-        scopeType: "STUDENT",
-        scopeRef: "self",
+        scopeType: "PERSON",
+        scopeRef: person.id,
         capabilities: ["study"],
         reason: "Isolated browser fixture",
         startsAt: new Date("2020-01-01"),
