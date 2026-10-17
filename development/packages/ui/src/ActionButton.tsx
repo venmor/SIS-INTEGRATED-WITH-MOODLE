@@ -31,6 +31,7 @@ export function ActionButton({
         className={`${styles.button} ${styles[kind] ?? ""}`}
         disabled={isDisabled}
         aria-disabled={isDisabled}
+        aria-busy={pending ? true : undefined}
         {...rest}
       >
         {pending && loadingText ? loadingText : children}
