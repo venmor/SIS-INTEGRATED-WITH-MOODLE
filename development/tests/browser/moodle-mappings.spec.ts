@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { createIntegrationSupport, createMoodleAdmin } from "./fixtures";
 
@@ -20,7 +21,7 @@ test("moodle mappings: administrator drafts a shell mapping", async ({
   await page.getByLabel("Username", { exact: true }).fill(admin.username);
   await page.getByLabel("Password", { exact: true }).fill(admin.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/moodle/mappings");
   await expect(
@@ -50,7 +51,7 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
   await page.getByLabel("Username", { exact: true }).fill(admin.username);
   await page.getByLabel("Password", { exact: true }).fill(admin.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   // Moodle administration: health + shells + mappings link.
   await page.goto("/admin/moodle");
@@ -80,7 +81,7 @@ test("operations workspaces: health, shells, queue, maintenance", async ({
   await page.getByLabel("Username", { exact: true }).fill(support.username);
   await page.getByLabel("Password", { exact: true }).fill(support.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   await page.goto("/admin/integration");
   await expect(
     page.getByRole("heading", { name: "Integration support" }),

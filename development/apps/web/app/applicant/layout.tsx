@@ -43,7 +43,7 @@ export default function ApplicantLayout({
           className={styles.nav}
           aria-label="Applicant account"
         >
-          <Link href="/">Switch workspace</Link>
+          <Link href="/workspaces">Switch workspace</Link>
           <ApplicantSignOut />
         </nav>
       </header>

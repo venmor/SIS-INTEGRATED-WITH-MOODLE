@@ -104,9 +104,9 @@ export default async function StudentPage() {
   return (
     <>
       <PageHeader
-        eyebrow={`Student portal · ${board.period} · ${board.studentNumber}`}
+        eyebrow={`Student portal · ${board.period}`}
         title="Welcome to the student portal"
-        lede={`${board.displayName} · ${board.programmeName}`}
+        lede={board.displayName}
       />
       <section
         className={`${styles.statusPanel} ${!registration ? styles.statusUnknown : ""}`}
@@ -138,14 +138,6 @@ export default async function StudentPage() {
         </p>
         <div className={styles.facts}>
           <p>
-            <span>Study details</span>
-            <strong>
-              {[board.intake, board.campus, board.studyMode]
-                .filter(Boolean)
-                .join(" · ")}
-            </strong>
-          </p>
-          <p>
             <span>Registration period</span>
             <strong>
               {board.registrationOpensAt
@@ -174,6 +166,40 @@ export default async function StudentPage() {
             : "Check registration"}
           <span aria-hidden="true"> →</span>
         </Link>
+      </section>
+      <section
+        className={styles.information}
+        aria-labelledby="student-information-title"
+      >
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.kicker}>Your student record</p>
+            <h2 id="student-information-title">General information</h2>
+          </div>
+          <span className={styles.meta}>Current period · {board.period}</span>
+        </div>
+        <dl className={styles.informationFacts}>
+          <div>
+            <dt>Student number</dt>
+            <dd>{board.studentNumber}</dd>
+          </div>
+          <div>
+            <dt>Programme</dt>
+            <dd>{board.programmeName}</dd>
+          </div>
+          <div>
+            <dt>Intake</dt>
+            <dd>{board.intake || "Not recorded"}</dd>
+          </div>
+          <div>
+            <dt>Campus</dt>
+            <dd>{board.campus || "Not recorded"}</dd>
+          </div>
+          <div>
+            <dt>Study mode</dt>
+            <dd>{board.studyMode || "Not recorded"}</dd>
+          </div>
+        </dl>
       </section>
       <section
         className={styles.taskSection}

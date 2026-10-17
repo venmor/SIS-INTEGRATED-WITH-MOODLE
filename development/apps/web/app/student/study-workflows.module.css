@@ -1,0 +1,140 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.intro {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 52rem;
+}
+.eyebrow {
+  color: var(--green-800);
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+}
+.muted {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+  line-height: var(--line-body);
+}
+.summary,
+.section {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.summary {
+  border-inline-start: 3px solid var(--green-700);
+}
+.section h2,
+.summary h2 {
+  font-size: var(--font-section);
+}
+.section h3 {
+  font-size: var(--font-body);
+}
+.header,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.actions {
+  justify-content: flex-start;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+.facts > div {
+  min-width: 0;
+}
+.facts dt {
+  font-size: var(--font-supporting);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+.facts dd {
+  font-weight: var(--weight-semibold);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.checks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+}
+.checks li {
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: var(--space-2);
+}
+.checks li:last-child {
+  border-bottom: 0;
+}
+.checkLabel {
+  display: block;
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.checkDetail {
+  line-height: var(--line-body);
+}
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+.footer {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+.history {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.history summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  padding-block: var(--space-2);
+  color: var(--link);
+  font-weight: var(--weight-semibold);
+}
+.history ol {
+  padding-inline-start: var(--space-5);
+}
+.history li + li {
+  margin-top: var(--space-3);
+}
+.history summary:focus-visible {
+  outline: 2px solid var(--blue-700);
+  outline-offset: 2px;
+}
+@media (max-width: 44rem) {
+  .page table caption,
+  .section table caption {
+    display: block;
+    width: 100%;
+  }
+  .summary,
+  .section {
+    padding: var(--space-4);
+  }
+  .facts {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}

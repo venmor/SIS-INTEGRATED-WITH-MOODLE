@@ -35,14 +35,14 @@ function fixture(input: {
     ? new Date('2026-10-07T10:01:00Z') : null };
   const prisma = {
     roleAssignment: { findFirst: vi.fn().mockResolvedValue(
-      input.authority === false ? null : { id: auth.assignmentId }) },
+      input.authority === false ? null : { id: auth.assignmentId, scopeType: 'STUDENT', scopeRef: 'student' }) },
     account: { findUnique: vi.fn().mockResolvedValue({ id: auth.accountId,
       personId: 'student-person' }) },
     student: { findUnique: vi.fn().mockResolvedValue({ id: 'student' }) },
     programmeAttempt: {
-      findFirst: vi.fn().mockResolvedValue({ id: 'attempt', studentId: 'student' }),
+      findFirst: vi.fn().mockResolvedValue({ id: 'attempt', studentId: 'student', student: { id: 'student', studentNumber: 'STUDENT-1', personId: input.personId ?? 'student-person' } }),
       findUnique: vi.fn().mockResolvedValue({ id: 'attempt', studentId: 'student',
-        student: { personId: input.personId ?? 'student-person' } }),
+        student: { id: 'student', studentNumber: 'STUDENT-1', personId: input.personId ?? 'student-person' } }),
     },
     academicPeriod: { findUnique: vi.fn().mockResolvedValue({ id: 'period',
       code: '2026S1' }) },

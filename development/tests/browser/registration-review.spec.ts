@@ -205,7 +205,8 @@ test("an academic approval requirement prevents submission without inventing an 
 test("an excessive saved load explains the configured limit before declarations", async ({ page }) => {
   scenario = "load";
   await openReview(page);
-  await expect(page.getByText(/8 half-course equivalents.*2 to 6/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Planned courses" })).toContainText("8 half-course equivalents");
+  await expect(page.getByRole("region", { name: "Before you submit" })).toContainText("choose 2 to 6 half-course equivalents");
   await expect(page.getByRole("button", { name: "Submit registration", exact: true })).toHaveCount(0);
   expect(submits).toEqual([]);
 });
@@ -294,7 +295,9 @@ test("course inventory search sorting and paging preserve selections", async ({ 
   await section.getByRole("combobox", { name: "Sort required courses" }).selectOption("title");
   await section.getByRole("searchbox", { name: "Search required courses" }).fill("CSC110");
   await expect(section.getByRole("checkbox", { name: "CSC110 — Computing subject 11", exact: true })).toBeChecked();
-  await expect(page.getByText("3 courses selected. Save your changes to refresh the load and checks below.")).toBeVisible();
+  const summary = page.getByRole("region", { name: "Course plan summary" });
+  await expect(summary).toContainText("3 courses");
+  await expect(summary).toContainText("Unsaved changes");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(submits).toEqual([]);
 });

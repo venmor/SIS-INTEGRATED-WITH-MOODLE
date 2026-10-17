@@ -62,10 +62,10 @@ export class WorkspaceService {
     return rows.filter((row) => isLive(row, now)).map(toView);
   }
 
-  /** Sign-in default: earliest-started live assignment (demo-deterministic). */
-  async defaultWorkspace(accountId: string): Promise<WorkspaceView | null> {
-    const list = await this.liveWorkspaces(accountId);
-    return list[0] ?? null;
+  /** Retain a validated same-account preference; emergency access is deliberate. */
+  async defaultWorkspace(accountId: string, preferredAssignmentId?: string | null): Promise<WorkspaceView | null> {
+    const list = (await this.liveWorkspaces(accountId)).filter((workspace) => workspace.scopeType !== 'BREAK_GLASS');
+    return list.find((workspace) => workspace.assignmentId === preferredAssignmentId) ?? list[0] ?? null;
   }
 
   /** Resolve a session's active assignment; null when dead or never chosen. */

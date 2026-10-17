@@ -388,6 +388,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
     ok: boolean;
     backend: MoodleBackend;
     version: string | null;
+    numericVersion: string | null;
     detail: string;
   }> {
     try {
@@ -410,6 +411,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
         ok: true,
         backend: this.backend,
         version: site.release,
+        numericVersion: site.numericVersion || null,
         detail:
           'Read-only Moodle target identity verified. Live operations remain disabled.',
       };
@@ -424,6 +426,7 @@ export class LiveMoodleAdapter implements MoodleAdapter {
         ok: false,
         backend: this.backend,
         version: null,
+        numericVersion: null,
         detail: `Read-only Moodle validation failed: ${code}.`,
       };
     }

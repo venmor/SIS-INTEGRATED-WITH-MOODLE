@@ -12,7 +12,8 @@ import type {
 import { STUDENT_DEMO_V1 } from "@sis/config";
 import { ErrorSummary, Notice } from "@sis/ui";
 import { academicHref } from "../../../lib/academic-context";
-import styles from "../../applicant/applicant.module.css";
+import study from "../study-workflows.module.css";
+import { RegistrationReceipt } from "./receipt";
 
 const declarations = STUDENT_DEMO_V1.registration
   .declarations as unknown as Array<{ key: string; text: string }>;
@@ -232,99 +233,134 @@ export function RegisterForm({
       setPending(false);
     }
   }
-  if (receipt)
-    return (
-      <>
-        <Notice
-          severity="success"
-          title="Registration completed"
-          message={`Receipt ${receipt.receipt}. Your official course registration is complete.`}
-        />
-        <CourseSummary
-          courses={receipt.courses}
-          caption="Officially registered courses"
-        />
-        <p>
-          <a className={workflow.action} href={academicHref("/student/timetable", initial)}>
-            View timetable
-          </a>
-        </p>
-      </>
-    );
+  if (receipt) return <RegistrationReceipt receipt={receipt} />;
   return (
-    <>
+    <div className={study.page} id="register" tabIndex={-1}>
       {errors.length > 0 && (
         <ErrorSummary title="Registration did not complete" errors={errors} />
       )}
       {empty ? (
-        <>
+        <section className={study.section}>
           <h2>Choose your courses first</h2>
           <p>Save a course plan before reviewing registration.</p>
           <a href={academicHref("/student/courses", initial)}>
             Plan your courses
           </a>
-        </>
+        </section>
       ) : (
         <>
-          <h2>Planned courses</h2>
-          <CourseSummary
-            courses={initial.items}
-            caption={`${initial.items.length} selected courses · ${initial.period}`}
-          />
-          <p className={styles.muted}>
-            Planned load: {initial.loadHalves} half-course equivalents.
-            {invalidLoad
-              ? ` Choose ${bands.minHalves} to ${bands.maxHalves} before submitting.`
-              : ""}
-          </p>
-          {initial.validation
-            .filter((v) => v.result !== "PASS")
-            .map((v, i) => (
-              <p key={i} className={workflow.panel}>
-                <strong>
-                  {v.code} · {v.result}
-                </strong>{" "}
-                — {v.explanation}
-              </p>
-            ))}
-          {!canSubmit && (
-            <>
-              <h2>Fix your course plan</h2>
-              <p>Resolve the issues above before registration.</p>
-              <a href={academicHref("/student/courses", initial)}>
-                Edit course plan
+          <section
+            className={study.section}
+            aria-labelledby="planned-courses-title"
+          >
+            <h2 id="planned-courses-title">Planned courses</h2>
+            <CourseSummary
+              courses={initial.items}
+              caption={`${initial.items.length} selected courses · ${initial.period}`}
+            />
+            <dl className={study.facts}>
+              <div>
+                <dt>Academic period</dt>
+                <dd>{initial.period}</dd>
+              </div>
+              <div>
+                <dt>Saved plan</dt>
+                <dd>Version {initial.version}</dd>
+              </div>
+              <div>
+                <dt>Planned load</dt>
+                <dd>{initial.loadHalves} half-course equivalents</dd>
+              </div>
+            </dl>
+          </section>
+          <section
+            className={study.section}
+            aria-labelledby="registration-checks-title"
+          >
+            <h2 id="registration-checks-title">Before you submit</h2>
+            <p className={study.muted}>
+              Review the saved plan checks below. The service checks current
+              readiness, financial clearance, holds and course availability
+              again when you submit.
+            </p>
+            <ul className={study.checks}>
+              <li>
+                <span className={study.checkLabel}>Course-plan status</span>
+                <span>
+                  {initial.status === "DRAFT"
+                    ? "Saved draft ready for review"
+                    : `A draft is required. Current state: ${initial.status.replaceAll("_", " ")}.`}
+                </span>
+              </li>
+              <li>
+                <span className={study.checkLabel}>Academic load</span>
+                <span>
+                  {invalidLoad
+                    ? `Action required: choose ${bands.minHalves} to ${bands.maxHalves} half-course equivalents before submitting.`
+                    : `${initial.loadHalves} half-course equivalents is within the configured demonstration range.`}
+                </span>
+              </li>
+              {initial.validation
+                .filter((v) => v.result !== "PASS")
+                .map((v, i) => (
+                  <li key={`${v.code}-${v.resultCode}-${i}`}>
+                    <span className={study.checkLabel}>
+                      {v.code} · {v.result.replaceAll("_", " ")}
+                    </span>
+                    <span className={study.checkDetail}>{v.explanation}</span>
+                  </li>
+                ))}
+            </ul>
+            {!canSubmit && (
+              <>
+                <h3>Fix your course plan</h3>
+                <p>Resolve the issues above before registration.</p>
+                <a href={academicHref("/student/courses", initial)}>
+                  Edit course plan
+                </a>
+              </>
+            )}
+            <div className={study.actions}>
+              <a href={academicHref("/student/readiness", initial)}>
+                Check registration readiness
               </a>
-            </>
-          )}
+            </div>
+          </section>
         </>
       )}
       {uncertain ? (
-        <>
+        <section
+          className={study.section}
+          aria-label="Recover registration confirmation"
+        >
           <Notice
             severity="warning"
             title="Registration confirmation pending"
             message="Keep this page open. Check your status before retrying the same submission."
           />
-          <button
-            className={workflow.action}
-            disabled={pending}
-            onClick={() => void checkStatus()}
-          >
-            Check registration status
-          </button>
-          {checked && command && (
+          <div className={study.actions}>
             <button
               className={workflow.action}
               disabled={pending}
-              onClick={() => void submit(command)}
+              onClick={() => void checkStatus()}
             >
-              Retry same submission
+              Check registration status
             </button>
-          )}
-        </>
+            {checked && command && (
+              <button
+                className={workflow.action}
+                disabled={pending}
+                onClick={() => void submit(command)}
+              >
+                Retry same submission
+              </button>
+            )}
+          </div>
+        </section>
       ) : (
         canSubmit && (
           <form
+            className={study.form}
             aria-label="Submit formal registration"
             onSubmit={(e) => {
               e.preventDefault();
@@ -333,6 +369,11 @@ export function RegisterForm({
           >
             <fieldset disabled={pending} className={workflow.declarations}>
               <legend>Registration declarations (all required)</legend>
+              <p className={study.muted}>
+                Review each declaration before submitting this saved course
+                plan. Submission creates your official registration if all
+                current checks pass.
+              </p>
               {declarations.map((d) => (
                 <p key={d.key}>
                   <label className={workflow.check}>
@@ -353,19 +394,32 @@ export function RegisterForm({
                 </p>
               ))}
             </fieldset>
-            <button
-              className={workflow.action}
-              disabled={
-                !recoveryReady ||
-                pending ||
-                accepted.length !== declarations.length
-              }
-            >
-              {pending ? "Submitting registration…" : "Submit registration"}
-            </button>
+            <div className={study.footer}>
+              <p className={study.muted} role="status">
+                {!recoveryReady
+                  ? "Checking safe submission recovery…"
+                  : pending
+                    ? "Keep this page open while registration is confirmed."
+                    : accepted.length !== declarations.length
+                      ? `Accept all ${declarations.length} declarations to enable submission. ${accepted.length} accepted.`
+                      : "All declarations accepted. You can submit this course plan for registration."}
+              </p>
+              <div className={study.actions}>
+                <button
+                  className={workflow.action}
+                  disabled={
+                    !recoveryReady ||
+                    pending ||
+                    accepted.length !== declarations.length
+                  }
+                >
+                  {pending ? "Submitting registration…" : "Submit registration"}
+                </button>
+              </div>
+            </div>
           </form>
         )
       )}
-    </>
+    </div>
   );
 }

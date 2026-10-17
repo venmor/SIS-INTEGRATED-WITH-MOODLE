@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { assessStudentCharges, createStudent } from "./fixtures";
 
@@ -18,12 +19,10 @@ test("student portal: home, contact update, correction request", async ({
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
-  // Student workspace offers the student portal.
-  await expect(
-    page.getByRole("link", { name: "Student portal" }),
-  ).toBeVisible();
+  // Sign-in opens the active student workspace directly.
+  await expect(page).toHaveURL(/\/student$/);
   await page.goto("/student");
   await expect(page.getByText("Portal sections")).toBeVisible();
   await page.getByText("Portal sections").click();
@@ -99,8 +98,8 @@ test("student portal: home, contact update, correction request", async ({
   await page.getByRole("button", { name: "Save course plan" }).click();
   await expect(page.getByText("Draft saved as version 1.")).toBeVisible();
   await expect(
-    page.getByText("Last saved load: 2 half-course equivalents."),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Course plan summary" }),
+  ).toContainText("2 half-course equivalents");
   await noOverflow(page);
 
   // Formal registration: review, declarations, submit, receipt.
@@ -125,7 +124,18 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("status", { name: "Registration completed", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/Receipt REG-/)).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Registration receipt" }),
+  ).toContainText("REG-");
+  await noOverflow(page);
+
+  // Completion must also be reflected by readiness, with the resolved academic context retained.
+  await page.goto("/student/readiness");
+  await expect(page.getByRole("status", { name: "Registration completed", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Registration receipt" })).toContainText("REG-");
+  await expect(page.getByRole("link", { name: "View timetable", exact: true })).toHaveAttribute("href", /attemptId=.+period=2026S1/);
+  await page.getByText("Current checks and next steps", { exact: true }).click();
+  await expect(page.getByRole("list", { name: "Registration conditions" }).getByText("Complete", { exact: true })).toHaveCount(2);
   await noOverflow(page);
 
   await page.goto("/student");

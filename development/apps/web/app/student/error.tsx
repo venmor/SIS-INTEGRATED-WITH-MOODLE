@@ -12,18 +12,18 @@ export default function AreaError({
 }) {
   void error;
   return (
-    <main id="main-content" tabIndex={-1}>
-      <h1>We could not show this section</h1>
+    <section aria-labelledby="student-error-title">
+      <h1 id="student-error-title">We could not show this section</h1>
       <p>
-        Something unexpected happened. Your saved work is kept — nothing
-        was submitted twice by this error.
+        Something unexpected happened. Your saved work is kept — nothing was
+        submitted twice by this error.
       </p>
       <p>
         <button type="button" onClick={() => reset()}>
           Try again
         </button>{" "}
-        <Link href="/">Back home</Link>
+        <Link href="/student">Back to student home</Link>
       </p>
-    </main>
+    </section>
   );
 }

@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
@@ -31,7 +32,7 @@ async function signIn(page: any, username: string, password: string, base: strin
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(`${base}/`, { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 }
 
 // Phase 8 slice 5: automated axe scans (WCAG 2A/AA) fail on serious
@@ -295,7 +296,7 @@ test("slow connection: sign-in shows pending state then completes", async ({
   const pending = page.getByRole("button", { name: "Signing in…" });
   await expect(pending).toBeVisible();
   await expect(pending).toBeDisabled();
-  await expect(page).toHaveURL(`${base}/`, { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   await hygienic(page);
 });
 

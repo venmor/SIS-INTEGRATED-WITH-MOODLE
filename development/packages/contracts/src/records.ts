@@ -39,6 +39,7 @@ export interface ReadinessView {
   pendingRegulations: string[];
   conditions: ReadinessConditionView[];
   assessedAt: string;
+  registration?: RegistrationReceiptView | null;
 }
 /** Phase 4 slice 4: draft course plan views. Validation results carry a
  * stable code plus a plain explanation; nothing here is official. */
@@ -57,7 +58,7 @@ export interface PlanCourseView {
 export interface PlanValidationView {
   courseId: string;
   code: string;
-  result: 'PASS' | 'WARNING' | 'BLOCK' | 'APPROVAL_REQUIRED';
+  result: "PASS" | "WARNING" | "BLOCK" | "APPROVAL_REQUIRED";
   resultCode: string;
   explanation: string;
 }
@@ -97,7 +98,13 @@ export interface RegistrationStatusView {
   registration: RegistrationReceiptView | null;
   amendments: AmendmentView[];
   moodle: {
-    state: 'NotAvailable' | 'Queued' | 'Synced' | 'Delayed' | 'Failed' | 'NOT_PROVISIONED';
+    state:
+      | "NotAvailable"
+      | "Queued"
+      | "Synced"
+      | "Delayed"
+      | "Failed"
+      | "NOT_PROVISIONED";
     detail: string;
   };
 }

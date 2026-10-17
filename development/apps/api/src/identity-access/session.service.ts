@@ -41,6 +41,7 @@ export class SessionService {
     password: string,
     ip: string | undefined,
     userAgent: string | undefined,
+    presentedSessionToken?: string,
   ) {
     const account = await this.prisma.account.findUnique({
       where: { username },
@@ -108,9 +109,15 @@ export class SessionService {
     });
     const token = randomBytes(32).toString('base64url');
     const now = new Date();
-    // Slice 3: sessions open on the deterministic default workspace
-    // (earliest-started live assignment, possibly none).
-    const initial = await this.workspaces.defaultWorkspace(account.id);
+    // Only the currently valid session of this exact account can retain its
+    // selection. Another account of the same person grants no preference.
+    const previous = presentedSessionToken
+      ? await this.validateSession(presentedSessionToken)
+      : null;
+    const preferred = previous?.accountId === account.id &&
+      previous.assignment?.scopeType !== 'BREAK_GLASS'
+      ? previous.assignmentId : null;
+    const initial = await this.workspaces.defaultWorkspace(account.id, preferred);
     await this.prisma.session.create({
       data: {
         tokenHash: hashToken(token),

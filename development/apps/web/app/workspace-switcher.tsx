@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ActionButton, DeniedPanel, ErrorSummary } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
@@ -23,7 +22,6 @@ export function WorkspaceSwitcher({
   workspaces: Workspace[];
   activeId: string | null;
 }) {
-  const router = useRouter();
   const [errors, setErrors] = useState<{ fieldId: string; message: string }[]>([]);
   const [denied, setDenied] = useState<{ message: string; reference?: string } | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -42,7 +40,9 @@ export function WorkspaceSwitcher({
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; reference?: string };
       if (res.ok) {
-        router.refresh();
+        // Discard the prior role's client page cache after authority changes.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Authority changes require a fresh document and cleared client router cache.
+        window.location.assign("/");
         return;
       }
       // Switch failures are authority-flavoured: denial panel, not summary.

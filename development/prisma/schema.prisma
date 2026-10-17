@@ -2615,3 +2615,104 @@ model TimetableNotificationDispatch {
   @@index([state, createdAt])
   @@index([publicationId])
 }
+
+// Synthetic live-test control plane. RUNNING is foundation approval only;
+// mapping/delivery/rehearsal acceptance remain separately fail closed.
+model MoodleLiveTestRun {
+  id String @id @default(uuid())
+  runId String @unique
+  policyVersion String @default("MOODLE-LIVE-TEST-v1")
+  state String @default("PREPARED")
+  version Int @default(1)
+  scopeType String
+  scopeRef String
+  dbFingerprint String
+  schemaChecksum String
+  scopeManifestChecksum String
+  configFingerprint String
+  expectedHost String
+  expectedSiteId Int
+  expectedRelease String
+  actualNumericVersion String?
+  cohortPrefix String
+  nonProductionConfirmed Boolean
+  syntheticOnlyConfirmed Boolean
+  creatorAccountId String
+  technicalApproverAccountId String?
+  operationalApproverAccountId String?
+  technicalReceiptId String?
+  retirementReceiptId String?
+  identityStatus String @default("NOT_CHECKED")
+  identityCheckedAt DateTime?
+  startedAt DateTime?
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  manifest MoodleScopeManifest?
+  transitions MoodleLiveTestRunTransition[]
+  receipts MoodleRunAuthenticationReceipt[]
+  @@index([state])
+}
+
+model MoodleLiveTestRunTransition {
+  id String @id @default(uuid())
+  runId String
+  run MoodleLiveTestRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  command String
+  fromState String
+  toState String
+  actorAccountId String
+  actorRole String
+  actorCapability String
+  actorScopeType String
+  actorScopeRef String
+  reason String
+  freshAuthRef String?
+  policyVersion String @default("MOODLE-LIVE-TEST-v1")
+  evidenceChecksum String
+  createdAt DateTime @default(now())
+  @@index([runId, createdAt])
+}
+
+model MoodleScopeManifest {
+  id String @id @default(uuid())
+  runId String @unique
+  run MoodleLiveTestRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  checksum String
+  entryCount Int @default(0)
+  sealedAt DateTime?
+  createdAt DateTime @default(now())
+  entries MoodleScopeManifestEntry[]
+}
+
+model MoodleScopeManifestEntry {
+  id String @id @default(uuid())
+  manifestId String
+  manifest MoodleScopeManifest @relation(fields: [manifestId], references: [id], onDelete: Restrict)
+  entity String
+  entityId String
+  cohortPrefix String
+  addedByAccountId String
+  addedAt DateTime @default(now())
+  @@unique([manifestId, entity, entityId])
+}
+
+// Password proofs are short-lived, single-use and exact bound. Raw password
+// and receipt token never persist; this is synthetic reauth, not MFA.
+model MoodleRunAuthenticationReceipt {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  accountId String
+  personId String
+  sessionId String
+  assignmentId String
+  runId String
+  run MoodleLiveTestRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  action String
+  version Int
+  evidenceChecksum String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  usedAt DateTime?
+  @@index([runId, accountId])
+}

@@ -109,6 +109,10 @@ export const SECURITY_V1: SecurityConfig = {
     "iam.grant.create": ["SYSADMIN"],
     "iam.account.resolve": ["SYSADMIN"],
     "iam.workspace.switch": [
+      // UI-012: own-session navigation for existing application roles only.
+      // WorkspaceService still checks target account ownership and liveness.
+      "STUDENT", "APPLICANT", "FINANCE_OFFICER", "FINANCE_APPROVER",
+      "CASHIER", "MOODLE_ADMIN", "INTEGRATION_SUPPORT", "RECORDS_OFFICER",
       "SYSADMIN",
       "LEC",
       "DEAN",
@@ -133,6 +137,8 @@ export const SECURITY_V1: SecurityConfig = {
       "TIMETABLE_COORDINATOR",
     ],
     "iam.me.read": [
+      "STUDENT", "APPLICANT", "FINANCE_OFFICER", "FINANCE_APPROVER",
+      "CASHIER", "MOODLE_ADMIN", "INTEGRATION_SUPPORT", "RECORDS_OFFICER",
       "SYSADMIN",
       "LEC",
       "DEAN",

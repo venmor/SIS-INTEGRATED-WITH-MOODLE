@@ -1,4 +1,4 @@
-import { RegistrationSteps } from "../../components/task-flow";
+import { RegistrationSteps, CourseSummary } from "../../components/task-flow";
 import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
 import { ContextSelector } from "../context-selector";
 import type { CoursePlanView } from "@sis/contracts";
@@ -11,7 +11,7 @@ import {
   academicHref,
 } from "../../../lib/academic-context";
 import { PlanBoard } from "./board";
-import styles from "../../applicant/applicant.module.css";
+import study from "../study-workflows.module.css";
 
 async function loadPlan(query: string): Promise<{
   data: CoursePlanView | null;
@@ -43,7 +43,9 @@ async function loadPlan(query: string): Promise<{
             .message ?? "Course planning is unavailable right now.",
       };
     return { data: (await response.json()) as CoursePlanView, message: "" };
-  } catch {
+  } catch (error) {
+    // Next redirects are control flow, not registration-service outages.
+    if (error && typeof error === "object" && "digest" in error) throw error;
     return {
       data: null,
       message:
@@ -72,32 +74,41 @@ export default async function CoursesPage({
   if (!r.data) return <StudentUnavailable message={r.message} />;
   const board = r.data;
   return (
-    <>
-      <p className={styles.eyebrow}>Course selection · {board.period}</p>
-      <h1>Plan your courses</h1>
+    <div className={study.page}>
+      <header className={study.intro}>
+        <p className={study.eyebrow}>Course selection · {board.period}</p>
+        <h1>Plan your courses</h1>
+        <p className={study.muted}>
+          Review required courses and electives, then save your selection as a
+          draft. Unavailable courses explain what needs attention.
+        </p>
+      </header>
       <RegistrationSteps current="courses" context={board} />
-      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/courses" current={board} />
-      <p className={styles.muted}>
-        Required courses, new courses and electives are listed separately.
-        Unavailable courses name their reason. Saving keeps a draft; submit
-        happens at formal registration.
-      </p>
-      {board.status === "DRAFT" ? (
-        <Notice
-          severity="info"
-          title="Draft saved"
-          message={`Version ${board.version}. Saving again replaces the draft and bumps the version.`}
-        />
-      ) : null}
-      {board.status === "DRAFT" || board.status === "NONE" ? <PlanBoard initial={board} /> : <>
-        <Notice severity="info" title="Course plan is read-only" message="This plan has already been submitted or needs review. Open registration to check its official status. Course changes follow the approved change process." />
-        <ul>{board.items.map(item => <li key={item.courseId}><strong>{item.code}</strong> — {item.title}</li>)}</ul>
-      </>}
-      <p>
-        <a href={academicHref("/student/register", board)}>
-          Review registration
-        </a>
-      </p>
-    </>
+      <ContextSelector
+        inventory={await loadRegistrationContexts()}
+        path="/student/courses"
+        current={board}
+      />
+      {board.status === "DRAFT" || board.status === "NONE" ? (
+        <PlanBoard initial={board} />
+      ) : (
+        <>
+          <Notice
+            severity="info"
+            title="Course plan is read-only"
+            message="This plan has already been submitted or needs review. Open registration to check its official status. Course changes follow the approved change process."
+          />
+          <CourseSummary
+            courses={board.items}
+            caption="Saved course plan (read-only)"
+          />
+          <p>
+            <a href={academicHref("/student/register", board)}>
+              Review registration
+            </a>
+          </p>
+        </>
+      )}
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import {
   createFinanceApprover,
@@ -32,7 +33,7 @@ test("finance workspace: queue, case escalation, sponsorship", async ({
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   // Workspace home prioritizes queues with counts.
   await page.goto("/admin/finance");
@@ -153,7 +154,7 @@ test("finance approver sees only the individual decision form", async ({
   await page.getByLabel("Username", { exact: true }).fill(approver.username);
   await page.getByLabel("Password", { exact: true }).fill(approver.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   await page.goto("/admin/finance/adjustments?kind=WAIVER&sort=newest");
   await expect(
     page.getByRole("heading", { name: "Adjustments and refunds" }),

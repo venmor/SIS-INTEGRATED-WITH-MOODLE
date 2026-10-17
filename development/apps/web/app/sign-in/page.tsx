@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ returnTo?: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
-  const { returnTo } = await searchParams;
+  const { returnTo: requestedReturnTo } = await searchParams;
+  const returnTo = typeof requestedReturnTo === "string" ? requestedReturnTo : undefined;
   // Only the explicitly configured fictional environment advertises seed access.
   const demoAccount =
     process.env.DEMO_MODE === "true"

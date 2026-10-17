@@ -1,4 +1,4 @@
-import { RegistrationSteps, CourseSummary } from "../../components/task-flow";
+import { RegistrationSteps } from "../../components/task-flow";
 import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
 import { ContextSelector } from "../context-selector";
 import { createHash } from "node:crypto";
@@ -9,7 +9,8 @@ import { StudentUnavailable } from "../chrome";
 import { Notice } from "@sis/ui";
 import { parseAcademicContext } from "../../../lib/academic-context";
 import { RegisterForm } from "./form";
-import styles from "../../applicant/applicant.module.css";
+import study from "../study-workflows.module.css";
+import { RegistrationReceipt } from "./receipt";
 
 async function loadRegistration<T>(
   path: string,
@@ -36,7 +37,9 @@ async function loadRegistration<T>(
             .message ?? "Registration is unavailable right now.",
       };
     return { data: (await response.json()) as T, message: "" };
-  } catch {
+  } catch (error) {
+    // Preserve expired-session sign-in and its exact academic return context.
+    if (error && typeof error === "object" && "digest" in error) throw error;
     return {
       data: null,
       message:
@@ -75,17 +78,30 @@ export default async function RegisterPage({
   if (!plan.data)
     return (
       <>
-        <p className={styles.eyebrow}>Formal registration</p>
+        <p className={study.eyebrow}>Formal registration</p>
         <h1>Review registration</h1>
         <StudentUnavailable message={plan.message} />
       </>
     );
   return (
-    <>
-      <p className={styles.eyebrow}>Formal registration · {plan.data.period}</p>
-      <h1>Review registration</h1>
+    <div className={study.page}>
+      <header className={study.intro}>
+        <p className={study.eyebrow}>
+          Formal registration · {plan.data.period}
+        </p>
+        <h1>Review registration</h1>
+        <p className={study.muted}>
+          {status.data?.registration
+            ? "Your official registration receipt and registered courses for this period. Timetable publication and learning access are shown separately."
+            : "Review your saved courses and current checks, then accept the required declarations to submit your registration."}
+        </p>
+      </header>
       <RegistrationSteps current="review" context={plan.data} />
-      <ContextSelector inventory={await loadRegistrationContexts()} path="/student/register" current={plan.data} />
+      <ContextSelector
+        inventory={await loadRegistrationContexts()}
+        path="/student/register"
+        current={plan.data}
+      />
       {!status.data ? (
         <Notice
           severity="warning"
@@ -94,11 +110,7 @@ export default async function RegisterPage({
         />
       ) : status.data.registration ? (
         <>
-          <Notice
-            severity="success"
-            title="Registration completed"
-            message={`Receipt ${status.data.registration.receipt}. Your official course registration is complete.`}
-          />
+          <RegistrationReceipt receipt={status.data.registration} />
           <Notice
             severity={
               status.data.moodle.state === "Synced" ? "success" : "info"
@@ -109,11 +121,6 @@ export default async function RegisterPage({
                 : `Moodle handoff: ${status.data.moodle.state}`
             }
             message={status.data.moodle.detail}
-          />
-          <h2>Registered courses</h2>
-          <CourseSummary
-            courses={status.data.registration.courses}
-            caption="Officially registered courses"
           />
         </>
       ) : (
@@ -126,6 +133,6 @@ export default async function RegisterPage({
             .digest("hex")}
         />
       )}
-    </>
+    </div>
   );
 }

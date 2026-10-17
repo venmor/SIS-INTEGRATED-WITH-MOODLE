@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { dirname, resolve } from "node:path";
@@ -39,6 +40,7 @@ const unexpectedCalls: string[] = [];
 let actorAvailable = true;
 let inventoryMode: "empty" | "sole" | "multiple" | "unavailable" | "paged" = "empty";
 let defaultUnregistered = false;
+let homeRegistrationAvailable = true;
 
 function courseGroups() {
   return [
@@ -107,6 +109,55 @@ test.beforeAll(async () => {
   api = createServer((request, response) => {
     const url = new URL(request.url ?? "/", apiOrigin);
     response.setHeader("content-type", "application/json");
+    if (request.method === "GET" && url.pathname === "/records/me/home") {
+      response.end(
+        JSON.stringify({
+          studentNumber: "2026-FICTIONAL",
+          status: "ACTIVE",
+          displayName: "Private fictional student name",
+          programmeName: "Fictional computing programme",
+          intake: "2026",
+          campus: "Fictional campus",
+          studyMode: "Full-time",
+          period: "2026S1",
+          registrationOpensAt: null,
+          registrationClosesAt: null,
+          onboardingRequiredTotal: 3,
+          onboardingRequiredComplete: 2,
+          pendingCorrections: 0,
+        }),
+      );
+      return;
+    }
+    if (
+      request.method === "GET" &&
+      url.pathname === "/records/me/corrections"
+    ) {
+      response.end(JSON.stringify({ items: [] }));
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/registration/status") {
+      if (!homeRegistrationAvailable)
+        response
+          .writeHead(503)
+          .end(
+            JSON.stringify({
+              message: "Registration status cannot be checked.",
+            }),
+          );
+      else
+        response.end(
+          JSON.stringify({
+            registration: null,
+            amendments: [],
+            moodle: {
+              state: "NotAvailable",
+              detail: "Formal registration is required.",
+            },
+          }),
+        );
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/registration/contexts") {
       if (inventoryMode === "unavailable") {
         response.writeHead(503).end(JSON.stringify({ message: "Study periods cannot be checked." }));
@@ -350,6 +401,7 @@ test.beforeEach(async ({ page }) => {
   actorAvailable = true;
   inventoryMode = "empty";
   defaultUnregistered = false;
+  homeRegistrationAvailable = true;
   calls.length = 0;
   unexpectedCalls.length = 0;
   await page
@@ -363,7 +415,7 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => {
   expect(
     unexpectedCalls,
-    "Only the timetable and authenticated identity GETs may reach the fixture",
+    "Only the explicit own-student presentation GETs may reach the fixture",
   ).toEqual([]);
 });
 
@@ -1128,4 +1180,159 @@ test("an explicit unregistered context never silently selects another registered
   await expect(page).toHaveURL(`${webOrigin}/student/timetable?${query}`);
   await expect(page.getByRole("link", { name: "Review registration", exact: true })).toHaveAttribute("href", `/student/register?${query}`);
   expect(calls.every(call => call === `/registration/timetable?${query}`)).toBe(true);
+});
+
+// These cases catch document-scrolling regressions, dropped academic context,
+// fabricated dashboard completion and overview totals derived from one page.
+test("student sidebar keeps the account stationary and academic links exact across desktop and mobile", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await page.goto(
+    `${webOrigin}/student/timetable?attemptId=${attemptId}&period=2026S2`,
+  );
+  const sidebar = page.getByRole("complementary", {
+    name: "Student workspace navigation",
+    exact: true,
+  });
+  await expect(sidebar).toBeVisible();
+  const account = sidebar.getByRole("link", {
+    name: "Switch account",
+    exact: true,
+  });
+  const rail = page.getByRole("region", {
+    name: "Student navigation scroll area",
+    exact: true,
+  });
+  const workspace = page.locator("#main-content");
+  const before = await account.boundingBox();
+  await workspace.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await rail.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  expect(await workspace.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await rail.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  const after = await account.boundingBox();
+  expect(after!.y).toBeCloseTo(before!.y, 0);
+  expect(after!.y + after!.height).toBeLessThanOrEqual(500);
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await expect(
+    page.getByRole("link", { name: "Switch workspace", exact: true }),
+  ).toHaveAttribute("href", "/workspaces");
+  await page.screenshot({
+    path: info.outputPath("student-sidebar-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const toggle = page.getByText("Portal sections", { exact: true });
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  const registration = sidebar
+    .getByRole("navigation", { name: "Student navigation", exact: true })
+    .getByRole("link", { name: "Registration", exact: true })
+    .filter({ visible: true });
+  await expect(registration).toHaveAttribute(
+    "href",
+    `/student/readiness?attemptId=${attemptId}&period=2026S2`,
+  );
+  await expect(
+    sidebar
+      .getByRole("link", { name: "My timetable", exact: true })
+      .filter({ visible: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await noOverflow(page);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: info.outputPath("student-sidebar-mobile.png"),
+    fullPage: true,
+  });
+});
+
+test("timetable overview counts the selected source before pagination and preserves week day list interactions", async ({
+  page,
+}, info) => {
+  scenario = "published";
+  await openConfirmedTimetable(page);
+  const overview = page.getByRole("region", {
+    name: "Timetable overview",
+    exact: true,
+  });
+  await expect(overview).toContainText("12 sessions");
+  await expect(overview).toContainText("12 courses");
+  await expect(overview).toContainText("3 dates");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: info.outputPath("student-timetable-overview-initial-mobile.png"), fullPage: true });
+  await page.getByRole("radio", { name: "Week", exact: true }).check();
+  await expect(
+    page.getByRole("region", { name: "Sessions by week", exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 1672, height: 1000 });
+  await noOverflow(page);
+  await page.screenshot({ path: info.outputPath("student-timetable-week-desktop.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Next teaching week", exact: true })
+    .click();
+  await expect(overview).toContainText("2 sessions");
+  await expect(overview).toContainText("2 courses");
+  await expect(overview).toContainText("1 date");
+  await page.getByRole("radio", { name: "By day", exact: true }).check();
+  await page
+    .getByLabel("Teaching day", { exact: true })
+    .selectOption("2026-10-12");
+  await expect(
+    page.getByRole("region", { name: "Sessions by day", exact: true }),
+  ).toContainText("12 October 2026");
+  await page.getByRole("radio", { name: "List", exact: true }).check();
+  await expect(
+    page
+      .getByRole("list", { name: "Published class sessions", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(2);
+  await page.getByLabel("Course", { exact: true }).selectOption("MAT001");
+  await expect(overview).toContainText("0 sessions");
+  await expect(
+    page.getByRole("status", {
+      name: "Selected course timetable being prepared",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: info.outputPath("student-timetable-overview-mobile.png"),
+    fullPage: true,
+  });
+});
+
+test("student general information uses own record facts and keeps unknown registration distinct from active student status", async ({
+  page,
+}, info) => {
+  homeRegistrationAvailable = false;
+  await page.goto(`${webOrigin}/student`);
+  const information = page.getByRole("region", {
+    name: "General information",
+    exact: true,
+  });
+  await expect(information).toContainText("2026-FICTIONAL");
+  await expect(information).toContainText("Fictional computing programme");
+  await expect(information).toContainText("Fictional campus");
+  await expect(
+    page.getByRole("heading", {
+      name: "Registration status unavailable",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Registration completed", exact: true }),
+  ).toHaveCount(0);
+  await noOverflow(page);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: info.outputPath("student-home-unknown-mobile.png"), fullPage: true });
+  await page.setViewportSize({ width: 1672, height: 1000 });
+  await noOverflow(page);
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: info.outputPath("student-home-unknown-desktop.png"), fullPage: true });
 });
