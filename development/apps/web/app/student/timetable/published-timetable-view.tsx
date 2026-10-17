@@ -116,6 +116,12 @@ function PublishedSessions({ data }: { data: PublishedTimetableData }) {
   const currentPage = Math.min(page, pages);
   const start = (currentPage - 1) * 10;
   const visible = filtered.slice(start, start + 10);
+  // Count the complete selected source, never just its ten visible records or
+  // historical change entries. These values describe this publication only.
+  const selectedCourseCount = new Set(
+    filtered.map((session) => session.courseCode),
+  ).size;
+  const selectedDayCount = new Set(filtered.map((session) => session.day)).size;
   const days =
     view === "week"
       ? Array.from({ length: 7 }, (_, index) => {
@@ -322,6 +328,39 @@ function PublishedSessions({ data }: { data: PublishedTimetableData }) {
               </nav>
             ) : null}
           </div>
+          <section
+            className={styles.overview}
+            aria-labelledby={`${id}-overview-title`}
+          >
+            <div>
+              <h3 id={`${id}-overview-title`}>Timetable overview</h3>
+              <p className={styles.meta}>
+                Current filter · Full publication source before paging · CAT
+              </p>
+            </div>
+            <dl className={styles.overviewFacts}>
+              <div>
+                <dt>Published sessions</dt>
+                <dd>
+                  {filtered.length} session{filtered.length === 1 ? "" : "s"}
+                </dd>
+              </div>
+              <div>
+                <dt>Courses with sessions</dt>
+                <dd>
+                  {selectedCourseCount} course
+                  {selectedCourseCount === 1 ? "" : "s"}
+                </dd>
+              </div>
+              <div>
+                <dt>Session start dates</dt>
+                <dd>
+                  {selectedDayCount} date
+                  {selectedDayCount === 1 ? "" : "s"}
+                </dd>
+              </div>
+            </dl>
+          </section>
           <p
             role="status"
             aria-live="polite"

@@ -392,7 +392,8 @@ for (const mode of ["live-test", "live-test-disabled"] as const) {
     backend = mode;
     controlsReady = false;
     await page.goto(`${webOrigin}/student/register`);
-    await expect(page.getByRole("status", { name: "Registration completed", exact: true }))
+    await expect(page.getByRole("status", { name: "Registration completed", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Registration receipt", exact: true }))
       .toContainText("REG-UI-2026-001");
     const access = page.getByRole("status", { name: "Moodle access is being prepared", exact: true });
     await expect(access).toContainText(/do not register again/i);

@@ -1,11 +1,12 @@
 
 /** Navigation only: destination loaders still enforce live role and ownership. */
-export function safeSignInTarget(value: string | undefined): string | undefined {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(value) || /%0[ad]|%5c/i.test(value)) return;
+export function safeSignInTarget(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(value) || /%0[ad]|%5c/i.test(value)) return;
   const url = new URL(value, 'https://sis.invalid');
-  if (url.origin !== 'https://sis.invalid' || url.hash) return;
+  if (url.origin !== 'https://sis.invalid' || url.hash || value.split('?')[0] !== url.pathname) return;
+  if (['/workspaces', '/notifications'].includes(url.pathname) && !url.search) return value;
   if (/^\/(applicant|discover|admin)(\/|\?|$)/.test(value)) return value;
-  if (!['/student', '/student/courses', '/student/register', '/student/readiness', '/student/timetable', '/student/changes', '/student/results'].includes(url.pathname)) return;
+  if (!['/student', '/student/courses', '/student/register', '/student/readiness', '/student/timetable', '/student/changes', '/student/results', '/student/finance', '/student/finance/pay', '/student/finance/arrange', '/student/support'].includes(url.pathname) && !/^\/student\/support\/[a-f0-9-]{36}$/i.test(url.pathname)) return;
   for (const key of url.searchParams.keys()) {
     if (!['attemptId', 'period'].includes(key) || url.searchParams.getAll(key).length !== 1) return;
   }

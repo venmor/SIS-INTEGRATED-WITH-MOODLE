@@ -176,7 +176,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-2);
   border: 0;
   padding: 0;
   min-width: 0;
@@ -191,6 +191,21 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  font-size: var(--font-supporting);
+}
+.viewOptions label:has(input:checked) {
+  background: #e6f2eb;
+  color: #06472f;
+  border-color: #3f7b5c;
+}
+.viewOptions label:has(input:focus-visible) {
+  outline: 2px solid var(--green-700);
+  outline-offset: 3px;
 }
 .viewOptions input {
   width: 1.1rem;
@@ -215,6 +230,7 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
+  border-left: 3px solid #478269;
   border-radius: var(--radius-sm);
   background: var(--bg-surface);
   min-width: 0;
@@ -224,9 +240,12 @@
   font-size: var(--font-supporting);
 }
 .sessionFacts {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
   gap: var(--space-5);
+  padding: 0.75rem;
+  background: #f5f8f6;
+  border-radius: var(--radius-sm);
 }
 .sessionFacts dt {
   font-size: var(--font-supporting);
@@ -279,7 +298,7 @@
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-3);
-  background: var(--bg-page);
+  background: #f3f7f5;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
@@ -287,6 +306,8 @@
   font-size: var(--font-body);
   padding: var(--space-2);
   line-height: var(--line-body);
+  color: #154d38;
+  border-bottom: 1px solid #dbe6df;
 }
 .sourceDetails {
   display: block;
@@ -297,6 +318,38 @@
 .sourceDetails > p,
 .sourceDetails > ul {
   margin-bottom: var(--space-4);
+}
+
+.overview {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #f4f8f6;
+  border: 1px solid #dbe6df;
+  border-radius: var(--radius-md);
+}
+.overview h3 {
+  font-size: 1rem;
+  color: #154d38;
+}
+.overviewFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.overviewFacts div {
+  min-width: 0;
+}
+.overviewFacts dt {
+  color: var(--text-secondary);
+  font-size: var(--font-supporting);
+}
+.overviewFacts dd {
+  margin: 0.35rem 0 0;
+  color: #13251e;
+  font-size: 1.1rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .secondaryButton:focus-visible,
@@ -312,7 +365,8 @@
 @media (max-width: 44rem) {
   .facts,
   .filters,
-  .dayGrid {
+  .dayGrid,
+  .overviewFacts {
     grid-template-columns: 1fr;
   }
   .course {

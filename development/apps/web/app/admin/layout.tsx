@@ -9,6 +9,7 @@ import { NavigationIcon } from "../navigation-icon";
 import { StaffBreadcrumbs } from "./staff-breadcrumbs";
 import { StaffAccountMenu } from "./staff-account-menu";
 import { StaffScrollReset } from "./staff-scroll-reset";
+import { workspaceHome } from "../../lib/workspace-home";
 
 interface Me {
   account: {
@@ -73,6 +74,8 @@ export default async function AdminLayout({
     timetablePermissions(active),
     institutionSetupAvailable(active),
   ]);
+  const home = workspaceHome(active, { timetable, setupAvailable,
+    demoRulesAvailable: process.env.DEMO_MODE === "true" && process.env.SIS_ENABLE_TIMETABLE_DEMO_DRAFTS === "true" });
   const contextLabel = timetable?.canPublish
     ? "Timetable publication"
     : workspaceLabel(role, active?.scopeRef);
@@ -97,7 +100,7 @@ export default async function AdminLayout({
     {
       href: "/admin/admissions/queue",
       label: "Admissions queue",
-      show: role === "ADMISSIONS_OFFICER",
+      show: role === "ADMISSIONS_OFFICER" || role === "ADMISSIONS_APPROVER",
     },
     {
       href: "/admin/records/duplicates",
@@ -228,7 +231,7 @@ export default async function AdminLayout({
     <div className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Staff workspace navigation">
         <div className={styles.brand}>
-          <Link href="/">
+          <Link href={home}>
             <span className={styles.brandMark} aria-hidden="true">
               SIS
             </span>
@@ -241,7 +244,7 @@ export default async function AdminLayout({
 
         {active ? (
           <Link
-            href="/"
+            href="/workspaces"
             className={styles.contextSwitch}
             aria-label="Switch active workspace"
           >
@@ -285,7 +288,7 @@ export default async function AdminLayout({
             <strong>{contextLabel}</strong>
           </div>
           <nav className={styles.topbarActions} aria-label="Account and help">
-            <Link href="/">
+            <Link href="/workspaces">
               <NavigationIcon href="/" />
               Switch workspace
             </Link>

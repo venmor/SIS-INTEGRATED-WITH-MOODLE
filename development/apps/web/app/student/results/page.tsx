@@ -1,9 +1,9 @@
 import Link from "next/link";
-import styles from "./results.module.css";
-import { Card, Notice, PageHeader, StatusChip } from "@sis/ui";
+import study from "../study-workflows.module.css";
+import { Notice } from "@sis/ui";
 import type { StudentResultsView } from "@sis/contracts";
 import { loadResult } from "../../admin/assessment/result-server";
-import { formatLusaka } from "../../../lib/time";
+import { ResultsList } from "./results-list";
 
 export const dynamic = "force-dynamic";
 export default async function ResultsPage() {
@@ -12,15 +12,16 @@ export default async function ResultsPage() {
     "/student/results",
   );
   return (
-    <div className={styles.page}>
-      <PageHeader
-        eyebrow="Student portal"
-        title="Official results"
-        lede="Published course results and their version history. Progression decisions are shown separately from course outcomes."
-      />
-      <p>
-        <Link href="/student">Student home</Link>
-      </p>
+    <div className={study.page}>
+      <header className={study.intro}>
+        <p className={study.eyebrow}>Results and academic record</p>
+        <h1>Official results</h1>
+        <p className={study.muted}>
+          Published course results and their version history. Progression
+          decisions are shown separately from course outcomes. Moodle learning
+          feedback does not establish an official result.
+        </p>
+      </header>
       {!result.data ? (
         <Notice
           severity="warning"
@@ -36,69 +37,14 @@ export default async function ResultsPage() {
               message="Results will appear here after the authorized publication process. A Moodle mark is learning feedback and does not establish your official result."
             />
           ) : null}
-          {result.data.items.map((item) => (
-            <Card
-              key={`${item.courseCode}-${item.periodCode}`}
-              title={`${item.courseCode} · ${item.courseTitle}`}
-            >
-              <p>
-                {item.periodCode} ·{" "}
-                <StatusChip tone="success">
-                  Official result — released
-                </StatusChip>
-              </p>
-              <dl className={styles.facts}>
-                <dt>Outcome</dt>
-                <dd>{item.outcome}</dd>
-                <dt>Official mark</dt>
-                <dd>
-                  {item.mark === null
-                    ? "Not displayed under the release policy"
-                    : `${item.mark} / 100`}
-                </dd>
-                <dt>Published</dt>
-                <dd>{formatLusaka(item.publishedAt)}</dd>
-                <dt>Current version</dt>
-                <dd>{item.version}</dd>
-              </dl>
-              <Notice
-                severity="info"
-                title={
-                  item.progressionReadiness === "REVIEW_REQUIRED"
-                    ? "Academic impact review required"
-                    : "Progression not yet evaluated"
-                }
-                message={
-                  item.progressionReadiness === "REVIEW_REQUIRED"
-                    ? "This result was amended. The responsible academic team must review its effect on progression and registration. Your existing courses and learning access have not been removed by this amendment."
-                    : "This course result does not itself decide progression, supplementary eligibility or a repeat requirement."
-                }
-              />
-              <section className={styles.review}>
-                <h3>Result review</h3>
-                <p>{item.reviewInstructions}</p>
-              </section>
-              <details>
-                <summary>Published version history</summary>
-                <ol>
-                  {item.history.map((version) => (
-                    <li key={version.version}>
-                      Version {version.version}: {version.outcome}
-                      {version.mark === null
-                        ? ""
-                        : ` · ${version.mark} / 100`}{" "}
-                      · {formatLusaka(version.publishedAt)}
-                      {version.version === item.version
-                        ? " · Current"
-                        : " · Superseded"}
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            </Card>
-          ))}
+          {result.data.items.length > 0 ? (
+            <ResultsList items={result.data.items} />
+          ) : null}
         </>
       )}
+      <p>
+        <Link href="/student">Student home</Link>
+      </p>
     </div>
   );
 }

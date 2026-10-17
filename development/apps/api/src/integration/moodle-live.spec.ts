@@ -173,7 +173,7 @@ describe('live Moodle read-only safety foundation', () => {
     }
     expect(server.requests).toHaveLength(0);
   });
-  it('verifies canonical identity and reports the exact release', async () => {
+  it('verifies canonical identity and preserves numeric build evidence beside the exact release', async () => {
     const server = await fixture((_request, response) =>
       json(response, { siteid: 1, release: RELEASE, version: '2025100603' }),
     );
@@ -183,6 +183,7 @@ describe('live Moodle read-only safety foundation', () => {
       ok: true,
       backend: 'live-test',
       version: RELEASE,
+      numericVersion: '2025100603',
       detail:
         'Read-only Moodle target identity verified. Live operations remain disabled.',
     });

@@ -9,6 +9,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./moodle-live-run": {
+      "types": "./src/moodle-live-run.ts",
+      "default": "./src/moodle-live-run.ts"
     }
   },
   "license": "UNLICENSED"

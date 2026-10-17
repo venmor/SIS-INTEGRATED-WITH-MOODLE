@@ -2,6 +2,10 @@
 
 This is an implementation navigation index, not a replacement for the handbook. When sources conflict, use the handbook authority order and supersession register.
 
+## Current continuation — 17 October 2026
+
+We resumed application work after the supervisor checkpoint. [Our continuation report](docs/learning/PROJECT-CONTINUATION-2026-10-17.md) separates the completed student presentation/workspace entry, [registration readiness repair](docs/learning/NOTE-V2-REG-002.md) and [persisted Moodle run foundation](docs/learning/NOTE-V2-MOODLE-002.md) from remaining live enrolment/delivery, progression, examinations and other v2.0 workflows. [UI-013](docs/learning/NOTE-V2-UI-013.md) records course selection, registration receipts and bounded results display. Original handbook approvals and institutional gates remain intact.
+
 | Implementation concern | Controlling handbook starting point |
 |---|---|
 | Development entry and task scope | [Development entry gate](../unza-sis-moodle-design-handbook-v3.0.0/09-AI-AGENT-OPERATING-MANUAL/09-development-entry-gate.md) |

@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import {
   createCheckpointStudent,
@@ -59,7 +60,7 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(ORIGIN + "/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   await page.goto("/student/register");
   await expect(page.getByText(/Moodle handoff: Queued/)).toBeVisible();
   await noOverflow(page);

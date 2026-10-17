@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 import {
@@ -123,16 +124,8 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   // Wait for the sign-in round-trip: the form replaces to home on success.
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
-  await expect(
-    page.getByRole("heading", { name: "Student Information System" }),
-  ).toBeVisible();
-  // Officer landing offers the queue directly.
-  await expect(
-    page.getByRole("link", { name: "Admissions queue" }),
-  ).toBeVisible();
-
-  await page.goto("/admin/admissions/queue");
+  await expectWorkspaceLanding(page);
+  // Direct entry opens the selected officer queue without an intermediate chooser.
   await expect(
     page.getByRole("heading", { name: "Admissions queue" }),
   ).toBeVisible();
@@ -218,7 +211,7 @@ test("staff queue: officer claims a case, records a finding, raises clarificatio
   await page.getByLabel("Username", { exact: true }).fill("kasonde.a");
   await page.getByLabel("Password", { exact: true }).fill("Seed-2026-Kasonde");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   await page.goto(`/admin/admissions/case/${caseId}`);
   await expect(
     page.getByRole("heading", { name: "Release decision" }),
@@ -270,7 +263,7 @@ test("staff queue: paginates in scope and preserves navigation in the URL", asyn
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/admissions/queue?scope=pool&take=1");
   await expect(
@@ -318,7 +311,7 @@ test("staff queue: an invalid saved page link can restart with its filters", asy
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto(
     "/admin/admissions/queue?scope=pool&state=Submitted&actionNeeded=true&take=1&cursor=invalid",
@@ -346,7 +339,7 @@ test("staff queue: exact reference search stays scoped and survives reload", asy
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/admissions/queue?scope=pool");
   await page.getByLabel("Case reference").fill(` ${reference.toUpperCase()} `);
@@ -389,7 +382,7 @@ test("staff queue: comparable cases become labelled mobile records and failed re
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto(`/admin/admissions/queue?scope=pool&reference=${reference}`);
   await expect(
@@ -459,7 +452,7 @@ test("staff queue: preview two claimed cases without deciding them", async ({
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
   for (const reference of references) {
     await page.goto(
       `/admin/admissions/queue?scope=pool&reference=${reference}`,
@@ -502,7 +495,7 @@ async function signInBatchOfficer(
   await page.getByLabel("Username", { exact: true }).fill(officer.username);
   await page.getByLabel("Password", { exact: true }).fill(officer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 }
 
 test("staff queue: selected claims recover a lost response using the same reference and skip a competing claim", async ({

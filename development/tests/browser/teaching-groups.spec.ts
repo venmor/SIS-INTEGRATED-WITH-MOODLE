@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { createCoordinator } from "./fixtures";
 
@@ -20,7 +21,7 @@ test("teaching groups: coordinator creates a draft group", async ({
   await page.getByLabel("Username", { exact: true }).fill(coordinator.username);
   await page.getByLabel("Password", { exact: true }).fill(coordinator.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/teaching/groups");
   await expect(

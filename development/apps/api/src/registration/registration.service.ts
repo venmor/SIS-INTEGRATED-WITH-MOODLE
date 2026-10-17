@@ -7,6 +7,7 @@ import { PrismaService } from '../identity-access/prisma.service.js';
 import { FinanceService } from '../finance/finance.service.js';
 import { timetableDemoDraftsEnabled } from '../timetabling/demo-rules.service.js';
 import { IntegrationService } from '../integration/integration.service.js';
+import type { RegistrationReceiptView } from '@sis/contracts';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
@@ -40,6 +41,7 @@ export interface ReadinessAssessment {
   pendingRegulations: string[];
   conditions: ReadinessCondition[];
   assessedAt: string;
+  registration: RegistrationReceiptView | null;
 }
 
 // Phase 4 slice 3: registration eligibility summary (TASK-PH4-003). The
@@ -81,7 +83,7 @@ export class RegistrationService {
     role: string,
     capability: string,
   ) {
-    if (!auth.assignmentId) return null;
+    if (!auth.assignmentId || auth.activeRole !== role) return null;
     const now = new Date();
     return this.prisma.roleAssignment.findFirst({
       where: {
@@ -92,7 +94,7 @@ export class RegistrationService {
         startsAt: { lte: now },
         revokedAt: null,
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        account: { status: 'ACTIVE' },
+        account: { status: 'ACTIVE', person: { status: 'ACTIVE' } },
       },
     });
   }
@@ -127,59 +129,19 @@ export class RegistrationService {
     attemptId?: string,
     periodCode?: string,
   ): Promise<ReadinessAssessment> {
-    const studentSession = await this.liveAssignment(auth, 'STUDENT', 'study');
-    const recordsSession =
-      studentSession === null
-        ? await this.liveAssignment(auth, 'RECORDS_OFFICER', 'convert-student')
-        : null;
-    if (!studentSession && !recordsSession) {
-      throw new HttpException(
-        { message: 'This registration workspace is unavailable.' },
-        403,
-      );
-    }
-    const account = await this.prisma.account.findUnique({
-      where: { id: auth.accountId },
-      include: { person: true },
-    });
-    if (!account) this.fail('NOT_FOUND', 'Student record not found.', 404);
-    let attempt;
-    if (attemptId) {
-      attempt = await this.prisma.programmeAttempt.findUnique({
-        where: { id: attemptId },
-        include: {
-          student: true,
-          offering: { include: { programme: true } },
+    const { attempt, period } = await this.resolveAttempt(
+      auth,
+      attemptId,
+      periodCode,
+    );
+    const registration = await this.prisma.institutionalRegistration.findUnique(
+      {
+        where: {
+          attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
         },
-      });
-      if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
-      if (studentSession && attempt.student.personId !== account.personId)
-        this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
-    } else {
-      if (!studentSession)
-        this.fail(
-          'ATTEMPT_REQUIRED',
-          'Name the programme attempt to review.',
-          400,
-        );
-      const own = await this.prisma.student.findUnique({
-        where: { personId: account.personId },
-      });
-      if (!own) this.fail('NOT_FOUND', 'Student record not found.', 404);
-      attempt = await this.prisma.programmeAttempt.findFirst({
-        where: { studentId: own.id },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          student: true,
-          offering: { include: { programme: true } },
-        },
-      });
-      if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
-    }
-    const period = await this.prisma.academicPeriod.findUnique({
-      where: { code: periodCode ?? (policy.currentPeriod as string) },
-    });
-    if (!period) this.fail('NOT_FOUND', 'Academic period not found.', 404);
+      },
+    );
+    const completed = registration?.status === 'REGISTERED';
     const student = attempt.student;
     const now = new Date();
     const conditions: ReadinessCondition[] = [];
@@ -209,6 +171,7 @@ export class RegistrationService {
     });
     // 3. Period open.
     const open =
+      period.status === 'OPEN' &&
       period.registrationOpen != null &&
       period.registrationClose != null &&
       period.registrationOpen <= now &&
@@ -216,14 +179,18 @@ export class RegistrationService {
     conditions.push({
       key: 'period-open',
       label: 'Registration period open',
-      status: open ? 'READY' : 'BLOCKED',
+      status: completed ? 'NOT_APPLICABLE' : open ? 'READY' : 'BLOCKED',
       owner: 'Registry',
-      detail: open
-        ? `Period ${period.code} is open.`
-        : `Period ${period.code}: ${period.registrationOpen ? (period.registrationOpen as Date).toISOString() : 'unopened'} to ${period.registrationClose ? (period.registrationClose as Date).toISOString() : 'unclosed'}.`,
-      next: open
-        ? 'No action needed.'
-        : 'Wait for the registration window or contact the registry.',
+      detail: completed
+        ? 'Registration is already complete for this period.'
+        : open
+          ? `Period ${period.code} is open.`
+          : `Period ${period.code}: ${period.registrationOpen ? (period.registrationOpen as Date).toISOString() : 'unopened'} to ${period.registrationClose ? (period.registrationClose as Date).toISOString() : 'unclosed'}.`,
+      next: completed
+        ? 'View your receipt or timetable. Later changes follow the course-change process.'
+        : open
+          ? 'No action needed.'
+          : 'Wait for the registration window or contact the registry.',
     });
     // 4. Progression: first-time path now; open regulation boundaries travel
     // along so academic decisions route correctly once results exist.
@@ -355,22 +322,73 @@ export class RegistrationService {
         next: 'Follow the holding office route; registration cannot finalize meanwhile.',
       });
     }
-    // 8-9. Selection and declarations arrive in later slices.
+    // A draft is preparation. Only the official period record establishes completion.
+    const board = completed
+      ? null
+      : await this.planBoard(attempt.id, period.id);
+    const bands = policy.loadBands as { minHalves: number; maxHalves: number };
+    const selectionProblems =
+      board?.validation.filter(
+        (v) => v.result === 'BLOCK' || v.result === 'APPROVAL_REQUIRED',
+      ) ?? [];
+    const loadValid =
+      board != null &&
+      board.loadHalves >= bands.minHalves &&
+      board.loadHalves <= bands.maxHalves;
+    const selectionReady =
+      board?.status === 'DRAFT' &&
+      board.items.length > 0 &&
+      loadValid &&
+      selectionProblems.length === 0;
     conditions.push({
       key: 'selection-complete',
       label: 'Course selection complete',
-      status: 'ACTION_REQUIRED',
       owner: 'Student',
-      detail: 'Course selection opens in the next step.',
-      next: 'Complete course selection when it opens.',
+      status: completed
+        ? 'COMPLETE'
+        : selectionReady
+          ? 'READY'
+          : 'ACTION_REQUIRED',
+      detail: completed
+        ? `Courses are recorded on registration receipt ${registration.receipt}.`
+        : !board?.items.length
+          ? 'No courses have been saved for this period.'
+          : selectionProblems.length
+            ? selectionProblems
+                .map((v) => `${v.code}: ${v.explanation}`)
+                .join(' ')
+            : !loadValid
+              ? `Saved load is ${board.loadHalves} half-course equivalents; choose between ${bands.minHalves} and ${bands.maxHalves}.`
+              : board.status !== 'DRAFT'
+                ? 'This course plan needs registry review before another submission.'
+                : `${board.items.length} courses saved, version ${board.version}. Current course and load checks pass.`,
+      next: completed
+        ? 'View your registration receipt.'
+        : selectionReady
+          ? 'Review your saved courses and accept the declarations.'
+          : 'Open your course plan and resolve the listed checks.',
     });
+    const snapshot = registration?.snapshot as
+      { declarations?: unknown[] } | undefined;
+    const recordedDeclarations =
+      Array.isArray(snapshot?.declarations) && snapshot.declarations.length > 0;
     conditions.push({
       key: 'declarations',
       label: 'Registration declarations accepted',
-      status: 'ACTION_REQUIRED',
       owner: 'Student',
-      detail: 'Declarations are accepted at formal submission.',
-      next: 'Review and accept declarations when submitting.',
+      status: completed
+        ? recordedDeclarations
+          ? 'COMPLETE'
+          : 'NOT_APPLICABLE'
+        : 'ACTION_REQUIRED',
+      detail: completed
+        ? recordedDeclarations
+          ? 'Accepted declarations are preserved with the completed registration.'
+          : 'The completed registration is retained; historical declaration details are not available in this view.'
+        : 'Declarations are accepted with formal submission, separately from saving your course plan.',
+      next: completed
+        ? 'No new declaration is needed to view this registration.'
+        : 'Review and accept declarations when submitting.',
     });
     const blocked = conditions.filter((c) => c.status === 'BLOCKED');
     const needsAction = conditions.filter(
@@ -382,8 +400,9 @@ export class RegistrationService {
     const financial = blocked.some(
       (c) => c.key === 'holds-clear' || c.key === 'clearance',
     );
-    const overall =
-      blocked.length > 0
+    const overall = completed
+      ? 'REGISTERED'
+      : blocked.length > 0
         ? financial
           ? 'AWAITING_FINANCIAL_CLEARANCE'
           : 'AWAITING_ACADEMIC_APPROVAL'
@@ -411,6 +430,9 @@ export class RegistrationService {
       pendingRegulations: ['DEC-PROG-001', 'DEC-PROG-002', 'DEC-FIN-001'],
       conditions,
       assessedAt: new Date().toISOString(),
+      registration: completed
+        ? this.receiptView(registration, period.code)
+        : null,
     };
   }
 
@@ -545,6 +567,31 @@ export class RegistrationService {
       });
       if (!attempt) this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
     }
+    if (
+      studentSession &&
+      !(
+        (studentSession.scopeType === 'STUDENT' &&
+          [attempt.student.id, attempt.student.studentNumber].includes(
+            studentSession.scopeRef,
+          )) ||
+        (studentSession.scopeType === 'PERSON' &&
+          ['SELF', account.personId].includes(studentSession.scopeRef))
+      )
+    )
+      this.fail(
+        'WORKSPACE_UNAVAILABLE',
+        'This student workspace is unavailable.',
+        403,
+      );
+    if (
+      recordsSession &&
+      !(
+        recordsSession.scopeType === 'INTAKE' &&
+        recordsSession.scopeRef &&
+        attempt.intake.startsWith(recordsSession.scopeRef)
+      )
+    )
+      this.fail('NOT_FOUND', 'Programme attempt not found.', 404);
     const period = await this.prisma.academicPeriod.findUnique({
       where: { code: periodCode ?? (policy.currentPeriod as string) },
     });
@@ -562,6 +609,7 @@ export class RegistrationService {
     });
     const curriculum = await this.prisma.curriculumVersion.findFirst({
       where: {
+        id: attempt.curriculumVersionId ?? '',
         programmeId: attempt.offering.programmeId,
         status: 'PUBLISHED',
       },
@@ -716,6 +764,7 @@ export class RegistrationService {
       async (db) => {
         const curriculum = await db.curriculumVersion.findFirst({
           where: {
+            id: attempt.curriculumVersionId ?? '',
             programmeId: attempt.offering.programmeId,
             status: 'PUBLISHED',
           },
@@ -970,19 +1019,6 @@ export class RegistrationService {
             409,
           );
         }
-        const now = new Date();
-        if (
-          period.registrationOpen == null ||
-          period.registrationClose == null ||
-          period.registrationOpen > now ||
-          now > period.registrationClose
-        ) {
-          this.fail(
-            'PERIOD_CLOSED',
-            `Registration for ${period.code} is not open.`,
-            409,
-          );
-        }
         const existing = await db.institutionalRegistration.findUnique({
           where: {
             attemptId_periodId: { attemptId: attempt.id, periodId: period.id },
@@ -993,6 +1029,23 @@ export class RegistrationService {
           return {
             body: this.receiptView(existing, period.code),
           };
+        }
+        const now = new Date();
+        const currentPeriod = await db.academicPeriod.findUniqueOrThrow({
+          where: { id: period.id },
+        });
+        if (
+          currentPeriod.status !== 'OPEN' ||
+          currentPeriod.registrationOpen == null ||
+          currentPeriod.registrationClose == null ||
+          currentPeriod.registrationOpen > now ||
+          now > currentPeriod.registrationClose
+        ) {
+          this.fail(
+            'PERIOD_CLOSED',
+            `Registration for ${period.code} is not open.`,
+            409,
+          );
         }
         const plan = await db.coursePlan.findUnique({
           where: {

@@ -179,11 +179,16 @@ export class AuthController {
     }
     const headerAgent = req.headers?.['user-agent'];
     const userAgent = Array.isArray(headerAgent) ? headerAgent[0] : headerAgent;
+    const rawCookie = req.headers?.['cookie'];
+    const presented = parseCookies(
+      Array.isArray(rawCookie) ? rawCookie.join('; ') : (rawCookie ?? ''),
+    )[SECURITY_V1.session.cookieName];
     const result = await this.sessions.signIn(
       body.username,
       body.password,
       ip,
       userAgent,
+      presented,
     );
     if (!result.ok) {
       throw new UnauthorizedException({
@@ -194,10 +199,6 @@ export class AuthController {
     // 07/02 rotation: a presented session is retired when a fresh one is
     // minted, so a re-sign-in never leaves two live tokens on one device.
     // (No cookie is sent on a new device, so other devices stay signed in.)
-    const rawCookie = req.headers?.['cookie'];
-    const presented = parseCookies(
-      Array.isArray(rawCookie) ? rawCookie.join('; ') : (rawCookie ?? ''),
-    )[SECURITY_V1.session.cookieName];
     if (presented) await this.sessions.revokeSession(presented);
     res.setHeader('Set-Cookie', serializeSessionCookie(result.token));
     return {

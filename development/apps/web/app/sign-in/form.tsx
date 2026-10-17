@@ -3,7 +3,6 @@
 import { safeSignInTarget } from "../../lib/sign-in-target";
 
 import { useRef, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import { ActionButton, ErrorSummary, Field, PasswordField } from "@sis/ui";
 import { AUTH_MESSAGES } from "@sis/config";
 import styles from "../page.module.css";
@@ -38,7 +37,6 @@ export function SignInForm({
     workspaceHref?: string;
   }>;
 }) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
@@ -99,12 +97,12 @@ export function SignInForm({
       const ref = body.reference ? ` (Reference: ${body.reference})` : "";
       if (res.ok) {
         // Preserve validated local workspace destinations through authentication.
-        const requestedTarget = returnTo ?? demoStaff?.find(
-          (staff) => staff.username === data.get("username"),
-        )?.workspaceHref;
-        const target = safeSignInTarget(requestedTarget)
-          ?? (data.get("username") === demoAccount?.username ? "/applicant" : "/");
-        await router.replace(target);
+        // The server resolves / from the actual active workspace. Demo account
+        // labels and usernames cannot choose or combine authority.
+        const target = safeSignInTarget(returnTo) ?? "/";
+        // A new authenticated context must not reuse cached pages from the
+        // previous account or role in this browser's client router.
+        window.location.replace(target);
         return;
       }
       if (res.status === 429) {

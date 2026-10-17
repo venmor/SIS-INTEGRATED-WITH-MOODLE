@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { createAcademicSupportScenario, createStudent } from "./fixtures";
 
@@ -10,7 +11,7 @@ async function signIn(
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 }
 
 test("academic help stays unavailable without a configured adviser and receiver", async ({

@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 import { createApplicant, createStudent } from "./fixtures";
@@ -38,9 +39,9 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expectWorkspaceLanding(page);
   await expect(
-    page.getByRole("link", { name: "Student portal" }),
+    page.getByRole("heading", { name: "Welcome to the student portal" }),
   ).toBeVisible();
   await page.goto("/discover");
   await expect(
@@ -57,7 +58,7 @@ test("applicant workspace home never offers access-review administration", async
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expectWorkspaceLanding(page);
   await expect(
     page.getByRole("link", { name: "Applicant portal" }),
   ).toBeVisible();

@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import { createLecturer, ensureTimelinePackage } from "./fixtures";
 
@@ -19,7 +20,7 @@ async function signIn(
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(`${base}/`, { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 }
 
 // Phase 8 slice 2: the board-package History section joins audit rows,

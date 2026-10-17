@@ -1,3 +1,4 @@
+import { expectWorkspaceLanding } from "./workspace-landing";
 import { test, expect } from "@playwright/test";
 import {
   createAssessmentCoordinator,
@@ -34,7 +35,7 @@ test("assessment plan: plan to mapping activation journey", async ({
   await page.getByLabel("Username", { exact: true }).fill(lecturer.username);
   await page.getByLabel("Password", { exact: true }).fill(lecturer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/assessment/plans");
   await expect(
@@ -104,7 +105,7 @@ test("assessment plan: plan to mapping activation journey", async ({
   await page.getByLabel("Username", { exact: true }).fill(coordinator.username);
   await page.getByLabel("Password", { exact: true }).fill(coordinator.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto(`/admin/assessment/plans/${planId}/decide`);
   await expect(
@@ -155,7 +156,7 @@ test("assessment plan: plan to mapping activation journey", async ({
   await page.getByLabel("Username", { exact: true }).fill(lecturer.username);
   await page.getByLabel("Password", { exact: true }).fill(lecturer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   const activity = `SIM-QUIZ-${Date.now().toString(36).toUpperCase()}`;
   await page.goto("/admin/assessment/mappings");
@@ -217,7 +218,7 @@ test("assessment plan: plan to mapping activation journey", async ({
   await page.getByLabel("Username", { exact: true }).fill(coordinator.username);
   await page.getByLabel("Password", { exact: true }).fill(coordinator.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto(`/admin/assessment/mappings/${mappingId}/decide`);
   await page
@@ -253,7 +254,7 @@ test("assessment plan: plan to mapping activation journey", async ({
   await page.getByLabel("Username", { exact: true }).fill(lecturer.username);
   await page.getByLabel("Password", { exact: true }).fill(lecturer.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/", { timeout: 20000 });
+  await expectWorkspaceLanding(page);
 
   await page.goto("/admin/assessment/batches");
   await expect(

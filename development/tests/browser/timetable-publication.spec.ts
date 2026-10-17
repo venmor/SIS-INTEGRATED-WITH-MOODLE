@@ -13,10 +13,12 @@ async function signIn(
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL((url) => url.pathname !== "/sign-in", {
-    timeout: 20000,
-  });
-  await page.goto(target);
+  const intended = new URL(target, page.url());
+  await page.waitForURL(
+    (url) => url.pathname === intended.pathname &&
+      [...intended.searchParams].every(([key, value]) => url.searchParams.get(key) === value),
+    { timeout: 20000, waitUntil: "domcontentloaded" },
+  );
 }
 async function api(page: Page, path: string, body?: unknown) {
   return page.evaluate(
