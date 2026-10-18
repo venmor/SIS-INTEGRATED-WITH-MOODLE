@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { hash } from 'argon2';
 import { writeFile } from 'node:fs/promises';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';

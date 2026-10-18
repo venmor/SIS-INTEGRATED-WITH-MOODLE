@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { RegistrationStatusView } from '@sis/contracts';
 import { StatusChip } from '@sis/ui';
 import styles from './moodle-access.module.css';
@@ -16,6 +17,6 @@ export function MoodleAccess({ access }: { access: Access }) {
       {course.moodleCourseUrl ? <a href={course.moodleCourseUrl} target="_blank" rel="noopener noreferrer">Open course ↗</a> : <p>Registration is complete. Course access is being prepared.</p>}
       {course.verifiedAt ? <p className={styles.time}>Confirmed {new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lusaka', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(course.verifiedAt))} CAT</p> : null}
     </article>)}</div>
-    <p className={styles.help}>Use your Moodle sign-in details. Your first sign-in may ask you to choose a new password. <a href="/student/support">Request learning access support</a></p>
+    <p className={styles.help}>Use your Moodle sign-in details. Your first sign-in may ask you to choose a new password. <Link href="/student/support">Request learning access support</Link></p>
   </section>;
 }
