@@ -9,3 +9,12 @@
 .list h3 {
   margin-bottom: var(--space-2);
 }
+.tableScroll { max-width: 100%; overflow-x: auto; }
+.table { width: 100%; min-width: 42rem; border-collapse: collapse; text-align: left; }
+.table caption { text-align: left; color: var(--text-secondary); padding-bottom: var(--space-3); }
+.table th, .table td { padding: 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.table thead th { background: var(--bg-sunken); white-space: nowrap; }
+.detailButton { white-space: nowrap; }
+@media (max-width: 44rem) {
+  .table caption { min-width: 20rem; }
+}

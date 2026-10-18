@@ -11,6 +11,7 @@ import { parseAcademicContext } from "../../../lib/academic-context";
 import { RegisterForm } from "./form";
 import study from "../study-workflows.module.css";
 import { RegistrationReceipt } from "./receipt";
+import { MoodleAccess } from "../moodle-access";
 
 async function loadRegistration<T>(
   path: string,
@@ -96,7 +97,9 @@ export default async function RegisterPage({
             : "Review your saved courses and current checks, then accept the required declarations to submit your registration."}
         </p>
       </header>
-      <RegistrationSteps current="review" context={plan.data} />
+      {!status.data?.registration ? (
+        <RegistrationSteps current="review" context={plan.data} />
+      ) : null}
       <ContextSelector
         inventory={await loadRegistrationContexts()}
         path="/student/register"
@@ -122,6 +125,7 @@ export default async function RegisterPage({
             }
             message={status.data.moodle.detail}
           />
+          {status.data.moodle.access ? <MoodleAccess access={status.data.moodle.access} /> : null}
         </>
       ) : (
         <RegisterForm

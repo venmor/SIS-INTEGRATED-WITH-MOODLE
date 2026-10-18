@@ -184,3 +184,8 @@
 
 .form { max-width: 56rem; border-color: #dfe6eb; border-radius: 0.75rem; border-top: 3px solid #006c3f; box-shadow: 0 2px 8px rgb(22 42 33 / 0.04); }
 .helpPanel { background: #edf5f0; border: 1px solid #cbded1; border-top: 3px solid #006c3f; border-radius: 0.75rem; }
+.homeActions { width: 100%; margin: 0; }
+.homeActions button { width: 100%; min-height: 3.35rem; font-family: Georgia, 'Times New Roman', serif; font-size: 1.2rem; }
+.homeDemo { margin-top: 0; padding-top: 0; border-top: 0; }
+.homeDemo summary { justify-content: center; min-height: 3.35rem; border: 1px solid #006c3f; border-radius: 0.38rem; color: #005b37; font-family: Georgia, 'Times New Roman', serif; font-size: 1.15rem; }
+.homeDemo summary:hover { background: #edf5f0; }

@@ -1,0 +1,91 @@
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  color: #0b1720;
+  background: #fff;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 6rem;
+  padding: 0.6rem clamp(1.25rem, 3.4vw, 4rem);
+  background: #fff;
+  border-bottom: 1px solid #e0e6e9;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  color: #101722;
+  text-decoration: none;
+}
+.brand:hover { color: #101722; }
+.brand img { display: block; width: auto; height: 4.6rem; object-fit: contain; }
+.brand span { display: grid; gap: 0.16rem; }
+.brand strong { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(0.95rem, 1.35vw, 1.45rem); letter-spacing: 0.01em; line-height: 1.15; }
+.brand small { color: #56647a; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(0.85rem, 1.1vw, 1.2rem); }
+.topLinks { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(1rem, 3.5vw, 4rem); }
+.topLinks a, .footer a { color: #506077; text-decoration: none; }
+.topLinks a { display: inline-flex; align-items: center; min-height: 2.75rem; font-size: 1rem; }
+.topLinks a:hover, .footer a:hover { color: #005b37; text-decoration: underline; }
+.hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(30rem, 38rem);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 6rem);
+  min-height: calc(100dvh - 10rem);
+  padding: clamp(2rem, 3vw, 3.2rem) clamp(1.25rem, 3.4vw, 4rem);
+  background: #cbd5d6 url('/brand/campus-courtyard.png') center center / cover no-repeat;
+}
+.heroCopy { align-self: center; max-width: 39rem; margin-left: clamp(0rem, 2.8vw, 3rem); transform: translateY(-1.5rem); }
+.heroCopy h1 { color: #062c24; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(3rem, 3.7vw, 4.25rem); line-height: 1.06; letter-spacing: -0.025em; text-shadow: 0 1px 12px rgb(255 255 255 / 0.7); }
+.heroCopy p { max-width: 29rem; margin-top: 0.7rem; color: #495972; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.15rem, 1.6vw, 1.65rem); line-height: 1.35; text-shadow: 0 1px 8px rgb(255 255 255 / 0.8); }
+.card {
+  width: 100%;
+  min-height: 42rem;
+  padding: clamp(2rem, 3vw, 3.6rem);
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 18px 45px rgb(10 31 28 / 0.18);
+  transform: translateY(1rem);
+}
+.card h2 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.2rem, 2.9vw, 3.1rem); line-height: 1.1; letter-spacing: -0.025em; }
+.cardIntro { margin-top: 0.65rem; margin-bottom: 1.25rem; color: #56647a; font-size: 1.12rem; }
+.audience { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 0.5rem; border-radius: 0.45rem; background: #eef1f4; }
+.audience button { min-height: 2.9rem; border: 1px solid transparent; border-radius: 0.4rem; background: transparent; color: #41516a; font: inherit; font-weight: 650; cursor: pointer; }
+.audience button[aria-pressed='true'] { color: #00583a; border-color: #2e9471; background: #f3f9f5; box-shadow: 0 1px 3px rgb(0 45 25 / 0.06); }
+.audienceHelp { min-height: 2.5rem; color: #526278; font-size: 0.82rem; line-height: 1.35; }
+.card form { max-width: none; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; gap: 1.15rem; }
+.card form > div { max-width: none; width: 100%; }
+.card form label { color: #0b1720; font-weight: 650; }
+.card form input { width: 100%; min-height: 3.35rem; border-color: #c6d1dc; border-radius: 0.38rem; background: #fff; font-size: 1rem; }
+.card form > div:has(input[autocomplete='current-password']) { position: relative; }
+.card form > div:has(input[autocomplete='current-password']) input { padding-right: 4.5rem; }
+.card form > div:has(input[autocomplete='current-password']) > button { position: absolute; top: 2.1rem; right: 0.85rem; padding: 0.25rem; }
+.card form > p { margin: 0; text-align: right; }
+.card form > p a { color: #005b37; font-size: 0.95rem; }
+.card form button { cursor: pointer; }
+.footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem 2rem; min-height: 4rem; padding: 0.75rem clamp(1.25rem, 3.4vw, 4rem); background: #fff; color: #58657a; font-size: 0.8rem; }
+.footer nav { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; }
+.unavailable { width: min(45rem, 100%); margin: 3rem auto; padding: 1.5rem; display: grid; gap: 1rem; }
+@media (max-width: 64rem) {
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(25rem, 33rem); gap: 2rem; }
+  .heroCopy { margin-left: 0; }
+}
+@media (max-width: 48rem) {
+  .header { align-items: flex-start; flex-direction: column; gap: 0.3rem; }
+  .brand img { height: 3.5rem; }
+  .topLinks { width: 100%; justify-content: space-between; }
+  .hero { grid-template-columns: 1fr; min-height: 0; gap: 1.5rem; padding-block: 2rem; background-position: 58% center; }
+  .heroCopy { max-width: 30rem; padding: 1rem; background: rgb(255 255 255 / 0.78); border-radius: 0.5rem; transform: none; }
+  .heroCopy h1 { font-size: clamp(2.3rem, 9vw, 3.5rem); }
+  .heroCopy p { font-size: 1.12rem; }
+  .card { max-width: 35rem; min-height: 0; margin-inline: auto; padding: 1.5rem; transform: none; }
+  .footer { align-items: flex-start; flex-direction: column; }
+}

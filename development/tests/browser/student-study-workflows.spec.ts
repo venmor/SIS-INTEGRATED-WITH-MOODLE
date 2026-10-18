@@ -259,6 +259,13 @@ test.beforeAll(async () => {
         account: { displayName: "Fictional study student" },
         activeWorkspace: { role: "STUDENT" },
       });
+    if (url.pathname === "/records/me/home")
+      return send({ studentNumber: "STU-FICTIONAL-184", status: "ACTIVE", displayName: "Fictional study student", programmeName: "Fictional computing", intake: "2026", campus: "Main", studyMode: "Full time", period: "DEMO-2026", registrationOpensAt: null, registrationClosesAt: null, onboardingRequiredTotal: 2, onboardingRequiredComplete: 2, pendingCorrections: 0 });
+    if (url.pathname === "/records/me/contact")
+      return send({ displayName: "Fictional study student", email: "student@demo.invalid", emailVerifiedAt: "2026-10-01T08:00:00.000Z", phone: null, phoneVerifiedAt: null });
+    if (url.pathname === "/records/me/corrections") return send({ items: [] });
+    if (url.pathname === "/notifications/records/mine")
+      return send({ items: [{ id: "fictional-notice", event: "TIMETABLE_CHANGED", title: "Timetable updated", category: "TIMETABLE", mandatory: true, status: "RECORDED", version: 1, state: "UNREAD", createdAt: "2026-10-16T08:00:00.000Z", body: "Open your timetable to see the update.", office: "Registry", actionPath: "/student/timetable" }] });
     if (url.pathname === "/registration/contexts")
       return send({
         source: "OWN_REGISTRATION_CONTEXTS",
@@ -429,6 +436,31 @@ test.afterEach(async ({}, testInfo) => {
   }
 });
 
+test("student dashboard keeps profile work in My account and notices in the student shell", async ({ page }) => {
+  await page.goto(`${webOrigin}/student`);
+  await expect(page.getByRole("heading", { name: "Welcome, Fictional study student" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Registration is open" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start registration" })).toHaveAttribute("href", "/student/readiness");
+  await expect(page.getByText("STU-FICTIONAL-184")).toHaveCount(0);
+  await page.getByRole("link", { name: "My account" }).click();
+  await expect(page.getByRole("heading", { name: "Bio data and status" })).toBeVisible();
+  await expect(page.getByText("STU-FICTIONAL-184")).toBeVisible();
+  await expect(page.getByText("Request an official record correction")).toBeVisible();
+  await page.goto(`${webOrigin}/student/notifications`);
+  await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "My account" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View timetable" })).toHaveAttribute("href", "/student/timetable");
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+});
+
+test("completed registration replaces the dashboard prompt with a receipt link", async ({ page }) => {
+  mode = "registered";
+  await page.goto(`${webOrigin}/student`);
+  await expect(page.getByRole("heading", { name: "Registration completed" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View registration receipt" })).toHaveAttribute("href", "/student/register");
+  await expect(page.getByRole("link", { name: "Start registration" })).toHaveCount(0);
+});
+
 test("readiness preserves completed registration, resolved context and current checks after a later hold", async ({
   page,
 }) => {
@@ -452,11 +484,7 @@ test("readiness preserves completed registration, resolved context and current c
   await expect(
     page.getByRole("link", { name: "View registration receipt", exact: true }),
   ).toHaveAttribute("href", `/student/register${context}`);
-  await expect(
-    page
-      .getByRole("navigation", { name: "Registration steps" })
-      .getByRole("link", { name: "Choose courses" }),
-  ).toHaveAttribute("href", `/student/courses${context}`);
+  await expect(page.getByRole("navigation", { name: "Registration steps" })).toHaveCount(0);
   const checks = page.getByRole("list", { name: "Registration conditions" });
   await expect(checks).not.toBeVisible();
   await page
@@ -745,13 +773,12 @@ test("results search, period and sort traverse a bounded authorised inventory wi
   page,
 }) => {
   await page.goto(`${webOrigin}/student/results`);
-  await expect(page.getByRole("article")).toHaveCount(10);
-  await expect(page.getByRole("article").first()).toContainText("RES013");
+  await expect(page.getByRole("table", { name: "Released results for your selected academic period" }).locator("tbody tr")).toHaveCount(10);
   await expect(
     page.getByText("Showing 1–10 of 13 results", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Next results" }).click();
-  await expect(page.getByRole("article")).toHaveCount(3);
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
   await page
     .getByLabel("Academic period", { exact: true })
     .selectOption("2026S1");
@@ -759,8 +786,9 @@ test("results search, period and sort traverse a bounded authorised inventory wi
     page.getByText("Showing 1–10 of 11 results", { exact: true }),
   ).toBeVisible();
   await page.getByLabel("Search official results").fill("RES001");
-  await expect(page.getByRole("article")).toHaveCount(1);
-  await expect(page.getByRole("article")).toContainText("IN PROGRESS");
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("table")).toContainText("IN PROGRESS");
+  await page.getByRole("button", { name: "View details" }).click();
   await expect(
     page.getByText("Not displayed under the release policy"),
   ).toBeVisible();
@@ -771,12 +799,12 @@ test("results search, period and sort traverse a bounded authorised inventory wi
   await expect(page.getByText(/Version 1: DEFERRED/)).toBeVisible();
   await page.getByLabel("Search official results").fill("");
   await page.getByLabel("Academic period", { exact: true }).selectOption("");
-  await page.getByLabel("Sort official results").selectOption("code");
-  await expect(page.getByRole("article").first()).toContainText("RES001");
+  await page.getByLabel("Sort results").selectOption("code");
+  await expect(page.getByRole("table").locator("tbody tr").first()).toContainText("RES001");
   await page.getByLabel("Search official results").fill("no match");
   await expect(page.getByText("No results match these filters")).toBeVisible();
   await page.getByRole("button", { name: "Clear result filters" }).click();
-  await expect(page.getByRole("article")).toHaveCount(10);
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(10);
 });
 
 test("results preserve unavailable and unreleased distinctions", async ({

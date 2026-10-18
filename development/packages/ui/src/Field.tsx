@@ -14,6 +14,7 @@ interface FieldProps {
     required?: boolean;
     maxLength?: number;
     minLength?: number;
+    placeholder?: string;
   };
 }
 
@@ -44,6 +45,7 @@ export function Field({ id, label, help, error, autoComplete, defaultValue, inpu
         required={inputProps?.required}
         maxLength={inputProps?.maxLength}
         minLength={inputProps?.minLength}
+        placeholder={inputProps?.placeholder}
         autoComplete={autoComplete}
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}

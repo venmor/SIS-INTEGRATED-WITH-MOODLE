@@ -29,22 +29,22 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page
       .getByRole("navigation", { name: "Student navigation" })
-      .getByRole("link", { name: "Home" }),
+      .getByRole("link", { name: "Dashboard" }),
   ).toHaveAttribute("aria-current", "page");
   await expect(
-    page.getByRole("heading", { name: "Welcome to the student portal" }),
+    page.getByRole("heading", { name: "Welcome, Fictional browser student" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Not registered for this period" }),
+    page.getByRole("heading", { name: "Registration is open" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Check registration readiness" }),
+    page.getByRole("link", { name: "Start registration" }),
   ).toBeVisible();
-  await expect(page.getByText(student.studentNumber)).toBeVisible();
+  await expect(page.getByText(student.studentNumber)).toHaveCount(0);
   await expect(page.getByText("BSc Software Engineering")).toBeVisible();
   await noOverflow(page);
 
-  await page.getByRole("link", { name: "My timetable" }).click();
+  await page.getByRole("link", { name: "Open timetable" }).click();
   await expect(
     page.getByRole("heading", { name: "My timetable" }),
   ).toBeVisible();
@@ -53,7 +53,8 @@ test("student portal: home, contact update, correction request", async ({
     page.getByRole("link", { name: "Review registration" }),
   ).toBeVisible();
   await noOverflow(page);
-  await page.goto("/student");
+  await page.goto("/student/account");
+  await expect(page.getByText(student.studentNumber)).toBeVisible();
 
   // Contact update with labels and focus intact.
   await page.getByText("Update contact details").click();
@@ -70,7 +71,7 @@ test("student portal: home, contact update, correction request", async ({
   await expect(page.getByText("Correction requested.")).toBeVisible();
   await expect(page.getByText("Fictional Browser Scholar")).toBeVisible();
   const correctionHistory = page
-    .getByRole("heading", { name: "Correction history" })
+    .getByRole("heading", { name: "Correction requests" })
     .locator("..");
   await expect(correctionHistory.getByText("Official name")).toBeVisible();
   await expect(correctionHistory.getByText("Awaiting review")).toBeVisible();
@@ -88,7 +89,7 @@ test("student portal: home, contact update, correction request", async ({
   // Course planning: catalogue with reasons, draft save, validation.
   await page.goto("/student/courses");
   await expect(
-    page.getByRole("heading", { name: "Plan your courses" }),
+    page.getByRole("heading", { name: "Choose courses" }),
   ).toBeVisible();
   await expect(
     page.getByText("SWE111 — Programming Fundamentals"),
@@ -143,7 +144,7 @@ test("student portal: home, contact update, correction request", async ({
     page.getByRole("heading", { name: "Registration completed" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Your registration covers 3 courses/),
+    page.getByText(/3 courses registered for/),
   ).toBeVisible();
   await noOverflow(page);
 

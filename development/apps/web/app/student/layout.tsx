@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import shell from "./student-shell.module.css";
 import { StudentNavigation, StudentScrollReset } from "./student-navigation";
 import { NavigationIcon } from "../navigation-icon";
+import { ApplicantSignOut } from "../applicant/sign-out";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -82,7 +83,7 @@ export default async function StudentLayout({
           <div className={shell.accountIdentity}>
             <span className={shell.accountCaption}>Current account</span>
             <strong>{name ?? "Account unavailable"}</strong>
-            <Link href="/sign-in">Switch account</Link>
+            <Link href="/student/account">My account</Link>
           </div>
         </div>
       </aside>
@@ -92,10 +93,7 @@ export default async function StudentLayout({
             <span>Current workspace</span>
             <strong>Student portal</strong>
           </div>
-          <Link href="/workspaces" className={shell.switch}>
-            <NavigationIcon href="/workspaces" />
-            Switch workspace
-          </Link>
+          <ApplicantSignOut />
         </header>
         <main id="main-content" tabIndex={-1} className={shell.main}>
           <StudentScrollReset />

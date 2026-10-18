@@ -8,14 +8,14 @@ import { NavigationIcon } from "../navigation-icon";
 import styles from "./student-shell.module.css";
 
 const navigation = [
-  { href: "/student", label: "Home" },
+  { href: "/student", label: "Dashboard" },
   { href: "/student/readiness", label: "Registration" },
   { href: "/student/courses", label: "My studies" },
   { href: "/student/timetable", label: "My timetable" },
   { href: "/student/finance", label: "Finance" },
   { href: "/student/results", label: "Results" },
   { href: "/student/support", label: "Requests and support" },
-  { href: "/notifications", label: "Notifications" },
+  { href: "/student/notifications", label: "Notifications" },
 ];
 const academicRoutes = new Set([
   "/student/readiness",

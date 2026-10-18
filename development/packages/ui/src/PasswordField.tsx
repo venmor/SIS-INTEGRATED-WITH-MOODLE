@@ -18,6 +18,7 @@ export function PasswordField({
   required,
   minLength,
   maxLength,
+  placeholder,
 }: {
   id: string;
   label: string;
@@ -28,6 +29,7 @@ export function PasswordField({
   required?: boolean;
   minLength?: number;
   maxLength?: number;
+  placeholder?: string;
 }) {
   const [visible, setVisible] = useState(false);
   const [capsOn, setCapsOn] = useState(false);
@@ -55,6 +57,7 @@ export function PasswordField({
         required={required}
         minLength={minLength}
         maxLength={maxLength}
+        placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         onKeyUp={(event) => {

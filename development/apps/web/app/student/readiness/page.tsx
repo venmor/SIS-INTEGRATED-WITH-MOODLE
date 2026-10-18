@@ -173,7 +173,7 @@ export default async function ReadinessPage({
             : "Check what is ready, what needs your action and which office owns the next step before submitting registration."}
         </p>
       </header>
-      <RegistrationSteps current="readiness" context={board} />
+      {!registration ? <RegistrationSteps current="readiness" context={board} /> : null}
       <ContextSelector
         inventory={await loadRegistrationContexts()}
         path="/student/readiness"

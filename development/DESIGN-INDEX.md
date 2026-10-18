@@ -4,6 +4,9 @@ This is an implementation navigation index, not a replacement for the handbook. 
 
 ## Current continuation — 17 October 2026
 
+The [student dashboard and navigation simplification packet](docs/task-packets/TASK-V2-UI-014.md) records the 18 October user-directed presentation work; [GAP-V2-RESULTS-UI-001](docs/gaps/GAP-V2-RESULTS-UI-001.md) keeps assessment type, year and semester filters open until authoritative student result data exists.
+The [public homepage image implementation packet](docs/task-packets/TASK-V2-UI-015.md) records the supplied-image layout, unchanged sign-in authority and local visual QA.
+
 We resumed application work after the supervisor checkpoint. [Our continuation report](docs/learning/PROJECT-CONTINUATION-2026-10-17.md) separates the completed student presentation/workspace entry, [registration readiness repair](docs/learning/NOTE-V2-REG-002.md) and [persisted Moodle run foundation](docs/learning/NOTE-V2-MOODLE-002.md) from remaining live enrolment/delivery, progression, examinations and other v2.0 workflows. [UI-013](docs/learning/NOTE-V2-UI-013.md) records course selection, registration receipts and bounded results display. Original handbook approvals and institutional gates remain intact.
 
 | Implementation concern | Controlling handbook starting point |

@@ -77,13 +77,16 @@ export default async function CoursesPage({
     <div className={study.page}>
       <header className={study.intro}>
         <p className={study.eyebrow}>Course selection · {board.period}</p>
-        <h1>Plan your courses</h1>
+        <h1>{board.status === "DRAFT" || board.status === "NONE" ? "Choose courses" : "My courses"}</h1>
         <p className={study.muted}>
-          Review required courses and electives, then save your selection as a
-          draft. Unavailable courses explain what needs attention.
+          {board.status === "DRAFT" || board.status === "NONE"
+            ? "Choose required courses and electives, then save your draft before final registration."
+            : "These courses are read-only here. Use the registration receipt for the official record and course changes for amendments."}
         </p>
       </header>
-      <RegistrationSteps current="courses" context={board} />
+      {board.status === "DRAFT" || board.status === "NONE" ? (
+        <RegistrationSteps current="courses" context={board} />
+      ) : null}
       <ContextSelector
         inventory={await loadRegistrationContexts()}
         path="/student/courses"

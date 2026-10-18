@@ -17,9 +17,10 @@ export default async function ResultsPage() {
         <p className={study.eyebrow}>Results and academic record</p>
         <h1>Official results</h1>
         <p className={study.muted}>
-          Published course results and their version history. Progression
-          decisions are shown separately from course outcomes. Moodle learning
-          feedback does not establish an official result.
+          Browse released course outcomes in a table, then open one course for
+          details and version history. Progression decisions are separate from
+          course outcomes. Moodle learning feedback does not establish an
+          official result.
         </p>
       </header>
       {!result.data ? (
@@ -42,6 +43,11 @@ export default async function ResultsPage() {
           ) : null}
         </>
       )}
+      <Notice
+        severity="info"
+        title="Assessment breakdowns are not available here yet"
+        message="This page currently contains official course outcomes only. Year of study, semester and separate test, quiz, assignment, project and exam results are not supplied by the current student results service."
+      />
       <p>
         <Link href="/student">Student home</Link>
       </p>

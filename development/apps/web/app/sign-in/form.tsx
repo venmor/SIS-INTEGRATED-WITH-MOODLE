@@ -26,8 +26,10 @@ export function SignInForm({
   returnTo,
   demoAccount,
   demoStaff,
+  home = false,
 }: {
   returnTo?: string;
+  home?: boolean;
   demoAccount?: { username: string; password: string };
   demoStaff?: Array<{
     role: string;
@@ -147,19 +149,21 @@ export function SignInForm({
       <Field
         id="username"
         label="Username"
-        help="Use the username from your SIS account."
+        help={home ? undefined : "Use the username from your SIS account."}
         autoComplete="username"
         error={errors.find((e) => e.fieldId === "username")?.message}
-        inputProps={{ type: "text", required: true, maxLength: 64 }}
+        inputProps={{ type: "text", required: true, maxLength: 64, placeholder: home ? "Enter your SIS username" : undefined }}
       />
       <PasswordField
         id="password"
         label="Password"
         autoComplete="current-password"
         required
+        placeholder={home ? "Enter your password" : undefined}
         error={errors.find((e) => e.fieldId === "password")?.message}
       />
-      <div className={styles.actions}>
+      {home ? <p className={styles.supporting}><a href="/recovery">Forgot password?</a></p> : null}
+      <div className={`${styles.actions} ${home ? signInStyles.homeActions : ""}`}>
         <ActionButton
           kind="primary"
           pending={pending}
@@ -170,12 +174,10 @@ export function SignInForm({
         </ActionButton>
       </div>
       {!ready ? <p role="status">Preparing secure sign-in…</p> : null}
-      <p className={styles.supporting}>
-        <a href="/recovery">Need help signing in?</a>
-      </p>
+      {!home ? <p className={styles.supporting}><a href="/recovery">Need help signing in?</a></p> : null}
       {demoAccount || (demoStaff && demoStaff.length > 0) ? (
-        <details className={signInStyles.demoDisclosure}>
-          <summary>Try a fictional demo account</summary>
+        <details className={`${signInStyles.demoDisclosure} ${home ? signInStyles.homeDemo : ""}`}>
+          <summary>{home ? "Try demo account" : "Try a fictional demo account"}</summary>
           <div className={signInStyles.demoList}>
             {demoAccount ? (
               <section
