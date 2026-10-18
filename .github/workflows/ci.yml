@@ -72,6 +72,8 @@ jobs:
           SIS_ENABLE_INSTITUTION_DEMO_SETUP: "true"
       - name: Verify isolated Moodle deferral rendering
         run: npx playwright test --config=tests/browser/moodle-live-deferral.config.ts
+      - name: Verify Moodle operations UI and recovery controls
+        run: npx playwright test --config=playwright.moodle-ui.config.ts
       # Populated finance and assessment clones were rehearsed before cleanup.
       # Also verify the clean seeded baseline independently.
       - name: Backup/restore rehearsal on the seeded database

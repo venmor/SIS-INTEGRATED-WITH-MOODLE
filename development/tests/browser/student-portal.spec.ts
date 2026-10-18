@@ -73,7 +73,7 @@ test("student portal: home, contact update, correction request", async ({
   const correctionHistory = page
     .getByRole("heading", { name: "Correction requests" })
     .locator("..");
-  await expect(correctionHistory.getByText("Official name")).toBeVisible();
+  await expect(correctionHistory.getByRole("listitem").getByText("Official name", { exact: true })).toBeVisible();
   await expect(correctionHistory.getByText("Awaiting review")).toBeVisible();
   await noOverflow(page);
 
