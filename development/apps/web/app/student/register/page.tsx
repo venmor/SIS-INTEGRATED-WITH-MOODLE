@@ -11,7 +11,6 @@ import { parseAcademicContext } from "../../../lib/academic-context";
 import { RegisterForm } from "./form";
 import study from "../study-workflows.module.css";
 import { RegistrationReceipt } from "./receipt";
-import { MoodleAccess } from "../moodle-access";
 
 async function loadRegistration<T>(
   path: string,
@@ -125,7 +124,6 @@ export default async function RegisterPage({
             }
             message={status.data.moodle.detail}
           />
-          {status.data.moodle.access ? <MoodleAccess access={status.data.moodle.access} /> : null}
         </>
       ) : (
         <RegisterForm
