@@ -170,6 +170,21 @@ export default async function AdminLayout({
         role === "EXAMINATIONS_OFFICER",
     },
     {
+      href: "/admin/moodle/live-deliveries",
+      label: "Live delivery recovery",
+      show: role === "INTEGRATION_SUPPORT",
+    },
+    {
+      href: "/admin/moodle/live-run",
+      label: "Moodle connection setup",
+      show: role === "MOODLE_ADMIN" || role === "INTEGRATION_SUPPORT",
+    },
+    {
+      href: "/admin/moodle/live-bindings",
+      label: "Live course connections",
+      show: role === "MOODLE_ADMIN" || role === "COORDINATOR",
+    },
+    {
       href: "/admin/moodle",
       label: "Moodle administration",
       show: role === "MOODLE_ADMIN",

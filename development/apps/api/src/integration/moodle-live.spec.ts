@@ -80,6 +80,43 @@ afterEach(async () => {
 });
 
 describe('live Moodle read-only safety foundation', () => {
+  it('reads grades only for explicit users after checking exact target and service capability', async () => {
+    const server = await fixture((request, response) => {
+      if (request.form.get('wsfunction') === 'core_webservice_get_site_info') {
+        json(response, {
+          siteid: 1,
+          release: RELEASE,
+          functions: [{ name: 'gradereport_user_get_grade_items' }],
+        });
+      } else
+        json(response, {
+          usergrades: [{ courseid: 12, userid: 7, gradeitems: [] }],
+          warnings: [],
+        });
+    });
+    const client = adapter(server.baseUrl).instance;
+    expect(await client.readGradeItems(12, [7])).toEqual({
+      usergrades: [{ courseid: 12, userid: 7, gradeitems: [] }],
+      warnings: [],
+    });
+    expect(server.requests[1].form.get('userid')).toBe('7');
+    expect(server.requests[1].form.get('courseid')).toBe('12');
+    await expect(client.readGradeItems(12, [0])).rejects.toMatchObject({
+      code: 'MOODLE_PARAMETERS_INVALID',
+    });
+    expect(server.requests).toHaveLength(2);
+  });
+
+  it('refuses grade reads when the service lacks the function without falling back to fabricated marks', async () => {
+    const server = await fixture((_request, response) =>
+      json(response, { siteid: 1, release: RELEASE, functions: [] }),
+    );
+    await expect(
+      adapter(server.baseUrl).instance.readGradeItems(12, [7]),
+    ).rejects.toMatchObject({ code: 'MOODLE_GRADE_FUNCTION_REQUIRED' });
+    expect(server.requests).toHaveLength(1);
+  });
+
   it('sends deterministic nested PHP form parameters over POST', async () => {
     const server = await fixture((_request, response) => json(response, {}));
     await transport(adapter(server.baseUrl).instance).call(

@@ -7,7 +7,7 @@ import { PrismaService } from '../identity-access/prisma.service.js';
 import { FinanceService } from '../finance/finance.service.js';
 import { timetableDemoDraftsEnabled } from '../timetabling/demo-rules.service.js';
 import { IntegrationService } from '../integration/integration.service.js';
-import type { RegistrationReceiptView } from '@sis/contracts';
+import type { RegistrationReceiptView, RegistrationStatusView } from '@sis/contracts';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 
 type Tx = Prisma.TransactionClient;
@@ -1312,7 +1312,7 @@ export class RegistrationService {
     // Phase 6 slice 3 delivery states (TASK-PH6-003): dead-lettered
     // handoffs read Delayed, manual-review handoffs read Failed.
     // Registration stays valid in every non-synced state.
-    let moodle = deferral
+    let moodle: RegistrationStatusView['moodle'] = deferral
       ? {
           state: 'NOT_PROVISIONED',
           detail:
@@ -1341,6 +1341,23 @@ export class RegistrationService {
           detail: 'Registration is complete; Moodle access is delayed.',
         };
       }
+    }
+    // Live access comes from the integration-owned, source-bound delivery
+    // receipts, never an old simulator timestamp or the registration alone.
+    try {
+      const access = await this.integration.liveRegistrationAccess(registration.id, attempt.studentId);
+      if (access) moodle = {
+        state: access.state === 'READY' ? 'Synced' : access.state === 'PARTIAL' ? 'Delayed' : access.state === 'REVIEW' ? 'Failed' : 'Queued',
+        detail: access.state === 'READY'
+          ? `Moodle access confirmed for all ${access.totalCourses} registered courses.`
+          : access.state === 'REVIEW'
+            ? 'Registration is complete. Learning access needs support; do not register again.'
+            : `${access.confirmedCount} of ${access.totalCourses} registered courses are confirmed in Moodle. Your registration remains valid.`,
+        access,
+      };
+    } catch {
+      // A failed access read cannot invalidate the official receipt or claim
+      // that a live delivery succeeded. Preserve the existing pending view.
     }
     const amendments = await this.prisma.registrationAmendment.findMany({
       where: { registrationId: registration.id },

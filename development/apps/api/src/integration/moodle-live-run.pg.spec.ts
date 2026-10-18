@@ -116,11 +116,9 @@ describe.skipIf(!enabled)(
       });
     }
     beforeAll(async () => {
-      if (
-        !process.env.DATABASE_URL?.includes(
-          '/sis_moodle_foundation_review_20261016',
-        )
-      )
+      const target = new URL(process.env.DATABASE_URL ?? 'postgresql://invalid/invalid');
+      if (process.env.DEMO_MODE !== 'true' || !['localhost','127.0.0.1'].includes(target.hostname)
+        || !/^sis_moodle_foundation_review_[A-Za-z0-9]+$/.test(target.pathname.slice(1)))
         throw Error('DEDICATED_TEST_DB_REQUIRED');
       Object.assign(process.env, {
         MOODLE_INTEGRATION_MODE: 'live-test',

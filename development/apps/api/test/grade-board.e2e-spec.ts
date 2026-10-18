@@ -319,15 +319,23 @@ describe('Phase 7 board/decision package', () => {
     await app.close();
   });
 
-  it('assembly-refusal: unmoderated components cannot assemble', async () => {
+  it('assembly-refusal: a missing approved plan cannot assemble', async () => {
     const res = await assemble(lecA);
     expect(res.status).toBe(409);
-    expect(res.body.code).toBe('UNMODERATED_COMPONENT');
+    expect(res.body.code).toBe('APPROVED_PLAN_REQUIRED');
     expect(
       await db.resultPackage.count({
         where: { offeringRef: OFFERING_REF, periodCode: PERIOD_CODE },
       }),
     ).toBe(0);
+  });
+
+  it('assembly-refusal: approved components without moderated evidence cannot assemble', async () => {
+    const drafted = await post('/plans', { idempotencyKey: key(), ...mkPlan() }, lecA).expect(201);
+    await post(`/plans/${drafted.body.id}/approve`, { idempotencyKey: key(), version: drafted.body.version }, coordB).expect(201);
+    const res = await assemble(lecA);
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('UNMODERATED_COMPONENT');
   });
 
   it('assembly-refusal: bad declaration writes nothing', async () => {

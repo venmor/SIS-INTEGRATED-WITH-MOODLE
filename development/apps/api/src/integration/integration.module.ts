@@ -1,3 +1,7 @@
+import { MoodleLiveRecoveryService } from './moodle-live-recovery.service.js';
+import { MoodleLiveRecoveryController } from './moodle-live-recovery.controller.js';
+import { MoodleLiveBindingsService } from './moodle-live-bindings.service.js';
+import { MoodleLiveBindingsController } from './moodle-live-bindings.controller.js';
 import { MoodleLiveRunController } from './moodle-live-run.controller.js';
 import {
   MoodleLiveRunService,
@@ -9,18 +13,32 @@ import { OpsModule } from '../ops/ops.module.js';
 import { IntegrationController } from './integration.controller.js';
 import { IntegrationService } from './integration.service.js';
 import { DeliveryWorker } from './delivery.worker.js';
+import { MoodleLiveDeliveryService } from './moodle-live-delivery.service.js';
 import { OperationsQueueService } from './operations-queue.service.js';
 
 @Module({
   imports: [IdentityAccessModule, OpsModule],
-  controllers: [IntegrationController, MoodleLiveRunController],
+  controllers: [
+    IntegrationController,
+    MoodleLiveRunController,
+    MoodleLiveBindingsController,
+    MoodleLiveRecoveryController,
+  ],
   providers: [
     IntegrationService,
+    MoodleLiveDeliveryService,
+    MoodleLiveBindingsService,
+    MoodleLiveRecoveryService,
     DeliveryWorker,
     OperationsQueueService,
     MoodleLiveRunService,
     MoodleRunIdentityPort,
   ],
-  exports: [IntegrationService, OperationsQueueService],
+  exports: [
+    IntegrationService,
+    OperationsQueueService,
+    MoodleLiveRunService,
+    MoodleLiveDeliveryService,
+  ],
 })
 export class IntegrationModule {}

@@ -8,6 +8,8 @@ import {
   Query,
   Req,
   UseGuards,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { SessionGuard } from '../identity-access/session.guard.js';
@@ -34,9 +36,14 @@ import {
   TransitionFindingDto,
 } from './dto.js';
 import { KeyDto } from '../admissions/dto.js';
+import { MoodleGradeImportService } from './moodle-grade-import.service.js';
 
 interface AuthRequest extends Request {
-  auth: ActiveAuthority & { scopeType?: string | null; scopeRef?: string | null };
+  auth: ActiveAuthority & {
+    sessionToken: string;
+    scopeType?: string | null;
+    scopeRef?: string | null;
+  };
 }
 
 // Phase 7 slice 1 assessment API (TASK-PH7-001). Versioned scheme
@@ -45,7 +52,22 @@ interface AuthRequest extends Request {
 @Controller('assessment')
 @UseGuards(SessionGuard, ApplicationRateGuard)
 export class AssessmentController {
-  constructor(private readonly assessment: AssessmentService) {}
+  constructor(
+    private readonly assessment: AssessmentService,
+    @Optional() private readonly moodleImport?: MoodleGradeImportService,
+  ) {}
+
+  @Post('mappings/:id/import-moodle')
+  @UseGuards(CsrfGuard)
+  importMoodle(
+    @Req() r: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: KeyDto,
+  ) {
+    if (!this.moodleImport)
+      throw new ServiceUnavailableException('Moodle import is unavailable.');
+    return this.moodleImport.import(r.auth, dto.idempotencyKey, id);
+  }
 
   @Post('plans')
   @UseGuards(CsrfGuard)
@@ -64,7 +86,12 @@ export class AssessmentController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApprovePlanDto,
   ) {
-    return this.assessment.approvePlan(r.auth, dto.idempotencyKey, id, dto.version);
+    return this.assessment.approvePlan(
+      r.auth,
+      dto.idempotencyKey,
+      id,
+      dto.version,
+    );
   }
 
   @Get('plans')
@@ -144,10 +171,7 @@ export class AssessmentController {
   }
 
   @Get('batches/:id')
-  batch(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  batch(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.assessment.batchDetail(r.auth, id);
   }
 
@@ -171,10 +195,7 @@ export class AssessmentController {
   }
 
   @Get('findings/:id')
-  finding(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  finding(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.assessment.findingDetail(r.auth, id);
   }
 
@@ -287,10 +308,7 @@ export class AssessmentController {
   }
 
   @Get('packages/:id')
-  package(
-    @Req() r: AuthRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  package(@Req() r: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.assessment.packageDetail(r.auth, id);
   }
 

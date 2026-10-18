@@ -86,13 +86,37 @@ export function PublicationDecisionForm({
   amendment?: boolean;
 }) {
   const command = useResultCommand();
+  const [confirming, setConfirming] = useState(false);
+  const [confirmationError, setConfirmationError] = useState("");
   const id = "result-publication-declaration";
+  async function confirm(form: HTMLFormElement) {
+    if (command.uncertain) { command.retry(); return; }
+    const data = new FormData(form);
+    if (!data.get(id)) return;
+    setConfirming(true);
+    setConfirmationError("");
+    try {
+      const response = await fetch("/api/assessment/result-publication/proofs", {
+        method: "POST", headers: { "content-type": "application/json", "x-requested-with": "XMLHttpRequest" },
+        credentials: "same-origin", cache: "no-store",
+        body: JSON.stringify({ targetId: target, version, declaration,
+          action: amendment ? "ApproveOfficialResultAmendment" : "ReleaseOfficialCourseResults",
+          password: data.get("confirmation-password") }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message ?? "Password confirmation failed.");
+      const password = form.elements.namedItem("confirmation-password") as HTMLInputElement;
+      password.value = "";
+      await command.send(amendment ? `/amendments/${target}/approve` : `/packages/${target}/release`, { version, declaration, proof: result.proof });
+    } catch (error) { setConfirmationError(error instanceof Error ? error.message : "Confirmation unavailable. Try again."); }
+    finally { setConfirming(false); }
+  }
   return (
     <>
-      {command.error ? (
+      {command.error || confirmationError ? (
         <ErrorSummary
           title="Decision not confirmed"
-          errors={[{ fieldId: id, message: command.error }]}
+          errors={[{ fieldId: id, message: command.error || confirmationError }]}
         />
       ) : null}
       {command.receipt ? (
@@ -109,13 +133,7 @@ export function PublicationDecisionForm({
         }
         onSubmit={(event) => {
           event.preventDefault();
-          if (!new FormData(event.currentTarget).get(id)) return;
-          void command.send(
-            amendment
-              ? `/amendments/${target}/approve`
-              : `/packages/${target}/release`,
-            { version, declaration },
-          );
+          void confirm(event.currentTarget);
         }}
       >
         <p>
@@ -130,20 +148,19 @@ export function PublicationDecisionForm({
             name={id}
             type="checkbox"
             required
-            disabled={command.pending || !!command.receipt}
+            disabled={confirming || command.pending || !!command.receipt}
           />{" "}
           {declaration}
         </label>
-        <p>
-          Approved release policy and verified step-up authentication are
-          required. If either is unavailable, this decision will remain blocked.
-        </p>
+        <label className={staffUi.fieldLabel} htmlFor="confirmation-password">Confirm your password</label>
+        <input className={staffUi.control} id="confirmation-password" name="confirmation-password" type="password" autoComplete="current-password" required={!command.uncertain} disabled={confirming || command.pending || !!command.receipt} maxLength={256} />
+        <p>In this demonstration, password confirmation expires after two minutes and applies only to this exact decision. Production requires institutional MFA.</p>
         <button
           className={staffUi.button}
           type="submit"
-          disabled={command.pending || !!command.receipt}
+          disabled={confirming || command.pending || !!command.receipt}
         >
-          {command.pending
+          {confirming || command.pending
             ? "Checking publication…"
             : command.uncertain
               ? "Check using the same request reference"

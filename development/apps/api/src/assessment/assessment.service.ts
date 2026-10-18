@@ -1,7 +1,10 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { ASSESSMENT_DEMO_V1 as policy, MOODLE_DEMO_V1 as moodle } from '@sis/config';
+import {
+  ASSESSMENT_DEMO_V1 as policy,
+  MOODLE_DEMO_V1 as moodle,
+} from '@sis/config';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { packageDigest } from './package-integrity.js';
@@ -184,6 +187,7 @@ export class AssessmentService {
     action: string,
     payload: unknown,
     fn: (db: Tx) => Promise<{ status?: number; body: unknown }>,
+    beforeReplay?: (db: Tx) => Promise<void>,
   ) {
     const hash = createHash('sha256')
       .update(JSON.stringify(payload))
@@ -192,6 +196,7 @@ export class AssessmentService {
       const result = await this.prisma.$transaction(
         async (db) => {
           await db.$queryRaw`SELECT id FROM "Account" WHERE id = ${actor.accountId} FOR UPDATE`;
+          if (beforeReplay) await beforeReplay(db);
           const prior = await db.applicationCommand.findUnique({
             where: { key },
           });
@@ -386,12 +391,9 @@ export class AssessmentService {
       weight += component.weight;
     }
     if (weight !== 100) {
-      this.fail(
-        'WEIGHT_MISMATCH',
-        'Component weights must total 100.',
-        400,
-        { total: weight },
-      );
+      this.fail('WEIGHT_MISMATCH', 'Component weights must total 100.', 400, {
+        total: weight,
+      });
     }
     const result = await this.command(
       auth,
@@ -452,18 +454,14 @@ export class AssessmentService {
       'ApproveAssessmentPlan',
       { id, version },
       async (db) => {
-        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${row.offeringRef + ":" + row.periodCode}, 0))`;
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${row.offeringRef + ':' + row.periodCode}, 0))`;
         const live = await db.assessmentPlan.findUniqueOrThrow({
           where: { id },
           include: { components: true },
         });
         this.checkVersion(live, version);
         if (live.status !== 'DRAFT') {
-          this.fail(
-            'REQUEST_CLOSED',
-            'Only draft plans can be approved.',
-            409,
-          );
+          this.fail('REQUEST_CLOSED', 'Only draft plans can be approved.', 409);
         }
         // Four-eyes: the approver must differ from the creator.
         if (live.createdByAccountId === auth.accountId) {
@@ -555,13 +553,17 @@ export class AssessmentService {
       orderBy: { version: 'desc' },
       take: 200,
     });
-    return { items: rows.map((r) => this.planView(r)), canDraft: auth.activeRole === 'LEC' };
+    return {
+      items: rows.map((r) => this.planView(r)),
+      canDraft: auth.activeRole === 'LEC',
+    };
   }
 
   async planDetail(auth: AssessmentAuthority, id: string) {
     const scope = await this.readCoordinates(auth);
     const row = await this.prisma.assessmentPlan.findFirst({
-      where: { id, ...scope }, include: { components: { orderBy: { code: 'asc' } } },
+      where: { id, ...scope },
+      include: { components: { orderBy: { code: 'asc' } } },
     });
     if (!row) this.fail('NOT_FOUND', 'Assessment plan not found.', 404);
     return this.planView(row);
@@ -580,7 +582,8 @@ export class AssessmentService {
       where: { id: input.componentId },
       include: { plan: true },
     });
-    if (!component) this.fail('NOT_FOUND', 'Assessment component not found.', 404);
+    if (!component)
+      this.fail('NOT_FOUND', 'Assessment component not found.', 404);
     if (auth.activeRole === 'SYSADMIN') this.denied();
     await this.mappingWriter(auth, component.plan.offeringRef);
     if (component.plan.status !== 'APPROVED') {
@@ -944,6 +947,15 @@ export class AssessmentService {
       sourceRevision: string;
       lines: Array<{ studentRef: string; rawValue?: number; outcome?: string }>;
     },
+    source?: {
+      instance: string;
+      transfer: 'LIVE_REST';
+      checksum: string;
+      bindingChecksum: string;
+      runId: string;
+      retrievedAt: string;
+    },
+    recheckSource?: (db: Tx) => Promise<void>,
   ) {
     const mapping = await this.prisma.gradeActivityMapping.findUnique({
       where: { id: input.mappingId },
@@ -977,208 +989,225 @@ export class AssessmentService {
         503,
       );
     }
-    const outcomes = new Set<string>(policy.nonNumericOutcomes as readonly string[]);
-    return this.command(auth, key, 'StageGradeBatch', input, async (db) => {
-      // Serialize concurrent stages of the same mapping+revision first;
-      // the replay check below then sees rows committed by a racing
-      // transaction, so concurrent stages converge on one snapshot.
-      await db.$queryRaw`SELECT id FROM "GradeActivityMapping" WHERE id = ${input.mappingId} FOR UPDATE`;
-      // Resource-idempotent: the same mapping+revision returns the stored
-      // batch, so a lost response never creates a second snapshot. The
-      // moderation lock below applies to new revisions only, never to a
-      // replay of an already-stored batch.
-      const replay = await db.gradeBatch.findUnique({
-        where: {
-          mappingId_sourceRevision: {
-            mappingId: input.mappingId,
-            sourceRevision: input.sourceRevision,
-          },
-        },
-        include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
-      });
-      if (replay) return { body: this.batchView(replay) };
-      // Moderation lock: no new revisions while a case for this component
-      // is open. Returned, referred, and decided cases never block;
-      // corrections flow through new revisions after a return.
-      const openCase = await db.moderationCase.findFirst({
-        where: {
-          status: { in: ['SUBMITTED', 'UNDER_MODERATION', 'CLARIFICATION_REQUESTED'] },
-          batch: { mapping: { componentId: mapping.componentId } },
-        },
-        select: { id: true },
-      });
-      if (openCase) {
-        this.fail(
-          'CASE_OPEN',
-          'Finish or return the open moderation case before staging a new revision.',
-          409,
-          { caseId: openCase.id },
-        );
-      }
-      try {
-        const seen = new Set<string>();
-        const prepared = [];
-        for (const line of input.lines) {
-          const outcome = line.outcome ?? 'MARK_RECORDED';
-          let status = 'STAGED';
-          let flagCode: string | null = null;
-          let converted: number | null = null;
-          let resolvedStudentId: string | null = null;
-          let resolvedAccountId: string | null = null;
-          if (!outcomes.has(outcome)) {
-            status = 'QUARANTINED';
-            flagCode = 'STRUCTURALLY_INVALID';
-          } else if (seen.has(line.studentRef)) {
-            status = 'FLAGGED';
-            flagCode = 'DUPLICATE';
-          } else if (
-            outcome === 'MARK_RECORDED' &&
-            (typeof line.rawValue !== 'number' ||
-              !Number.isFinite(line.rawValue) ||
-              line.rawValue < 0 ||
-              line.rawValue > mapping.component.maxMark)
-          ) {
-            // Malformed values (non-numeric, negative) are structural;
-            // only finite values above the component maximum are range
-            // errors. Either way the line is quarantined, never official.
-            status = 'QUARANTINED';
-            flagCode =
-              typeof line.rawValue === 'number' &&
-              Number.isFinite(line.rawValue) &&
-              line.rawValue > mapping.component.maxMark
-                ? 'OUT_OF_RANGE'
-                : 'STRUCTURALLY_INVALID';
-          } else if (outcome === 'MARK_RECORDED') {
-            // Moodle-only check: a staged mark with no SIS identity behind
-            // it is preserved as evidence but converts to nothing. The
-            // resolved identity is the student/enrolment mapping (DS5 §4);
-            // enrolment-truth disputes belong to the slice-3 swimlanes.
-            const student = await db.student.findUnique({
-              where: { studentNumber: line.studentRef },
-            });
-            if (student) {
-              resolvedStudentId = student.id;
-              // Demo conversion is the identity formula; the applied
-              // policy version travels with the batch, never a bare value.
-              converted = line.rawValue ?? null;
-            } else {
-              const account = await db.account.findUnique({
-                where: { username: line.studentRef },
-              });
-              if (account) {
-                resolvedAccountId = account.id;
-                converted = line.rawValue ?? null;
-              } else {
-                status = 'FLAGGED';
-                flagCode = 'MOODLE_ONLY';
-              }
-            }
-          }
-          seen.add(line.studentRef);
-          prepared.push({
-            studentRef: line.studentRef,
-            rawValue: line.rawValue ?? null,
-            outcome,
-            convertedValue: converted,
-            conversionFormula: converted !== null ? 'identity' : null,
-            resolvedStudentId,
-            resolvedAccountId,
-            status,
-            flagCode,
-          });
-        }
-        // First write wins per student inside one batch: later duplicates
-        // collapse onto the stored row, which carries the DUPLICATE flag.
-        const unique = new Map<string, (typeof prepared)[number]>();
-        for (const row of prepared) {
-          if (!unique.has(row.studentRef)) unique.set(row.studentRef, row);
-          else {
-            const first = unique.get(row.studentRef);
-            if (first && first.flagCode === null) {
-              first.status = 'FLAGGED';
-              first.flagCode = 'DUPLICATE';
-            }
-          }
-        }
-        const created = await db.gradeBatch.create({
-          data: {
-            mappingId: input.mappingId,
-            sourceRevision: input.sourceRevision,
-            status: 'VALIDATED',
-            createdByAccountId: auth.accountId,
-            // Frozen DS5 §4 provenance: the source and SIS coordinates in
-            // force at stage time. Later supersedes never rewrite these.
-            moodleInstance: moodle.provider,
-            moodleCourseRef: mapping.moodleCourseRef,
-            moodleActivityId: mapping.moodleActivityId,
-            offeringRef: mapping.component.plan.offeringRef,
-            periodCode: mapping.component.plan.periodCode,
-            componentCode: mapping.component.code,
-            planVersion: mapping.component.plan.version,
-            policyVersion: policy.version,
-            sourceResponse: json({
+    const outcomes = new Set<string>(
+      policy.nonNumericOutcomes as readonly string[],
+    );
+    return this.command(
+      auth,
+      key,
+      'StageGradeBatch',
+      source ? { ...input, source } : input,
+      async (db) => {
+        // Serialize concurrent stages of the same mapping+revision first;
+        // the replay check below then sees rows committed by a racing
+        // transaction, so concurrent stages converge on one snapshot.
+        await db.$queryRaw`SELECT id FROM "GradeActivityMapping" WHERE id = ${input.mappingId} FOR UPDATE`;
+        // Resource-idempotent: the same mapping+revision returns the stored
+        // batch, so a lost response never creates a second snapshot. The
+        // moderation lock below applies to new revisions only, never to a
+        // replay of an already-stored batch.
+        const replay = await db.gradeBatch.findUnique({
+          where: {
+            mappingId_sourceRevision: {
+              mappingId: input.mappingId,
               sourceRevision: input.sourceRevision,
-              receivedLines: input.lines.length,
-              receivedAt: new Date().toISOString(),
-              instance: moodle.provider,
-            }),
-            lines: { create: [...unique.values()] },
+            },
           },
           include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
         });
-        await db.outboxEvent.create({
-          data: {
-            aggregate: 'GradeBatch',
-            aggregateId: created.id,
-            type: 'MoodleGradeTransferStaged',
-            payload: json({
-              batchId: created.id,
+        if (replay) return { body: this.batchView(replay) };
+        // Moderation lock: no new revisions while a case for this component
+        // is open. Returned, referred, and decided cases never block;
+        // corrections flow through new revisions after a return.
+        const openCase = await db.moderationCase.findFirst({
+          where: {
+            status: {
+              in: ['SUBMITTED', 'UNDER_MODERATION', 'CLARIFICATION_REQUESTED'],
+            },
+            batch: { mapping: { componentId: mapping.componentId } },
+          },
+          select: { id: true },
+        });
+        if (openCase) {
+          this.fail(
+            'CASE_OPEN',
+            'Finish or return the open moderation case before staging a new revision.',
+            409,
+            { caseId: openCase.id },
+          );
+        }
+        try {
+          const seen = new Set<string>();
+          const prepared = [];
+          for (const line of input.lines) {
+            const outcome = line.outcome ?? 'MARK_RECORDED';
+            let status = 'STAGED';
+            let flagCode: string | null = null;
+            let converted: number | null = null;
+            let resolvedStudentId: string | null = null;
+            let resolvedAccountId: string | null = null;
+            if (!outcomes.has(outcome)) {
+              status = 'QUARANTINED';
+              flagCode = 'STRUCTURALLY_INVALID';
+            } else if (seen.has(line.studentRef)) {
+              status = 'FLAGGED';
+              flagCode = 'DUPLICATE';
+            } else if (
+              outcome === 'MARK_RECORDED' &&
+              (typeof line.rawValue !== 'number' ||
+                !Number.isFinite(line.rawValue) ||
+                line.rawValue < 0 ||
+                line.rawValue > mapping.component.maxMark)
+            ) {
+              // Malformed values (non-numeric, negative) are structural;
+              // only finite values above the component maximum are range
+              // errors. Either way the line is quarantined, never official.
+              status = 'QUARANTINED';
+              flagCode =
+                typeof line.rawValue === 'number' &&
+                Number.isFinite(line.rawValue) &&
+                line.rawValue > mapping.component.maxMark
+                  ? 'OUT_OF_RANGE'
+                  : 'STRUCTURALLY_INVALID';
+            } else if (outcome === 'MARK_RECORDED') {
+              // Moodle-only check: a staged mark with no SIS identity behind
+              // it is preserved as evidence but converts to nothing. The
+              // resolved identity is the student/enrolment mapping (DS5 §4);
+              // enrolment-truth disputes belong to the slice-3 swimlanes.
+              const student = await db.student.findUnique({
+                where: { studentNumber: line.studentRef },
+              });
+              if (student) {
+                resolvedStudentId = student.id;
+                // Demo conversion is the identity formula; the applied
+                // policy version travels with the batch, never a bare value.
+                converted = line.rawValue ?? null;
+              } else {
+                const account = await db.account.findUnique({
+                  where: { username: line.studentRef },
+                });
+                if (account) {
+                  resolvedAccountId = account.id;
+                  converted = line.rawValue ?? null;
+                } else {
+                  status = 'FLAGGED';
+                  flagCode = 'MOODLE_ONLY';
+                }
+              }
+            }
+            seen.add(line.studentRef);
+            prepared.push({
+              studentRef: line.studentRef,
+              rawValue: line.rawValue ?? null,
+              outcome,
+              convertedValue: converted,
+              conversionFormula: converted !== null ? 'identity' : null,
+              resolvedStudentId,
+              resolvedAccountId,
+              status,
+              flagCode,
+            });
+          }
+          // First write wins per student inside one batch: later duplicates
+          // collapse onto the stored row, which carries the DUPLICATE flag.
+          const unique = new Map<string, (typeof prepared)[number]>();
+          for (const row of prepared) {
+            if (!unique.has(row.studentRef)) unique.set(row.studentRef, row);
+            else {
+              const first = unique.get(row.studentRef);
+              if (first && first.flagCode === null) {
+                first.status = 'FLAGGED';
+                first.flagCode = 'DUPLICATE';
+              }
+            }
+          }
+          const created = await db.gradeBatch.create({
+            data: {
               mappingId: input.mappingId,
               sourceRevision: input.sourceRevision,
-              lineCount: created.lines.length,
-              quarantined: created.lines.filter(
-                (l) => l.status !== 'STAGED',
-              ).length,
+              status: 'VALIDATED',
+              createdByAccountId: auth.accountId,
+              // Frozen DS5 §4 provenance: the source and SIS coordinates in
+              // force at stage time. Later supersedes never rewrite these.
+              moodleInstance: source?.instance ?? moodle.provider,
+              moodleCourseRef: mapping.moodleCourseRef,
+              moodleActivityId: mapping.moodleActivityId,
+              offeringRef: mapping.component.plan.offeringRef,
+              periodCode: mapping.component.plan.periodCode,
+              componentCode: mapping.component.code,
+              planVersion: mapping.component.plan.version,
               policyVersion: policy.version,
-              // Canonical chain (GAP-022 interim): ACT-ASM-001 +
-              // CMD-LRN-StageMoodleGradeTransfer +
-              // INT-Moodle-GradeTransfer-v1 +
-              // EVT-MoodleGradeTransferStaged-v1.
-              chain: {
-                act: 'ACT-ASM-001',
-                command: 'CMD-LRN-StageMoodleGradeTransfer',
-                interface: 'INT-Moodle-GradeTransfer-v1',
-                event: 'EVT-MoodleGradeTransferStaged-v1',
-              },
-            }),
-          },
-        });
-        await this.audit(db, auth, 'GradeBatchStaged', created.id, key, {
-          mappingId: input.mappingId,
-          sourceRevision: input.sourceRevision,
-        });
-        return { body: this.batchView(created) };
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
-          // A concurrent stage of the same revision landed first:
-          // converge on the stored snapshot instead of a second one.
-          const stored = await db.gradeBatch.findUniqueOrThrow({
-            where: {
-              mappingId_sourceRevision: {
+              sourceResponse: json({
+                sourceRevision: input.sourceRevision,
+                receivedLines: input.lines.length,
+                receivedAt: new Date().toISOString(),
+                instance: source?.instance ?? moodle.provider,
+                ...(source ?? {}),
+              }),
+              lines: { create: [...unique.values()] },
+            },
+            include: {
+              lines: true,
+              findings: { orderBy: { createdAt: 'asc' } },
+            },
+          });
+          await db.outboxEvent.create({
+            data: {
+              aggregate: 'GradeBatch',
+              aggregateId: created.id,
+              type: 'MoodleGradeTransferStaged',
+              payload: json({
+                batchId: created.id,
                 mappingId: input.mappingId,
                 sourceRevision: input.sourceRevision,
-              },
+                lineCount: created.lines.length,
+                quarantined: created.lines.filter((l) => l.status !== 'STAGED')
+                  .length,
+                policyVersion: policy.version,
+                // Canonical chain (GAP-022 interim): ACT-ASM-001 +
+                // CMD-LRN-StageMoodleGradeTransfer +
+                // INT-Moodle-GradeTransfer-v1 +
+                // EVT-MoodleGradeTransferStaged-v1.
+                chain: {
+                  act: 'ACT-ASM-001',
+                  command: 'CMD-LRN-StageMoodleGradeTransfer',
+                  interface: 'INT-Moodle-GradeTransfer-v1',
+                  event: 'EVT-MoodleGradeTransferStaged-v1',
+                },
+              }),
             },
-            include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
           });
-          return { body: this.batchView(stored) };
+          await this.audit(db, auth, 'GradeBatchStaged', created.id, key, {
+            mappingId: input.mappingId,
+            sourceRevision: input.sourceRevision,
+          });
+          return { body: this.batchView(created) };
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            // A concurrent stage of the same revision landed first:
+            // converge on the stored snapshot instead of a second one.
+            const stored = await db.gradeBatch.findUniqueOrThrow({
+              where: {
+                mappingId_sourceRevision: {
+                  mappingId: input.mappingId,
+                  sourceRevision: input.sourceRevision,
+                },
+              },
+              include: {
+                lines: true,
+                findings: { orderBy: { createdAt: 'asc' } },
+              },
+            });
+            return { body: this.batchView(stored) };
+          }
+          throw error;
         }
-        throw error;
-      }
-    });
+      },
+      recheckSource,
+    );
   }
 
   async listBatches(auth: AssessmentAuthority, filter: { mappingId?: string }) {
@@ -1196,7 +1225,10 @@ export class AssessmentService {
         findings: { orderBy: { createdAt: 'asc' } },
       },
     });
-    return { items: rows.map((r) => this.batchView(r)), canStage: auth.activeRole === 'LEC' };
+    return {
+      items: rows.map((r) => this.batchView(r)),
+      canStage: auth.activeRole === 'LEC',
+    };
   }
 
   async batchDetail(auth: AssessmentAuthority, id: string) {
@@ -1318,7 +1350,9 @@ export class AssessmentService {
   async validateBatch(auth: AssessmentAuthority, key: string, id: string) {
     const batch = await this.prisma.gradeBatch.findUnique({
       where: { id },
-      include: { mapping: { include: { component: { include: { plan: true } } } } },
+      include: {
+        mapping: { include: { component: { include: { plan: true } } } },
+      },
     });
     if (!batch) this.fail('NOT_FOUND', 'Grade batch not found.', 404);
     await this.examiner(auth, batch.mapping.component.plan.periodCode);
@@ -1346,8 +1380,7 @@ export class AssessmentService {
         desired.push({ lineId: null, code: 'STALE_MAPPING' });
       }
       if (
-        live.mapping.component.scaleRef !==
-        (policy.scale as unknown as string)
+        live.mapping.component.scaleRef !== (policy.scale as unknown as string)
       ) {
         desired.push({ lineId: null, code: 'SCALE_MISMATCH' });
       }
@@ -1370,15 +1403,12 @@ export class AssessmentService {
       const open = await db.gradeFinding.findMany({
         where: { batchId: id, status: 'OPEN' },
       });
-      const openKeys = new Set(
-        open.map((f) => `${f.code}:${f.lineId ?? ''}`),
-      );
+      const openKeys = new Set(open.map((f) => `${f.code}:${f.lineId ?? ''}`));
       const now = new Date();
       let created = 0;
       for (const item of desired) {
         if (openKeys.has(`${item.code}:${item.lineId ?? ''}`)) continue;
-        const lane =
-          AssessmentService.LANES[item.code] ?? 'TECHNICAL';
+        const lane = AssessmentService.LANES[item.code] ?? 'TECHNICAL';
         const missing = item.code === 'MISSING_MARK';
         await db.gradeFinding.create({
           data: {
@@ -1494,10 +1524,7 @@ export class AssessmentService {
         400,
       );
     }
-    if (
-      (to === 'RESOLVED' || to === 'DISMISSED') &&
-      !reason?.trim()
-    ) {
+    if ((to === 'RESOLVED' || to === 'DISMISSED') && !reason?.trim()) {
       this.fail(
         'REASON_REQUIRED',
         'Resolving or dismissing a finding demands a recorded reason.',
@@ -1644,7 +1671,7 @@ export class AssessmentService {
       'ProvisionCandidateList',
       { offeringRef, periodCode, studentRefs: refs },
       async (db) => {
-        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ":" + periodCode}, 0))`;
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ':' + periodCode}, 0))`;
         const max = await db.assessmentCandidateList.aggregate({
           where: { offeringRef, periodCode },
           _max: { version: true },
@@ -1664,9 +1691,16 @@ export class AssessmentService {
               createdByAccountId: auth.accountId,
             },
           });
-          await this.audit(db, auth, 'CandidateListProvisioned', created.id, key, {
-            version: created.version,
-          });
+          await this.audit(
+            db,
+            auth,
+            'CandidateListProvisioned',
+            created.id,
+            key,
+            {
+              version: created.version,
+            },
+          );
           return {
             body: {
               id: created.id,
@@ -1818,9 +1852,16 @@ export class AssessmentService {
             submittedByAccountId: auth.accountId,
           },
         });
-        await this.audit(db, auth, 'BatchSubmittedForModeration', created.id, key, {
-          batchId,
-        });
+        await this.audit(
+          db,
+          auth,
+          'BatchSubmittedForModeration',
+          created.id,
+          key,
+          {
+            batchId,
+          },
+        );
         return { body: this.caseView(created) };
       },
     );
@@ -1831,7 +1872,9 @@ export class AssessmentService {
       where: { id: caseId },
       include: {
         batch: {
-          include: { mapping: { include: { component: { include: { plan: true } } } } },
+          include: {
+            mapping: { include: { component: { include: { plan: true } } } },
+          },
         },
       },
     });
@@ -1851,30 +1894,36 @@ export class AssessmentService {
         403,
       );
     }
-    return this.command(auth, key, 'BeginModerationReview', { id: caseId }, async (db) => {
-      const live = await db.moderationCase.findUniqueOrThrow({
-        where: { id: caseId },
-      });
-      if (live.status !== 'SUBMITTED') {
-        this.fail(
-          'REQUEST_CLOSED',
-          'Only submitted cases begin review. Decided cases keep their outcome.',
-          409,
-        );
-      }
-      const updated = await db.moderationCase.update({
-        where: { id: live.id },
-        data: {
-          status: 'UNDER_MODERATION',
-          reviewerAccountId: auth.accountId,
-          reviewedAt: new Date(),
-        },
-      });
-      await this.audit(db, auth, 'ModerationReviewBegun', live.id, key, {
-        batchId: live.batchId,
-      });
-      return { body: this.caseView(updated) };
-    });
+    return this.command(
+      auth,
+      key,
+      'BeginModerationReview',
+      { id: caseId },
+      async (db) => {
+        const live = await db.moderationCase.findUniqueOrThrow({
+          where: { id: caseId },
+        });
+        if (live.status !== 'SUBMITTED') {
+          this.fail(
+            'REQUEST_CLOSED',
+            'Only submitted cases begin review. Decided cases keep their outcome.',
+            409,
+          );
+        }
+        const updated = await db.moderationCase.update({
+          where: { id: live.id },
+          data: {
+            status: 'UNDER_MODERATION',
+            reviewerAccountId: auth.accountId,
+            reviewedAt: new Date(),
+          },
+        });
+        await this.audit(db, auth, 'ModerationReviewBegun', live.id, key, {
+          batchId: live.batchId,
+        });
+        return { body: this.caseView(updated) };
+      },
+    );
   }
 
   async decideCase(
@@ -1910,7 +1959,12 @@ export class AssessmentService {
         403,
       );
     }
-    const targets = ['APPROVED', 'RETURNED', 'CLARIFICATION_REQUESTED', 'REFERRED'];
+    const targets = [
+      'APPROVED',
+      'RETURNED',
+      'CLARIFICATION_REQUESTED',
+      'REFERRED',
+    ];
     if (!targets.includes(to)) {
       this.fail(
         'INVALID_TRANSITION',
@@ -1931,7 +1985,7 @@ export class AssessmentService {
       'DecideModerationCase',
       { id: caseId, version, to },
       async (db) => {
-        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ":" + found.batch.mapping.component.plan.periodCode}, 0))`;
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ':' + found.batch.mapping.component.plan.periodCode}, 0))`;
         // Serialize racing decisions: the version check below must see
         // rows committed by a concurrent decision, never a stale read.
         await db.$queryRaw`SELECT id FROM "ModerationCase" WHERE id = ${caseId} FOR UPDATE`;
@@ -1941,7 +1995,9 @@ export class AssessmentService {
             batch: {
               include: {
                 lines: true,
-                mapping: { include: { component: { include: { plan: true } } } },
+                mapping: {
+                  include: { component: { include: { plan: true } } },
+                },
               },
             },
           },
@@ -2011,10 +2067,7 @@ export class AssessmentService {
     );
   }
 
-  async listModeration(
-    auth: AssessmentAuthority,
-    filter: { status?: string },
-  ) {
+  async listModeration(auth: AssessmentAuthority, filter: { status?: string }) {
     const status = filter.status ?? undefined;
     if (auth.activeRole === 'MODERATOR') {
       const assignment = await this.liveAssignment(
@@ -2022,10 +2075,7 @@ export class AssessmentService {
         'MODERATOR',
         'moderate-results',
       );
-      if (
-        !assignment ||
-        assignment.scopeType !== 'OFFERING'
-      ) {
+      if (!assignment || assignment.scopeType !== 'OFFERING') {
         this.denied();
       }
       const rows = await this.prisma.moderationCase.findMany({
@@ -2081,7 +2131,9 @@ export class AssessmentService {
       where: { id },
       include: {
         batch: {
-          include: { mapping: { include: { component: { include: { plan: true } } } } },
+          include: {
+            mapping: { include: { component: { include: { plan: true } } } },
+          },
         },
       },
     });
@@ -2223,14 +2275,19 @@ export class AssessmentService {
       'AssembleResultPackage',
       { offeringRef, periodCode },
       async (db) => {
-        const components = policy.components as unknown as Array<{
-          code: string;
-          maxMark: number;
-          weight: number;
-        }>;
         // Lock this offering/period while freezing inputs and allocating a version.
         await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${offeringRef + ':' + periodCode}, 0))`;
-        // Gate 1: every demo component carries a moderated-approved case
+        const plans = await db.assessmentPlan.findMany({
+          where: { offeringRef, periodCode, status: 'APPROVED' },
+          include: { components: { orderBy: { code: 'asc' } } },
+          take: 2,
+        });
+        const plan = plans[0];
+        if (plans.length !== 1 || !plan || !plan.components.length || plan.components.reduce((sum, c) => sum + c.weight, 0) !== 100
+          || plan.components.some(c => c.maxMark <= 0 || c.weight <= 0))
+          this.fail('APPROVED_PLAN_REQUIRED', 'Approve a complete assessment plan for this course and period before assembling results.');
+        const components = plan.components.map(({ code, maxMark, weight }) => ({ code, maxMark, weight }));
+        // Gate 1: every approved course component carries a moderated-approved case
         // whose batch came through SIS-governed provenance (an APPROVED
         // plan), never Moodle-direct.
         const approvedCases = await db.moderationCase.findMany({
@@ -2239,7 +2296,7 @@ export class AssessmentService {
             batch: {
               mapping: {
                 component: {
-                  plan: { offeringRef, periodCode, status: 'APPROVED' },
+                  planId: plan.id,
                 },
               },
             },
@@ -2292,7 +2349,7 @@ export class AssessmentService {
           );
         }
         const caRows = await db.officialCARecord.findMany({
-          where: { offeringRef, periodCode, status: 'APPROVED' },
+          where: { offeringRef, periodCode, status: 'APPROVED', componentCode: { in: components.map(c => c.code) } },
           orderBy: [{ studentRef: 'asc' }, { version: 'desc' }],
         });
         // Latest approved version per component+student (re-moderation
@@ -2320,17 +2377,38 @@ export class AssessmentService {
           for (const component of components) {
             const row = latest.get(`${component.code}::${studentRef}`);
             if (!row || row.mark === null || row.outcome !== 'MARK_RECORDED') {
-              this.fail('INCOMPLETE_COMPONENTS', 'Every candidate needs every approved numeric component. Exceptional outcomes require an authorized route.', 409);
+              this.fail(
+                'INCOMPLETE_COMPONENTS',
+                'Every candidate needs every approved numeric component. Exceptional outcomes require an authorized route.',
+                409,
+              );
             }
-            if (!Number.isFinite(row.mark) || row.mark < 0 || row.mark > component.maxMark) {
-              this.fail('INVALID_COMPONENT', 'An approved component is outside its permitted range. Return it for correction.', 409);
+            if (
+              !Number.isFinite(row.mark) ||
+              row.mark < 0 ||
+              row.mark > component.maxMark
+            ) {
+              this.fail(
+                'INVALID_COMPONENT',
+                'An approved component is outside its permitted range. Return it for correction.',
+                409,
+              );
             }
             if (!approvedCases.some((c) => c.id === row.caseId)) {
-              this.fail('STALE_COMPONENT', 'An input does not belong to the current moderated assessment plan.', 409);
+              this.fail(
+                'STALE_COMPONENT',
+                'An input does not belong to the current moderated assessment plan.',
+                409,
+              );
             }
           }
         }
-        if (!expected.size) this.fail('EMPTY_PACKAGE', 'A result package must contain eligible candidates.', 409);
+        if (!expected.size)
+          this.fail(
+            'EMPTY_PACKAGE',
+            'A result package must contain eligible candidates.',
+            409,
+          );
         // weighted-total-v1 preview: contribution = mark/maxMark*weight,
         // rounded half-up to 2dp. Null marks stay absent, never zero-fill.
         const byStudent = new Map<
@@ -2346,7 +2424,9 @@ export class AssessmentService {
           }
         >();
         for (const row of latest.values()) {
-          const component = components.find((c) => c.code === row.componentCode);
+          const component = components.find(
+            (c) => c.code === row.componentCode,
+          );
           if (!component) continue;
           const entry = byStudent.get(row.studentRef) ?? {
             parts: [] as Array<{
@@ -2360,7 +2440,9 @@ export class AssessmentService {
           const normalised =
             row.mark === null ? null : row.mark / component.maxMark;
           const weighted =
-            row.mark === null ? 0 : (row.mark / component.maxMark) * component.weight;
+            row.mark === null
+              ? 0
+              : (row.mark / component.maxMark) * component.weight;
           entry.parts.push({
             componentCode: row.componentCode,
             raw: row.mark,
@@ -2377,6 +2459,8 @@ export class AssessmentService {
           rounded: Math.round((v.total + Number.EPSILON) * 100) / 100,
         }));
         const trace = {
+          assessmentPlanId: plan.id,
+          assessmentPlanVersion: plan.version,
           caRefs: [...latest.values()].map((r) => r.id).sort(),
           components,
           formulaVersion: 'weighted-total-v1',
@@ -2386,7 +2470,12 @@ export class AssessmentService {
           moderationRefs: approvedCases.map((c) => c.id),
           candidateListId: list.id,
         };
-        const packageHash = packageDigest({ offeringRef, periodCode, trace, caRefs: [...latest.values()].map((r) => r.id).sort() });
+        const packageHash = packageDigest({
+          offeringRef,
+          periodCode,
+          trace,
+          caRefs: [...latest.values()].map((r) => r.id).sort(),
+        });
         const max = await db.resultPackage.aggregate({
           where: { offeringRef, periodCode },
           _max: { version: true },
@@ -2413,20 +2502,32 @@ export class AssessmentService {
     );
   }
 
-  private async packageScope(auth: AssessmentAuthority): Promise<Prisma.ResultPackageWhereInput> {
+  private async packageScope(
+    auth: AssessmentAuthority,
+  ): Promise<Prisma.ResultPackageWhereInput> {
     if (auth.activeRole === 'LEC') {
       const grant = await this.liveAssignment(auth, 'LEC', 'stage-marks');
-      if (grant?.scopeType === 'OFFERING') return { offeringRef: grant.scopeRef };
+      if (grant?.scopeType === 'OFFERING')
+        return { offeringRef: grant.scopeRef };
     }
     if (auth.activeRole === 'EXAMINATIONS_OFFICER') {
-      const grant = await this.liveAssignment(auth, 'EXAMINATIONS_OFFICER', 'validate-results');
+      const grant = await this.liveAssignment(
+        auth,
+        'EXAMINATIONS_OFFICER',
+        'validate-results',
+      );
       if (grant?.scopeType === 'PERIOD') return { periodCode: grant.scopeRef };
     }
     // School-to-offering registry is not yet authoritative on this branch.
     // Own preparation only; no cross-school detailed mark browsing.
     if (auth.activeRole === 'COORDINATOR') {
-      const grant = await this.liveAssignment(auth, 'COORDINATOR', 'approve-assessment');
-      if (grant?.scopeType === 'SCHOOL') return { preparedByAccountId: auth.accountId };
+      const grant = await this.liveAssignment(
+        auth,
+        'COORDINATOR',
+        'approve-assessment',
+      );
+      if (grant?.scopeType === 'SCHOOL')
+        return { preparedByAccountId: auth.accountId };
     }
     this.denied();
   }
@@ -2490,7 +2591,8 @@ export class AssessmentService {
       throw new HttpException(
         {
           code: 'SOD_VIOLATION',
-          message: 'Board decisions require four-eyes: the decider must differ from the preparer.',
+          message:
+            'Board decisions require four-eyes: the decider must differ from the preparer.',
           supportReference: randomUUID(),
         },
         403,
@@ -2521,7 +2623,13 @@ export class AssessmentService {
       auth,
       key,
       'DecideResultPackage',
-      { id, version, to, reason: reason?.trim() ?? null, conditions: conditions ?? [] },
+      {
+        id,
+        version,
+        to,
+        reason: reason?.trim() ?? null,
+        conditions: conditions ?? [],
+      },
       async (db) => {
         // Serialize racing decisions: the version check below must see
         // rows committed by a concurrent decision, never a stale read.
