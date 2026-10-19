@@ -158,6 +158,14 @@ test.beforeAll(async () => {
         );
       return;
     }
+    if (request.method === "GET" && url.pathname === "/registration/readiness") {
+      response.writeHead(503).end(JSON.stringify({ message: "Readiness cannot be checked." }));
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/notifications/records/mine") {
+      response.end(JSON.stringify({ items: [], nextCursor: null }));
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/registration/contexts") {
       if (inventoryMode === "unavailable") {
         response.writeHead(503).end(JSON.stringify({ message: "Study periods cannot be checked." }));
@@ -1197,7 +1205,7 @@ test("student sidebar keeps the account stationary and academic links exact acro
   });
   await expect(sidebar).toBeVisible();
   const account = sidebar.getByRole("link", {
-    name: "Switch account",
+    name: "My account",
     exact: true,
   });
   const rail = page.getByRole("region", {
@@ -1219,9 +1227,7 @@ test("student sidebar keeps the account stationary and academic links exact acro
   expect(after!.y + after!.height).toBeLessThanOrEqual(500);
   expect(await page.evaluate(() => scrollY)).toBe(0);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
-  await expect(
-    page.getByRole("link", { name: "Switch workspace", exact: true }),
-  ).toHaveAttribute("href", "/workspaces");
+  await expect(account).toHaveAttribute("href", "/student/account");
   await page.screenshot({
     path: info.outputPath("student-sidebar-desktop.png"),
     fullPage: true,

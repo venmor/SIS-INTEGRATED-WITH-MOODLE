@@ -52,11 +52,20 @@ export default async function StudentPage() {
   return (
     <>
       <PageHeader eyebrow={`Student dashboard · ${board.period}`} title={`Welcome, ${board.displayName}`} lede={`${board.programmeName} · ${board.period}`} />
+      <section className={styles.recordPanel} aria-label="General information">
+        <h2>General information</h2>
+        <div className={styles.facts}>
+          <p><span>Student number</span><strong>{board.studentNumber}</strong></p>
+          <p><span>Programme</span><strong>{board.programmeName}</strong></p>
+          <p><span>Campus</span><strong>{board.campus}</strong></p>
+          <p><span>Study mode</span><strong>{board.studyMode}</strong></p>
+        </div>
+      </section>
       <section className={`${styles.statusPanel} ${!registration ? styles.statusUnknown : ""}`} aria-labelledby="period-status-title">
         <div className={styles.statusHeading}>
           <div>
             <p className={styles.kicker}>Registration</p>
-            <h2 id="period-status-title">{!registration ? "Status unavailable" : registered ? "Registration completed" : actionNeeded ? "Registration is open" : "Registration is not complete"}</h2>
+            <h2 id="period-status-title">{!registration ? "Registration status unavailable" : registered ? "Registration completed" : actionNeeded ? "Registration is open" : "Registration is not complete"}</h2>
           </div>
           {registration ? <StatusChip tone={registered ? "success" : "attention"}>{registered ? "Complete" : "Check status"}</StatusChip> : null}
         </div>
