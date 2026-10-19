@@ -56,6 +56,7 @@ test("applicant workspace home never offers access-review administration", async
 }) => {
   const applicant = await createApplicant();
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -84,6 +85,7 @@ async function startDraft(page: import("@playwright/test").Page) {
     .click();
 
   await expect(page).toHaveURL(/sign-in/);
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -140,20 +142,20 @@ async function submitBasicApplication(
   await expect(page.getByRole("status")).toContainText("All changes saved");
 
   await page.getByRole("link", { name: /Supporting documents/ }).click();
-  await page
-    .getByLabel("Choose file")
-    .setInputFiles(
-      path.resolve("packages/test-fixtures/documents/fictional-result.pdf"),
-    );
-  await page
-    .getByRole("button", { name: "Upload document", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Check file safety", exact: true })
-    .click();
-  await expect(
-    page.getByRole("link", { name: "Preview fictional-result.pdf" }),
-  ).toBeVisible();
+  for (const category of [
+    'National Registration Card (NRC)',
+    'Grade 12 statement of results or certificate',
+  ]) {
+    const requirement = page.getByRole('region', { name: 'Required documents' })
+      .getByRole('article').filter({ has: page.getByRole('heading', { name: category, exact: true }) });
+    await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: category });
+    await page
+      .getByLabel("Choose file")
+      .setInputFiles(path.resolve("packages/test-fixtures/documents/fictional-result.pdf"));
+    await page.getByRole("button", { name: "Upload document", exact: true }).click();
+    await requirement.getByRole("button", { name: "Check file safety", exact: true }).click();
+    await expect(requirement.getByRole('link', { name: 'Preview fictional-result.pdf' })).toBeVisible();
+  }
 
   await page.goto(`${applicationUrl}/review`);
   const declarations = page.getByRole("checkbox");
@@ -270,9 +272,8 @@ test("required documents always expose a clear state", async ({ page }) => {
   await page.goto(`${applicationUrl}/documents`);
 
   await expect(page.getByText("Status: Not uploaded").first()).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Download fictional practice document" }),
-  ).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Document category' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: 'Grade 12 statement of results or certificate' });
 
   await page
     .getByLabel("Choose file")
@@ -294,6 +295,7 @@ test("required documents always expose a clear state", async ({ page }) => {
 test("document upload shows transfer and receipt phases", async ({ page }) => {
   const applicationUrl = await startDraft(page);
   await page.goto(`${applicationUrl}/documents`);
+  await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: 'Grade 12 statement of results or certificate' });
   await page
     .getByLabel("Choose file")
     .setInputFiles(

@@ -8,6 +8,7 @@ async function signIn(
   password: string,
 ) {
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

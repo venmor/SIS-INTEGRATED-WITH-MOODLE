@@ -15,6 +15,7 @@ test("applicant completes a mobile keyboard journey and recovers a lost submissi
     .getByRole("link", { name: "Start application", exact: true })
     .click();
   await expect(page).toHaveURL(/sign-in/);
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

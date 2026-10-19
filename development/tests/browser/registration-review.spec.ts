@@ -316,16 +316,18 @@ test("entry and readiness layouts reflow with keyboard-accessible detail and rea
   test.setTimeout(120000);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
+    await page.context().clearCookies();
     await page.goto(`${webOrigin}/sign-in`);
-    await expect(page.getByRole("heading", { name: "Sign in to the SIS" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Account sign-in" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Explore programmes", exact: true })).toHaveAttribute("href", "/discover");
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole("region", { name: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Find a programme", exact: true })).toHaveAttribute("href", "/discover");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`sign-in-${width}.png`), fullPage: true });
     await page.goto(`${webOrigin}/discover`);
     await expect(page.getByRole("list", { name: "Application journey" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`discover-${width}.png`), fullPage: true });
+    await page.context().addCookies([{ name: 'sid', value: 'synthetic-rendering-only', url: webOrigin }]);
     await page.goto(`${webOrigin}/student/readiness?${context}`);
     await expect(page.getByRole("heading", { name: "Course selection", exact: true })).toBeVisible();
     await expect(page.getByText("Save your course selection.")).toBeVisible();

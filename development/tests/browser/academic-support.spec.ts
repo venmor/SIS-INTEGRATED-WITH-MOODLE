@@ -6,8 +6,10 @@ async function signIn(
   page: import("@playwright/test").Page,
   username: string,
   password: string,
+  audience: 'student' | 'staff' = 'student',
 ) {
   await page.goto("/sign-in");
+  if (audience === 'student') await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -57,7 +59,7 @@ test("student sends a real academic request and exchanges secure replies with th
   });
   const adviser = await adviserContext.newPage();
   try {
-    await signIn(adviser, scenario.adviser.username, scenario.adviser.password);
+    await signIn(adviser, scenario.adviser.username, scenario.adviser.password, 'staff');
     await adviser.goto("/admin/support");
     await expect(
       adviser.getByRole("heading", { name: "Assigned support requests" }),
@@ -172,7 +174,7 @@ test("student and adviser agree and verify a dated academic follow-up", async ({
   });
   const adviser = await adviserContext.newPage();
   try {
-    await signIn(adviser, scenario.adviser.username, scenario.adviser.password);
+    await signIn(adviser, scenario.adviser.username, scenario.adviser.password, 'staff');
     await adviser.goto(`/admin/support/${requestId}`);
     const followUp = adviser.getByRole("form", {
       name: "Propose academic follow-up",
