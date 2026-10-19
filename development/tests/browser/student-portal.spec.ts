@@ -16,6 +16,7 @@ test("student portal: home, contact update, correction request", async ({
   const student = await createStudent();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -40,8 +41,8 @@ test("student portal: home, contact update, correction request", async ({
   await expect(
     page.getByRole("link", { name: "Start registration" }),
   ).toBeVisible();
-  await expect(page.getByText(student.studentNumber)).toHaveCount(0);
-  await expect(page.getByText("BSc Software Engineering")).toBeVisible();
+  await expect(page.getByRole('region', { name: 'General information' }).getByText(student.studentNumber)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'General information' }).getByText('BSc Software Engineering', { exact: true })).toBeVisible();
   await noOverflow(page);
 
   await page.getByRole("link", { name: "Open timetable" }).click();
@@ -73,7 +74,7 @@ test("student portal: home, contact update, correction request", async ({
   const correctionHistory = page
     .getByRole("heading", { name: "Correction requests" })
     .locator("..");
-  await expect(correctionHistory.getByText("Official name")).toBeVisible();
+  await expect(correctionHistory.getByRole("listitem").getByText("Official name", { exact: true })).toBeVisible();
   await expect(correctionHistory.getByText("Awaiting review")).toBeVisible();
   await noOverflow(page);
 

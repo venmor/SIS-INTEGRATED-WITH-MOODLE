@@ -106,6 +106,26 @@ export interface RegistrationStatusView {
       | "Failed"
       | "NOT_PROVISIONED";
     detail: string;
+    access?: {
+      backend: 'live-test';
+      registrationId: string;
+      username: string | null;
+      initialPasswordAvailable?: boolean;
+      moodleUrl: string;
+      state: 'READY' | 'PARTIAL' | 'REVIEW' | 'PENDING';
+      confirmedCount: number;
+      totalCourses: number;
+      courses: Array<{
+        courseRegistrationId: string;
+        courseId: string;
+        courseCode: string;
+        courseTitle: string;
+        state: 'CONFIRMED' | 'REVIEW' | 'RETRY' | 'WAITING';
+        lastCode: string | null;
+        verifiedAt: string | null;
+        moodleCourseUrl: string | null;
+      }>;
+    };
   };
 }
 /** Phase 4 slice 6: amendment and waitlist views. Snapshots stay immutable;

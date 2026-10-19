@@ -687,6 +687,133 @@ export class MoodleLiveRunService {
       )
         throw new ConflictException('MANIFEST_SOURCE_NOT_FOUND');
   }
+  /** Internal permit only: callers enforce their own academic/operator role.
+   * It cannot be serialised to HTTP: the returned descriptor carries a token.
+   * Locking the run makes source/claim custody atomic with pause transitions.
+   */
+  async deliveryPermit(
+    tx: Tx,
+    required: Array<{ entity: MoodleManifestEntity; entityId: string }>,
+  ) {
+    if (!required.length)
+      throw new ConflictException('MANIFEST_SCOPE_REQUIRED');
+    const run = await tx.moodleLiveTestRun.findUnique({
+      where: { runId: process.env.MOODLE_LIVE_TEST_RUN_ID ?? '' },
+      include: { manifest: { include: { entries: true } } },
+    });
+    if (
+      !run ||
+      run.state !== 'RUNNING' ||
+      !run.nonProductionConfirmed ||
+      !run.syntheticOnlyConfirmed ||
+      run.identityStatus !== 'VERIFIED'
+    )
+      throw new ConflictException('RUNNING_RUN_REQUIRED');
+    await tx.$queryRaw`SELECT id FROM "MoodleLiveTestRun" WHERE id = ${run.id} FOR SHARE`;
+    const current = await tx.moodleLiveTestRun.findUnique({
+      where: { id: run.id },
+      include: { manifest: { include: { entries: true } } },
+    });
+    if (!current || current.state !== 'RUNNING')
+      throw new ConflictException('RUNNING_RUN_REQUIRED');
+    const entries = current.manifest?.entries ?? [];
+    if (
+      required.some(
+        (ref) =>
+          !entries.some(
+            (entry) =>
+              entry.entity === ref.entity && entry.entityId === ref.entityId,
+          ),
+      )
+    )
+      throw new ConflictException('MANIFEST_SCOPE_REQUIRED');
+    await this.runtimeBinding(tx, current);
+    const selected = selectBackend();
+    if (selected.kind !== 'live-test')
+      throw new ConflictException('RUN_RUNTIME_BINDING_REQUIRED');
+    return selected.descriptor;
+  }
+
+  /** DEMO-MOODLE-REGISTRATION-2026.1: immutable parent entitlements may
+   * authorise a subsequently submitted official roster row. A future row ID
+   * cannot be placed in a sealed manifest before registration creates it.
+   * This explicit synthetic-only policy never expands the manifest's students,
+   * attempts or programme offerings and cannot turn a draft plan into enrolment.
+   */
+  async registrationDeliveryPermit(
+    tx: Tx,
+    rowId: string,
+    allowRemoval = false,
+  ) {
+    if (
+      process.env.DEMO_MODE !== 'true' ||
+      process.env.SIS_ENABLE_MOODLE_REGISTRATION_DELIVERY !== 'true'
+    )
+      throw new ConflictException('DEMO_REGISTRATION_DELIVERY_NOT_ENABLED');
+    const row = await tx.courseRegistration.findUnique({
+      where: { id: rowId },
+      include: { registration: true },
+    });
+    if (
+      !row ||
+      row.registration.status !== 'REGISTERED' ||
+      (allowRemoval
+        ? !['ENROLLED', 'DROPPED', 'REMOVED'].includes(row.status)
+        : row.status !== 'ENROLLED')
+    )
+      throw new ConflictException('OFFICIAL_COURSE_REGISTRATION_REQUIRED');
+    const attempt = await tx.programmeAttempt.findUnique({
+      where: { id: row.registration.attemptId },
+      include: { student: { include: { person: true } } },
+    });
+    if (
+      !attempt ||
+      attempt.student.status !== 'ACTIVE' ||
+      attempt.student.person.status !== 'ACTIVE' ||
+      !attempt.curriculumVersionId ||
+      !(await tx.curriculumCourse.findFirst({
+        where: {
+          curriculumId: attempt.curriculumVersionId,
+          courseId: row.courseId,
+          curriculum: { status: 'PUBLISHED' },
+        },
+      }))
+    )
+      throw new ConflictException('OFFICIAL_COURSE_REGISTRATION_REQUIRED');
+    return this.deliveryPermit(tx, [
+      { entity: 'Student', entityId: attempt.studentId },
+      { entity: 'ProgrammeAttempt', entityId: attempt.id },
+      { entity: 'ProgrammeOffering', entityId: attempt.offeringId },
+    ]);
+  }
+
+  /** A class import validates the roster in bulk. The expensive sealed-run
+   * fingerprint and source verification happens once, not once per learner. */
+  async registrationBatchDeliveryPermit(tx: Tx, rowIds: string[]) {
+    if (process.env.DEMO_MODE !== 'true' || process.env.SIS_ENABLE_MOODLE_REGISTRATION_DELIVERY !== 'true')
+      throw new ConflictException('DEMO_REGISTRATION_DELIVERY_NOT_ENABLED');
+    if (!rowIds.length || rowIds.length > 200 || new Set(rowIds).size !== rowIds.length)
+      throw new ConflictException('BOUNDED_OFFICIAL_CLASS_REQUIRED');
+    const rows = await tx.courseRegistration.findMany({ where: { id: { in: rowIds } }, include: { registration: true } });
+    if (rows.length !== rowIds.length || rows.some((r) => r.status !== 'ENROLLED' || r.registration.status !== 'REGISTERED'))
+      throw new ConflictException('OFFICIAL_COURSE_REGISTRATION_REQUIRED');
+    const attempts = await tx.programmeAttempt.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.registration.attemptId))] } }, include: { student: { include: { person: true } } } });
+    const byAttempt = new Map(attempts.map((a) => [a.id, a]));
+    const pairs = rows.map((r) => ({ courseId: r.courseId, curriculumId: byAttempt.get(r.registration.attemptId)?.curriculumVersionId ?? '' }));
+    if (pairs.some((p) => !p.curriculumId) || attempts.some((a) => a.student.status !== 'ACTIVE' || a.student.person.status !== 'ACTIVE'))
+      throw new ConflictException('OFFICIAL_COURSE_REGISTRATION_REQUIRED');
+    const published = await tx.curriculumCourse.findMany({ where: { OR: pairs, curriculum: { status: 'PUBLISHED' } }, select: { curriculumId: true, courseId: true } });
+    const eligible = new Set(published.map((p) => `${p.curriculumId}:${p.courseId}`));
+    if (pairs.some((p) => !eligible.has(`${p.curriculumId}:${p.courseId}`))) throw new ConflictException('OFFICIAL_COURSE_REGISTRATION_REQUIRED');
+    const refs = new Map<string, { entity: MoodleManifestEntity; entityId: string }>();
+    for (const attempt of attempts) for (const ref of [
+      { entity: 'Student' as const, entityId: attempt.studentId },
+      { entity: 'ProgrammeAttempt' as const, entityId: attempt.id },
+      { entity: 'ProgrammeOffering' as const, entityId: attempt.offeringId },
+    ]) refs.set(`${ref.entity}:${ref.entityId}`, ref);
+    return this.deliveryPermit(tx, [...refs.values()]);
+  }
+
   async command(
     actor: MoodleRunActor,
     id: string,

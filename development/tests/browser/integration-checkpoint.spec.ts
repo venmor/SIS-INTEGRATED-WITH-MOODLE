@@ -57,6 +57,7 @@ test("integration checkpoint: outage, replay, reconciliation", async ({
   // Queued handoff visible to the student; registration stays valid.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

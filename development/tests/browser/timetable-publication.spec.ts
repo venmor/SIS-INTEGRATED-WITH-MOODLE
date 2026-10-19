@@ -10,6 +10,7 @@ async function signIn(
   target = route,
 ) {
   await page.goto(`/sign-in?returnTo=${encodeURIComponent(target)}`);
+  if (target.startsWith('/student')) await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

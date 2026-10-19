@@ -153,6 +153,7 @@ test("student sees only own official history on mobile", async ({ page }) => {
       page.getByRole("heading", { name: "Official results", exact: true }),
     ).toBeVisible();
     await expect(page.getByText("80 / 100", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "View details", exact: true }).click();
     await expect(
       page.getByText("Academic impact review required", { exact: true }),
     ).toBeVisible();
@@ -179,7 +180,7 @@ test("student sees only own official history on mobile", async ({ page }) => {
   }
 });
 
-test("release review makes consequences clear and default policy blocks publication", async ({
+test("release review makes consequences clear and requires password confirmation", async ({
   page,
 }) => {
   const db = database();
@@ -216,11 +217,8 @@ test("release review makes consequences clear and default policy blocks publicat
     });
     await button.focus();
     await page.keyboard.press("Enter");
-    await expect(
-      page.getByText(
-        /Approved publication policy and candidate restrictions must be confirmed/,
-      ),
-    ).toBeVisible();
+    await expect(page.getByLabel("Confirm your password")).toBeVisible();
+    expect(await page.getByLabel("Confirm your password").evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);
     expect(await db.resultRelease.count({ where: { packageId: pkg.id } })).toBe(
       0,
     );

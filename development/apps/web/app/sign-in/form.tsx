@@ -24,11 +24,13 @@ const serverReady = () => false;
 // supplies one; the AUTH-* sentence itself stays verbatim.
 export function SignInForm({
   returnTo,
+  audience = "staff",
   demoAccount,
   demoStaff,
   home = false,
 }: {
   returnTo?: string;
+  audience?: "student" | "staff";
   home?: boolean;
   demoAccount?: { username: string; password: string };
   demoStaff?: Array<{
@@ -43,6 +45,10 @@ export function SignInForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
   const [filledAccount, setFilledAccount] = useState<string | null>(null);
+  const [demoQuery, setDemoQuery] = useState("");
+  const visibleDemoStaff = demoStaff?.filter((account) =>
+    `${account.username} ${account.role} ${account.blurb}`.toLowerCase().includes(demoQuery.trim().toLowerCase()),
+  );
   const ready = useSyncExternalStore(
     subscribeHydration,
     clientReady,
@@ -88,6 +94,7 @@ export function SignInForm({
         },
         credentials: "same-origin",
         body: JSON.stringify({
+          audience,
           username: data.get("username"),
           password: data.get("password"),
         }),
@@ -230,13 +237,27 @@ export function SignInForm({
                 className={signInStyles.demoPanel}
                 aria-labelledby="demo-staff-heading"
               >
-                <p className={signInStyles.demoLabel}>Fictional staff demo</p>
-                <h2 id="demo-staff-heading">Try staff workspaces</h2>
+                <p className={signInStyles.demoLabel}>Fictional demo accounts</p>
+                <h2 id="demo-staff-heading">Try a demonstration workspace</h2>
                 <p>
                   Sign in with the account for the workspace you need. Enter fictional
                   information only.
                 </p>
-                {demoStaff.map((staff) => (
+                <label className={signInStyles.demoSearchLabel} htmlFor="demo-account-search">Find a demo account</label>
+                <input
+                  id="demo-account-search"
+                  className={signInStyles.demoSearch}
+                  type="search"
+                  value={demoQuery}
+                  onChange={(event) => setDemoQuery(event.target.value)}
+                  placeholder="Search Moodle, timetable, registration…"
+                />
+                <p className={signInStyles.demoNote} role="status">
+                  {visibleDemoStaff?.length ?? 0} demonstration accounts available
+                  {demoQuery.trim() ? " for this search" : " for this account type"}.
+                </p>
+                <div className={signInStyles.demoAccounts}>
+                {visibleDemoStaff?.map((staff) => (
                   <div key={staff.username}>
                     <h3>
                       {staff.role}: <code>{staff.username}</code>
@@ -266,6 +287,7 @@ export function SignInForm({
                     </ActionButton>
                   </div>
                 ))}
+                </div>
               </section>
             ) : null}
           </div>

@@ -20,28 +20,29 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Continue your work in the SIS" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await expect(
     page
       .getByRole("navigation", { name: "Public navigation" })
-      .getByRole("link", { name: "Sign in" }),
+      .getByRole("link", { name: "Find a programme" }),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
+  await page.goto("/sign-in");
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(
-    page.getByRole("heading", { name: "Sign in to the SIS" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Username" })).toBeVisible();
-  await expect(page.getByText("Try a fictional demo account")).toBeVisible();
+  await expect(page.getByText("Try demo account")).toBeVisible();
   await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: "Student", exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expectWorkspaceLanding(page);
   await expect(
-    page.getByRole("heading", { name: "Welcome to the student portal" }),
+    page.getByRole("heading", { name: /^Welcome,/ }),
   ).toBeVisible();
   await page.goto("/discover");
   await expect(
@@ -50,11 +51,35 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await expectNoHorizontalOverflow(page);
 });
 
+test("presentation account picker filters workspaces and fills the selected credential", async ({ page }) => {
+  await page.route('**/api/auth/demo-accounts', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ accounts: [
+      { username: 'moodle.author.example', password: 'Example-demo-password', audience: 'staff', role: 'MOODLE_ADMIN', blurb: 'Moodle course mappings' },
+      { username: 'mumba.s', password: 'Example-other-password', audience: 'staff', role: 'SYSADMIN', blurb: 'Access reviews' },
+      { username: 'chanda.time', password: 'Example-student-password', audience: 'student', role: 'STUDENT', blurb: 'Student timetable' },
+    ] })
+  }));
+  await page.goto('/sign-in');
+  await page.getByText('Try demo account').click();
+  await expect(page.getByLabel('Find a demo account')).toBeVisible();
+  await page.getByLabel('Find a demo account').fill('moodle');
+  await expect(page.getByRole('heading', { name: /moodle.author.example/ })).toBeVisible();
+  await expect(page.getByText('mumba.s')).toHaveCount(0);
+  await expect(page.getByText('chanda.time')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Fill moodle_admin details' }).click();
+  await expect(page.getByLabel('Username', { exact: true })).toHaveValue('moodle.author.example');
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByText('Try demo account').click();
+  await expect(page.getByRole('heading', { name: /chanda.time/ })).toBeVisible();
+  await expect(page.getByText('moodle.author.example')).toHaveCount(0);
+});
+
 test("applicant workspace home never offers access-review administration", async ({
   page,
 }) => {
   const applicant = await createApplicant();
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -83,6 +108,7 @@ async function startDraft(page: import("@playwright/test").Page) {
     .click();
 
   await expect(page).toHaveURL(/sign-in/);
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -139,20 +165,20 @@ async function submitBasicApplication(
   await expect(page.getByRole("status")).toContainText("All changes saved");
 
   await page.getByRole("link", { name: /Supporting documents/ }).click();
-  await page
-    .getByLabel("Choose file")
-    .setInputFiles(
-      path.resolve("packages/test-fixtures/documents/fictional-result.pdf"),
-    );
-  await page
-    .getByRole("button", { name: "Upload document", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Check file safety", exact: true })
-    .click();
-  await expect(
-    page.getByRole("link", { name: "Preview fictional-result.pdf" }),
-  ).toBeVisible();
+  for (const category of [
+    'National Registration Card (NRC)',
+    'Grade 12 statement of results or certificate',
+  ]) {
+    const requirement = page.getByRole('region', { name: 'Required documents' })
+      .getByRole('article').filter({ has: page.getByRole('heading', { name: category, exact: true }) });
+    await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: category });
+    await page
+      .getByLabel("Choose file")
+      .setInputFiles(path.resolve("packages/test-fixtures/documents/fictional-result.pdf"));
+    await page.getByRole("button", { name: "Upload document", exact: true }).click();
+    await requirement.getByRole("button", { name: "Check file safety", exact: true }).click();
+    await expect(requirement.getByRole('link', { name: 'Preview fictional-result.pdf' })).toBeVisible();
+  }
 
   await page.goto(`${applicationUrl}/review`);
   const declarations = page.getByRole("checkbox");
@@ -269,9 +295,8 @@ test("required documents always expose a clear state", async ({ page }) => {
   await page.goto(`${applicationUrl}/documents`);
 
   await expect(page.getByText("Status: Not uploaded").first()).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Download fictional practice document" }),
-  ).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Document category' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: 'Grade 12 statement of results or certificate' });
 
   await page
     .getByLabel("Choose file")
@@ -293,6 +318,7 @@ test("required documents always expose a clear state", async ({ page }) => {
 test("document upload shows transfer and receipt phases", async ({ page }) => {
   const applicationUrl = await startDraft(page);
   await page.goto(`${applicationUrl}/documents`);
+  await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: 'Grade 12 statement of results or certificate' });
   await page
     .getByLabel("Choose file")
     .setInputFiles(

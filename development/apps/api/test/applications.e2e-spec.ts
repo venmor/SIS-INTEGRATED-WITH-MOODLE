@@ -250,6 +250,11 @@ describe('Phase 2 owned applicant journey', () => {
     draft = (await get(`/${draft.id}`)).body;
   });
   it('blocks submission with missing documents and absent/current declarations', async () => {
+    const requirements = draft.requiredDocuments as { category: string; label: string }[];
+    expect(requirements).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: 'identity', label: expect.stringContaining('NRC') }),
+      expect.objectContaining({ category: 'qualification', label: expect.stringContaining('Grade 12') }),
+    ]));
     await post(`/${draft.id}/submit`, {
       version: draft.version,
       idempotencyKey: key(),
@@ -338,11 +343,11 @@ describe('Phase 2 owned applicant journey', () => {
     ).body;
     expect(draft.documents[0].canPreview).toBe(false);
     expect(
-      draft.blockers.find((b) => b.section === 'documents')?.message,
-    ).toContain('fictional practice PDF');
+      draft.blockers.find((b) => b.section === 'documents' && b.message.includes('Grade 12'))?.message,
+    ).toMatch(/configured file-safety check|Check file safety/);
     expect(
-      draft.blockers.find((b) => b.section === 'documents')?.message,
-    ).toContain('Check file safety');
+      draft.blockers.find((b) => b.section === 'documents' && b.message.includes('Grade 12'))?.message,
+    ).toContain('Grade 12');
     draft = (
       await post(`/${draft.id}/documents/${doc.id}/scan`, {
         version: draft.version,
@@ -408,6 +413,24 @@ describe('Phase 2 owned applicant journey', () => {
       }).expect(201)
     ).body;
     expect(safe.version).toBe(original.version + 2);
+    draft = (
+      await request(app.getHttpServer())
+        .post(`/applications/${draft.id}/documents`)
+        .set(csrf)
+        .set('Cookie', cookie)
+        .field('category', 'identity')
+        .field('version', String(draft.version))
+        .field('idempotencyKey', key())
+        .attach('file', bytes, { filename: 'fictional-identity.pdf', contentType: 'application/pdf' })
+        .expect(201)
+    ).body;
+    const identity = draft.documents.at(-1)!;
+    draft = (
+      await post(`/${draft.id}/documents/${identity.id}/scan`, {
+        version: draft.version,
+        idempotencyKey: key(),
+      }).expect(201)
+    ).body;
     expect((await get(`/${draft.id}/review`)).body.ready).toBe(true);
   });
   it('blocks an existing ready draft when its fee policy becomes unavailable', async () => {

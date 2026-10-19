@@ -254,6 +254,8 @@ test.beforeAll(async () => {
     response.setHeader("content-type", "application/json");
     const url = new URL(request.url ?? "/", apiOrigin);
     const send = (data: unknown) => response.end(JSON.stringify(data));
+    if (url.pathname === "/auth/me" && ['readiness-expired', 'expired-plan', 'expired-status'].includes(mode))
+      return response.writeHead(401).end(JSON.stringify({ message: 'Session expired.' }));
     if (url.pathname === "/auth/me")
       return send({
         account: { displayName: "Fictional study student" },
@@ -441,7 +443,7 @@ test("student dashboard keeps profile work in My account and notices in the stud
   await expect(page.getByRole("heading", { name: "Welcome, Fictional study student" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Registration is open" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Start registration" })).toHaveAttribute("href", "/student/readiness");
-  await expect(page.getByText("STU-FICTIONAL-184")).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'General information' }).getByText('STU-FICTIONAL-184')).toBeVisible();
   await page.getByRole("link", { name: "My account" }).click();
   await expect(page.getByRole("heading", { name: "Bio data and status" })).toBeVisible();
   await expect(page.getByText("STU-FICTIONAL-184")).toBeVisible();
@@ -572,7 +574,7 @@ test("readiness redirects an expired upstream session with its exact academic re
     `${webOrigin}/sign-in?returnTo=${encodeURIComponent(`/student/readiness${context}`)}`,
   );
   await expect(
-    page.getByRole("heading", { name: "Sign in to the SIS" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
 });
 
@@ -721,7 +723,7 @@ for (const scenario of [
       `${webOrigin}/sign-in?returnTo=${encodeURIComponent(`/student/${scenario.route}${context}`)}`,
     );
     await expect(
-      page.getByRole("heading", { name: "Sign in to the SIS" }),
+      page.getByRole("heading", { name: "Welcome back" }),
     ).toBeVisible();
     expect(submitted).toEqual([]);
   });

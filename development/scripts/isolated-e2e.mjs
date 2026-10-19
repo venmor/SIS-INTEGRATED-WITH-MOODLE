@@ -23,8 +23,13 @@ async function main() {
   const admin = new pg.Client({ connectionString: adminUrl.href });
   await admin.connect();
   try {
-    for (const file of files) {
-      const name = `sis_setup003_test_ci_${randomBytes(8).toString('hex')}`;
+    const suites = [...files.map(file => ({ file, kind: 'e2e' })),
+      { file: 'moodle-live-delivery.pg.spec.ts', kind: 'delivery' },
+      { file: 'moodle-live-bindings.pg.spec.ts', kind: 'delivery' },
+      { file: 'moodle-live-run.pg.spec.ts', kind: 'foundation' }];
+    for (const { file, kind } of suites) {
+      const prefix = kind === 'delivery' ? 'sis_moodle_delivery_review_' : kind === 'foundation' ? 'sis_moodle_foundation_review_' : 'sis_setup003_test_ci_';
+      const name = `${prefix}${randomBytes(8).toString('hex')}`;
       await admin.query(`CREATE DATABASE ${quote(name)} TEMPLATE ${quote(decodeURIComponent(baseline.pathname.slice(1)))}`);
       const target = new URL(baseline); target.hostname = '127.0.0.1'; target.pathname = `/${name}`;
       console.log(`Isolated connected suite: ${file}`);
@@ -41,8 +46,9 @@ async function main() {
         }
         if (status === undefined || status === 0) {
           status = await new Promise((resolve, reject) => {
-            const child = spawn(process.execPath, ['../../node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.config.e2e.ts', `test/${file}`, '--no-file-parallelism'], {
-              cwd: 'apps/api', env: { ...process.env, DATABASE_URL: target.href }, stdio: 'inherit',
+            const args = kind === 'e2e' ? ['--config', 'vitest.config.e2e.ts', `test/${file}`] : [`src/integration/${file}`];
+            const child = spawn(process.execPath, ['../../node_modules/vitest/vitest.mjs', 'run', ...args, '--no-file-parallelism'], {
+              cwd: 'apps/api', env: { ...process.env, DATABASE_URL: target.href, MOODLE_DELIVERY_PG_TEST: kind === 'delivery' ? '1' : '0', MOODLE_RUN_PG_TEST: kind === 'foundation' ? '1' : '0' }, stdio: 'inherit',
             });
             child.once('error', reject); child.once('exit', (code) => resolve(code ?? 1));
           });

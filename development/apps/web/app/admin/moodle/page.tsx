@@ -70,6 +70,16 @@ export default async function MoodleAdminPage() {
         <nav className={staffUi.taskGrid} aria-label="Moodle tasks">
           {[
             {
+              href: "/admin/moodle/live-run",
+              title: "Connection setup",
+              body: "Prepare and independently authorise a live demonstration.",
+            },
+            {
+              href: "/admin/moodle/live-bindings",
+              title: "Live course connections",
+              body: "Connect registered courses and learners to Moodle.",
+            },
+            {
               href: "/admin/moodle/mappings",
               title: "Mappings",
               body: "Course, user, role and group connections.",

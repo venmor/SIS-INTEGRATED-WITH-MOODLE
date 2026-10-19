@@ -150,11 +150,24 @@ describe('Phase 2 post-submit applicant case', () => {
       uploaded.body as { documents: Array<{ id: string }> }
     ).documents.at(-1)?.id as string;
     version = (uploaded.body as { version: number }).version;
-    await post(
+    const scanned = await post(
       `/${id}/documents/${docId}/scan`,
       { version, idempotencyKey: key() },
       c,
     ).expect(201);
+    version = scanned.body.version as number;
+    const identityUpload = await request(app.getHttpServer())
+      .post(`/applications/${id}/documents`)
+      .set(csrf)
+      .set('Cookie', c)
+      .field('category', 'identity')
+      .field('version', String(version))
+      .field('idempotencyKey', key())
+      .attach('file', pdf, 'fictional-identity.pdf')
+      .expect(201);
+    const identityId = (identityUpload.body as { documents: Array<{ id: string }> }).documents.at(-1)?.id as string;
+    version = (identityUpload.body as { version: number }).version;
+    await post(`/${id}/documents/${identityId}/scan`, { version, idempotencyKey: key() }, c).expect(201);
     const review = await get(`/${id}/review`, c).expect(200);
     version = review.body.application.version as number;
     const submitted = await post(

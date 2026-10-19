@@ -8,6 +8,7 @@ import { Notice, PageHeader } from "@sis/ui";
 import { formatLusaka } from "../../../../lib/time";
 import { loadResult } from "../result-server";
 import { AmendmentRequestForm } from "./forms";
+import { ResultPolicyWorkbench } from "./policy-workbench";
 export const dynamic = "force-dynamic";
 export default async function PublicationsPage({
   searchParams,
@@ -47,6 +48,7 @@ export default async function PublicationsPage({
         />
       ) : (
         <>
+          <ResultPolicyWorkbench periods={[...new Set((packages.data?.items ?? []).map((item) => item.periodCode))]} />
           <section className={staffUi.panel}>
             <h2 className={staffUi.sectionHeading}>Publication history</h2>
             {workspace.data.releases.length ? (

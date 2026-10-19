@@ -3,6 +3,8 @@ import type { GradeBatchListView } from "@sis/contracts";
 import { Notice, PageHeader } from "@sis/ui";
 import { AssessmentRegistry } from "../registry";
 import { BatchForms } from "./forms";
+import { MoodleImportForm } from "./moodle-import";
+import type { GradeMappingView } from "@sis/contracts";
 import styles from "../workspace.module.css";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,10 @@ async function loadStaff<T>(
 // lines are quarantined with flags while valid lines are preserved.
 export default async function GradeBatchesPage() {
   const list = await loadStaff<GradeBatchListView>("/batches");
+  const mappings =
+    list.ok && list.data.canStage === true
+      ? await loadStaff<{ items: GradeMappingView[] }>("/mappings")
+      : null;
   if (!list.ok) {
     const restricted = list.status === 401 || list.status === 403;
     return (
@@ -61,6 +67,19 @@ export default async function GradeBatchesPage() {
           title="Grade batches"
           lede="Lecturers stage provisional Moodle marks per active mapping and source revision. Staging is a frozen snapshot — it never publishes official results."
         />
+        {list.data.canStage === true ? (
+          <MoodleImportForm
+            mappings={
+              mappings?.ok
+                ? mappings.data.items.filter(
+                    (m) =>
+                      m.status === "ACTIVE" &&
+                      /^[1-9][0-9]*$/.test(m.moodleCourseRef),
+                  )
+                : []
+            }
+          />
+        ) : null}
         <BatchForms canStage={list.data.canStage === true} />
         <AssessmentRegistry kind="batches" items={list.data.items} />
       </main>

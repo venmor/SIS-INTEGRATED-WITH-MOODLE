@@ -180,14 +180,16 @@ export class LiveMoodleAdapter implements MoodleAdapter {
   private async call<T>(
     wsfunction: string,
     parameters: Record<string, unknown>,
+    gradeRead = false,
   ): Promise<T> {
     // This secondary guard also blocks an accidental future public-method
     // bypass: the approved baseline allowlist alone does not authorize writes.
     if (
-      wsfunction !== 'core_webservice_get_site_info' ||
-      !(MOODLE_LIVE_V1.authorisedFunctions as readonly string[]).includes(
-        wsfunction,
-      )
+      !(gradeRead && wsfunction === 'gradereport_user_get_grade_items') &&
+      (wsfunction !== 'core_webservice_get_site_info' ||
+        !(MOODLE_LIVE_V1.authorisedFunctions as readonly string[]).includes(
+          wsfunction,
+        ))
     ) {
       throw new MoodleApiError(
         false,
@@ -341,6 +343,81 @@ export class LiveMoodleAdapter implements MoodleAdapter {
         'LIVE_SCOPE_PREREQUISITES_MISSING',
       ),
     );
+  }
+
+  /** Caller must authorize the lecturer, persisted run and exact participant
+   * bindings before invoking this transport. No broad userid=0 grade export.
+   * This method cannot provision users, enrol anyone or publish results. */
+  async readGradeItems(courseId: number, userIds: number[]): Promise<unknown> {
+    if (
+      !Number.isSafeInteger(courseId) ||
+      courseId < 1 ||
+      !userIds.length ||
+      userIds.length > 200 ||
+      new Set(userIds).size !== userIds.length ||
+      userIds.some((id) => !Number.isSafeInteger(id) || id < 1)
+    )
+      parametersInvalid();
+    const raw = await this.call<Record<string, unknown>>(
+      'core_webservice_get_site_info',
+      {},
+    );
+    const site = parseSiteInfo(raw);
+    if (
+      !assertTargetIdentity(this.config, {
+        host: this.config.host,
+        siteId: site.siteId,
+        release: site.release,
+      }).ok
+    )
+      throw new MoodleApiError(
+        false,
+        'Moodle target identity differs.',
+        'MOODLE_IDENTITY_MISMATCH',
+      );
+    if (
+      !Array.isArray(raw.functions) ||
+      !raw.functions.some(
+        (f: unknown) =>
+          typeof f === 'object' &&
+          f !== null &&
+          (f as { name?: unknown }).name === 'gradereport_user_get_grade_items',
+      )
+    )
+      throw new MoodleApiError(
+        false,
+        'Add gradereport_user_get_grade_items to the Moodle external service.',
+        'MOODLE_GRADE_FUNCTION_REQUIRED',
+      );
+    const usergrades: unknown[] = [];
+    // Bound concurrency and avoid a partial snapshot if any user read fails.
+    for (let start = 0; start < userIds.length; start += 4) {
+      const pages = await Promise.all(
+        userIds.slice(start, start + 4).map(async (userid) => {
+          const data = await this.call<Record<string, unknown>>(
+            'gradereport_user_get_grade_items',
+            { courseid: courseId, userid, groupid: 0 },
+            true,
+          );
+          if (
+            !Array.isArray(data.usergrades) ||
+            data.usergrades.length !== 1 ||
+            typeof data.usergrades[0] !== 'object' ||
+            data.usergrades[0] === null ||
+            (data.usergrades[0] as { userid?: unknown }).userid !== userid ||
+            (data.usergrades[0] as { courseid?: unknown }).courseid !== courseId
+          )
+            throw new MoodleApiError(
+              false,
+              'Moodle returned an incomplete participant grade report.',
+              'MOODLE_GRADE_RESPONSE_INCOMPLETE',
+            );
+          return data.usergrades;
+        }),
+      );
+      usergrades.push(...pages.flat());
+    }
+    return { usergrades, warnings: [] };
   }
 
   ensureShell(

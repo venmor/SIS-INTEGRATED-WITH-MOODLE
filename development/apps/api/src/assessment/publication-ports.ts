@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { RESULT_PUBLICATION_DEMO_V1 } from '@sis/config';
+import { ResultDemoPolicyService, ResultReleaseProofService } from './result-release-security.service.js';
 
 /** Supplied by approved effective-dated policy or isolated fictional fixture,
  * never by browser JSON. */
@@ -81,10 +82,15 @@ export const demoPublicationPolicy: PublicationPolicyProvider = {
 export const publicationProviders = [
   {
     provide: 'RESULT_PUBLICATION_POLICY',
-    useValue: demoPublicationPolicy,
+    useFactory: (policies: ResultDemoPolicyService): PublicationPolicyProvider => ({
+      async resolve(db, offeringRef, periodCode) {
+        return await policies.resolve(db, offeringRef, periodCode) ?? demoPublicationPolicy.resolve(db, offeringRef, periodCode);
+      },
+    }),
+    inject: [ResultDemoPolicyService],
   },
   {
     provide: 'RESULT_STEP_UP',
-    useValue: { consume: async () => false } satisfies ResultStepUpVerifier,
+    useExisting: ResultReleaseProofService,
   },
 ];

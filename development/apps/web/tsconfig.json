@@ -44,7 +44,9 @@
     ".next-registration-review-browser/types/**/*.ts",
     ".next-registration-review-browser/dev/types/**/*.ts",
     ".next-student-timetable-browser/types/**/*.ts",
-    ".next-student-timetable-browser/dev/types/**/*.ts"
+    ".next-student-timetable-browser/dev/types/**/*.ts",
+    ".next-study-workflows-browser/types/**/*.ts",
+    ".next-study-workflows-browser/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

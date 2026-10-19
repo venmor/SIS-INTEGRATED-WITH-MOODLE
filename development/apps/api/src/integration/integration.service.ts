@@ -1,4 +1,5 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { initialDemoCredential } from './moodle-demo-credential-config.js';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { MOODLE_DEMO_V1 as policy } from '@sis/config';
@@ -21,6 +22,7 @@ import { SimulatorAdapter } from './moodle-sim-adapter.js';
 import { LiveMoodleAdapter, MoodleApiError } from './moodle-live.js';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
+import { MoodleLiveDeliveryService } from './moodle-live-delivery.service.js';
 import { OpsService } from '../ops/ops.service.js';
 
 type Tx = Prisma.TransactionClient;
@@ -62,11 +64,141 @@ export class IntegrationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ops: OpsService,
+    @Optional() private readonly liveDelivery?: MoodleLiveDeliveryService,
   ) {}
 
   /** Source-flow readiness only; no environment value, DB or network leaks. */
   liveDeliveryDeferral(): NotProvisionedResult | null {
     return currentLiveDeferral();
+  }
+
+  /** Own-student read model, after registration ownership has been resolved.
+   * It uses confirmed claim evidence only and never makes a Moodle HTTP call.
+   * Waiting course access never changes the official registration outcome.
+   */
+  async liveRegistrationAccess(registrationId: string, studentId: string) {
+    const selected = selectBackend();
+    if (selected.kind !== 'live-test' || !this.liveDelivery) return null;
+    return this.prisma.$transaction(
+      async (tx) => {
+        const registration = await tx.institutionalRegistration.findUnique({
+          where: { id: registrationId },
+          include: {
+            roster: {
+              where: { status: 'ENROLLED' },
+              include: { course: true },
+              orderBy: { course: { code: 'asc' } },
+            },
+          },
+        });
+        if (!registration) return null;
+        const attempt = await tx.programmeAttempt.findUnique({
+          where: { id: registration.attemptId },
+        });
+        if (!attempt || attempt.studentId !== studentId)
+          throw new HttpException('Registration unavailable.', 404);
+        const run = await tx.moodleLiveTestRun.findUnique({
+          where: { runId: selected.descriptor.runId },
+        });
+        if (!run || registration.status !== 'REGISTERED') return null;
+        const userMappings = await tx.moodleMapping.findMany({
+          where: {
+            kind: 'USER',
+            sisType: 'STUDENT',
+            sisId: studentId,
+            status: 'ACTIVE',
+          },
+          include: {
+            checks: {
+              where: { result: 'PASS' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+          take: 2,
+        });
+        const userProof =
+          userMappings.length === 1
+            ? (userMappings[0]?.checks[0]?.reasons as
+                Record<string, unknown> | undefined)
+            : undefined;
+        const username = userMappings.length
+          ? typeof userProof?.moodleUsername === 'string'
+            ? userProof.moodleUsername
+            : null
+          : `sis.${studentId.toLowerCase()}`;
+        const courses = [];
+        for (const row of registration.roster) {
+          const confirmed = await this.liveDelivery!.confirmedStudentIdentity(
+            tx,
+            row.id,
+          );
+          const latest = await tx.moodleLiveDeliveryClaim.findFirst({
+            where: { runId: run.id, courseRegistrationId: row.id },
+            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          });
+          const confirmedClaim = confirmed
+            ? await tx.moodleLiveDeliveryClaim.findUnique({
+                where: { id: confirmed.claimId },
+              })
+            : null;
+          const mapping = confirmedClaim
+            ? await tx.moodleMapping.findUnique({
+                where: { id: confirmedClaim.mappingId },
+              })
+            : null;
+          const newerFailure =
+            latest &&
+            confirmed &&
+            latest.updatedAt > confirmed.updatedAt &&
+            ['MANUAL_REVIEW', 'RETRY', 'DELIVERING'].includes(latest.state);
+          const state =
+            confirmed && !newerFailure && mapping?.status === 'ACTIVE'
+              ? ('CONFIRMED' as const)
+              : latest?.state === 'MANUAL_REVIEW'
+                ? ('REVIEW' as const)
+                : latest?.state === 'RETRY'
+                  ? ('RETRY' as const)
+                  : ('WAITING' as const);
+          courses.push({
+            courseRegistrationId: row.id,
+            courseId: row.courseId,
+            courseCode: row.course.code,
+            courseTitle: row.course.title,
+            state,
+            lastCode: state === 'CONFIRMED' ? null : (latest?.lastCode ?? null),
+            verifiedAt:
+              state === 'CONFIRMED' ? confirmed!.updatedAt.toISOString() : null,
+            moodleCourseUrl:
+              state === 'CONFIRMED' && mapping
+                ? `${selected.descriptor.baseUrl}/course/view.php?id=${mapping.moodleId}`
+                : null,
+          });
+        }
+        const confirmedCount = courses.filter(
+          (course) => course.state === 'CONFIRMED',
+        ).length;
+        return {
+          backend: 'live-test' as const,
+          registrationId,
+          username,
+          initialPasswordAvailable: confirmedCount > 0 && Boolean(initialDemoCredential(username, selected.descriptor.host)),
+          moodleUrl: `${selected.descriptor.baseUrl}/login/index.php`,
+          state:
+            courses.length && confirmedCount === courses.length
+              ? ('READY' as const)
+              : confirmedCount
+                ? ('PARTIAL' as const)
+                : courses.some((course) => course.state === 'REVIEW')
+                  ? ('REVIEW' as const)
+                  : ('PENDING' as const),
+          confirmedCount,
+          totalCourses: courses.length,
+          courses,
+        };
+      },
+      { timeout: 20000 },
+    );
   }
 
   private writeReadiness(): MoodleWriteReadiness {
@@ -161,6 +293,7 @@ export class IntegrationService {
     action: string,
     payload: unknown,
     fn: (db: Tx) => Promise<{ status?: number; body: unknown }>,
+    beforeReplay?: (db: Tx) => Promise<void>,
   ) {
     const hash = createHash('sha256')
       .update(JSON.stringify(payload))
@@ -169,6 +302,7 @@ export class IntegrationService {
       const result = await this.prisma.$transaction(
         async (db) => {
           await db.$queryRaw`SELECT id FROM "Account" WHERE id = ${actor.accountId} FOR UPDATE`;
+          if (beforeReplay) await beforeReplay(db);
           const prior = await db.applicationCommand.findUnique({
             where: { key },
           });
@@ -1215,6 +1349,18 @@ export class IntegrationService {
   }
 
   async runWorker(limit = 25): Promise<MoodleWorkerRunResult> {
+    if (selectBackend().kind === 'live-test' && this.liveDelivery) {
+      if (await this.deliveryPaused())
+        return {
+          processed: 0,
+          delivered: 0,
+          retried: 0,
+          dead: 0,
+          deferred: 0,
+          deferral: null,
+        };
+      return this.liveDelivery.run(limit);
+    }
     const deferral = this.liveDeliveryDeferral();
     if (deferral) {
       const sources = await this.pendingMoodleSources(limit, new Date());

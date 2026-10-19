@@ -13,6 +13,7 @@ async function expectContext(page: Page, path: string, attemptId: string) {
 }
 test('ordinary student login discovers registered period and keeps academic navigation exact', async ({ page }, info) => {
   await page.goto('/sign-in?returnTo=%2Fstudent');
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel('Username', { exact: true }).fill('chanda.time');
   await page.getByLabel('Password', { exact: true }).fill('Seed-2026-Student');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -36,7 +37,7 @@ test('ordinary student login discovers registered period and keeps academic navi
   await page.getByRole('navigation', { name: 'Student navigation', exact: true }).getByRole('link', { name: 'Registration', exact: true }).click();
   await expectContext(page, '/student/readiness', attemptId);
   await expect(page.getByRole('status', { name: 'Registration completed', exact: true })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Registration steps' }).getByRole('link', { name: 'Choose courses', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Student navigation', exact: true }).getByRole('link', { name: 'My studies', exact: true }).click();
   await expectContext(page, '/student/courses', attemptId);
   await expect(page.getByRole('button', { name: 'Save course plan', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Review registration', exact: true }).click();

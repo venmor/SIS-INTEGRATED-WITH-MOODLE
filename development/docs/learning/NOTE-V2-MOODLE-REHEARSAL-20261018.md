@@ -1,0 +1,13 @@
+# Our Moodle integration rehearsal — 18 October 2026
+
+We used our existing MoodleCloud demonstration site and an isolated PostgreSQL review database. We verified a real assignment mark of 17/20 for Chanda in course 9, gradebook item 14. Our normal SIS API completed registration, independent numeric bindings, external enrolment verification, lecturer import, validation, independent moderation, board approval, a configured demonstration release policy and password confirmation. The owning student's published result was 85%. We used generated staff actors; we have not recorded human or institutional acceptance.
+
+We corrected two provider assumptions: a numeric points grade can have `scaleid:null`, and the enrolment-method projection does not enumerate manual instances. Numeric scope, grade maxima, identity and actual read-after-write checks remain mandatory. Result assembly now freezes the exact approved course assessment plan and its weights instead of requiring the global three-component example.
+
+An independent review found four important issues. We repaired pause enforcement, durable queue traversal past blocked events, session continuity after provider reads and receipt replay, and audited recovery of manual-review claims. Integration support can inspect the live delivery queue and request a reasoned retry; actual Moodle state is checked before enrolment is repeated. We preserve the original claim proof in audit history.
+
+Our final checks passed 536 unit tests and 102 isolated connected PostgreSQL checks, including delivery, bindings, run lifecycle, raw import, staging, validation, moderation, board decisions, release security and plan-based calculation. Seven fixture-backed browser scenarios passed for run control, connection review, mark import and delivery recovery. API TypeScript and production API/web builds passed. Fixture UI checks are distinct from our real Moodle rehearsal. Student portal browser checks are recorded separately; we do not equate a component fixture with connected student acceptance.
+
+We saved a private consistent snapshot of the deployed demonstration database before applying its six missing source migrations. Its 83 successful migrations now match the release schema. Existing users, applications and records were retained. Secrets, account credentials and full backups remain ignored private files. A Vercel build does not by itself configure the live Moodle token or create a new schema-bound run; deployed connectivity must be verified separately.
+
+We keep catalogue authoring as an approved outstanding slice. We do not claim general Moodle administration, learning-activity authoring, tutorial-group synchronisation, institutional production readiness or all v2 features are complete.

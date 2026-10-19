@@ -17,6 +17,7 @@ const API = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
 // Later-slice APIs belong here only when their task packets land.
 const ALLOWED: Record<string, readonly string[]> = {
   GET: [
+    "demo-accounts",
     "me",
     "policy",
     "demo/recovery-token",

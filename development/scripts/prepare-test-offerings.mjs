@@ -1,6 +1,4 @@
-// Refresh only the fictional, seeded catalogue deadlines in an isolated test DB.
-// The product seed keeps its historical dates so the API's deadline rule remains
-// honest; a test run needs an open intake regardless of the calendar date.
+// Refresh only the three fictional seed offerings in an isolated demonstration DB.
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
@@ -31,11 +29,25 @@ try {
       intake: '2026S1',
       availability: 'OPEN',
       deadline: { lte: new Date() },
-      programme: { code: { in: ['SWE', 'RAD'] } },
+      programme: {
+        code: { in: ['SWE', 'RAD'] },
+        feeScheduleRef: { startsWith: 'DEMO-ACADEMIC-2026-v1/' },
+      },
     },
     data: { deadline },
   });
-  console.log(`Refreshed ${result.count} fictional offering deadline(s) in ${dbName}.`);
+  const business = await prisma.programmeOffering.updateMany({
+    where: {
+      intake: '2026S1',
+      availability: 'CLOSED',
+      programme: {
+        code: 'BBA',
+        feeScheduleRef: { startsWith: 'DEMO-ACADEMIC-2026-v1/' },
+      },
+    },
+    data: { availability: 'OPEN', deadline, statusNote: null },
+  });
+  console.log(`Refreshed ${result.count + business.count} fictional offering(s) in ${dbName}.`);
 } finally {
   await prisma.$disconnect();
 }

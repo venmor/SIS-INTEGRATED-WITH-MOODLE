@@ -6,11 +6,22 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module.
 import { AssessmentController } from './assessment.controller.js';
 import { AssessmentService } from './assessment.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { IntegrationModule } from '../integration/integration.module.js';
+import { MoodleGradeImportService } from './moodle-grade-import.service.js';
+import { ResultPublicationSecurityController } from './result-release-security.controller.js';
+import { ResultDemoPolicyService, ResultReleaseProofService } from './result-release-security.service.js';
 
 @Module({
-  imports: [IdentityAccessModule, NotificationsModule],
-  controllers: [AssessmentController, PublicationController],
-  providers: [AssessmentService, PublicationService, ...publicationProviders],
+  imports: [IdentityAccessModule, NotificationsModule, IntegrationModule],
+  controllers: [AssessmentController, PublicationController, ResultPublicationSecurityController],
+  providers: [
+    AssessmentService,
+    MoodleGradeImportService,
+    PublicationService,
+    ResultDemoPolicyService,
+    ResultReleaseProofService,
+    ...publicationProviders,
+  ],
   exports: [AssessmentService],
 })
 export class AssessmentModule {}

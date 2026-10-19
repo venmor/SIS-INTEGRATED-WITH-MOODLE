@@ -1,0 +1,20 @@
+# TASK-V2-MOODLE-003 — Registration delivery and live grade import
+
+18 October 2026. We prioritise this slice at Charles's request for our presentation. Charles Hangoma leads the integration work; Chitundu Milimbo remains our academic workflow reviewer. We have not recorded human acceptance.
+
+We implement the approved Moodle Administrator Part 2 §§12.15–12.37 and Integration Support Part 3 workflows using the persisted run foundation. SIS remains authoritative for registration, course membership and official results. Moodle supplies learning activities and raw assignment/quiz marks. Our demonstration policy uses generated participants and independently activated numeric course/student mappings. Names or matching email addresses never establish identity.
+
+We import only an ACTIVE assessment mapping for the currently appointed lecturer. The course/period and officially registered class list determine the participants. Each participant, programme attempt and programme offering must occur in the sealed RUNNING demonstration manifest. Under [ADR-006](../adr/ADR-006-synthetic-registration-moodle-delivery.md), an explicitly enabled synthetic policy derives custody for a later official registered course row; future database IDs do not have to exist before registration. We verify target identity and the external service's actual grade-read capability before fetching raw numeric marks. We preserve missing marks, reject scale drift or stale recalculations, and freeze a canonical checksum, binding versions and retrieval time. We recheck authority, bindings, roster and run state inside the staging transaction after the remote read. Existing validation, independent moderation and result publication own every subsequent academic decision.
+
+Our import action is POST `/assessment/mappings/:id/import-moodle`, with session, CSRF, rate limiting and an idempotency reference. The browser supplies no grades or source revision. Lost-response retries recover the stored live snapshot. Remote failure preserves earlier batches and never falls back to generated marks. The staff batch workspace exposes the import action with loading/error/success feedback.
+
+Our parallel delivery change must keep remote writes outside registration transactions, use durable claims and actual source entitlement, and verify remote outcomes before reporting delivery. Student password provisioning and unavailable service functions must be reported honestly. We do not enable historical removal, TG synchronisation or production administration by assertion.
+
+Verification includes parser and HTTP transport tests, role/scope/refusal/replay/race tests, connected PostgreSQL staging, API/web checks and a real Moodle read when its service permits the function. We keep live-provider evidence separate from substituted test responses. Catalogue authoring remains an approved outstanding slice; we have not silently marked it complete.
+
+
+## Rehearsal and release review
+
+We verified the actual MoodleCloud assignment 17/20 through SIS import, moderation and publication as 85% for the owning student. We used generated independently appointed operator accounts; this is not human signoff. We corrected null-scale numeric parsing and result assembly to use the exact approved course scheme, retaining immutable provenance. An independent code review found pause bypass, blocked-event starvation, missing session continuity and missing manual-review recovery. We implemented all four fixes with refusal, race and recovery regressions. Session continuity and receipt handling are documented in NOTE-V2-MOODLE-SESSION-001. The live-delivery recovery UI is an Integration support workspace; Moodle administrators do not gain that authority.
+
+A GitHub merge triggers the two existing Vercel projects. A successful build alone does not configure the live server token, a schema-bound run, account data or course bindings. We verify those separately before describing the deployed app as connected. Catalogue authoring remains outstanding and is not part of this release's completion claim.

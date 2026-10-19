@@ -1,7 +1,8 @@
 import { RegistrationSteps, CourseSummary } from "../../components/task-flow";
 import { loadRegistrationContexts } from "../../../lib/load-registration-contexts";
 import { ContextSelector } from "../context-selector";
-import type { CoursePlanView } from "@sis/contracts";
+import { MoodleAccess } from "../moodle-access";
+import type { CoursePlanView, RegistrationStatusView } from "@sis/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { StudentUnavailable } from "../chrome";
@@ -54,6 +55,16 @@ async function loadPlan(query: string): Promise<{
   }
 }
 
+async function loadAccess(query: string): Promise<RegistrationStatusView['moodle']['access'] | null> {
+  const sid=(await cookies()).get('sid')?.value;
+  if (!sid) return null;
+  try {
+    const r=await fetch(`${process.env.API_INTERNAL_URL ?? 'http://localhost:3001'}/registration/status${query}`, { headers:{cookie:`sid=${encodeURIComponent(sid)}`},cache:'no-store',signal:AbortSignal.timeout(10000) });
+    if (!r.ok) return null;
+    return ((await r.json()) as RegistrationStatusView).moodle.access ?? null;
+  } catch { return null; }
+}
+
 // Plan your courses: draft course selection with per-course validation.
 // Saving is draft-only; nothing official happens here. Official submission
 // happens at formal registration.
@@ -73,6 +84,7 @@ export default async function CoursesPage({
   const r = await loadPlan(context.query.size ? `?${context.query}` : "");
   if (!r.data) return <StudentUnavailable message={r.message} />;
   const board = r.data;
+  const access=await loadAccess(`?${new URLSearchParams({attemptId:board.attemptId,period:board.period})}`);
   return (
     <div className={study.page}>
       <header className={study.intro}>
@@ -87,6 +99,7 @@ export default async function CoursesPage({
       {board.status === "DRAFT" || board.status === "NONE" ? (
         <RegistrationSteps current="courses" context={board} />
       ) : null}
+      {access ? <MoodleAccess access={access} /> : <Notice severity="info" title="Moodle course access" message={board.status === "DRAFT" || board.status === "NONE" ? "Complete registration to receive access to your Moodle courses." : "Moodle access is being checked. Your registration remains valid."} />}
       <ContextSelector
         inventory={await loadRegistrationContexts()}
         path="/student/courses"

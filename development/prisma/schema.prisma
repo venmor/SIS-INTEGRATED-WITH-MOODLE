@@ -356,6 +356,7 @@ model OutboxEvent {
   occurredAt  DateTime @default(now())
   deliveredAt DateTime?
   attempts    IntegrationDeliveryAttempt[]
+  liveDeliveryClaims MoodleLiveDeliveryClaim[]
   timetableNotificationDispatch TimetableNotificationDispatch?
 
   @@index([deliveredAt, occurredAt])
@@ -1401,6 +1402,7 @@ model MoodleMapping {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   checks MappingCheck[]
+  liveDeliveryClaims MoodleLiveDeliveryClaim[]
   @@index([kind, sisType, sisId, status])
   @@index([status, updatedAt])
 }
@@ -1997,6 +1999,7 @@ model CourseRegistration {
   @@unique([registrationId, courseId])
   @@index([registrationId, status])
   timetableStudentSessions TimetableStudentSession[]
+  liveDeliveryClaims MoodleLiveDeliveryClaim[]
 }
 
 // Phase 4 slice 6: registration amendments and waitlist. Snapshots stay
@@ -2651,6 +2654,7 @@ model MoodleLiveTestRun {
   manifest MoodleScopeManifest?
   transitions MoodleLiveTestRunTransition[]
   receipts MoodleRunAuthenticationReceipt[]
+  deliveryClaims MoodleLiveDeliveryClaim[]
   @@index([state])
 }
 
@@ -2715,4 +2719,78 @@ model MoodleRunAuthenticationReceipt {
   expiresAt DateTime
   usedAt DateTime?
   @@index([runId, accountId])
+}
+
+// Live external work is claimed before HTTP and finalised only by its lease.
+// One source may cover several course registrations; each has exact custody.
+model MoodleLiveDeliveryClaim {
+  id String @id @default(uuid())
+  runId String
+  run MoodleLiveTestRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  outboxId String
+  outbox OutboxEvent @relation(fields: [outboxId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  courseRegistrationId String
+  courseRegistration CourseRegistration @relation(fields: [courseRegistrationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  mappingId String
+  mapping MoodleMapping @relation(fields: [mappingId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  mappingVersion Int
+  sourceChecksum String
+  state String @default("DELIVERING")
+  leaseToken String
+  leaseUntil DateTime
+  attempt Int @default(1)
+  nextRunAt DateTime?
+  moodleUserId Int?
+  evidenceChecksum String?
+  lastCode String?
+  deliveredAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([outboxId, courseRegistrationId])
+  @@index([state, leaseUntil])
+}
+
+// Synthetic demonstration only; a password proof does not assert production MFA.
+model ResultReleaseProof {
+  id            String @id @default(uuid())
+  tokenHash     String @unique
+  accountId     String
+  assignmentId  String
+  sessionHash   String
+  action        String
+  commandDigest String
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime @default(now())
+  @@index([accountId, expiresAt])
+}
+
+model ResultDemoReleasePolicy {
+  id                    String @id @default(uuid())
+  courseId              String
+  offeringRef           String
+  periodCode            String
+  version               String @unique
+  releaseAt             DateTime
+  showMarks             Boolean
+  reviewInstructions    String
+  preparedByAccountId   String
+  preparedAssignmentId  String
+  idempotencyKey        String
+  requestDigest         String
+  approvedByAccountId   String?
+  approvedAssignmentId  String?
+  approvedAt            DateTime?
+  createdAt             DateTime @default(now())
+  @@unique([preparedByAccountId, idempotencyKey])
+  @@index([offeringRef, periodCode, approvedAt])
+}
+
+// Durable keyset traversal advances beyond blocked sources without changing
+// their evidence. A later sweep wraps and re-evaluates those prerequisites.
+model MoodleLiveDeliverySchedule {
+  runId String @id
+  occurredAt DateTime?
+  outboxId String?
+  updatedAt DateTime @updatedAt
 }

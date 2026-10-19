@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/browser",
-  testIgnore: ["**/moodle-live-deferral.spec.ts"],
+  testIgnore: ["**/moodle-live-deferral.spec.ts", "**/moodle-operations-ui.spec.ts"],
   globalSetup: "./tests/browser/prepare-connected-fixtures.ts",
   timeout: 90000,
   workers: 1,

@@ -27,8 +27,9 @@ async function apiPost(path: string, body: object, sid: string, prefix = "/notif
   return (await res.json()) as Record<string, any>;
 }
 
-async function signIn(page: any, username: string, password: string, base: string) {
+async function signIn(page: any, username: string, password: string, base: string, audience: 'student' | 'staff' = 'staff') {
   await page.goto("/sign-in");
+  if (audience === 'student') await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -93,7 +94,7 @@ test("axe: sign-in page has no serious violations", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/sign-in");
   await expect(
-    page.getByRole("heading", { name: "Sign in" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await expectNoSerious(page);
   await expectLabeledInputs(page);
@@ -120,6 +121,7 @@ test("axe: applicant workspace has no serious violations", async ({ page }) => {
     .getByRole("link", { name: "Start application", exact: true })
     .click();
   await expect(page).toHaveURL(/sign-in/);
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -174,7 +176,7 @@ test("axe: notifications centre has no serious violations", async ({ page }) => 
     },
     gov,
   );
-  await signIn(page, stu.username, stu.password, base);
+  await signIn(page, stu.username, stu.password, base, 'student');
   await page.goto("/notifications");
   await expect(
     page.locator("main").getByText("Official results released").first(),
@@ -260,7 +262,7 @@ for (const width of [640, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/sign-in");
     await expect(
-      page.getByRole("heading", { name: "Sign in" }),
+      page.getByRole("heading", { name: "Welcome back" }),
     ).toBeVisible();
     await expectNoSerious(page);
     const signInBox = await page
@@ -290,6 +292,7 @@ test("slow connection: sign-in shows pending state then completes", async ({
     await route.continue();
   });
   await page.goto("/sign-in");
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(applicant.username);
   await page.getByLabel("Password", { exact: true }).fill(applicant.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

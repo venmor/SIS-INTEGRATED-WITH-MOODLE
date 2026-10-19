@@ -6,7 +6,7 @@ import { PrismaService } from './prisma.service.js';
 import { RateLimiter } from './rate-limit.js';
 import { accountStatusPolicy } from './policy.service.js';
 import { auditAuth } from './audit.js';
-import { WorkspaceService } from './workspace.service.js';
+import { WorkspaceService, type SignInAudience } from './workspace.service.js';
 
 const require = createRequire(import.meta.url);
 const { hash, verify } = require('argon2') as typeof import('argon2');
@@ -42,6 +42,7 @@ export class SessionService {
     ip: string | undefined,
     userAgent: string | undefined,
     presentedSessionToken?: string,
+    audience?: SignInAudience,
   ) {
     const account = await this.prisma.account.findUnique({
       where: { username },
@@ -117,7 +118,16 @@ export class SessionService {
     const preferred = previous?.accountId === account.id &&
       previous.assignment?.scopeType !== 'BREAK_GLASS'
       ? previous.assignmentId : null;
-    const initial = await this.workspaces.defaultWorkspace(account.id, preferred);
+    const initial = await this.workspaces.defaultWorkspace(account.id, preferred, audience);
+    // The category is a restriction on existing live appointments, never a grant.
+    // Deny before creating a session; keep the public response generic.
+    if (audience && !initial) {
+      const { correlationId } = await auditAuth(this.prisma, {
+        action: 'CMD-IAM-SignIn', outcome: 'DENY', actorAccountId: account.id,
+        targetRef: username, reason: 'account-category-mismatch', errorCategory: 'ERR-SEC',
+      });
+      return { ok: false as const, failures: 0, reference: correlationId };
+    }
     await this.prisma.session.create({
       data: {
         tokenHash: hashToken(token),
