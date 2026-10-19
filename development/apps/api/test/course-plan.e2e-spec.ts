@@ -387,6 +387,7 @@ describe('Phase 4 course selection and validation', () => {
   });
 
   it('plan-outside-curriculum: existing but unlinked courses refused', async () => {
+    await db.course.deleteMany({ where: { code: 'ZZZ999' } });
     const outsider = await db.course.create({
       data: {
         code: 'ZZZ999',

@@ -81,7 +81,7 @@ function sh(cmd, args, env) {
 await ensureDatabaseAndRole();
 
 // Run migrations and seed against the test database
-const env = { ...process.env, DATABASE_URL: dbUrl };
+const env = { ...process.env, DATABASE_URL: dbUrl, ALLOW_DEMO_SEED: "true", DEMO_MODE: "true", SIS_ENABLE_INSTITUTION_DEMO_SETUP: "true", SIS_ENABLE_TIMETABLE_DEMO_DRAFTS: "true" };
 
 console.log("Running migrations on test database...");
 sh("npx", ["prisma", "migrate", "deploy"], env);
