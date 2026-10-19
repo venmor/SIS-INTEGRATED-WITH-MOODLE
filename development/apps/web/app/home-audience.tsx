@@ -5,17 +5,16 @@ import { SignInForm } from "./sign-in/form";
 import styles from "./home.module.css";
 
 type DemoAccount = { username: string; password: string; role: string; blurb: string; audience: "student" | "staff" };
-export function HomeAudience({ returnTo, demoEnabled = false }: { returnTo?: string; demoEnabled?: boolean }) {
+export function HomeAudience({ returnTo }: { returnTo?: string }) {
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   useEffect(() => {
-    if (!demoEnabled) return;
     const controller = new AbortController();
     fetch("/api/auth/demo-accounts", { cache: "no-store", signal: controller.signal })
       .then(async (response) => response.ok ? response.json() : { accounts: [] })
       .then((body: { accounts?: DemoAccount[] }) => setAccounts(body.accounts ?? []))
       .catch(() => {});
     return () => controller.abort();
-  }, [demoEnabled]);
+  }, []);
   const [audience, setAudience] = useState<"student" | "staff">("staff");
   return (
     <div>
