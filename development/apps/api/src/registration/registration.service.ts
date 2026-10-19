@@ -14,6 +14,19 @@ type Tx = Prisma.TransactionClient;
 const json = (v: unknown) =>
   JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 
+// The generated Moodle demonstration curriculum spans three distinct study
+// blocks. Its source-year labels are not academic period codes, so bind them
+// explicitly for this one generated programme rather than treating all twelve
+// courses as required in every registration period.
+const demoEeBlockByPeriod: Record<string, string> = {
+  '2026S1': 'First Year',
+  'DEMO-EE-FOUNDATION': 'First Year',
+  'DEMO-EE-GENERAL': 'General Engineering',
+  'DEMO-EE-ADVANCED': 'Third Year',
+};
+const courseForPeriod = (programmeCode: string, periodCode: string, semester: string | null) =>
+  programmeCode !== 'DEMO-EE' || semester === demoEeBlockByPeriod[periodCode];
+
 interface RegistrationAuthority extends ActiveAuthority {
   scopeType?: string | null;
   scopeRef?: string | null;
@@ -602,7 +615,7 @@ export class RegistrationService {
   private async planBoard(attemptId: string, periodId: string) {
     const attempt = await this.prisma.programmeAttempt.findUniqueOrThrow({
       where: { id: attemptId },
-      include: { offering: true },
+      include: { offering: { include: { programme: true } } },
     });
     const period = await this.prisma.academicPeriod.findUniqueOrThrow({
       where: { id: periodId },
@@ -644,7 +657,9 @@ export class RegistrationService {
       seatsRemaining: null as number | null,
       prerequisites: [] as string[],
     }));
-    const available = (curriculum?.courses ?? []).map((link) => ({
+    const available = (curriculum?.courses ?? []).filter((link) =>
+      courseForPeriod(attempt.offering.programme.code, period.code, link.semester),
+    ).map((link) => ({
       courseId: link.course.id,
       code: link.course.code,
       title: link.course.title,
@@ -769,10 +784,12 @@ export class RegistrationService {
             status: 'PUBLISHED',
           },
           orderBy: { version: 'desc' },
-          include: { courses: { select: { courseId: true } } },
+          include: { courses: { select: { courseId: true, semester: true } } },
         });
         const inCurriculum = new Set(
-          (curriculum?.courses ?? []).map((c) => c.courseId),
+          (curriculum?.courses ?? [])
+            .filter((c) => courseForPeriod(attempt.offering.programme.code, period.code, c.semester))
+            .map((c) => c.courseId),
         );
         const rows = await db.course.findMany({
           where: { code: { in: codes } },
@@ -783,7 +800,7 @@ export class RegistrationService {
           if (!row || !inCurriculum.has(row.id)) {
             this.fail(
               'UNKNOWN_COURSE',
-              `Course ${code} is not in the published curriculum for this programme.`,
+              `Course ${code} is not offered in this registration period. Choose a course from this period's study block.`,
               400,
             );
           }

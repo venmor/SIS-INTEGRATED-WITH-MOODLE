@@ -33,7 +33,7 @@ export default async function HomeEntry({ returnTo }: { returnTo?: string } = {}
       <section className={styles.card} aria-labelledby="home-sign-in-title">
         <h2 id="home-sign-in-title">Welcome back</h2>
         <p className={styles.cardIntro}>Sign in to your SIS account to continue.</p>
-        <HomeAudience returnTo={returnTo} demoEnabled={process.env.DEMO_MODE === "true"} />
+        <HomeAudience returnTo={returnTo} />
       </section>
     </main>
     <footer className={styles.footer}>

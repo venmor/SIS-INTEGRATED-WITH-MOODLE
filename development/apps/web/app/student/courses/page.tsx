@@ -92,7 +92,7 @@ export default async function CoursesPage({
         <h1>{board.status === "DRAFT" || board.status === "NONE" ? "Choose courses" : "My courses"}</h1>
         <p className={study.muted}>
           {board.status === "DRAFT" || board.status === "NONE"
-            ? "Choose required courses and electives, then save your draft before final registration."
+            ? "Choose courses for this period, then save your draft before final registration. Courses in later study blocks are selected in their own periods."
             : "These courses are read-only here. Use the registration receipt for the official record and course changes for amendments."}
         </p>
       </header>
