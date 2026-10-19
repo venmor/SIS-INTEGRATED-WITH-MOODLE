@@ -35,6 +35,7 @@ async function signIn(
   base: string,
 ) {
   await page.goto("/sign-in");
+  await page.getByRole("button", { name: "Student", exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -104,7 +105,7 @@ test("notifications: centre shows notice, read receipt, no mute on mandatory", a
     ),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByText("Examinations", { exact: true }),
+    page.locator("main").getByText(/Examinations ·/),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "View results", exact: true }),
