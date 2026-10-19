@@ -658,7 +658,7 @@ describe('Phase 3 assigned admissions queue', () => {
       applicationId: mine.id,
       state: 'CURRENT',
       version: mine.version,
-      documents: { current: 1, awaitingQualityCheck: 1 },
+      documents: { current: 2, awaitingQualityCheck: 2 },
       openClarifications: 0,
       openCorrections: 0,
     });
