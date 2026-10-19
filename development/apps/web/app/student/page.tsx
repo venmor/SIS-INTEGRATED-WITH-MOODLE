@@ -6,6 +6,7 @@ import { StudentUnavailable } from "./chrome";
 import { Notice, PageHeader, StatusChip } from "@sis/ui";
 import { formatLusaka } from "../../lib/time";
 import styles from "./student.module.css";
+import { academicHref } from "../../lib/academic-context";
 import { loadMine } from "../notifications/inbox";
 
 async function loadRegistrationStatus(): Promise<RegistrationStatusView | null> {
@@ -83,6 +84,7 @@ export default async function StudentPage() {
         <div className={styles.sectionHeading}><div><p className={styles.kicker}>Open a workspace</p><h2 id="dashboard-links-title">Your studies at a glance</h2></div></div>
         <div className={styles.grid}>
           <article className={styles.taskCard}><h3>My studies</h3><p>{registered ? `${registration!.registration!.courses.length} registered courses` : "Course selection and study record"}</p><Link href="/student/courses">Open my studies →</Link></article>
+          <article className={styles.taskCard}><h3>Moodle</h3><p>{registration?.moodle.access ? `${registration.moodle.access.confirmedCount} of ${registration.moodle.access.totalCourses} courses ready` : 'Learning materials, assignments and course access'}</p><Link href={registration?.registration ? `${academicHref("/student/courses", registration.registration)}#moodle-learning` : "/student/courses"}>Open Moodle access →</Link></article>
           <article className={styles.taskCard}><h3>Timetable</h3><p>See published sessions for your registered courses.</p><Link href="/student/timetable">Open timetable →</Link></article>
           <article className={styles.taskCard}><h3>Official results</h3><p>Browse released results by period and course.</p><Link href="/student/results">Open results →</Link></article>
           <article className={styles.taskCard}><h3>Notifications</h3><p>{unread == null ? "Updates are unavailable right now." : unread ? `${unread} unread update${unread === 1 ? "" : "s"}` : "No unread updates"}</p><Link href="/student/notifications">Open notifications →</Link></article>

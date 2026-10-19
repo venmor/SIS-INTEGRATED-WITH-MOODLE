@@ -1,3 +1,4 @@
+import { initialDemoCredential } from './moodle-demo-credential-config.js';
 import { HttpException, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
@@ -181,6 +182,7 @@ export class IntegrationService {
           backend: 'live-test' as const,
           registrationId,
           username,
+          initialPasswordAvailable: confirmedCount > 0 && Boolean(initialDemoCredential(username, selected.descriptor.host)),
           moodleUrl: `${selected.descriptor.baseUrl}/login/index.php`,
           state:
             courses.length && confirmedCount === courses.length

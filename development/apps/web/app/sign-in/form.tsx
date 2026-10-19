@@ -24,11 +24,13 @@ const serverReady = () => false;
 // supplies one; the AUTH-* sentence itself stays verbatim.
 export function SignInForm({
   returnTo,
+  audience = "staff",
   demoAccount,
   demoStaff,
   home = false,
 }: {
   returnTo?: string;
+  audience?: "student" | "staff";
   home?: boolean;
   demoAccount?: { username: string; password: string };
   demoStaff?: Array<{
@@ -88,6 +90,7 @@ export function SignInForm({
         },
         credentials: "same-origin",
         body: JSON.stringify({
+          audience,
           username: data.get("username"),
           password: data.get("password"),
         }),
@@ -230,8 +233,8 @@ export function SignInForm({
                 className={signInStyles.demoPanel}
                 aria-labelledby="demo-staff-heading"
               >
-                <p className={signInStyles.demoLabel}>Fictional staff demo</p>
-                <h2 id="demo-staff-heading">Try staff workspaces</h2>
+                <p className={signInStyles.demoLabel}>Fictional demo accounts</p>
+                <h2 id="demo-staff-heading">Try a demonstration workspace</h2>
                 <p>
                   Sign in with the account for the workspace you need. Enter fictional
                   information only.

@@ -17,6 +17,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { demoAccounts } from './demo-accounts.js';
 import { IncidentInterceptor } from './incident.interceptor.js';
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { CsrfGuard } from './csrf.guard.js';
@@ -149,6 +150,9 @@ export class AuthController {
     }
   }
 
+  @Get('demo-accounts')
+  async demoAccounts() { return demoAccounts(this.prisma); }
+
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
@@ -189,6 +193,7 @@ export class AuthController {
       ip,
       userAgent,
       presented,
+      body.audience,
     );
     if (!result.ok) {
       throw new UnauthorizedException({

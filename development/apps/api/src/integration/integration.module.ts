@@ -1,3 +1,4 @@
+import { MoodleDemoPasswordController, MoodleDemoPasswordService } from './moodle-demo-password.controller.js';
 import { MoodleLiveRecoveryService } from './moodle-live-recovery.service.js';
 import { MoodleLiveRecoveryController } from './moodle-live-recovery.controller.js';
 import { MoodleLiveBindingsService } from './moodle-live-bindings.service.js';
@@ -20,12 +21,14 @@ import { OperationsQueueService } from './operations-queue.service.js';
   imports: [IdentityAccessModule, OpsModule],
   controllers: [
     IntegrationController,
+    MoodleDemoPasswordController,
     MoodleLiveRunController,
     MoodleLiveBindingsController,
     MoodleLiveRecoveryController,
   ],
   providers: [
     IntegrationService,
+    MoodleDemoPasswordService,
     MoodleLiveDeliveryService,
     MoodleLiveBindingsService,
     MoodleLiveRecoveryService,

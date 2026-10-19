@@ -19,7 +19,7 @@ async function proxy(
   const isWrite =
     req.method === "POST" &&
     new RegExp(
-      `^(live-test/runs|live-test/runs/${uuid}/(reauthenticate|manifest/entries|manifest/seal|technical-approval|start|pause|resume|fail|complete|close-technical|close)|live-bindings|live-bindings/${uuid}/attest|live-bindings/${uuid}/activate|live-bindings/deliveries/${uuid}/retry|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|shells/provision|worker/run|simulator/mode|maintenance|maintenance/${uuid}/cancel|replays|replays/${uuid}/decide|delivery/pause|incidents|incidents/${uuid}/close|reconciliation/runs|reconciliation/cases/${uuid}/resolve|connection/validate)$`,
+      `^(me/moodle-demo-password|live-test/runs|live-test/runs/${uuid}/(reauthenticate|manifest/entries|manifest/seal|technical-approval|start|pause|resume|fail|complete|close-technical|close)|live-bindings|live-bindings/${uuid}/attest|live-bindings/${uuid}/activate|live-bindings/deliveries/${uuid}/retry|mappings|mappings/${uuid}/test|mappings/${uuid}/activate|shells/provision|worker/run|simulator/mode|maintenance|maintenance/${uuid}/cancel|replays|replays/${uuid}/decide|delivery/pause|incidents|incidents/${uuid}/close|reconciliation/runs|reconciliation/cases/${uuid}/resolve|connection/validate)$`,
     ).test(path);
   if (!isRead && !isWrite)
     return NextResponse.json({ message: "Not found." }, { status: 404 });

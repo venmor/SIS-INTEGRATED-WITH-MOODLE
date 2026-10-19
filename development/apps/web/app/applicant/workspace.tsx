@@ -130,7 +130,7 @@ export function Workspace({
       { offeringId: string; programmeName: string; intake: string }[]
     >([]),
     [file, setFile] = useState<File | null>(null),
-    [category, setCategory] = useState("qualification"),
+    [category, setCategory] = useState(""),
     [reason, setReason] = useState(""),
     [progress, setProgress] = useState<number | null>(null),
     [uploadPhase, setUploadPhase] = useState<"transferring" | "receipt" | null>(
@@ -143,6 +143,7 @@ export function Workspace({
     autosaveRef = useRef<() => void>(() => {});
   const a = review.application,
     p = review.policy,
+    selectedRequirement = a.requiredDocuments.find((d) => d.category === category),
     demoFixtureOnly =
       p.demo && p.upload.scanner.startsWith("DEMO-EXACT-FIXTURE"),
     formSection = ["personal", "contact", "qualifications"].includes(section);
@@ -417,6 +418,10 @@ export function Workspace({
   async function upload() {
     const selectedFile = file ?? fileInput.current?.files?.[0];
     if (!selectedFile || busy.current) return;
+    if (!selectedRequirement) {
+      setErrors({ category: "Choose the document you are uploading." });
+      return;
+    }
     const current = a.documents
       .filter((d) => d.category === category && d.status !== "Withdrawn")
       .at(-1);
@@ -1055,8 +1060,7 @@ export function Workspace({
             <div className="grid gap-1 border-b border-sis-border pb-4">
               <h2>Upload a document</h2>
               <p className="text-sm text-sis-muted">
-                Choose its category, then select a file. A replacement needs a
-                reason.
+                Choose what this file proves, then select it. A replacement needs a reason.
               </p>
             </div>
             <label htmlFor="category" className="grid gap-2 font-semibold">
@@ -1067,6 +1071,7 @@ export function Workspace({
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
+                <option value="">Select document type</option>
                 {a.requiredDocuments.map((d) => (
                   <option key={d.category} value={d.category}>
                     {d.label}
@@ -1074,6 +1079,10 @@ export function Workspace({
                 ))}
               </select>
             </label>
+            {selectedRequirement && (
+              <p className="text-sm text-sis-muted">{selectedRequirement.purpose}</p>
+            )}
+            {errors.category && <p role="alert" className={styles.error}>{errors.category}</p>}
             <label htmlFor="file" className="grid gap-2 font-semibold">
               Choose file
               <input
@@ -1133,7 +1142,7 @@ export function Workspace({
             <ActionButton
               kind="primary"
               pending={pending}
-              disabled={!file || !a.editable || uncertain}
+              disabled={!file || !selectedRequirement || !a.editable || uncertain}
             >
               Upload document
             </ActionButton>

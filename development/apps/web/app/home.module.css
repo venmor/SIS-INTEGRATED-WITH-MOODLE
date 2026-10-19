@@ -48,12 +48,11 @@
 .heroCopy p { max-width: 29rem; margin-top: 0.7rem; color: #495972; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.15rem, 1.6vw, 1.65rem); line-height: 1.35; text-shadow: 0 1px 8px rgb(255 255 255 / 0.8); }
 .card {
   width: 100%;
-  min-height: 42rem;
   padding: clamp(2rem, 3vw, 3.6rem);
   border-radius: 0.55rem;
   background: #fff;
   box-shadow: 0 18px 45px rgb(10 31 28 / 0.18);
-  transform: translateY(1rem);
+  align-self: center;
 }
 .card h2 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.2rem, 2.9vw, 3.1rem); line-height: 1.1; letter-spacing: -0.025em; }
 .cardIntro { margin-top: 0.65rem; margin-bottom: 1.25rem; color: #56647a; font-size: 1.12rem; }

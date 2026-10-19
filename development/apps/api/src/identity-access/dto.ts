@@ -30,6 +30,10 @@ import { SECURITY_V1 } from '@sis/config';
 // auth-contract.spec.ts (type-checked by editors/type-aware lint; specs are
 // excluded from the build so cross-package .ts imports stay out of emit).
 export class SignInDto {
+  @IsOptional()
+  @IsIn(['student', 'staff'])
+  audience?: 'student' | 'staff';
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(64)

@@ -208,12 +208,30 @@ export class ApplicationsService {
   }
   requiredDocuments(row: Row) {
     const route = (row.qualifications as Fields).routeCode;
+    const postgraduate = route === 'POSTGRAD' || /postgraduate|master|phd|doctor/i.test(
+      row.offering.programme.awardLevel,
+    );
+    const priorAward = route === 'DEGREE' || route === 'DIPLOMA';
     return [
       {
+        category: 'identity',
+        label: route === 'INTL' ? 'Passport identity page' : 'National Registration Card (NRC)',
+        purpose: route === 'INTL'
+          ? 'Upload the identity page of your passport.'
+          : 'Upload both sides of your NRC in one PDF or image file.',
+      },
+      {
         category: 'qualification',
-        label: 'Qualification result statement',
-        purpose:
-          'To support the qualifications you declared; formal verification happens during assessment.',
+        label: postgraduate || priorAward
+          ? 'Degree or diploma certificate and transcript'
+          : route === 'INTL'
+            ? 'International qualification result and transcript'
+            : 'Grade 12 statement of results or certificate',
+        purpose: postgraduate
+          ? 'Upload your previous degree certificate and academic transcript together in one PDF.'
+          : priorAward
+            ? 'Upload the award certificate and academic transcript for the route you selected.'
+            : 'Upload your examination statement or certificate showing the subjects and grades entered above.',
       },
       ...(route === 'INTL'
         ? [

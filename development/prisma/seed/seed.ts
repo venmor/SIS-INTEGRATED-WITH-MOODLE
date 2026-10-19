@@ -723,7 +723,7 @@ const CATALOGUE: SeedProgramme[] = [
         studyMode: "Full-time",
         campus: "Main Campus",
         availability: "OPEN",
-        deadline: "2026-09-30T23:59:00+02:00",
+        deadline: "DEMO_ROLLING_90_DAYS",
         statusNote: null,
       },
       {
@@ -794,8 +794,16 @@ const CATALOGUE: SeedProgramme[] = [
         studyMode: "Full-time",
         campus: "Main Campus",
         availability: "OPEN",
-        deadline: "2026-09-30T23:59:00+02:00",
+        deadline: "DEMO_ROLLING_90_DAYS",
         statusNote: null,
+      },
+      {
+        intake: "2026S2",
+        studyMode: "Full-time",
+        campus: "Main Campus",
+        availability: "CLOSED",
+        deadline: null,
+        statusNote: "This later intake is not accepting applications while its window is being prepared.",
       },
     ],
     rules: [
@@ -846,10 +854,9 @@ const CATALOGUE: SeedProgramme[] = [
         intake: "2026S1",
         studyMode: "Full-time",
         campus: "Main Campus",
-        availability: "CLOSED",
-        deadline: null,
-        statusNote:
-          "This programme is not accepting applications for the selected intake. The next planned intake is being confirmed.",
+        availability: "OPEN",
+        deadline: "DEMO_ROLLING_90_DAYS",
+        statusNote: null,
       },
     ],
     rules: [
@@ -926,14 +933,18 @@ async function ensureCatalogue(): Promise<void> {
             studyMode: offering.studyMode,
             campus: offering.campus,
             availability: offering.availability,
-            deadline: offering.deadline ? new Date(offering.deadline) : null,
+            deadline: offering.deadline === "DEMO_ROLLING_90_DAYS" ? new Date(Date.now() + 90 * 86400000) : offering.deadline ? new Date(offering.deadline) : null,
             statusNote: offering.statusNote,
           },
         });
       } else {
         // Demo correction path: availability/deadline/note follow the seed
         // on re-run so stale demo states never persist (additive only).
-        const deadline = offering.deadline ? new Date(offering.deadline) : null;
+        const deadline = offering.deadline === "DEMO_ROLLING_90_DAYS"
+          ? existing.deadline && existing.deadline > new Date()
+            ? existing.deadline
+            : new Date(Date.now() + 90 * 86400000)
+          : offering.deadline ? new Date(offering.deadline) : null;
         if (
           existing.availability !== offering.availability ||
           existing.statusNote !== offering.statusNote ||

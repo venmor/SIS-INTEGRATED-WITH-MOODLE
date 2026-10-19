@@ -110,6 +110,7 @@ export interface RegistrationStatusView {
       backend: 'live-test';
       registrationId: string;
       username: string | null;
+      initialPasswordAvailable?: boolean;
       moodleUrl: string;
       state: 'READY' | 'PARTIAL' | 'REVIEW' | 'PENDING';
       confirmedCount: number;

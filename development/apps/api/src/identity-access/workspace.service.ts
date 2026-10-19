@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { AUTH_MESSAGES } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
 import { auditAuth } from './audit.js';
 import { evaluatePolicy } from './policy.service.js';
-import { hashToken } from './session.service.js';
 
 // Live assignment views (REQ-IAM-002/003). Expired or revoked rows are never
 // workspaces: filtered here, never trusted from the client.
+export type SignInAudience = 'student' | 'staff';
+
+export function matchesSignInAudience(role: string, audience: SignInAudience): boolean {
+  const learner = role === 'APP' || role === 'STUDENT' || role === 'STU';
+  return audience === 'student' ? learner : !learner;
+}
+
 export interface WorkspaceView {
   assignmentId: string;
   role: string;
@@ -63,8 +70,8 @@ export class WorkspaceService {
   }
 
   /** Retain a validated same-account preference; emergency access is deliberate. */
-  async defaultWorkspace(accountId: string, preferredAssignmentId?: string | null): Promise<WorkspaceView | null> {
-    const list = (await this.liveWorkspaces(accountId)).filter((workspace) => workspace.scopeType !== 'BREAK_GLASS');
+  async defaultWorkspace(accountId: string, preferredAssignmentId?: string | null, audience?: SignInAudience): Promise<WorkspaceView | null> {
+    const list = (await this.liveWorkspaces(accountId)).filter((workspace) => workspace.scopeType !== 'BREAK_GLASS' && (!audience || matchesSignInAudience(workspace.role, audience)));
     return list.find((workspace) => workspace.assignmentId === preferredAssignmentId) ?? list[0] ?? null;
   }
 
@@ -77,7 +84,7 @@ export class WorkspaceService {
   }
 
   async switchWorkspace(sessionToken: string, assignmentId: string) {
-    const session = await this.prisma.session.findUnique({ where: { tokenHash: hashToken(sessionToken) } });
+    const session = await this.prisma.session.findUnique({ where: { tokenHash: createHash('sha256').update(sessionToken).digest('hex') } });
     if (!session || session.revokedAt) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SwitchWorkspace',

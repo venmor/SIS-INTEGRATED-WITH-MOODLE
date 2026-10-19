@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MoodleSignIn } from './moodle-sign-in';
 import type { RegistrationStatusView } from '@sis/contracts';
 import { StatusChip } from '@sis/ui';
 import styles from './moodle-access.module.css';
@@ -6,11 +7,11 @@ type Access = NonNullable<RegistrationStatusView['moodle']['access']>;
 const labels = { CONFIRMED: 'Ready', REVIEW: 'Needs support', RETRY: 'Retry scheduled', WAITING: 'Preparing access' };
 
 export function MoodleAccess({ access }: { access: Access }) {
-  return <section className={styles.panel} aria-labelledby="moodle-learning-heading">
+  return <section id="moodle-learning" className={styles.panel} aria-labelledby="moodle-learning-heading">
     <header className={styles.heading}><div><p className={styles.kicker}>Learning platform</p><h2 id="moodle-learning-heading">Moodle courses</h2></div>
       <StatusChip tone={access.state === 'READY' ? 'success' : 'info'}>{access.confirmedCount} of {access.totalCourses} ready</StatusChip>
     </header>
-    {access.confirmedCount > 0 && access.username ? <div className={styles.signin}><p><span>Moodle username</span><strong>{access.username}</strong></p><a href={access.moodleUrl} target="_blank" rel="noopener noreferrer">Open Moodle ↗</a></div> : null}
+    {access.confirmedCount > 0 && access.username ? <MoodleSignIn username={access.username} moodleUrl={access.moodleUrl} registrationId={access.registrationId} initialPasswordAvailable={access.initialPasswordAvailable} /> : null}
     <div className={styles.grid}>{access.courses.map((course) => <article className={styles.course} key={course.courseRegistrationId}>
       <div><strong className={styles.code}>{course.courseCode}</strong><h3>{course.courseTitle}</h3></div>
       <StatusChip tone={course.state === 'CONFIRMED' ? 'success' : course.state === 'REVIEW' ? 'warning' : 'info'}>{labels[course.state]}</StatusChip>
