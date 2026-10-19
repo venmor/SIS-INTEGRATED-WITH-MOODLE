@@ -148,12 +148,27 @@ export const DEMO_ACCOUNT_FIXTURES: readonly (readonly [string, string])[] = [
   [
     "moodle.operations.5bbb7c",
     "Review-2026-Moodle!"
+  ],
+  [
+    "sis.demo.chanda.mulenga",
+    "Presentation-2026-SIS!"
+  ],
+  [
+    "sis.demo.bwalya.mwansa",
+    "Presentation-2026-SIS!"
+  ],
+  [
+    "sis.demo.mutale.banda",
+    "Presentation-2026-SIS!"
+  ],
+  [
+    "sis.demo.nasilele.tembo",
+    "Presentation-2026-SIS!"
   ]
 ];
 // These are the four accounts provisioned in the MoodleCloud presentation
-// tenant. Their passwords are deliberately kept out of source control: the
-// sign-in page identifies them, but only fills credentials for the generated
-// SIS-only fixtures above.
+// tenant. Moodle itself retains separate passwords; this list is used only to
+// label the related SIS presentation cards.
 const MOODLE_PRESENTATION_ACCOUNTS = [
   { username: 'sis.demo.chanda.mulenga', audience: 'student' as const, role: 'STUDENT', blurb: 'Moodle student: registration, course access and imported result.' },
   { username: 'sis.demo.bwalya.mwansa', audience: 'student' as const, role: 'STUDENT', blurb: 'Moodle student: course access and timetable demonstration.' },
@@ -204,6 +219,7 @@ export async function demoAccounts(prisma: PrismaService, env = process.env) {
     }
   }
   for (const presentation of MOODLE_PRESENTATION_ACCOUNTS) {
+    if (result.some((account) => account.username === presentation.username)) continue;
     const account = accounts.find((row) => row.username === presentation.username);
     if (!account || !account.credentials.length || !account.roles.some(({ role }) => role === presentation.role)) continue;
     result.push({ ...presentation, password: null, canFill: false,
