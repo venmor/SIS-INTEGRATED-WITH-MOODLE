@@ -150,6 +150,27 @@ export const DEMO_ACCOUNT_FIXTURES: readonly (readonly [string, string])[] = [
     "Review-2026-Moodle!"
   ]
 ];
+// Help presenters choose a workflow without implying that these labels grant
+// access. The live appointment and account state still determine the workspace.
+const DEMO_PURPOSE: Record<string, string> = {
+  'bwalya.m': 'Applicant: start an application, add results and upload the required documents.',
+  'chanda.time': 'Student: inspect a published timetable for the demonstration period.',
+  'chanda.integration.5bbb7c': 'Student: inspect registration, Moodle course access and the result journey.',
+  'lombe.registration': 'Student: complete a course-registration journey.',
+  'mwila.registration': 'Student: inspect a registration outcome and course choices.',
+  'nasilele.master': 'Timetable coordinator: prepare and preview the master timetable.',
+  'tembo.timetable': 'Timetable reviewer: independently publish a prepared timetable.',
+  'nasilele.scheduler': 'Scheduler: configure demonstration timetable rules.',
+  'lecturer.physics.5bbb7c': 'Lecturer: review Moodle marks and stage a grade batch.',
+  'moderator.physics.5bbb7c': 'Moderator: review staged marks independently.',
+  'exams.prepare.5bbb7c': 'Examinations: prepare validated results for release.',
+  'exams.release.5bbb7c': 'Examinations: independently review official result release.',
+  'moodle.author.5bbb7c': 'Moodle administration: prepare course and account mappings.',
+  'moodle.reviewer.5bbb7c': 'Moodle reviewer: inspect and approve connection changes.',
+  'academic.reviewer.5bbb7c': 'Academic reviewer: inspect assessment decisions.',
+  'moodle.operations.5bbb7c': 'Moodle operations: inspect sync, reconciliation and recovery.',
+  'mumba.s': 'Staff: inspect assigned SIS workspaces and access reviews.',
+};
 export async function demoAccounts(prisma: PrismaService, env = process.env) {
   if (!isDemonstrationDatabaseTarget(env)) return { accounts: [] };
   const now = new Date();
@@ -169,7 +190,7 @@ export async function demoAccounts(prisma: PrismaService, env = process.env) {
     for (const audience of ['student', 'staff'] as const) {
       const roles = account.roles.filter(({ role }) => matchesSignInAudience(role, audience));
       if (roles.length) result.push({ username, password, audience, role: roles.map(({role}) => role).join(' / '),
-        blurb: 'Fictional demonstration account. Enter fictional information only.' });
+        blurb: DEMO_PURPOSE[username] ?? 'Fictional demonstration account. Enter fictional information only.' });
     }
   }
   return { accounts: result };
