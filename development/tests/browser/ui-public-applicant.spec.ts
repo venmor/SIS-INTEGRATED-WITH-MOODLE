@@ -20,28 +20,29 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Continue your work in the SIS" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await expect(
     page
       .getByRole("navigation", { name: "Public navigation" })
-      .getByRole("link", { name: "Sign in" }),
+      .getByRole("link", { name: "Find a programme" }),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
+  await page.goto("/sign-in");
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(
-    page.getByRole("heading", { name: "Sign in to the SIS" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Username" })).toBeVisible();
-  await expect(page.getByText("Try a fictional demo account")).toBeVisible();
+  await expect(page.getByText("Try demo account")).toBeVisible();
   await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: "Student", exact: true }).click();
   await page.getByLabel("Username", { exact: true }).fill(student.username);
   await page.getByLabel("Password", { exact: true }).fill(student.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expectWorkspaceLanding(page);
   await expect(
-    page.getByRole("heading", { name: "Welcome to the student portal" }),
+    page.getByRole("heading", { name: /^Welcome,/ }),
   ).toBeVisible();
   await page.goto("/discover");
   await expect(

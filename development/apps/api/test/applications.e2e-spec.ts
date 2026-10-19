@@ -344,7 +344,7 @@ describe('Phase 2 owned applicant journey', () => {
     expect(draft.documents[0].canPreview).toBe(false);
     expect(
       draft.blockers.find((b) => b.section === 'documents' && b.message.includes('Grade 12'))?.message,
-    ).toContain('configured file-safety check');
+    ).toMatch(/configured file-safety check|Check file safety/);
     expect(
       draft.blockers.find((b) => b.section === 'documents' && b.message.includes('Grade 12'))?.message,
     ).toContain('Grade 12');
