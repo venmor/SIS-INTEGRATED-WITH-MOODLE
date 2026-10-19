@@ -57,7 +57,7 @@ test('global administrator and deliberate multi-role switching retain the select
   await expect(page).toHaveURL(/\/admin\/reviews$/, { timeout: 20000 });
   await page.goto('/');
   await expect(page).toHaveURL(/\/admin\/reviews$/);
-  await signIn(page, actor);
+  await page.goto('/sign-in');
   await expect(page).toHaveURL(/\/admin\/reviews$/, { timeout: 20000 });
   await page.goto('/workspaces');
   await expect(page.getByRole('button', { name: 'SYSADMIN · GLOBAL (active)', exact: true })).toBeDisabled();
@@ -67,8 +67,8 @@ test('global administrator and deliberate multi-role switching retain the select
 
 test('no active authority reaches safe recovery without an unauthorized default', async ({ page }) => {
   await signIn(page, await landingActor([]));
-  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20000 });
-  await expect(page.getByText('No active workspace', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/sign-in$/, { timeout: 20000 });
+  await expect(page.getByRole('alert', { name: 'We could not sign you in.' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Access reviews', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Student portal', exact: true })).toHaveCount(0);
 });
@@ -77,6 +77,7 @@ test('explicit safe return links survive login while external destinations use t
   const actor = await createStudent();
   await signIn(page, actor, '/notifications', 'student');
   await expect(page).toHaveURL(/\/notifications$/, { timeout: 20000 });
+  await page.context().clearCookies();
   await signIn(page, actor, '//example.invalid', 'student');
   await expect(page).toHaveURL(/\/student$/, { timeout: 20000 });
   expect(new URL(page.url()).hostname).not.toBe('example.invalid');
