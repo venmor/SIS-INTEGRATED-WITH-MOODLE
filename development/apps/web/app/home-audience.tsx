@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { SignInForm } from "./sign-in/form";
 import styles from "./home.module.css";
 
-type DemoAccount = { username: string; password: string; role: string; blurb: string; audience: "student" | "staff" };
+type DemoAccount = { username: string; password: string | null; role: string; blurb: string; audience: "student" | "staff"; canFill?: boolean; credentialHint?: string };
 export function HomeAudience({ returnTo }: { returnTo?: string }) {
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   useEffect(() => {

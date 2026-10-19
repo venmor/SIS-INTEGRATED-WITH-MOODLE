@@ -36,8 +36,10 @@ export function SignInForm({
   demoStaff?: Array<{
     role: string;
     username: string;
-    password: string;
+    password: string | null;
     blurb: string;
+    canFill?: boolean;
+    credentialHint?: string;
     workspaceHref?: string;
   }>;
 }) {
@@ -270,21 +272,22 @@ export function SignInForm({
                           <code>{staff.username}</code>
                         </dd>
                       </div>
-                      <div>
+                      {staff.password ? <div>
                         <dt>Password</dt>
                         <dd>
                           <code>{staff.password}</code>
                         </dd>
-                      </div>
+                      </div> : null}
                     </dl>
-                    <ActionButton
+                    {!staff.password ? <p className={signInStyles.demoNote}>{staff.credentialHint}</p> : null}
+                    {staff.canFill !== false && staff.password ? <ActionButton
                       type="button"
                       kind="secondary"
-                      onClick={() => fillDetails(staff)}
+                      onClick={() => fillDetails({ username: staff.username, password: staff.password as string })}
                       disabled={!ready || pending}
                     >
                       Fill {staff.role.toLowerCase()} details
-                    </ActionButton>
+                    </ActionButton> : null}
                   </div>
                 ))}
                 </div>

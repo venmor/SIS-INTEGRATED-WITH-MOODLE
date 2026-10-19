@@ -150,6 +150,16 @@ export const DEMO_ACCOUNT_FIXTURES: readonly (readonly [string, string])[] = [
     "Review-2026-Moodle!"
   ]
 ];
+// These are the four accounts provisioned in the MoodleCloud presentation
+// tenant. Their passwords are deliberately kept out of source control: the
+// sign-in page identifies them, but only fills credentials for the generated
+// SIS-only fixtures above.
+const MOODLE_PRESENTATION_ACCOUNTS = [
+  { username: 'sis.demo.chanda.mulenga', audience: 'student' as const, role: 'STUDENT', blurb: 'Moodle student: registration, course access and imported result.' },
+  { username: 'sis.demo.bwalya.mwansa', audience: 'student' as const, role: 'STUDENT', blurb: 'Moodle student: course access and timetable demonstration.' },
+  { username: 'sis.demo.mutale.banda', audience: 'student' as const, role: 'STUDENT', blurb: 'Moodle student: enrolled-course access demonstration.' },
+  { username: 'sis.demo.nasilele.tembo', audience: 'staff' as const, role: 'LEC', blurb: 'Lecturer: Moodle course and grade-management demonstration.' },
+] as const;
 // Help presenters choose a workflow without implying that these labels grant
 // access. The live appointment and account state still determine the workspace.
 const DEMO_PURPOSE: Record<string, string> = {
@@ -175,7 +185,7 @@ export async function demoAccounts(prisma: PrismaService, env = process.env) {
   if (!isDemonstrationDatabaseTarget(env)) return { accounts: [] };
   const now = new Date();
   const accounts = await prisma.account.findMany({
-    where: { username: { in: DEMO_ACCOUNT_FIXTURES.map(([username]) => username) }, status: 'ACTIVE',
+    where: { username: { in: [...DEMO_ACCOUNT_FIXTURES.map(([username]) => username), ...MOODLE_PRESENTATION_ACCOUNTS.map(({ username }) => username)] }, status: 'ACTIVE',
       person: { status: 'ACTIVE', duplicateOfPersonId: null },
       OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
     select: { username: true, roles: { where: { revokedAt: null, startsAt: { lte: now },
@@ -190,8 +200,14 @@ export async function demoAccounts(prisma: PrismaService, env = process.env) {
     for (const audience of ['student', 'staff'] as const) {
       const roles = account.roles.filter(({ role }) => matchesSignInAudience(role, audience));
       if (roles.length) result.push({ username, password, audience, role: roles.map(({role}) => role).join(' / '),
-        blurb: DEMO_PURPOSE[username] ?? 'Fictional demonstration account. Enter fictional information only.' });
+        blurb: DEMO_PURPOSE[username] ?? 'Fictional demonstration account. Enter fictional information only.', canFill: true });
     }
+  }
+  for (const presentation of MOODLE_PRESENTATION_ACCOUNTS) {
+    const account = accounts.find((row) => row.username === presentation.username);
+    if (!account || !account.credentials.length || !account.roles.some(({ role }) => role === presentation.role)) continue;
+    result.push({ ...presentation, password: null, canFill: false,
+      credentialHint: 'Use the Moodle presentation password supplied separately for this account.' });
   }
   return { accounts: result };
 }
