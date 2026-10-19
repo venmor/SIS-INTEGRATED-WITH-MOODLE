@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Suspense } from "react";
 import "./globals.css";
 import { RouteFocus } from "./route-focus";
+import { SkipToMain } from "./skip-to-main";
 
 // Use the Latin Geist files bundled with this locked Next.js version so local
 // builds do not fetch Google Fonts on limited-data development connections.
@@ -32,9 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <a className="globalSkip" href="#main-content">
-          Skip to main content
-        </a>
+        <SkipToMain />
         <Suspense fallback={null}>
           <RouteFocus />
         </Suspense>

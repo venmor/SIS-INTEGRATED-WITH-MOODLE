@@ -107,23 +107,16 @@ test("applicant completes a mobile keyboard journey and recovers a lost submissi
   }
   await expect(page.getByRole("status")).toContainText("All changes saved");
   await page.getByRole("link", { name: /Supporting documents/ }).click();
-  await page
-    .getByLabel("Choose file")
-    .setInputFiles(
-      path.resolve("packages/test-fixtures/documents/fictional-result.pdf"),
-    );
-  await page
-    .getByRole("button", { name: "Upload document", exact: true })
-    .click();
-  await expect(
-    page.getByText(/fictional-result.pdf · Checking file safety/),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Check file safety", exact: true })
-    .click();
-  await expect(
-    page.getByRole("link", { name: "Preview fictional-result.pdf" }),
-  ).toBeVisible();
+  for (const category of ['National Registration Card (NRC)', 'Grade 12 statement of results or certificate']) {
+    const requirement = page.getByRole('region', { name: 'Required documents' })
+      .getByRole('article').filter({ has: page.getByRole('heading', { name: category, exact: true }) });
+    await page.getByRole('combobox', { name: 'Document category' }).selectOption({ label: category });
+    await page.getByLabel('Choose file').setInputFiles(path.resolve('packages/test-fixtures/documents/fictional-result.pdf'));
+    await page.getByRole('button', { name: 'Upload document', exact: true }).click();
+    await expect(requirement.getByText(/fictional-result.pdf · Checking file safety/)).toBeVisible();
+    await requirement.getByRole('button', { name: 'Check file safety', exact: true }).click();
+    await expect(requirement.getByRole('link', { name: 'Preview fictional-result.pdf' })).toBeVisible();
+  }
   await page.goto(`${applicationUrl}/review`);
   await expect(
     page.getByRole("heading", {
