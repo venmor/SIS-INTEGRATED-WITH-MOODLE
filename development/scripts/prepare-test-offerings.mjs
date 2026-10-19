@@ -30,7 +30,6 @@ try {
     where: {
       intake: '2026S1',
       availability: 'OPEN',
-      deadline: { lte: new Date() },
       programme: { code: { in: ['SWE', 'RAD'] } },
     },
     data: { deadline },

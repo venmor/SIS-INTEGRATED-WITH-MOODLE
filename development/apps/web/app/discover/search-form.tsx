@@ -166,7 +166,7 @@ export function SearchForm({
                 {FILTER_LABELS[key]} ({params.get(key)}){" "}
                 <Link
                   href={removeHref(key)}
-                  aria-label={`Remove ${FILTER_LABELS[key]} filter`}
+                  aria-label={`Remove ${FILTER_LABELS[key]} filter: ${params.get(key)}`}
                 >
                   Remove
                 </Link>{" "}
