@@ -45,6 +45,10 @@ export function SignInForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, setPending] = useState(false);
   const [filledAccount, setFilledAccount] = useState<string | null>(null);
+  const [demoQuery, setDemoQuery] = useState("");
+  const visibleDemoStaff = demoStaff?.filter((account) =>
+    `${account.username} ${account.role} ${account.blurb}`.toLowerCase().includes(demoQuery.trim().toLowerCase()),
+  );
   const ready = useSyncExternalStore(
     subscribeHydration,
     clientReady,
@@ -239,7 +243,21 @@ export function SignInForm({
                   Sign in with the account for the workspace you need. Enter fictional
                   information only.
                 </p>
-                {demoStaff.map((staff) => (
+                <label className={signInStyles.demoSearchLabel} htmlFor="demo-account-search">Find a demo account</label>
+                <input
+                  id="demo-account-search"
+                  className={signInStyles.demoSearch}
+                  type="search"
+                  value={demoQuery}
+                  onChange={(event) => setDemoQuery(event.target.value)}
+                  placeholder="Search Moodle, timetable, registration…"
+                />
+                <p className={signInStyles.demoNote} role="status">
+                  {visibleDemoStaff?.length ?? 0} demonstration accounts available
+                  {demoQuery.trim() ? " for this search" : " for this account type"}.
+                </p>
+                <div className={signInStyles.demoAccounts}>
+                {visibleDemoStaff?.map((staff) => (
                   <div key={staff.username}>
                     <h3>
                       {staff.role}: <code>{staff.username}</code>
@@ -269,6 +287,7 @@ export function SignInForm({
                     </ActionButton>
                   </div>
                 ))}
+                </div>
               </section>
             ) : null}
           </div>

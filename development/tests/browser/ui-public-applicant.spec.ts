@@ -51,6 +51,29 @@ test("SIS entry offers direct sign-in separately from public admissions discover
   await expectNoHorizontalOverflow(page);
 });
 
+test("presentation account picker filters workspaces and fills the selected credential", async ({ page }) => {
+  await page.route('**/api/auth/demo-accounts', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ accounts: [
+      { username: 'moodle.author.example', password: 'Example-demo-password', audience: 'staff', role: 'MOODLE_ADMIN', blurb: 'Moodle course mappings' },
+      { username: 'mumba.s', password: 'Example-other-password', audience: 'staff', role: 'SYSADMIN', blurb: 'Access reviews' },
+      { username: 'chanda.time', password: 'Example-student-password', audience: 'student', role: 'STUDENT', blurb: 'Student timetable' },
+    ] })
+  }));
+  await page.goto('/sign-in');
+  await page.getByText('Try demo account').click();
+  await expect(page.getByLabel('Find a demo account')).toBeVisible();
+  await page.getByLabel('Find a demo account').fill('moodle');
+  await expect(page.getByRole('heading', { name: /moodle.author.example/ })).toBeVisible();
+  await expect(page.getByText('mumba.s')).toHaveCount(0);
+  await expect(page.getByText('chanda.time')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Fill moodle_admin details' }).click();
+  await expect(page.getByLabel('Username', { exact: true })).toHaveValue('moodle.author.example');
+  await page.getByRole('button', { name: 'Student', exact: true }).click();
+  await page.getByText('Try demo account').click();
+  await expect(page.getByRole('heading', { name: /chanda.time/ })).toBeVisible();
+  await expect(page.getByText('moodle.author.example')).toHaveCount(0);
+});
+
 test("applicant workspace home never offers access-review administration", async ({
   page,
 }) => {

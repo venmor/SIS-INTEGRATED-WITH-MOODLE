@@ -22,6 +22,7 @@ describe('anonymous fictional demo catalogue', () => {
     });
     expect(response.accounts).toHaveLength(1);
     expect(response.accounts[0]).toMatchObject({ username: 'bwalya.m', audience: 'student' });
+    expect(response.accounts[0].blurb).toContain('Applicant: start an application');
     expect(JSON.stringify(response)).not.toContain('secretHash');
     expect(findMany.mock.calls[0]).toBeDefined();
   });
