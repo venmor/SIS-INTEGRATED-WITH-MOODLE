@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { completeIdentityEvidence } from './identity-evidence.js';
 import { randomUUID, createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import type { PrismaService } from '../../src/identity-access/prisma.service.js';
@@ -149,6 +150,7 @@ export async function convertedStudent(
     { version, idempotencyKey: key() },
     c,
   ).expect(201);
+  await completeIdentityEvidence(ctx.app.getHttpServer(), csrf, c, id, key);
   const review = await appGet(`/${id}/review`, c).expect(200);
   version = review.body.application.version as number;
   await appPost(

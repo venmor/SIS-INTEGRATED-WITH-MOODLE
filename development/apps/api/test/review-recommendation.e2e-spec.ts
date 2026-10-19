@@ -1,3 +1,4 @@
+import { completeIdentityEvidence } from './helpers/identity-evidence.js';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -141,6 +142,7 @@ describe('Phase 3 eligibility and recommendation package', () => {
       { version, idempotencyKey: key() },
       c,
     ).expect(201);
+    await completeIdentityEvidence(app.getHttpServer(), csrf, c, id, key);
     const ready = await appGet(`/${id}/review`, c).expect(200);
     version = ready.body.application.version as number;
     await appPost(
