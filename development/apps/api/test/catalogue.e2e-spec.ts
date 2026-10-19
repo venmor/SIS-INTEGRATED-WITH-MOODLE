@@ -13,7 +13,7 @@ import { AUTH_MESSAGES } from '@sis/config';
  *
  * Requires a live dev database:
  *   node scripts/with-env.mjs npm run test:e2e --workspace=apps/api
- * Shared demo seed (3 programmes, 4 offerings, 9 rules) is never
+ * Shared demo seed (3 programmes, 5 offerings, 9 rules) is never
  * structurally changed; only transient GuidanceSessions are swept.
  */
 describe('catalogue (e2e)', () => {
@@ -54,7 +54,7 @@ describe('catalogue (e2e)', () => {
       }
     ).items.filter((i) => seededIds.has(i.offeringId))
       .map((i) => ({ id: i.offeringId, availability: i.availability }));
-    expect(offerings).toHaveLength(4);
+    expect(offerings).toHaveLength(5);
   });
 
   afterAll(async () => {
@@ -85,7 +85,7 @@ describe('catalogue (e2e)', () => {
       .get('/catalogue/programmes?availability=OPEN')
       .expect(HttpStatus.OK);
     expect((open.body as { items: Array<{ offeringId: string }> }).items
-      .filter((i) => offerings.some((o) => o.id === i.offeringId))).toHaveLength(2);
+      .filter((i) => offerings.some((o) => o.id === i.offeringId))).toHaveLength(3);
   });
 
   it('discovery-route-filter: route narrows to programmes defining that route', async () => {
