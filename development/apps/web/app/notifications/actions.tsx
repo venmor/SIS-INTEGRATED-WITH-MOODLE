@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NotificationRecordView } from "@sis/contracts";
-import { ErrorSummary, Notice } from "@sis/ui";
+import { ActionButton, ErrorSummary, Notice } from "@sis/ui";
 import styles from "./notifications.module.css";
 
 async function postNotification(path: string, body: unknown): Promise<unknown> {
@@ -80,9 +80,11 @@ export function NotificationActions({
       </p>
       <p className={styles.actions}>
         {item.state !== "READ" ? (
-          <button
+          <ActionButton
+            kind="secondary"
             type="button"
-            disabled={pending}
+            pending={pending}
+            aria-label={`Mark notice as read: ${item.title}`}
             onClick={() =>
               void run(`/records/${item.id}/read`, {
                 idempotencyKey: crypto.randomUUID(),
@@ -90,12 +92,14 @@ export function NotificationActions({
             }
           >
             Mark as read
-          </button>
+          </ActionButton>
         ) : null}{" "}
         {item.mandatory ? null : (
-          <button
+          <ActionButton
+            kind="tertiary"
             type="button"
-            disabled={pending}
+            pending={pending}
+            aria-label={`Mute notices for: ${item.title}`}
             onClick={() =>
               void run(`/records/${item.id}/suppress`, {
                 idempotencyKey: crypto.randomUUID(),
@@ -104,7 +108,7 @@ export function NotificationActions({
             }
           >
             Mute these notices
-          </button>
+          </ActionButton>
         )}
       </p>
     </>
