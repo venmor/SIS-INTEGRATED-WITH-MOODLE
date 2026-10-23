@@ -1,8 +1,9 @@
 "use client";
 import staffUi from "../../staff-workspace.module.css";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefCallback } from "react";
 import { Notice } from "@sis/ui";
+import type { ConnectionView } from "@sis/contracts";
 
 /**
  * Delegated Moodle access workspace (design 2026-10-22).
@@ -110,7 +111,13 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function Provisioner({ initialRequests }: { initialRequests: ProvisionRequest[] }) {
+export function Provisioner({
+  initialRequests,
+  backend,
+}: {
+  initialRequests: ProvisionRequest[];
+  backend: ConnectionView["backend"];
+}) {
   const [q, setQ] = useState("");
   const [periodCode, setPeriodCode] = useState("");
   const [courseCode, setCourseCode] = useState("");
@@ -132,14 +139,23 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
   const selectedCount = Object.keys(selected).length;
 
   const search = useCallback(
-    async (cursor?: string) => {
+    async (
+      cursor?: string,
+      override?: { q?: string; periodCode?: string; courseCode?: string; hasAccess?: string },
+    ) => {
       setSearching(true);
       setError(null);
       const query = new URLSearchParams();
-      if (q.trim()) query.set("q", q.trim());
-      if (periodCode.trim()) query.set("periodCode", periodCode.trim());
-      if (courseCode.trim()) query.set("courseCode", courseCode.trim());
-      if (hasAccess) query.set("hasMoodleAccess", hasAccess);
+      const filters = {
+        q: override?.q ?? q,
+        periodCode: override?.periodCode ?? periodCode,
+        courseCode: override?.courseCode ?? courseCode,
+        hasAccess: override?.hasAccess ?? hasAccess,
+      };
+      if (filters.q.trim()) query.set("q", filters.q.trim());
+      if (filters.periodCode.trim()) query.set("periodCode", filters.periodCode.trim());
+      if (filters.courseCode.trim()) query.set("courseCode", filters.courseCode.trim());
+      if (filters.hasAccess) query.set("hasMoodleAccess", filters.hasAccess);
       if (cursor) query.set("cursor", cursor);
       query.set("limit", "25");
       try {
@@ -229,10 +245,10 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
       );
       setSelected({});
       setReason("");
-      const refreshed = await call<{ items: ProvisionRequest[] }>(
+      const refreshed = await call<ProvisionRequest[]>(
         "/api/moodle/provision?limit=10",
       );
-      setRequests(refreshed.items);
+      setRequests(refreshed);
       await search();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The request was not recorded.");
@@ -257,10 +273,10 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
       setNotice("Access withdrawn. Moodle enrolment is suspended, not deleted, and the decision is audited.");
       setRevokeFor(null);
       setRevokeReason("");
-      const refreshed = await call<{ items: ProvisionRequest[] }>(
+      const refreshed = await call<ProvisionRequest[]>(
         "/api/moodle/provision?limit=10",
       );
-      setRequests(refreshed.items);
+      setRequests(refreshed);
       await search();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The revocation was not recorded.");
@@ -279,9 +295,9 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
           Find students
         </h2>
         <p className={staffUi.supporting}>
-          Search the students inside your scope, then assign Moodle access to one
-          student or a whole cohort. Registration stays authoritative: only
-          active students with an active course registration can be assigned.
+          Search by name or student number, or browse active students in your
+          authorized scope. Only active registered courses without an existing
+          Moodle request can be selected.
         </p>
         <form
           className={staffUi.form}
@@ -293,63 +309,84 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
         >
           <div className={staffUi.formField}>
             <label className={staffUi.fieldLabel} htmlFor="moodle-q">
-              Name or student number
+              Search students
             </label>
             <input
               id="moodle-q"
               className={staffUi.control}
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="e.g. 2023001234 or Chanda"
+              placeholder="Name or student number"
               autoComplete="off"
+              autoFocus
             />
-          </div>
-          <div className={staffUi.formField}>
-            <label className={staffUi.fieldLabel} htmlFor="moodle-period">
-              Period code
-            </label>
-            <input
-              id="moodle-period"
-              className={staffUi.control}
-              value={periodCode}
-              onChange={(event) => setPeriodCode(event.target.value)}
-              placeholder="e.g. 2026-S1"
-              autoComplete="off"
-            />
-          </div>
-          <div className={staffUi.formField}>
-            <label className={staffUi.fieldLabel} htmlFor="moodle-course">
-              Course code
-            </label>
-            <input
-              id="moodle-course"
-              className={staffUi.control}
-              value={courseCode}
-              onChange={(event) => setCourseCode(event.target.value)}
-              placeholder="e.g. CS101"
-              autoComplete="off"
-            />
-          </div>
-          <div className={staffUi.formField}>
-            <label className={staffUi.fieldLabel} htmlFor="moodle-has-access">
-              Moodle access
-            </label>
-            <select
-              id="moodle-has-access"
-              className={staffUi.control}
-              value={hasAccess}
-              onChange={(event) => setHasAccess(event.target.value)}
-            >
-              <option value="">Any</option>
-              <option value="false">Not yet delivered</option>
-              <option value="true">Already delivered</option>
-            </select>
           </div>
           <div className={staffUi.actions}>
             <button className={staffUi.primary} type="submit" disabled={searching}>
               {searching ? "Searching…" : "Search"}
             </button>
+            <button
+              className={staffUi.secondary}
+              type="button"
+              disabled={searching}
+              onClick={() => {
+                setQ("");
+                setPeriodCode("");
+                setCourseCode("");
+                setHasAccess("");
+                setSelected({});
+                void search(undefined, { q: "", periodCode: "", courseCode: "", hasAccess: "" });
+              }}
+            >
+              Browse active students
+            </button>
           </div>
+          <details>
+            <summary className={staffUi.fieldLabel}>More filters</summary>
+            <div className={staffUi.form}>
+              <div className={staffUi.formField}>
+                <label className={staffUi.fieldLabel} htmlFor="moodle-period">
+                  Period code
+                </label>
+                <input
+                  id="moodle-period"
+                  className={staffUi.control}
+                  value={periodCode}
+                  onChange={(event) => setPeriodCode(event.target.value)}
+                  placeholder="e.g. 2026S1"
+                  autoComplete="off"
+                />
+              </div>
+              <div className={staffUi.formField}>
+                <label className={staffUi.fieldLabel} htmlFor="moodle-course">
+                  Course code
+                </label>
+                <input
+                  id="moodle-course"
+                  className={staffUi.control}
+                  value={courseCode}
+                  onChange={(event) => setCourseCode(event.target.value)}
+                  placeholder="e.g. SWE111"
+                  autoComplete="off"
+                />
+              </div>
+              <div className={staffUi.formField}>
+                <label className={staffUi.fieldLabel} htmlFor="moodle-has-access">
+                  Moodle access
+                </label>
+                <select
+                  id="moodle-has-access"
+                  className={staffUi.control}
+                  value={hasAccess}
+                  onChange={(event) => setHasAccess(event.target.value)}
+                >
+                  <option value="">Any</option>
+                  <option value="false">No delivered request</option>
+                  <option value="true">Already delivered</option>
+                </select>
+              </div>
+            </div>
+          </details>
         </form>
       </section>
 
@@ -369,10 +406,28 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
             {results.map((student) => {
               const assignable = student.courses.filter((course) => course.state === "ENROLLED");
               const open = assignable.filter((course) => !course.moodleState);
+              const selectedForStudent = open.filter(
+                (course) => selected[`${student.studentId}:${course.courseRegistrationId}`],
+              ).length;
+              const allOpenSelected = open.length > 0 && selectedForStudent === open.length;
+              const partiallySelected = selectedForStudent > 0 && !allOpenSelected;
+              const studentSelectionRef: RefCallback<HTMLInputElement> = (element) => {
+                if (element) element.indeterminate = partiallySelected;
+              };
               return (
                 <li key={student.studentId}>
                   <div>
-                    <strong>{student.displayName}</strong>{" "}
+                    <label className={staffUi.supporting}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select eligible Moodle courses for ${student.displayName}`}
+                        checked={allOpenSelected}
+                        disabled={open.length === 0}
+                        ref={studentSelectionRef}
+                        onChange={() => toggleStudent(student)}
+                      />{" "}
+                      <strong>{student.displayName}</strong>
+                    </label>{" "}
                     <span className={staffUi.supporting}>
                       {student.studentNumber}
                       {student.programmeCode ? ` · ${student.programmeCode}` : ""}
@@ -393,18 +448,27 @@ export function Provisioner({ initialRequests }: { initialRequests: ProvisionReq
                         </legend>
                         {assignable.map((course) => {
                           const key = `${student.studentId}:${course.courseRegistrationId}`;
+                          const statusHintId = `moodle-state-${student.studentId}-${course.courseRegistrationId}`;
                           return (
                             <label key={key} className={staffUi.supporting}>
                               <input
                                 type="checkbox"
                                 checked={Boolean(selected[key])}
                                 disabled={Boolean(course.moodleState)}
+                                aria-describedby={course.moodleState ? statusHintId : undefined}
                                 onChange={() => toggle(key, student, course)}
                               />{" "}
                               {course.courseCode} — {course.courseTitle}
                               {course.moodleState
-                                ? ` (Moodle: ${label(course.moodleState)})`
+                                ? ` (Moodle request: ${label(course.moodleState)})`
                                 : ""}
+                              {course.moodleState ? (
+                                <span id={statusHintId} className={staffUi.supporting}>
+                                  {backend === "simulator"
+                                    ? ` Simulator request state: ${label(course.moodleState)}. This does not confirm MoodleCloud access.`
+                                    : ` Existing request state: ${label(course.moodleState)}. A new request is unavailable until it is resolved.`}
+                                </span>
+                              ) : null}
                             </label>
                           );
                         })}

@@ -34,7 +34,7 @@ async function loadAuthority<T>(
 export default async function MoodleAccessPage() {
   const [health, requests] = await Promise.all([
     loadAuthority<ConnectionView>("/integration/health"),
-    loadAuthority<{ items: Parameters<typeof Provisioner>[0]["initialRequests"] }>(
+    loadAuthority<Parameters<typeof Provisioner>[0]["initialRequests"]>(
       "/moodle/provision?limit=10",
     ),
   ]);
@@ -64,12 +64,12 @@ export default async function MoodleAccessPage() {
           <Link href="/">Workspace home</Link>
         </p>
         <Notice
-          severity={health.data.status === "HEALTHY" ? "success" : "warning"}
-          title={`Connection ${health.data.status}`}
-          message={`Provider ${health.data.provider} · ${moodleBackendLabel(health.data.backend)}. Access requests are recorded in the SIS first; Moodle delivery happens in the background.`}
+          severity={health.data.backend === "simulator" ? "info" : health.data.status === "HEALTHY" ? "success" : "warning"}
+          title={health.data.backend === "simulator" ? "Simulator active — not connected to MoodleCloud" : `Connection ${health.data.status}`}
+          message={`Provider ${health.data.provider} · ${moodleBackendLabel(health.data.backend)}. Access requests are recorded in the SIS first; ${health.data.backend === "simulator" ? "simulator records do not confirm MoodleCloud delivery." : "Moodle delivery happens in the background."}`}
         />
         <WriteReadinessNotice readiness={health.data.writeReadiness} />
-        <Provisioner initialRequests={requests.data.items} />
+        <Provisioner initialRequests={requests.data} backend={health.data.backend} />
       </main>
     </div>
   );

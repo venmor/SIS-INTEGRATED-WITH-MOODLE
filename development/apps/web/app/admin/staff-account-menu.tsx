@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavigationIcon } from "../navigation-icon";
 import styles from "./admin-shell.module.css";
 
@@ -9,6 +9,8 @@ import styles from "./admin-shell.module.css";
  * mutation. Native disclosure works with keyboard and without JavaScript. */
 export function StaffAccountMenu({ displayName }: { displayName: string }) {
   const menu = useRef<HTMLDetailsElement>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     function closeOutside(event: PointerEvent) {
       if (
@@ -21,6 +23,25 @@ export function StaffAccountMenu({ displayName }: { displayName: string }) {
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, []);
+
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/sign-out", {
+        method: "POST",
+        headers: { "x-requested-with": "XMLHttpRequest" },
+        credentials: "same-origin",
+      });
+      if (!response.ok && response.status !== 401) throw new Error();
+      window.location.replace("/sign-in");
+    } catch {
+      setError("We could not sign you out. Keep this device with you and try again.");
+      setSigningOut(false);
+    }
+  }
+
   return (
     <details
       ref={menu}
@@ -47,6 +68,15 @@ export function StaffAccountMenu({ displayName }: { displayName: string }) {
         <p className={styles.accountPanelLabel}>Current account</p>
         <strong>{displayName}</strong>
         <Link href="/sign-in">Switch account</Link>
+        <button
+          type="button"
+          className={styles.accountSignOut}
+          onClick={signOut}
+          disabled={signingOut}
+        >
+          {signingOut ? "Signing out…" : "Sign out"}
+        </button>
+        {error ? <p role="alert">{error}</p> : null}
       </div>
     </details>
   );

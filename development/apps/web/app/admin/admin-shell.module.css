@@ -309,6 +309,31 @@
   font-weight: var(--weight-semibold);
   text-underline-offset: 3px;
 }
+.accountSignOut {
+  display: block;
+  width: 100%;
+  padding-block: var(--space-2);
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-supporting);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+.accountSignOut:hover:not(:disabled) {
+  color: var(--green-800);
+}
+.accountSignOut:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 3px;
+}
+.accountSignOut:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
 
 .breadcrumbs {
   padding: var(--space-5) 2.25rem 0;
