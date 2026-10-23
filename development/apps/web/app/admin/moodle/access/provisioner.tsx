@@ -1,7 +1,7 @@
 "use client";
 import staffUi from "../../staff-workspace.module.css";
 
-import { useCallback, useEffect, useState, type RefCallback } from "react";
+import { useCallback, useEffect, useRef, useState, type RefCallback } from "react";
 import { Notice } from "@sis/ui";
 import type { ConnectionView } from "@sis/contracts";
 
@@ -135,6 +135,8 @@ export function Provisioner({
   const [requests, setRequests] = useState<ProvisionRequest[]>(initialRequests);
   const [revokeFor, setRevokeFor] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSequence = useRef(0);
 
   const selectedCount = Object.keys(selected).length;
 
@@ -143,6 +145,7 @@ export function Provisioner({
       cursor?: string,
       override?: { q?: string; periodCode?: string; courseCode?: string; hasAccess?: string },
     ) => {
+      const sequence = ++searchSequence.current;
       setSearching(true);
       setError(null);
       const query = new URLSearchParams();
@@ -164,26 +167,37 @@ export function Provisioner({
           total: number;
           nextCursor: string | null;
         }>(`/api/moodle/provision/students/search?${query.toString()}`);
+        if (sequence !== searchSequence.current) return;
         setResults((current) => (cursor && current ? [...current, ...data.items] : data.items));
         setTotal(data.total);
         setNextCursor(data.nextCursor);
       } catch (caught) {
+        if (sequence !== searchSequence.current) return;
         setError(caught instanceof Error ? caught.message : "Search failed.");
         setResults([]);
         setTotal(0);
         setNextCursor(null);
       } finally {
-        setSearching(false);
+        if (sequence === searchSequence.current) setSearching(false);
       }
     },
     [q, periodCode, courseCode, hasAccess],
   );
 
   useEffect(() => {
-    // First load shows the students the actor can already see.
-    void search();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    searchTimer.current = setTimeout(() => void search(), q.trim() ? 250 : 0);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [q, periodCode, courseCode, hasAccess, search]);
+
+  function invalidateSearch() {
+    searchSequence.current += 1;
+    setSelected({});
+    setResults(null);
+    setNextCursor(null);
+    setError(null);
+  }
 
   function toggle(key: string, student: StudentHit, course: Course) {
     setSelected((current) => {
@@ -303,7 +317,7 @@ export function Provisioner({
           className={staffUi.form}
           onSubmit={(event) => {
             event.preventDefault();
-            setSelected({});
+            if (searchTimer.current) clearTimeout(searchTimer.current);
             void search();
           }}
         >
@@ -315,7 +329,10 @@ export function Provisioner({
               id="moodle-q"
               className={staffUi.control}
               value={q}
-              onChange={(event) => setQ(event.target.value)}
+              onChange={(event) => {
+                invalidateSearch();
+                setQ(event.target.value);
+              }}
               placeholder="Name or student number"
               autoComplete="off"
               autoFocus
@@ -330,12 +347,14 @@ export function Provisioner({
               type="button"
               disabled={searching}
               onClick={() => {
+                const alreadyBrowsing = !q && !periodCode && !courseCode && !hasAccess;
+                invalidateSearch();
                 setQ("");
                 setPeriodCode("");
                 setCourseCode("");
                 setHasAccess("");
-                setSelected({});
-                void search(undefined, { q: "", periodCode: "", courseCode: "", hasAccess: "" });
+                if (alreadyBrowsing)
+                  void search(undefined, { q: "", periodCode: "", courseCode: "", hasAccess: "" });
               }}
             >
               Browse active students
@@ -352,7 +371,10 @@ export function Provisioner({
                   id="moodle-period"
                   className={staffUi.control}
                   value={periodCode}
-                  onChange={(event) => setPeriodCode(event.target.value)}
+                  onChange={(event) => {
+                    invalidateSearch();
+                    setPeriodCode(event.target.value);
+                  }}
                   placeholder="e.g. 2026S1"
                   autoComplete="off"
                 />
@@ -365,7 +387,10 @@ export function Provisioner({
                   id="moodle-course"
                   className={staffUi.control}
                   value={courseCode}
-                  onChange={(event) => setCourseCode(event.target.value)}
+                  onChange={(event) => {
+                    invalidateSearch();
+                    setCourseCode(event.target.value);
+                  }}
                   placeholder="e.g. SWE111"
                   autoComplete="off"
                 />
@@ -378,7 +403,10 @@ export function Provisioner({
                   id="moodle-has-access"
                   className={staffUi.control}
                   value={hasAccess}
-                  onChange={(event) => setHasAccess(event.target.value)}
+                  onChange={(event) => {
+                    invalidateSearch();
+                    setHasAccess(event.target.value);
+                  }}
                 >
                   <option value="">Any</option>
                   <option value="false">No delivered request</option>
@@ -473,6 +501,11 @@ export function Provisioner({
                           );
                         })}
                       </fieldset>
+                      {open.length === 0 ? (
+                        <p className={staffUi.supporting}>
+                          Every active registered course already has a Moodle request. Duplicate requests are disabled; review the request state above.
+                        </p>
+                      ) : null}
                       {open.length > 1 ? (
                         <button
                           type="button"

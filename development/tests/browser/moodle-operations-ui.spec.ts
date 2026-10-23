@@ -137,6 +137,14 @@ test('UI fixture: student selection covers only eligible registered Moodle cours
   await expect(page.getByText('Simulator active — not connected to MoodleCloud')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Students (1 matching, 1 shown)' })).toBeVisible();
 
+  const searchTerms: string[] = [];
+  page.on('request', (request) => {
+    if (!request.url().includes('/api/moodle/provision/students/search')) return;
+    searchTerms.push(new URL(request.url()).searchParams.get('q') ?? '');
+  });
+  await page.getByLabel('Search students').fill('Chanda');
+  await expect.poll(() => searchTerms).toContain('Chanda');
+
   const studentSelection = page.getByRole('checkbox', { name: 'Select eligible Moodle courses for Chanda Mulenga' });
   const delivered = page.getByRole('checkbox', { name: /ENG111 — Communication Skills/ });
   const mathematics = page.getByRole('checkbox', { name: /MTH111 — Discrete Mathematics/ });
