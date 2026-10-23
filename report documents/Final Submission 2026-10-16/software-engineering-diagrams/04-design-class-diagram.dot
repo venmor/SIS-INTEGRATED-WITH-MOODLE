@@ -1,0 +1,13 @@
+digraph G {graph [bgcolor="white",rankdir=TB,pad="0.16",nodesep="0.4",ranksep="0.5",fontname="Arial",fontsize=20]; node [shape=box,style="rounded,filled",fillcolor="#F2F6FC",color="#4F81BD",fontname="Arial",fontsize=22,penwidth=1.8,margin="0.16,0.12"]; edge [color="#365F91",fontname="Arial",fontsize=17,penwidth=1.6,arrowsize=.8];
+node [shape=box,style=filled,fontsize=20];
+c [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>RegistrationController</B></TD></TR><TR><TD ALIGN="LEFT">submit()<BR ALIGN="LEFT"/>readiness()<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+r [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>RegistrationService</B></TD></TR><TR><TD ALIGN="LEFT">submitRegistration()<BR ALIGN="LEFT"/>registrationStatus()<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+p [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>PrismaService</B></TD></TR><TR><TD ALIGN="LEFT">Shared persistence<BR ALIGN="LEFT"/>transaction boundary<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+i [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>IntegrationService</B></TD></TR><TR><TD ALIGN="LEFT">runWorker()<BR ALIGN="LEFT"/>deliverOutbox()<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+a [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>«interface» MoodleAdapter</B></TD></TR><TR><TD ALIGN="LEFT">ensureShell()<BR ALIGN="LEFT"/>applyEnrolment()<BR ALIGN="LEFT"/>validateConnection()<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+s [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>SimulatorAdapter</B></TD></TR><TR><TD ALIGN="LEFT">Runnable operations<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+l [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>LiveMoodleAdapter</B></TD></TR><TR><TD ALIGN="LEFT">Connection checks<BR ALIGN="LEFT"/>Unsupported writes refused<BR ALIGN="LEFT"/></TD></TR></TABLE>>,fillcolor="#FFF7E6",color="#B98432"];
+c -> r [label="injects"];r -> p [label="injects"];r -> i [label="injects"];i -> p [label="injects"];i -> a [style=dashed,label="selects"];
+s -> a [style=dashed,arrowhead=empty,label="implements"];l -> a [style=dashed,arrowhead=empty,label="implements"];
+{rank=same;r;p;i} {rank=same;s;a;l}
+}

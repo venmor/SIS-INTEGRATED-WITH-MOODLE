@@ -686,6 +686,8 @@ export class MoodleLiveDeliveryService {
             'MoodleEnrolmentQueued',
             'MoodleCourseAdded',
             'MoodleCourseRemoved',
+            'MoodleProvisionRequested',
+            'MoodleProvisionRevoked',
           ],
         },
       },

@@ -89,6 +89,26 @@ const STUDENTS = [
     programmeCode: "SWE",
     courseCodes: ["SWE121", "SWE150", "ENG111"],
   },
+  {
+    username: "demo.access",
+    displayName: "Demo Access Student",
+    firstName: "Access",
+    email: "demo.access@demo.invalid",
+    phone: "+260970000106",
+    studentNumber: "DEMO-2026-1005",
+    programmeCode: "SWE",
+    courseCodes: ["SWE111", "MTH111", "ENG111"],
+  },
+  {
+    username: "demo.live",
+    displayName: "Demo Live Student",
+    firstName: "Live",
+    email: "demo.live@demo.invalid",
+    phone: "+260970000107",
+    studentNumber: "DEMO-2026-1006",
+    programmeCode: "SWE",
+    courseCodes: ["SWE111", "MTH111", "ENG111"],
+  },
 ];
 
 const MOODLE_ADMIN = {
@@ -100,6 +120,12 @@ const MOODLE_ADMIN = {
 };
 
 const MOODLE_CAPABILITIES = [
+  // The administration workspace's /integration/health gate requires
+  // `sync-moodle`, and mapping/connection screens require `manage-mapping`.
+  // Without both, a Moodle administrator sees "Workspace unavailable" even
+  // though provisioning itself is allowed.
+  ["sync-moodle", "Read Moodle connection health and sync status"],
+  ["manage-mapping", "Manage Moodle course, user, role and group mappings"],
   ["moodle:provision", "Provision Moodle access for students and staff"],
   ["moodle:launch", "Launch Moodle SSO deep-link for entitled students"],
   ["moodle:grade-sync", "Sync Moodle grades back to SIS staging"],
@@ -328,11 +354,20 @@ async function ensureMoodleAdmin(scope) {
         reason: "Demo Moodle administrator",
       },
     });
-  } else if (existing.scopeId !== scope.id) {
-    await db.roleAssignment.update({
-      where: { id: existing.id },
-      data: { scopeId: scope.id },
-    });
+  } else {
+    // Re-running this seed must repair an assignment created before a
+    // capability was added, otherwise the workspace stays inaccessible.
+    const wanted = MOODLE_CAPABILITIES.map(([name]) => name);
+    const merged = Array.from(
+      new Set([...(existing.capabilities ?? []), ...wanted]),
+    );
+    const data = {};
+    if (existing.scopeId !== scope.id) data.scopeId = scope.id;
+    if (merged.length !== (existing.capabilities ?? []).length)
+      data.capabilities = merged;
+    if (Object.keys(data).length > 0) {
+      await db.roleAssignment.update({ where: { id: existing.id }, data });
+    }
   }
   return { username: MOODLE_ADMIN.username, password, role: "MOODLE_ADMIN" };
 }

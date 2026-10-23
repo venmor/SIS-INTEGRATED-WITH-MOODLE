@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-16",
+  "authors": [
+    "Charles Hangoma",
+    "Chitundu Milimbo"
+  ],
+  "originalTemplateSha256": "b92f0e74d7250b6908a6ef3e8a2b2786b8829976fd3f2513d6460a71763c2603",
+  "originalTemplateUnchanged": true,
+  "reports": [
+    {
+      "file": "SIS-Moodle-Developer-Handoff-and-Demo-Guide.docx",
+      "bytes": 1281053,
+      "sha256": "7bb90a6c5b832850f40dab53573c8deff7a0cfb1848528a44f1eda7ea7b35cd9",
+      "preservedTemplateParts": true,
+      "sections": 3
+    },
+    {
+      "file": "SIS-Moodle-Developer-Handoff-and-Demo-Guide.pdf",
+      "bytes": 152935,
+      "sha256": "1f4b6f68f79b52a1e3c79ef6a4b58cc026beae165356c1d614774b24d154f44a",
+      "pages": 7
+    },
+    {
+      "file": "SIS-Moodle-Engineering-Diagram-Atlas.pdf",
+      "bytes": 125710,
+      "sha256": "990b66d0068aa7356f73e1f6f07dca3af431e3616fc0fd465cc50fd8e3239778",
+      "pages": 5
+    },
+    {
+      "file": "SIS-Moodle-Project-Progress-Report.docx",
+      "bytes": 3150605,
+      "sha256": "4ecb0e60f7ed3b41cacffcb1c99573883c622c3c6f748d3b19c149f92b107aad",
+      "preservedTemplateParts": true,
+      "sections": 3
+    },
+    {
+      "file": "SIS-Moodle-Project-Progress-Report.pdf",
+      "bytes": 1591583,
+      "sha256": "e9352a0819759251f436118d782b10b9720df64e7eeb55ef1387063e281fe22b",
+      "pages": 34
+    }
+  ],
+  "documentReview": "We inspected all 34 progress pages, all 7 guide pages and all 5 vector atlas pages after rendering. We corrected the blank page, form alignment, mobile scale, caption italics and contents/list page numbers.",
+  "academicBoundary": "We provide a progress checkpoint. We still need the full scholarly literature chapter and named final acceptance.",
+  "runtime": {
+    "authConnected": {
+      "passed": 6
+    },
+    "authBrowser": {
+      "passed": 4
+    },
+    "participantLogins": {
+      "passed": 4
+    },
+    "formalRegistrations": 9,
+    "courseRegistrations": 36,
+    "preparationRepeat": "We preserved existing matching registrations and timetable history.",
+    "dockerComposeConfiguration": "passed",
+    "dockerCleanBuild": "We have not completed the clean Docker build; the registry request timed out.",
+    "wholeCheckpointCI": "pending",
+    "liveAutomaticMoodleDelivery": "not provisioned"
+  }
+}

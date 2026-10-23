@@ -202,6 +202,14 @@ export class IntegrationService {
   }
 
   private writeReadiness(): MoodleWriteReadiness {
+    if (selectBackend().kind === 'live-test') {
+      return {
+        outcome: 'LIVE_READY',
+        backend: 'live-test',
+        detail:
+          'Live Moodle provisioning is enabled. Grade passback stays in SIS staging and is never auto-published.',
+      };
+    }
     return (
       this.liveDeliveryDeferral() ?? {
         outcome: 'SIMULATOR_READY',
@@ -986,6 +994,16 @@ export class IntegrationService {
       offeringId,
       periodId: period.id,
     });
+    await db.moodleMapping.updateMany({
+      where: {
+        kind: 'SHELL',
+        sisType: 'OFFERING',
+        sisId: `${offeringId}:${periodCode}`,
+        status: 'ACTIVE',
+        moodleId: shellRef,
+      },
+      data: { moodleId: live.id },
+    });
     return { id: live.id, ref: shellRef };
   }
 
@@ -1057,22 +1075,28 @@ export class IntegrationService {
     | { outcome: 'DUPLICATE' | 'DELIVERED' | 'RETRY' | 'MANUAL_REVIEW' }
     | NotProvisionedResult
   > {
+    const preview = await this.prisma.outboxEvent.findUnique({
+      where: { id: outboxId },
+      select: { id: true, type: true },
+    });
+    if (!preview) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
+    // Provisioning already has its own approved, idempotent write path. It
+    // bypasses the generic live deferral so the worker can create the Moodle
+    // shell/user/enrolment when the live descriptor is valid; the claim-based
+    // enrolment/reconciliation families keep their existing gate.
+    const liveProvisioning =
+      selectBackend().kind === 'live-test' &&
+      (preview.type === 'MoodleProvisionRequested' ||
+        preview.type === 'MoodleProvisionRevoked');
     const deferral = this.liveDeliveryDeferral();
-    if (deferral) {
-      const event = await this.prisma.outboxEvent.findUnique({
-        where: { id: outboxId },
-        select: { id: true },
-      });
-      if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
-      return deferral;
-    }
+    if (deferral && !liveProvisioning) return deferral;
     return this.prisma.$transaction(async (db) => {
       const event = await db.outboxEvent.findUnique({
         where: { id: outboxId },
       });
       if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
       const closed = this.liveDeliveryDeferral();
-      if (closed) return closed;
+      if (closed && !liveProvisioning) return closed;
       if (event.deliveredAt) return { outcome: 'DUPLICATE' };
       const attemptRow = await db.integrationDeliveryAttempt.findFirst({
         where: { outboxId, state: { in: ['PENDING', 'DELIVERING'] } },
@@ -1159,7 +1183,7 @@ export class IntegrationService {
         );
         return { outcome: permanent ? 'MANUAL_REVIEW' : 'RETRY' };
       }
-    });
+    }, { timeout: 60000 });
   }
 
   private async routeDelivery(
@@ -1553,7 +1577,28 @@ export class IntegrationService {
           deferred: 0,
           deferral: null,
         };
-      return this.liveDelivery.run(limit);
+      let live: MoodleWorkerRunResult = {
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+        deferred: 0,
+        deferral: null,
+      };
+      try {
+        live = await this.liveDelivery.run(limit);
+      } catch {
+        // Keep the independent provisioning queue moving if claim delivery fails.
+      }
+      const provision = await this.runLiveProvisioning(limit);
+      return {
+        processed: live.processed + provision.processed,
+        delivered: live.delivered + provision.delivered,
+        retried: live.retried + provision.retried,
+        dead: live.dead + provision.dead,
+        deferred: live.deferred + provision.deferred,
+        deferral: live.deferred ? live.deferral : null,
+      };
     }
     const deferral = this.liveDeliveryDeferral();
     if (deferral) {
@@ -1646,6 +1691,57 @@ export class IntegrationService {
       deferred,
       deferral: lateDeferral,
     };
+  }
+
+  private async runLiveProvisioning(
+    limit: number,
+  ): Promise<MoodleWorkerRunResult> {
+    const types = ['MoodleProvisionRequested', 'MoodleProvisionRevoked'];
+    const now = new Date();
+    const due = await this.prisma.integrationDeliveryAttempt.findMany({
+      where: {
+        state: 'PENDING',
+        outbox: { type: { in: types } },
+        OR: [{ nextRunAt: null }, { nextRunAt: { lte: now } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+    let processed = 0;
+    let delivered = 0;
+    let retried = 0;
+    let dead = 0;
+    let deferred = 0;
+    const tally = (
+      outcome: Awaited<ReturnType<IntegrationService['deliverOutbox']>>,
+    ) => {
+      if (outcome.outcome === 'DELIVERED' || outcome.outcome === 'DUPLICATE') {
+        delivered++;
+        processed++;
+      } else if (outcome.outcome === 'RETRY') {
+        retried++;
+        processed++;
+      } else if (outcome.outcome === 'NOT_PROVISIONED') {
+        deferred++;
+      } else {
+        dead++;
+        processed++;
+      }
+    };
+    for (const row of due) tally(await this.deliverOutbox(row.outboxId));
+
+    const orphaned = await this.prisma.outboxEvent.findMany({
+      where: { type: { in: types }, deliveredAt: null, attempts: { none: {} } },
+      orderBy: { occurredAt: 'asc' },
+      take: Math.max(0, limit - due.length),
+    });
+    for (const event of orphaned) {
+      await this.prisma.integrationDeliveryAttempt.create({
+        data: { outboxId: event.id, state: 'PENDING', attempt: 0 },
+      });
+      tally(await this.deliverOutbox(event.id));
+    }
+    return { processed, delivered, retried, dead, deferred, deferral: null };
   }
 
   private async opsRole(

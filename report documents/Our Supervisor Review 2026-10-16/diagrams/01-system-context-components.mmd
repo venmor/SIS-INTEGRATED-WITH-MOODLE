@@ -1,0 +1,28 @@
+flowchart LR
+  Users[Students, applicants and appointed staff] -->|HTTPS; own session| Web
+  subgraph Web[Next.js web application]
+    UI[Public, applicant, student and staff routes]
+    Proxy[Server loaders and API proxies]
+    UI --> Proxy
+  end
+  Proxy -->|JSON HTTP; server-side authorization| IAM
+  subgraph API[NestJS modular monolith - one API application]
+    IAM[IdentityAccess: session, role/scope, CSRF and audit]
+    Academic[Catalogue, Admissions, Records, Registration, Teaching, Assessment]
+    Other[Finance, InstitutionSetup, AcademicSupport]
+    Time[Timetabling: draft, validate, independently publish]
+    Integration[IntegrationService and DeliveryWorker]
+    Notices[Notifications and Ops]
+    DBAccess[PrismaService]
+    IAM --> Academic & Other & Time & Integration & Notices
+    Academic --> DBAccess
+    Other --> DBAccess
+    Time --> DBAccess
+    Integration --> DBAccess
+    Notices --> DBAccess
+  end
+  DBAccess --> DB[(PostgreSQL: SIS records, outbox, audit, simulator mirrors)]
+  Integration -->|current simulator operations| DB
+  Integration -.->|guarded read-only connection checks| Moodle[External Moodle test instance]
+  Gate[Automatic live enrolment is NOT_PROVISIONED; queued sources retained]
+  Integration -.-> Gate

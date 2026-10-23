@@ -38,19 +38,17 @@ export const MOODLE_DEMO_V1 = {
 /** Explicit live-test policy (spec §6.1, §7). The token lives in env
  * only, never in config rows, logs, or the database.
  *
- * This object carries policy constants and environment variable NAMES
+ * This object carries policy constants and environment variable names
  * only. The real MoodleCloud test target is deliberately unconfirmed:
  * no hostname, site id, release, role id, category id, or token is
  * recorded here, and none may be invented.
  *
  * `requiredEnv` names every variable an operator must supply. The
- * `.env.example` contract for them, the `MOODLE_INTEGRATION_MODE`
- * selection with its fail-closed validation (spec §8.1), and the
- * `live-test-disabled` resolution kind do not exist yet — Task 3 adds
- * all three. Until then the live path is armed by `selectBackend()`
- * from a base URL and a token, which is the known deviation Task 3
- * removes. This object is not what makes the live path inert, and a
- * reader must not conclude that it already is. */
+ * runtime selection logic in `moodle-live-config.ts` resolves a fail-closed
+ * `simulator | live-test | live-test-disabled` response before any live call
+ * is made, and the live transport enforces the authorized function set in
+ * `moodle-live.ts` / `moodle-write-transport.ts`. No URL+token-only fallback
+ * is permitted, and no function is silently substituted for another. */
 export const MOODLE_LIVE_V1 = {
   version: "MOODLE-LIVE-TEST-v1",
   demo: false,
@@ -61,17 +59,15 @@ export const MOODLE_LIVE_V1 = {
   tokenParam: "wstoken",
   formatParam: { moodlewsrestformat: "json" },
   timeoutMs: 15000,
-  // Target authorised function set (spec §7). This list is not yet
-  // enforced: `moodle-live.ts` still calls a thirteenth function,
-  // `core_enrol_get_enrolled_users_with_capability`, and swallows the
-  // error behind a `.catch()` that substitutes
-  // `core_enrol_get_enrolled_users`. Spec §5 and §7 forbid that
-  // probe-and-fallback. Task 8 adds `assertAuthorisedFunction` and
-  // removes both.
+  // Target authorised function set (spec §7). The live transport only
+  // sends functions from this list and rejects all other names before the
+  // network call. There is no probe-and-fallback substitution.
   authorisedFunctions: [
     "core_webservice_get_site_info",
     "core_course_get_courses_by_field",
     "core_course_create_courses",
+    "core_user_get_users_by_field",
+    "core_user_create_users",
     "core_user_get_users",
     "core_enrol_get_enrolled_users",
     "enrol_manual_enrol_users",

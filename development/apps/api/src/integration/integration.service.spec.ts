@@ -188,6 +188,14 @@ function stubFetch(): { calls: string[]; bodies: URLSearchParams[] } {
           release: '4.5.6',
           version: '2024100706',
           sitename: 'Example Moodle',
+          functions: [
+            'core_course_get_courses_by_field',
+            'core_course_create_courses',
+            'core_user_get_users_by_field',
+            'core_user_create_users',
+            'enrol_manual_enrol_users',
+            'core_enrol_get_enrolled_users',
+          ].map((name) => ({ name })),
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
@@ -367,9 +375,8 @@ describe('IntegrationService.connectionHealth projects the selection', () => {
       version: '4.5.6',
       status: 'HEALTHY',
       writeReadiness: {
-        outcome: 'NOT_PROVISIONED',
+        outcome: 'LIVE_READY',
         backend: 'live-test',
-        reason: 'LIVE_PREREQUISITES_UNAVAILABLE',
       },
     });
     expect(calls).toHaveLength(1);

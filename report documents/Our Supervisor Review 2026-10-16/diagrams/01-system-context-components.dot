@@ -1,0 +1,36 @@
+digraph architecture {
+graph [bgcolor="#ffffff", fontname="DejaVu Sans", fontsize=19, fontcolor="#142b49", labelloc=t, labeljust=l, pad=0.28, nodesep=0.38, ranksep=0.60, splines=polyline];
+node [shape=box, style="rounded,filled", fillcolor="#f0f5fc", color="#b6c7df", fontname="DejaVu Sans", fontsize=11, fontcolor="#142b49", penwidth=1.2, margin="0.16,0.12"];
+edge [color="#617894", fontname="DejaVu Sans", fontsize=9, fontcolor="#334e70", penwidth=1.15, arrowsize=0.7];
+rankdir=TB;
+label="System context and component architecture\nCurrent repository structure · modular monolith · 16 October 2026";
+users [label="Students and applicants\nAppointed academic / support staff", fillcolor="#e8f7f1", color="#83bda8"];
+subgraph cluster_web { label="Next.js web application"; style="rounded"; color="#b6c7df"; fontsize=15;
+web [label="Role-specific pages\nPublic / applicant / student / staff"];
+proxy [label="Server loaders and API proxies\nSession-aware route handling"];
+web -> proxy;
+}
+subgraph cluster_api { label="NestJS modular monolith · one API application"; style="rounded"; color="#8fa8cc"; fontsize=15;
+iam [label="IdentityAccess\nSession + selected role/scope\nCSRF / policy / audit"];
+academic [label="Academic modules\nCatalogue · Admissions · Records\nRegistration · Teaching · Assessment"];
+other [label="Other domain modules\nFinance · InstitutionSetup\nAcademicSupport"];
+time [label="Timetabling\nDraft + source validation\nIndependent fictional publication"];
+integration [label="IntegrationService\nDeliveryWorker\nMapping + reconciliation"];
+notices [label="Notifications + Ops\nIn-system notices / operations\nSeparate owner workers"];
+prisma [label="PrismaService\nShared database access", fillcolor="#e8f0ff", color="#7296ca"];
+iam -> academic; iam -> other; iam -> time; iam -> integration; iam -> notices;
+academic -> prisma; other -> prisma; time -> prisma; integration -> prisma; notices -> prisma;
+{rank=same; academic; other; time;}
+{rank=same; integration; notices;}
+academic -> integration [style=invis]; other -> notices [style=invis];
+}
+db [shape=cylinder, label="PostgreSQL\nOfficial SIS records\nOutbox + audit + simulator mirrors", fillcolor="#e8f7f1", color="#83bda8"];
+moodle [label="External Moodle test instance\nGuarded read-only connection checks", fillcolor="#fff7e8", color="#d6b47a"];
+gate [label="LIVE AUTOMATIC DELIVERY: DEFERRED\nNOT_PROVISIONED\nQueued sources and registration retained", fillcolor="#fff7e8", color="#d6b47a"];
+users -> web [label="HTTPS / own session"];
+proxy -> iam [label="JSON HTTP\nAPI rechecks authority"];
+prisma -> db;
+integration -> db [style=dashed, label="local simulator\nactual-state rows", constraint=false];
+integration -> moodle [style=dashed, label="read-only validation", color="#a46612"];
+integration -> gate [style=dashed, color="#a46612"];
+}
