@@ -704,8 +704,12 @@ export class RegistrationService {
         code: required.code,
         result: 'WARNING',
         resultCode: 'REQUIRED_MISSING',
+        // Advisory only: submitRegistration keeps required-but-missing as a
+        // WARNING because registration is per period — a later-period required
+        // course is never an instruction to add it now, and must not read as a
+        // blocking action.
         explanation:
-          'A required course is not in the plan. Add it or seek academic advice.',
+          'Required by your published curriculum, but not in this plan for this period. Warning only — courses for later years register in their own period.',
       });
     }
     return {

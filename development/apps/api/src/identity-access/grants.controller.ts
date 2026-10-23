@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   HttpCode,
   HttpException,
   HttpStatus,
@@ -136,6 +137,33 @@ export class GrantsController {
       message: result.message,
       reference: result.reference,
     };
+  }
+
+  /**
+   * Capabilities the caller may delegate, derived from the configured
+   * ApproverAuthority registry and the caller's live scope. Drives the
+   * delegation selector instead of a hardcoded role list.
+   */
+  @Get('delegable')
+  @UseGuards(SessionGuard)
+  async delegable(@Req() req: GrantRequest) {
+    const actor = req.auth;
+    if (!actor) throw new ForbiddenException(AUTH_MESSAGES.grantDenied.text);
+    const result = await this.grants.delegable({
+      accountId: actor.accountId,
+      activeRole: actor.activeRole,
+      scopeType: actor.scopeType,
+      scopeRef: actor.scopeRef,
+    });
+    await auditAuth(this.prisma, {
+      action: 'QRY-IAM-DelegableCapabilities',
+      outcome: 'ALLOW',
+      actorAccountId: actor.accountId,
+      activeRole: actor.activeRole,
+      scope: actor.scope,
+      purpose: 'delegation-discovery',
+    });
+    return result;
   }
 
   @Post('resolve')

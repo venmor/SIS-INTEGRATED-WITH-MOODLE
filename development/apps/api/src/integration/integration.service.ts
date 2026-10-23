@@ -1132,6 +1132,23 @@ export class IntegrationService {
           !permanent &&
           (error instanceof SimulatorError ||
             (error instanceof MoodleApiError && error.retryable));
+        // A permanently failed provisioning item must not look pending in SIS.
+        if (permanent && typeof payload.itemId === 'string') {
+          await db.moodleProvisionRequestItem.updateMany({
+            where: {
+              id: payload.itemId,
+              state: { in: ['WAITING', 'QUEUED'] },
+            },
+            data: {
+              state: 'FAILED',
+              error: message.slice(0, 500),
+              lastCheckedAt: new Date(),
+            },
+          });
+          if (typeof payload.provisionRequestId === 'string') {
+            await this.settleProvisionRequest(db, payload.provisionRequestId);
+          }
+        }
         await this.failAttempt(
           db,
           outboxId,
@@ -1188,7 +1205,184 @@ export class IntegrationService {
       );
       return;
     }
+    if (type === 'MoodleProvisionRequested') {
+      await this.deliverProvisionRequest(
+        db,
+        payload as {
+          provisionRequestId: string;
+          itemId: string;
+          studentId: string;
+          courseRegistrationId: string | null;
+          offeringId: string | null;
+          periodCode?: string | null;
+        },
+        scenario,
+      );
+      return;
+    }
+    if (type === 'MoodleProvisionRevoked') {
+      await this.deliverProvisionRevoke(
+        db,
+        payload as { provisionRequestId: string; itemId: string; studentId: string },
+        scenario,
+      );
+      return;
+    }
     throw new Error(`MAP_UNKNOWN_TYPE Unknown outbox type ${type}.`);
+  }
+
+  /**
+   * Resolve the offering/period for a provisioning item. Course-level access
+   * still maps onto the offering shell: the SIS registration is the authority
+   * for which offering/period the student belongs to.
+   */
+  private async provisionTarget(
+    db: Tx,
+    item: {
+      id: string;
+      studentId: string;
+      courseRegistrationId: string | null;
+      offeringId: string | null;
+      shellRef: string | null;
+    },
+  ): Promise<{ offeringId: string; periodCode: string; courseCode: string | null }> {
+    let offeringId = item.offeringId;
+    let periodCode: string | null = null;
+    let courseCode: string | null = null;
+
+    if (item.courseRegistrationId) {
+      const course = await db.courseRegistration.findUnique({
+        where: { id: item.courseRegistrationId },
+        include: { course: { select: { code: true } } },
+      });
+      if (!course)
+        throw new Error('SRC_COURSE_REGISTRATION_GONE Course registration vanished.');
+      courseCode = course.course.code;
+      const registration = await db.institutionalRegistration.findUnique({
+        where: { id: course.registrationId },
+        select: { attemptId: true, periodId: true, status: true },
+      });
+      if (!registration)
+        throw new Error('SRC_REGISTRATION_GONE Institutional registration vanished.');
+      if (registration.status !== 'REGISTERED')
+        throw new Error(
+          'SRC_REGISTRATION_NOT_ACTIVE Registration is not active for provisioning.',
+        );
+      const attempt = await db.programmeAttempt.findUnique({
+        where: { id: registration.attemptId },
+        select: { offeringId: true, studentId: true },
+      });
+      if (!attempt) throw new Error('SRC_ATTEMPT_GONE Programme attempt vanished.');
+      if (attempt.studentId !== item.studentId)
+        throw new Error(
+          'SRC_STUDENT_MISMATCH Provisioning item student does not own the registration.',
+        );
+      offeringId = offeringId ?? attempt.offeringId;
+      const period = await db.academicPeriod.findUnique({
+        where: { id: registration.periodId },
+        select: { code: true },
+      });
+      periodCode = period?.code ?? null;
+    }
+
+    if (!offeringId)
+      throw new Error('MAP_OFFERING_MISSING Provisioning item has no offering.');
+    if (!periodCode) {
+      const period = await this.periodForOffering(db, offeringId);
+      periodCode = period.code;
+    }
+    return { offeringId, periodCode, courseCode };
+  }
+
+  private async deliverProvisionRequest(
+    db: Tx,
+    payload: {
+      provisionRequestId: string;
+      itemId: string;
+      studentId: string;
+      courseRegistrationId: string | null;
+      offeringId: string | null;
+      periodCode?: string | null;
+    },
+    scenario: SimScenario,
+  ): Promise<void> {
+    const item = await db.moodleProvisionRequestItem.findUnique({
+      where: { id: payload.itemId },
+    });
+    if (!item)
+      throw new Error('SRC_PROVISION_ITEM_GONE Provisioning item vanished.');
+    if (item.state === 'DELIVERED') return;
+    if (item.state === 'REVOKED' || item.state === 'CANCELLED')
+      throw new Error('SRC_PROVISION_ITEM_CLOSED Provisioning item is closed.');
+
+    const target = await this.provisionTarget(db, item);
+    const periodCode = payload.periodCode ?? target.periodCode;
+    const shell = await this.shellFor(db, target.offeringId, periodCode);
+    await this.adapter().applyEnrolment({
+      db,
+      shell,
+      studentId: item.studentId,
+      role: item.moodleRole ?? 'Student',
+      scenario,
+    });
+
+    await db.moodleProvisionRequestItem.update({
+      where: { id: item.id },
+      data: {
+        state: 'DELIVERED',
+        deliveredAt: new Date(),
+        lastCheckedAt: new Date(),
+        shellRef: shell.ref,
+        error: null,
+      },
+    });
+    await this.settleProvisionRequest(db, payload.provisionRequestId);
+  }
+
+  private async deliverProvisionRevoke(
+    db: Tx,
+    payload: { provisionRequestId: string; itemId: string; studentId: string },
+    _scenario: SimScenario,
+  ): Promise<void> {
+    const item = await db.moodleProvisionRequestItem.findUnique({
+      where: { id: payload.itemId },
+    });
+    if (!item) return;
+    const target = await this.provisionTarget(db, item);
+    const shell = await this.shellFor(db, target.offeringId, target.periodCode);
+    await this.adapter().suspendAccess({
+      db,
+      shell,
+      studentKey: item.studentId,
+    });
+    await db.moodleProvisionRequestItem.update({
+      where: { id: item.id },
+      data: { lastCheckedAt: new Date() },
+    });
+    await this.settleProvisionRequest(db, payload.provisionRequestId);
+  }
+
+  /** Derive the request state from its items (idempotent). */
+  private async settleProvisionRequest(db: Tx, requestId: string): Promise<void> {
+    const items = await db.moodleProvisionRequestItem.findMany({
+      where: { requestId },
+      select: { state: true },
+    });
+    if (items.length === 0) return;
+    const states = items.map((i) => i.state);
+    const now = new Date();
+    let state: string;
+    let deliveredAt: Date | null = null;
+    if (states.some((s) => s === 'FAILED')) state = 'FAILED';
+    else if (states.every((s) => s === 'DELIVERED' || s === 'CANCELLED'))
+      state = 'COMPLETED';
+    else if (states.some((s) => s === 'DELIVERED')) state = 'QUEUED';
+    else state = 'WAITING';
+    if (state === 'COMPLETED') deliveredAt = now;
+    await db.moodleProvisionRequest.update({
+      where: { id: requestId },
+      data: { state, deliveredAt, lastCheckedAt: now },
+    });
   }
 
   private async deliverEnrolment(

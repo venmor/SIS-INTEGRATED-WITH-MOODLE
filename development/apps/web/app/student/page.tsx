@@ -37,12 +37,71 @@ async function loadReadiness(): Promise<ReadinessView | null> {
   }
 }
 
-export default async function StudentPage() {
+type MoodleAccessItem = {
+  courseRegistrationId: string;
+  courseCode: string;
+  courseTitle: string;
+  periodCode: string | null;
+  entitled: boolean;
+  reason: string;
+  validityPolicy: string | null;
+  validUntil: string | null;
+};
+
+/** Reasons stay user-facing and never expose internal identifiers. */
+const MOODLE_REASON: Record<string, string> = {
+  NO_ITEM: "Access has not been assigned for this course yet.",
+  NOT_DELIVERED: "Access is being prepared. Try again shortly.",
+  REVOKED: "Access to this course was withdrawn.",
+  EXPIRED: "Access for this period has ended.",
+  WITHDRAWN: "Your student record is not active.",
+  PERIOD_CLOSED: "The registration period for this course is closed.",
+  COURSE_DROPPED: "You are no longer enrolled in this course.",
+};
+
+function moodleReason(value: string | undefined): string | null {
+  if (!value) return null;
+  if (value === "unavailable")
+    return "We could not reach Moodle just now. Try again shortly.";
+  if (value === "no-destination")
+    return "Moodle access is not configured for this course yet.";
+  return MOODLE_REASON[value] ?? "Moodle access is not available for this course.";
+}
+
+async function loadMoodleAccess(): Promise<MoodleAccessItem[] | null> {
+  const sid = (await cookies()).get("sid")?.value;
+  if (!sid) return null;
+  try {
+    const response = await fetch(
+      `${process.env.API_INTERNAL_URL ?? "http://localhost:3001"}/moodle/my-access`,
+      {
+        headers: { cookie: `sid=${encodeURIComponent(sid)}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as { items?: MoodleAccessItem[] };
+    return body.items ?? [];
+  } catch {
+    return null;
+  }
+}
+
+export default async function StudentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ moodleError?: string | string[] }>;
+}) {
   const home = await loadStudent<StudentHomeView>("/me/home", "/student");
   if (!home.data) return <StudentUnavailable message={home.message} />;
   const board = home.data;
-  const [registration, readiness, notices] = await Promise.all([
-    loadRegistrationStatus(), loadReadiness(), loadMine("/student"),
+  const params = await searchParams;
+  const launchError = moodleReason(
+    Array.isArray(params.moodleError) ? params.moodleError[0] : params.moodleError,
+  );
+  const [registration, readiness, notices, moodle] = await Promise.all([
+    loadRegistrationStatus(), loadReadiness(), loadMine("/student"), loadMoodleAccess(),
   ]);
   const registered = Boolean(registration?.registration && registration.registration.period === board.period);
   const actionNeeded = Boolean(registration && !registered && readiness?.period === board.period &&
@@ -98,6 +157,58 @@ export default async function StudentPage() {
           <article className={styles.taskCard}><h3>Official results</h3><p>Browse released results by period and course.</p><Link href="/student/results">Open results →</Link></article>
           <article className={styles.taskCard}><h3>Notifications</h3><p>{unread == null ? "Updates are unavailable right now." : unread ? `${unread} unread update${unread === 1 ? "" : "s"}` : "No unread updates"}</p><Link href="/student/notifications">Open notifications →</Link></article>
         </div>
+      </section>
+      <section className={styles.taskSection} aria-labelledby="moodle-title">
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.kicker}>Moodle</p>
+            <h2 id="moodle-title">Course access</h2>
+          </div>
+        </div>
+        {launchError ? (
+          <Notice severity="warning" title="Moodle access" message={launchError} />
+        ) : null}
+        {moodle && moodle.length > 0 ? (
+          <div className={styles.grid}>
+            {moodle.map((course) => (
+              <article className={styles.taskCard} key={course.courseRegistrationId}>
+                <h3>{course.courseCode}</h3>
+                <p>{course.courseTitle}</p>
+                {course.entitled ? (
+                  <>
+                    <p>
+                      Open the Moodle course without signing in again.
+                      {course.validityPolicy === "THIS_PERIOD"
+                        ? " Access lasts until the end of this period."
+                        : course.validityPolicy === "ACADEMIC_YEAR"
+                          ? " Access lasts until the end of this academic year."
+                          : " Access lasts while you remain enrolled."}
+                    </p>
+                    <form action="/api/moodle/launch" method="post">
+                      <input
+                        type="hidden"
+                        name="courseRegistrationId"
+                        value={course.courseRegistrationId}
+                      />
+                      <button className={styles.launchButton} type="submit">
+                        Open course <span aria-hidden="true">↗</span>
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <p>
+                    {MOODLE_REASON[course.reason] ??
+                      "Access is not available for this course."}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.meta}>
+            Moodle course access appears here once your registration is complete.
+          </p>
+        )}
       </section>
       {board.pendingCorrections > 0 ? (
         <p className={styles.meta}><Link href="/student/account">{board.pendingCorrections} profile correction request{board.pendingCorrections === 1 ? "" : "s"} awaiting review. View my account →</Link></p>

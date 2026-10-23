@@ -52,6 +52,130 @@ export class GrantsService {
   }
 
   /**
+   * Get all descendant scope IDs (self + children, depth-guarded) so a
+   * delegator's authority is checked against the scopes they actually
+   * oversee, not a hardcoded role list.
+   */
+  private async getScopeDescendants(scopeId: string): Promise<string[]> {
+    const result = await this.prisma.$queryRaw<{ id: string }[]>`
+      WITH RECURSIVE scope_tree AS (
+        SELECT id, "parentScopeId" FROM "Scope" WHERE id = ${scopeId}
+        UNION ALL
+        SELECT s.id, s."parentScopeId" FROM "Scope" s
+        INNER JOIN scope_tree st ON s."parentScopeId" = st.id
+      )
+      SELECT id FROM scope_tree
+    `;
+    return result.map((r) => r.id);
+  }
+
+  /**
+   * Capabilities the signed-in actor may delegate, resolved from the
+   * configured ApproverAuthority registry (capability + target scope per
+   * approver role) against the actor's live assignments. This is what the
+   * grants workspace offers: an institutional policy change to the registry
+   * changes the form, and no role is hardcoded in the UI.
+   */
+  async delegable(actor: {
+    accountId: string;
+    activeRole: string | null;
+    scopeType: string | null;
+    scopeRef: string | null;
+  }) {
+    const now = new Date();
+    const assignments = await this.prisma.roleAssignment.findMany({
+      where: {
+        accountId: actor.accountId,
+        revokedAt: null,
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { role: true, scopeId: true, scopeType: true, scopeRef: true },
+    });
+    if (assignments.length === 0) return { items: [], approver: null };
+
+    const roles = [...new Set(assignments.map((a) => a.role))];
+    const active =
+      (actor.activeRole
+        ? assignments.find(
+            (a) =>
+              a.role === actor.activeRole &&
+              (!actor.scopeType || a.scopeType === actor.scopeType) &&
+              (!actor.scopeRef || a.scopeRef === actor.scopeRef),
+          )
+        : null) ?? null;
+    // Older rows carry no scopeId; resolve the scope by its configured name
+    // (the same fallback provisioning authority uses) so legacy assignments
+    // are not silently treated as having no scope.
+    const roots: string[] = [];
+    for (const assignment of active ? [active] : assignments) {
+      if (assignment.scopeId) roots.push(assignment.scopeId);
+      else {
+        const scope = await this.prisma.scope.findUnique({
+          where: { name: `${assignment.scopeType}:${assignment.scopeRef}` },
+          select: { id: true },
+        });
+        if (scope) roots.push(scope.id);
+      }
+    }
+    const allowed = new Set<string>();
+    for (const root of roots) {
+      for (const id of await this.getScopeDescendants(root)) allowed.add(id);
+    }
+    if (allowed.size === 0) return { items: [], approver: null };
+
+    const authorities = await this.prisma.approverAuthority.findMany({
+      where: {
+        approverRoleId: { in: roles },
+        targetScopeId: { in: [...allowed] },
+        isActive: true,
+      },
+      include: { capability: true, targetScope: true },
+    });
+
+    const seen = new Set<string>();
+    const items = authorities.flatMap((row) => {
+      // Scope effective dates gate delegable authority exactly as they gate
+      // approver authority in validateApproverAuthority.
+      if (row.targetScope.effectiveFrom && row.targetScope.effectiveFrom > now) return [];
+      if (row.targetScope.effectiveTo && row.targetScope.effectiveTo < now) return [];
+      const key = `${row.capability.name}|${row.targetScope.name}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const [scopeType, ...rest] = row.targetScope.name.split(':');
+      return [
+        {
+          capability: row.capability.name,
+          capabilityDescription: row.capability.description,
+          approverRole: row.approverRoleId,
+          targetScopeType: scopeType,
+          targetScopeRef: rest.join(':'),
+          targetScopeName: row.targetScope.name,
+        },
+      ];
+    });
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: actor.accountId },
+      select: {
+        id: true,
+        username: true,
+        person: { select: { displayName: true } },
+      },
+    });
+    return {
+      items,
+      approver: account
+        ? {
+            accountId: account.id,
+            username: account.username,
+            displayName: account.person?.displayName ?? account.username,
+          }
+        : null,
+    };
+  }
+
+  /**
    * Find the Scope entity by scopeType and scopeRef from the grant DTO.
    */
   private async findScopeByTypeAndRef(scopeType: string, scopeRef: string) {

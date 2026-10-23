@@ -33,6 +33,7 @@ const ALLOWED: Record<string, readonly string[]> = {
     "workspace/switch",
     "grants",
     "grants/resolve",
+    "grants/delegable",
     "break-glass",
     "reinstate",
     "step-up/challenge",

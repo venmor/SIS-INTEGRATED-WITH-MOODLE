@@ -21,6 +21,9 @@ export async function seedCapabilitiesScopesSod(prismaClient: PrismaClient) {
     { name: 'view-reports', description: 'View institutional reports and analytics', category: 'ADMIN' },
     { name: 'system-admin', description: 'Full system administration access', category: 'ADMIN' },
     { name: 'audit-access', description: 'Access audit logs and compliance reports', category: 'ADMIN' },
+    { name: 'moodle:provision', description: 'Provision Moodle access for students and staff', category: 'MOODLE' },
+    { name: 'moodle:launch', description: 'Launch Moodle SSO deep-link for entitled students', category: 'MOODLE' },
+    { name: 'moodle:grade-sync', description: 'Sync Moodle grades back to SIS staging', category: 'MOODLE' },
   ];
 
   for (const cap of capabilities) {
@@ -201,6 +204,22 @@ export async function seedCapabilitiesScopesSod(prismaClient: PrismaClient) {
 
     // FINOFFICER has authority over finance
     { approverRoleId: 'FINOFFICER', targetScopeName: 'SYSTEM:GLOBAL', capabilityName: 'manage-finance' },
+
+    // Moodle provisioning authorities (design 2026-10-22). Delegable per policy;
+    // SYSADMIN global, HOD at school level, LECTURER at programme level.
+    { approverRoleId: 'SYSADMIN', targetScopeName: 'SYSTEM:GLOBAL', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'SYSADMIN', targetScopeName: 'SYSTEM:GLOBAL', capabilityName: 'moodle:launch' },
+    { approverRoleId: 'SYSADMIN', targetScopeName: 'SYSTEM:GLOBAL', capabilityName: 'moodle:grade-sync' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:ENGINEERING', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:MEDICINE', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:EDUCATION', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:LAW', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:NATURAL_SCIENCES', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:HUMANITIES', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:BUSINESS', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'HOD', targetScopeName: 'SCHOOL:AGRICULTURE', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'LEC', targetScopeName: 'PROGRAMME:BSC_CS', capabilityName: 'moodle:provision' },
+    { approverRoleId: 'LEC', targetScopeName: 'PROGRAMME:BSC_CS', capabilityName: 'moodle:launch' },
   ];
 
   for (const auth of approverAuthorities) {

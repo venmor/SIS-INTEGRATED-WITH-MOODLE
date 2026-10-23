@@ -11,6 +11,19 @@ import { packageDigest } from './package-integrity.js';
 import { BOARD_DECISIONS, PACKAGE_DECLARATION } from './dto.js';
 
 type Tx = Prisma.TransactionClient;
+
+// Structural shape shared by manual capture and automated Moodle ingestion.
+type SnapshotMapping = {
+  id: string;
+  componentId: string;
+  moodleCourseRef: string;
+  moodleActivityId: string;
+  component: {
+    code: string;
+    maxMark: number;
+    plan: { offeringRef: string; periodCode: string; version: number };
+  };
+};
 const json = (v: unknown) =>
   JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 
@@ -989,24 +1002,246 @@ export class AssessmentService {
         503,
       );
     }
-    const outcomes = new Set<string>(
-      policy.nonNumericOutcomes as readonly string[],
-    );
+    const outcomes = new Set<string>(policy.nonNumericOutcomes as readonly string[]);
     return this.command(
       auth,
       key,
       'StageGradeBatch',
       source ? { ...input, source } : input,
-      async (db) => {
-        // Serialize concurrent stages of the same mapping+revision first;
-        // the replay check below then sees rows committed by a racing
-        // transaction, so concurrent stages converge on one snapshot.
-        await db.$queryRaw`SELECT id FROM "GradeActivityMapping" WHERE id = ${input.mappingId} FOR UPDATE`;
-        // Resource-idempotent: the same mapping+revision returns the stored
-        // batch, so a lost response never creates a second snapshot. The
-        // moderation lock below applies to new revisions only, never to a
-        // replay of an already-stored batch.
-        const replay = await db.gradeBatch.findUnique({
+      (db) =>
+        this.writeSnapshot(
+          db,
+          mapping,
+          input,
+          outcomes,
+          auth.accountId,
+          'LECTURER_CAPTURE',
+          async (tx, batchId) => {
+            await this.audit(tx, auth, 'GradeBatchStaged', batchId, key, {
+              mappingId: input.mappingId,
+              sourceRevision: input.sourceRevision,
+            });
+          },
+          source,
+        ),
+      recheckSource,
+    );
+  }
+
+  /**
+   * Write one immutable staged snapshot. Shared by lecturer capture and by
+   * automated Moodle ingestion so both paths enforce identical quarantine,
+   * identity resolution and provenance rules. Staging never publishes and
+   * never validates: results only become official through moderation and
+   * the existing publication flow.
+   */
+  private async writeSnapshot(
+    db: Tx,
+    mapping: SnapshotMapping,
+    input: {
+      mappingId: string;
+      sourceRevision: string;
+      lines: Array<{ studentRef: string; rawValue?: number; outcome?: string }>;
+    },
+    outcomes: Set<string>,
+    createdByAccountId: string,
+    sourceMode: string,
+    onCreated: (db: Tx, batchId: string) => Promise<void>,
+    source?: {
+      instance: string;
+      transfer: 'LIVE_REST';
+      checksum: string;
+      bindingChecksum: string;
+      runId: string;
+      retrievedAt: string;
+    },
+  ): Promise<{ status?: number; body: unknown }> {
+    // Serialize concurrent stages of the same mapping+revision first;
+    // the replay check below then sees rows committed by a racing
+    // transaction, so concurrent stages converge on one snapshot.
+    await db.$queryRaw`SELECT id FROM "GradeActivityMapping" WHERE id = ${input.mappingId} FOR UPDATE`;
+    // Resource-idempotent: the same mapping+revision returns the stored
+    // batch, so a lost response never creates a second snapshot. The
+    // moderation lock below applies to new revisions only, never to a
+    // replay of an already-stored batch.
+    const replay = await db.gradeBatch.findUnique({
+      where: {
+        mappingId_sourceRevision: {
+          mappingId: input.mappingId,
+          sourceRevision: input.sourceRevision,
+        },
+      },
+      include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (replay) return { body: this.batchView(replay) };
+    // Moderation lock: no new revisions while a case for this component
+    // is open. Returned, referred, and decided cases never block;
+    // corrections flow through new revisions after a return.
+    const openCase = await db.moderationCase.findFirst({
+      where: {
+        status: { in: ['SUBMITTED', 'UNDER_MODERATION', 'CLARIFICATION_REQUESTED'] },
+        batch: { mapping: { componentId: mapping.componentId } },
+      },
+      select: { id: true },
+    });
+    if (openCase) {
+      this.fail(
+        'CASE_OPEN',
+        'Finish or return the open moderation case before staging a new revision.',
+        409,
+        { caseId: openCase.id },
+      );
+    }
+    try {
+      const seen = new Set<string>();
+      const prepared = [];
+      for (const line of input.lines) {
+        const outcome = line.outcome ?? 'MARK_RECORDED';
+        let status = 'STAGED';
+        let flagCode: string | null = null;
+        let converted: number | null = null;
+        let resolvedStudentId: string | null = null;
+        let resolvedAccountId: string | null = null;
+        if (!outcomes.has(outcome)) {
+          status = 'QUARANTINED';
+          flagCode = 'STRUCTURALLY_INVALID';
+        } else if (seen.has(line.studentRef)) {
+          status = 'FLAGGED';
+          flagCode = 'DUPLICATE';
+        } else if (
+          outcome === 'MARK_RECORDED' &&
+          (typeof line.rawValue !== 'number' ||
+            !Number.isFinite(line.rawValue) ||
+            line.rawValue < 0 ||
+            line.rawValue > mapping.component.maxMark)
+        ) {
+          // Malformed values (non-numeric, negative) are structural;
+          // only finite values above the component maximum are range
+          // errors. Either way the line is quarantined, never official.
+          status = 'QUARANTINED';
+          flagCode =
+            typeof line.rawValue === 'number' &&
+            Number.isFinite(line.rawValue) &&
+            line.rawValue > mapping.component.maxMark
+              ? 'OUT_OF_RANGE'
+              : 'STRUCTURALLY_INVALID';
+        } else if (outcome === 'MARK_RECORDED') {
+          // Moodle-only check: a staged mark with no SIS identity behind
+          // it is preserved as evidence but converts to nothing. The
+          // resolved identity is the student/enrolment mapping (DS5 §4);
+          // enrolment-truth disputes belong to the slice-3 swimlanes.
+          const student = await db.student.findUnique({
+            where: { studentNumber: line.studentRef },
+          });
+          if (student) {
+            resolvedStudentId = student.id;
+            // Demo conversion is the identity formula; the applied
+            // policy version travels with the batch, never a bare value.
+            converted = line.rawValue ?? null;
+          } else {
+            const account = await db.account.findUnique({
+              where: { username: line.studentRef },
+            });
+            if (account) {
+              resolvedAccountId = account.id;
+              converted = line.rawValue ?? null;
+            } else {
+              status = 'FLAGGED';
+              flagCode = 'MOODLE_ONLY';
+            }
+          }
+        }
+        seen.add(line.studentRef);
+        prepared.push({
+          studentRef: line.studentRef,
+          rawValue: line.rawValue ?? null,
+          outcome,
+          convertedValue: converted,
+          conversionFormula: converted !== null ? 'identity' : null,
+          resolvedStudentId,
+          resolvedAccountId,
+          status,
+          flagCode,
+        });
+      }
+      // First write wins per student inside one batch: later duplicates
+      // collapse onto the stored row, which carries the DUPLICATE flag.
+      const unique = new Map<string, (typeof prepared)[number]>();
+      for (const row of prepared) {
+        if (!unique.has(row.studentRef)) unique.set(row.studentRef, row);
+        else {
+          const first = unique.get(row.studentRef);
+          if (first && first.flagCode === null) {
+            first.status = 'FLAGGED';
+            first.flagCode = 'DUPLICATE';
+          }
+        }
+      }
+      const created = await db.gradeBatch.create({
+        data: {
+          mappingId: input.mappingId,
+          sourceRevision: input.sourceRevision,
+          status: 'VALIDATED',
+          createdByAccountId,
+          // Frozen DS5 §4 provenance: the source and SIS coordinates in
+          // force at stage time. Later supersedes never rewrite these.
+          moodleInstance: source?.instance ?? moodle.provider,
+          moodleCourseRef: mapping.moodleCourseRef,
+          moodleActivityId: mapping.moodleActivityId,
+          offeringRef: mapping.component.plan.offeringRef,
+          periodCode: mapping.component.plan.periodCode,
+          componentCode: mapping.component.code,
+          planVersion: mapping.component.plan.version,
+          policyVersion: policy.version,
+          sourceResponse: json({
+            sourceRevision: input.sourceRevision,
+            receivedLines: input.lines.length,
+            receivedAt: new Date().toISOString(),
+            instance: source?.instance ?? moodle.provider,
+            ...(source ?? {}),
+            ingestion: sourceMode,
+          }),
+          lines: { create: [...unique.values()] },
+        },
+        include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
+      });
+      await db.outboxEvent.create({
+        data: {
+          aggregate: 'GradeBatch',
+          aggregateId: created.id,
+          type: 'MoodleGradeTransferStaged',
+          payload: json({
+            batchId: created.id,
+            mappingId: input.mappingId,
+            sourceRevision: input.sourceRevision,
+            lineCount: created.lines.length,
+            quarantined: created.lines.filter(
+              (l) => l.status !== 'STAGED',
+            ).length,
+            policyVersion: policy.version,
+            // Canonical chain (GAP-022 interim): ACT-ASM-001 +
+            // CMD-LRN-StageMoodleGradeTransfer +
+            // INT-Moodle-GradeTransfer-v1 +
+            // EVT-MoodleGradeTransferStaged-v1.
+            chain: {
+              act: 'ACT-ASM-001',
+              command: 'CMD-LRN-StageMoodleGradeTransfer',
+              interface: 'INT-Moodle-GradeTransfer-v1',
+              event: 'EVT-MoodleGradeTransferStaged-v1',
+            },
+          }),
+        },
+      });
+      await onCreated(db, created.id);
+      return { body: this.batchView(created) };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        // A concurrent stage of the same revision landed first:
+        // converge on the stored snapshot instead of a second one.
+        const stored = await db.gradeBatch.findUniqueOrThrow({
           where: {
             mappingId_sourceRevision: {
               mappingId: input.mappingId,
@@ -1015,198 +1250,86 @@ export class AssessmentService {
           },
           include: { lines: true, findings: { orderBy: { createdAt: 'asc' } } },
         });
-        if (replay) return { body: this.batchView(replay) };
-        // Moderation lock: no new revisions while a case for this component
-        // is open. Returned, referred, and decided cases never block;
-        // corrections flow through new revisions after a return.
-        const openCase = await db.moderationCase.findFirst({
-          where: {
-            status: {
-              in: ['SUBMITTED', 'UNDER_MODERATION', 'CLARIFICATION_REQUESTED'],
-            },
-            batch: { mapping: { componentId: mapping.componentId } },
-          },
-          select: { id: true },
-        });
-        if (openCase) {
-          this.fail(
-            'CASE_OPEN',
-            'Finish or return the open moderation case before staging a new revision.',
-            409,
-            { caseId: openCase.id },
-          );
-        }
-        try {
-          const seen = new Set<string>();
-          const prepared = [];
-          for (const line of input.lines) {
-            const outcome = line.outcome ?? 'MARK_RECORDED';
-            let status = 'STAGED';
-            let flagCode: string | null = null;
-            let converted: number | null = null;
-            let resolvedStudentId: string | null = null;
-            let resolvedAccountId: string | null = null;
-            if (!outcomes.has(outcome)) {
-              status = 'QUARANTINED';
-              flagCode = 'STRUCTURALLY_INVALID';
-            } else if (seen.has(line.studentRef)) {
-              status = 'FLAGGED';
-              flagCode = 'DUPLICATE';
-            } else if (
-              outcome === 'MARK_RECORDED' &&
-              (typeof line.rawValue !== 'number' ||
-                !Number.isFinite(line.rawValue) ||
-                line.rawValue < 0 ||
-                line.rawValue > mapping.component.maxMark)
-            ) {
-              // Malformed values (non-numeric, negative) are structural;
-              // only finite values above the component maximum are range
-              // errors. Either way the line is quarantined, never official.
-              status = 'QUARANTINED';
-              flagCode =
-                typeof line.rawValue === 'number' &&
-                Number.isFinite(line.rawValue) &&
-                line.rawValue > mapping.component.maxMark
-                  ? 'OUT_OF_RANGE'
-                  : 'STRUCTURALLY_INVALID';
-            } else if (outcome === 'MARK_RECORDED') {
-              // Moodle-only check: a staged mark with no SIS identity behind
-              // it is preserved as evidence but converts to nothing. The
-              // resolved identity is the student/enrolment mapping (DS5 §4);
-              // enrolment-truth disputes belong to the slice-3 swimlanes.
-              const student = await db.student.findUnique({
-                where: { studentNumber: line.studentRef },
-              });
-              if (student) {
-                resolvedStudentId = student.id;
-                // Demo conversion is the identity formula; the applied
-                // policy version travels with the batch, never a bare value.
-                converted = line.rawValue ?? null;
-              } else {
-                const account = await db.account.findUnique({
-                  where: { username: line.studentRef },
-                });
-                if (account) {
-                  resolvedAccountId = account.id;
-                  converted = line.rawValue ?? null;
-                } else {
-                  status = 'FLAGGED';
-                  flagCode = 'MOODLE_ONLY';
-                }
-              }
-            }
-            seen.add(line.studentRef);
-            prepared.push({
-              studentRef: line.studentRef,
-              rawValue: line.rawValue ?? null,
-              outcome,
-              convertedValue: converted,
-              conversionFormula: converted !== null ? 'identity' : null,
-              resolvedStudentId,
-              resolvedAccountId,
-              status,
-              flagCode,
-            });
-          }
-          // First write wins per student inside one batch: later duplicates
-          // collapse onto the stored row, which carries the DUPLICATE flag.
-          const unique = new Map<string, (typeof prepared)[number]>();
-          for (const row of prepared) {
-            if (!unique.has(row.studentRef)) unique.set(row.studentRef, row);
-            else {
-              const first = unique.get(row.studentRef);
-              if (first && first.flagCode === null) {
-                first.status = 'FLAGGED';
-                first.flagCode = 'DUPLICATE';
-              }
-            }
-          }
-          const created = await db.gradeBatch.create({
-            data: {
+        return { body: this.batchView(stored) };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Automated source ingestion (Moodle -> SIS staging), design 2026-10-22.
+   *
+   * Called only by the integration layer after it has verified the caller's
+   * capability (or the approved automatic-sync flag). No lecturer actor is
+   * fabricated: the guardrails are an ACTIVE mapping, an ACTIVE Moodle shell
+   * and the same quarantine rules as manual capture. The batch is staged
+   * only — never validated, moderated, published or released here.
+   */
+  async stageBatchFromSource(input: {
+    mappingId: string;
+    sourceRevision: string;
+    lines: Array<{ studentRef: string; rawValue?: number; outcome?: string }>;
+    reason?: string;
+  }) {
+    const mapping = await this.prisma.gradeActivityMapping.findUnique({
+      where: { id: input.mappingId },
+      include: { component: { include: { plan: true } } },
+    });
+    if (!mapping) this.fail('NOT_FOUND', 'Grade mapping not found.', 404);
+    if (mapping.status !== 'ACTIVE') {
+      this.fail(
+        'MAPPING_REQUIRED',
+        'Grades stage only through an ACTIVE mapping. Test and activate the mapping first.',
+        409,
+      );
+    }
+    const shell = await this.prisma.moodleMapping.findFirst({
+      where: {
+        kind: 'SHELL',
+        status: 'ACTIVE',
+        moodleId: mapping.moodleCourseRef,
+      },
+    });
+    if (!shell) {
+      this.fail(
+        'SOURCE_UNAVAILABLE',
+        'The Moodle source is unreachable. Staged batches are preserved; retry once the source recovers.',
+        503,
+      );
+    }
+    if (input.lines.length === 0) {
+      this.fail('EMPTY_BATCH', 'The grade feed carried no lines.', 400);
+    }
+    const outcomes = new Set<string>(policy.nonNumericOutcomes as readonly string[]);
+    return this.prisma.$transaction((db) =>
+      this.writeSnapshot(
+        db,
+        mapping,
+        input,
+        outcomes,
+        'SYSTEM',
+        'MOODLE_AUTO_SYNC',
+        async (tx, batchId) => {
+          await tx.auditEvent.create({
+          data: {
+            action: 'GradeBatchStaged',
+            actorAccountId: 'SYSTEM',
+            activeRole: null,
+            scope: `ASSESSMENT:${batchId}`,
+            targetRef: batchId,
+            outcome: 'ALLOW',
+            reason: input.reason ?? 'moodle-auto-sync',
+            correlationId: randomUUID(),
+            policyVersion: policy.version,
+            purpose: 'moodle-grade-sync',
+            metadata: json({
               mappingId: input.mappingId,
               sourceRevision: input.sourceRevision,
-              status: 'VALIDATED',
-              createdByAccountId: auth.accountId,
-              // Frozen DS5 §4 provenance: the source and SIS coordinates in
-              // force at stage time. Later supersedes never rewrite these.
-              moodleInstance: source?.instance ?? moodle.provider,
-              moodleCourseRef: mapping.moodleCourseRef,
-              moodleActivityId: mapping.moodleActivityId,
-              offeringRef: mapping.component.plan.offeringRef,
-              periodCode: mapping.component.plan.periodCode,
-              componentCode: mapping.component.code,
-              planVersion: mapping.component.plan.version,
-              policyVersion: policy.version,
-              sourceResponse: json({
-                sourceRevision: input.sourceRevision,
-                receivedLines: input.lines.length,
-                receivedAt: new Date().toISOString(),
-                instance: source?.instance ?? moodle.provider,
-                ...(source ?? {}),
-              }),
-              lines: { create: [...unique.values()] },
-            },
-            include: {
-              lines: true,
-              findings: { orderBy: { createdAt: 'asc' } },
-            },
-          });
-          await db.outboxEvent.create({
-            data: {
-              aggregate: 'GradeBatch',
-              aggregateId: created.id,
-              type: 'MoodleGradeTransferStaged',
-              payload: json({
-                batchId: created.id,
-                mappingId: input.mappingId,
-                sourceRevision: input.sourceRevision,
-                lineCount: created.lines.length,
-                quarantined: created.lines.filter((l) => l.status !== 'STAGED')
-                  .length,
-                policyVersion: policy.version,
-                // Canonical chain (GAP-022 interim): ACT-ASM-001 +
-                // CMD-LRN-StageMoodleGradeTransfer +
-                // INT-Moodle-GradeTransfer-v1 +
-                // EVT-MoodleGradeTransferStaged-v1.
-                chain: {
-                  act: 'ACT-ASM-001',
-                  command: 'CMD-LRN-StageMoodleGradeTransfer',
-                  interface: 'INT-Moodle-GradeTransfer-v1',
-                  event: 'EVT-MoodleGradeTransferStaged-v1',
-                },
-              }),
-            },
-          });
-          await this.audit(db, auth, 'GradeBatchStaged', created.id, key, {
-            mappingId: input.mappingId,
-            sourceRevision: input.sourceRevision,
-          });
-          return { body: this.batchView(created) };
-        } catch (error) {
-          if (
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === 'P2002'
-          ) {
-            // A concurrent stage of the same revision landed first:
-            // converge on the stored snapshot instead of a second one.
-            const stored = await db.gradeBatch.findUniqueOrThrow({
-              where: {
-                mappingId_sourceRevision: {
-                  mappingId: input.mappingId,
-                  sourceRevision: input.sourceRevision,
-                },
-              },
-              include: {
-                lines: true,
-                findings: { orderBy: { createdAt: 'asc' } },
-              },
-            });
-            return { body: this.batchView(stored) };
-          }
-          throw error;
-        }
-      },
-      recheckSource,
+              source: 'MOODLE_AUTO_SYNC',
+            }),
+          },
+        });
+      }),
     );
   }
 

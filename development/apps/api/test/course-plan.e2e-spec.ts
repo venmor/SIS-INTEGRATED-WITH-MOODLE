@@ -476,6 +476,17 @@ describe('Phase 4 course selection and validation', () => {
     );
     expect(missing.length).toBeGreaterThan(0);
     expect(missing.every((v) => v.result === 'WARNING')).toBe(true);
+    // Advisory wording: booking a later-period required course is not an
+    // instruction for this period, so the explanation must say it is only a
+    // warning and must not tell the student to "Add it".
+    expect(
+      missing.every(
+        (v) =>
+          /warning only/i.test(v.explanation) &&
+          /own period/i.test(v.explanation) &&
+          !/add it/i.test(v.explanation),
+      ),
+    ).toBe(true);
   });
 
   it('plan-version: covered by update test', async () => {

@@ -64,6 +64,7 @@ model Account {
   timetableDemoMasterDrafts TimetableDemoMasterDraft[]
   demoSetupVersions DemoInstitutionSetupVersion[] @relation("SetupProposer")
   demoSetupActivations DemoInstitutionSetupActivation[] @relation("SetupApprover")
+  moodleProvisionRequests MoodleProvisionRequest[]
 
   @@index([personId])
   timetablePublications TimetableDemoPublication[]
@@ -164,6 +165,7 @@ model Scope {
   capabilityLinks CapabilityScope[]
   authorities     ApproverAuthority[]
   roleAssignments RoleAssignment[] // Back-reference from RoleAssignment.scopeId
+  moodleProvisionRequests MoodleProvisionRequest[]
 
   @@index([parentScopeId])
   @@index([capabilityId])
@@ -358,6 +360,8 @@ model OutboxEvent {
   attempts    IntegrationDeliveryAttempt[]
   liveDeliveryClaims MoodleLiveDeliveryClaim[]
   timetableNotificationDispatch TimetableNotificationDispatch?
+  moodleProvisionRequests MoodleProvisionRequest[]
+  moodleProvisionItems MoodleProvisionRequestItem[]
 
   @@index([deliveredAt, occurredAt])
   @@index([type, aggregate, occurredAt])
@@ -504,6 +508,7 @@ model ProgrammeOffering {
   attempts ProgrammeAttempt[]
   tutorialGroups TutorialGroup[]
   teachingAssignments TeachingAssignment[]
+  moodleProvisionItems MoodleProvisionRequestItem[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -864,6 +869,7 @@ model Student {
   resolvedGradeLines GradeLine[]
   advisers StudentAdviserAssignment[]
   academicRequests AcademicSupportRequest[]
+  moodleProvisionItems MoodleProvisionRequestItem[]
   @@index([status, createdAt])
 }
 
@@ -2000,6 +2006,7 @@ model CourseRegistration {
   @@index([registrationId, status])
   timetableStudentSessions TimetableStudentSession[]
   liveDeliveryClaims MoodleLiveDeliveryClaim[]
+  moodleProvisionItems MoodleProvisionRequestItem[]
 }
 
 // Phase 4 slice 6: registration amendments and waitlist. Snapshots stay
@@ -2793,4 +2800,89 @@ model MoodleLiveDeliverySchedule {
   occurredAt DateTime?
   outboxId String?
   updatedAt DateTime @updatedAt
+}
+
+// Moodle access provisioning (design 2026-10-22). Staff with delegated
+// `moodle:provision:*` authority can assign Moodle access to students for
+// specific registered courses. State machine: WAITING -> QUEUED -> DELIVERED
+// | FAILED | CANCELLED | REVOKED. Removals suspend; history is retained.
+model MoodleProvisionRequest {
+  id                String   @id @default(uuid())
+  requestId         String   @unique
+  requestedByAccountId String
+  requester         Account  @relation(fields: [requestedByAccountId], references: [id], onDelete: Restrict)
+  state             String   @default("WAITING") // WAITING|QUEUED|DELIVERED|FAILED|CANCELLED|REVOKED
+  scopeType         String?
+  scopeRef          String?
+  scopeId           String?
+  scope             Scope?   @relation(fields: [scopeId], references: [id], onDelete: SetNull)
+  reason            String?
+  metadata          Json?
+  validityPolicy    String   @default("WHILE_ENROLLED") // THIS_PERIOD|ACADEMIC_YEAR|WHILE_ENROLLED
+  validUntil        DateTime?
+  revokedAt         DateTime?
+  revokeReason      String?
+  outboxId          String?
+  outbox            OutboxEvent? @relation(fields: [outboxId], references: [id], onDelete: SetNull)
+  deliveredAt       DateTime?
+  error             String?
+  lastCheckedAt     DateTime?
+  items             MoodleProvisionRequestItem[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([requestId, state])
+  @@index([requestedByAccountId, state])
+  @@index([scopeId, state])
+  @@index([state, createdAt])
+}
+
+// Moodle SSO launch ticket (design 2026-10-22, entitlement-based). A launch
+// is a single-use, short-lived credential for one student+course. Access
+// itself is decided by MoodleEntitlementService from SIS state (registration,
+// period, policy expiry, revocation) — not by this ticket's age.
+model MoodleLaunchTicket {
+  id                   String    @id @default(uuid())
+  tokenHash            String    @unique
+  studentId            String
+  courseRegistrationId String
+  provisionItemId      String?
+  issuedToAccountId    String
+  expiresAt            DateTime
+  usedAt               DateTime?
+  createdAt            DateTime  @default(now())
+  @@index([studentId, createdAt])
+  @@index([expiresAt, usedAt])
+}
+
+// One provisioned student+course pairing within a request. Each item maps
+// to one Moodle enrolment (shell + role) via the simulator or live adapter.
+model MoodleProvisionRequestItem {
+  id                String   @id @default(uuid())
+  requestId         String
+  request           MoodleProvisionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  courseRegistrationId String?
+  courseRegistration CourseRegistration? @relation(fields: [courseRegistrationId], references: [id], onDelete: SetNull)
+  offeringId        String?
+  offering          ProgrammeOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  state             String   @default("WAITING") // WAITING|QUEUED|DELIVERED|FAILED|CANCELLED|REVOKED
+  moodleRole        String   @default("Student")
+  shellRef          String?
+  validityPolicy    String   @default("WHILE_ENROLLED") // THIS_PERIOD|ACADEMIC_YEAR|WHILE_ENROLLED
+  validUntil        DateTime?
+  outboxId          String?
+  outbox            OutboxEvent? @relation(fields: [outboxId], references: [id], onDelete: SetNull)
+  deliveredAt       DateTime?
+  error             String?
+  lastCheckedAt     DateTime?
+  revokedAt         DateTime?
+  revokeReason      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([requestId, studentId, courseRegistrationId], map: "MoodleProvisionItem_target_key")
+  @@index([requestId, state])
+  @@index([studentId, state])
+  @@index([offeringId, state])
+  @@index([state, validUntil])
 }

@@ -91,6 +91,14 @@
   transform: translateY(-1px);
 }
 
+/* Same affordance as .primaryAction, for form submit buttons. */
+.launchButton {
+  composes: primaryAction;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
 .taskSection,
 .recordSection {
   display: grid;
