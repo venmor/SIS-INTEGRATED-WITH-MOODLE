@@ -83,6 +83,7 @@ export function NotificationActions({
           <button
             type="button"
             disabled={pending}
+            aria-label={`Mark as read: ${item.title}`}
             onClick={() =>
               void run(`/records/${item.id}/read`, {
                 idempotencyKey: crypto.randomUUID(),
@@ -96,6 +97,7 @@ export function NotificationActions({
           <button
             type="button"
             disabled={pending}
+            aria-label={`Mute notices: ${item.title}`}
             onClick={() =>
               void run(`/records/${item.id}/suppress`, {
                 idempotencyKey: crypto.randomUUID(),
