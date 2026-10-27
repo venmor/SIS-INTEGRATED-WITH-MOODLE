@@ -71,6 +71,7 @@ export function PasswordField({
         className={styles.toggle}
         aria-pressed={visible}
         aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        aria-controls={id}
         onClick={() => setVisible((v) => !v)}
       >
         {visible ? "Hide" : "Show"}
