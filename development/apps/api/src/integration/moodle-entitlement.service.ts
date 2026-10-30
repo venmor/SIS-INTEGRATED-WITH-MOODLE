@@ -91,12 +91,38 @@ export class MoodleEntitlementService {
       return { entitled: false, reason: 'NOT_DELIVERED', itemId: item.id };
     }
 
-    const mapping = item.shellRef
-      ? await (db as any).moodleMapping.findFirst({
-          where: { kind: 'SHELL', moodleId: item.shellRef, status: 'ACTIVE' },
-          select: { moodleId: true },
-        })
-      : null;
+    // Resolve the Moodle course behind the delivered item.
+    //
+    // The live path keys its SHELL mapping by `offeringId:periodCode` and
+    // rewrites `moodleId` from the shell shortname to the numeric Moodle
+    // course id once the shell exists (integration.service.ts ensureShellFor),
+    // while the provisioning item keeps the shortname. Matching the item
+    // against `moodleId` therefore never resolves on a live site, so the
+    // mapping is found by the same key the shell was created with. The direct
+    // shortname match is kept for the simulator, whose shell reference is the
+    // stored id.
+    const period = await (db as any).academicPeriod.findUnique({
+      where: { id: registration.periodId },
+      select: { code: true },
+    });
+    const mapping =
+      (item.offeringId && period?.code
+        ? await (db as any).moodleMapping.findFirst({
+            where: {
+              kind: 'SHELL',
+              sisType: 'OFFERING',
+              sisId: `${item.offeringId}:${period.code}`,
+              status: 'ACTIVE',
+            },
+            select: { moodleId: true },
+          })
+        : null) ??
+      (item.shellRef
+        ? await (db as any).moodleMapping.findFirst({
+            where: { kind: 'SHELL', moodleId: item.shellRef, status: 'ACTIVE' },
+            select: { moodleId: true },
+          })
+        : null);
 
     return {
       entitled: true,

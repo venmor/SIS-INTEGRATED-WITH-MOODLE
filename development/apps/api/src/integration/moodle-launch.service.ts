@@ -1,9 +1,11 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import type { MoodleLaunchTicket } from '@prisma/client';
 import { PrismaService } from '../identity-access/prisma.service.js';
 import type { ActiveAuthority } from '../identity-access/active-authority.js';
 import { auditAuth } from '../identity-access/audit.js';
 import { MoodleEntitlementService } from './moodle-entitlement.service.js';
+import type { Entitlement } from './moodle-entitlement.service.js';
 
 interface LaunchAuthority extends ActiveAuthority {
   scopeType?: string | null;
@@ -12,6 +14,16 @@ interface LaunchAuthority extends ActiveAuthority {
 
 /** Launch credentials are single-use and short-lived; access is entitlement-based. */
 const TICKET_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Lifetime of the Moodle-side SSO assertion. It is deliberately shorter than
+ * the ticket: the assertion is verified by Moodle without asking SIS again, so
+ * it trades a small replay window for a credential that never has to survive a
+ * network round trip. Moodle additionally refuses it unless the student really
+ * is enrolled in the named course, so a revoked enrolment fails closed even
+ * inside the window.
+ */
+const SSO_ASSERTION_TTL_MS = 60 * 1000;
 
 /**
  * Moodle SSO launch service (design 2026-10-22).
@@ -166,9 +178,31 @@ export class MoodleLaunchService {
 
     const bridge = process.env.MOODLE_SSO_BRIDGE_URL;
     const courseUrl = this.courseUrl(resolved.moodleCourseRef ?? input.shellRef);
-    const launchUrl = bridge
-      ? `${bridge}${bridge.includes('?') ? '&' : '?'}sso=${encodeURIComponent(signed)}`
-      : courseUrl;
+
+    // With a bridge configured, the launch becomes a real single sign-on: the
+    // student is signed into Moodle, not merely sent to a course page. Without
+    // the numeric Moodle identities behind that entitlement, or without a
+    // bridge, the launch honestly reports a deep link instead of pretending.
+    let mode: 'SSO' | 'DEEP_LINK_ONLY' = 'DEEP_LINK_ONLY';
+    let launchUrl = courseUrl;
+    if (bridge) {
+      const identities = await this.moodleIdentities(studentId!, resolved.moodleCourseRef ?? null);
+      const assertion = identities
+        ? this.signAssertion({
+            v: 1,
+            uid: identities.moodleUserId,
+            cid: identities.moodleCourseId,
+            sub: studentId!,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor((Date.now() + SSO_ASSERTION_TTL_MS) / 1000),
+            nonce: randomUUID(),
+          })
+        : null;
+      if (assertion) {
+        launchUrl = `${bridge}${bridge.includes('?') ? '&' : '?'}sso=${encodeURIComponent(assertion)}`;
+        mode = 'SSO';
+      }
+    }
 
     await auditAuth(this.prisma, {
       action: 'CMD-Moodle-LaunchIssue',
@@ -179,12 +213,12 @@ export class MoodleLaunchService {
       targetRef: studentId!,
       reason: 'launch-issued',
       purpose: 'moodle-launch',
-      metadata: { courseRegistrationId: input.courseId, mode: bridge ? 'SSO' : 'DEEP_LINK_ONLY' },
+      metadata: { courseRegistrationId: input.courseId, mode },
     });
 
     return {
       ok: true as const,
-      mode: bridge ? 'SSO' : 'DEEP_LINK_ONLY',
+      mode,
       launchUrl,
       expiresAt: expiresAt.toISOString(),
       entitlement: {
@@ -192,6 +226,40 @@ export class MoodleLaunchService {
         validUntil: resolved.validUntil ?? null,
       },
     };
+  }
+
+  /**
+   * Resolve the numeric Moodle identities an entitled launch maps to: the
+   * course shell the student may enter and the Moodle account that student has.
+   * Returns null when either is unknown, so a launch degrades to a deep link
+   * rather than issuing a credential Moodle could not honour.
+   */
+  private async moodleIdentities(
+    studentId: string,
+    courseRef: string | null,
+  ): Promise<{ moodleCourseId: number; moodleUserId: number } | null> {
+    if (courseRef === null || !/^\d+$/.test(courseRef)) return null;
+    const userMapping = await this.prisma.moodleMapping.findFirst({
+      where: { kind: 'USER', sisType: 'STUDENT', sisId: studentId, status: 'ACTIVE' },
+      select: { moodleId: true },
+    });
+    if (!userMapping || !/^\d+$/.test(userMapping.moodleId)) return null;
+    return { moodleCourseId: Number(courseRef), moodleUserId: Number(userMapping.moodleId) };
+  }
+
+  /**
+   * Sign a Moodle SSO assertion: `base64url(payload).base64url(hmac)`.
+   *
+   * The key is shared with the bridge installed inside the Moodle site, which
+   * verifies it with hash_equals, checks the expiry, refuses a repeated nonce
+   * and confirms the student is genuinely enrolled in that course.
+   */
+  private signAssertion(payload: Record<string, unknown>): string | null {
+    const key = process.env.MOODLE_SSO_SIGNING_KEY;
+    if (!key || key.length < 32) return null;
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const mac = createHmac('sha256', key).update(body).digest('base64url');
+    return `${body}.${mac}`;
   }
 
   /**
@@ -270,11 +338,13 @@ export class MoodleLaunchService {
   }
 
   /**
-   * Consume a launch ticket exactly once and return the destination URL.
-   * Entitlement is re-checked at consumption so a revocation between issue
-   * and use still fails closed.
+   * Redeem a ticket once — signature, store, expiry, single use and
+   * entitlement. Both consumers go through here so a revocation between issue
+   * and use always fails closed and a ticket can never be spent twice.
    */
-  async consumeLaunchToken(token: string) {
+  private async redeem(token: string): Promise<
+    { ok: true; ticket: MoodleLaunchTicket; resolved: Entitlement } | { ok: false; reason: string }
+  > {
     const parts = token.split('.');
     if (parts.length !== 3) return { ok: false as const, reason: 'MALFORMED' };
     const [raw, nonce, signature] = parts;
@@ -303,10 +373,53 @@ export class MoodleLaunchService {
       data: { usedAt: new Date() },
     });
 
+    return { ok: true as const, ticket, resolved };
+  }
+
+  /**
+   * Consume a launch ticket exactly once and return the destination URL.
+   * Entitlement is re-checked at consumption so a revocation between issue
+   * and use still fails closed.
+   */
+  async consumeLaunchToken(token: string) {
+    const result = await this.redeem(token);
+    if (!result.ok) return result;
     return {
       ok: true as const,
-      url: this.courseUrl(resolved.moodleCourseRef ?? null),
+      url: this.courseUrl(result.resolved.moodleCourseRef ?? null),
     };
+  }
+
+  /**
+   * Moodle-side bridge resolution (design 2026-10-22).
+   *
+   * A browser cannot log into Moodle with an SIS ticket by itself: the
+   * trusted bridge inside the Moodle site redeems the same single-use ticket
+   * over the server-to-server interface and opens a real Moodle session for
+   * the student the ticket was issued to. This returns exactly the two Moodle
+   * identities that needs — the numeric course id of the entitled shell and
+   * the numeric user id of the entitled student — and nothing else.
+   *
+   * Fails closed when no delivered course shell is mapped yet, or the student
+   * has no active Moodle user mapping.
+   */
+  async resolveBridgeTicket(token: string) {
+    const result = await this.redeem(token);
+    if (!result.ok) return result;
+
+    const identities = await this.moodleIdentities(
+      result.ticket.studentId,
+      result.resolved.moodleCourseRef ?? null,
+    );
+    if (!identities) {
+      const missing =
+        result.resolved.moodleCourseRef && /^\d+$/.test(String(result.resolved.moodleCourseRef))
+          ? 'NO_MOODLE_USER'
+          : 'NO_MOODLE_COURSE';
+      return { ok: false as const, reason: missing };
+    }
+
+    return { ok: true as const, ...identities };
   }
 
   private async requireStaffAuthority(auth: LaunchAuthority) {

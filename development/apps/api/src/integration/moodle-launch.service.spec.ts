@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpException } from '@nestjs/common';
 import { MoodleLaunchService } from './moodle-launch.service.js';
@@ -25,6 +26,8 @@ function prismaWith(options: {
   ownStudentId?: string | null;
   ticket?: TicketRow | null;
   onTicketUpdate?: (data: Record<string, unknown>) => void;
+  /** Active Moodle user mapping for the student; null when none exists yet. */
+  userMapping?: { moodleId: string } | null;
 } = {}) {
   return {
     account: {
@@ -41,6 +44,12 @@ function prismaWith(options: {
         audits.push(args.data);
         return { correlationId: 'corr' };
       },
+    },
+    moodleMapping: {
+      findFirst: async () =>
+        options.userMapping === undefined
+          ? { moodleId: '5' }
+          : options.userMapping,
     },
     moodleLaunchTicket: {
       create: async (args: { data: Record<string, unknown> }) => ({
@@ -59,6 +68,18 @@ function prismaWith(options: {
 
 function entitlementWith(result: Entitlement) {
   return { resolve: vi.fn(async () => result) } as never;
+}
+
+/**
+ * The bridge assertion is `base64url(payload).base64url(hmac)`, verified inside
+ * the Moodle site with the same key. Tests decode it the same way so a change
+ * to the payload or the signature is caught here rather than at login.
+ */
+function decodeAssertion(assertion: string): Record<string, unknown> {
+  const [body, mac] = assertion.split('.');
+  const expected = createHmac('sha256', KEY).update(body).digest('base64url');
+  expect(mac).toBe(expected);
+  return JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
 }
 
 const entitled: Entitlement = {
@@ -80,18 +101,30 @@ const studentAuth = {
   scopeRef: 'BSC_CS',
 };
 
-async function issueWithBridge(
-  service: MoodleLaunchService,
-): Promise<string> {
-  const issued = await service.createLaunchToken(studentAuth, {
-    studentId: 'student-own',
-    courseId: 'course-1',
-    shellRef: null,
-  });
-  expect(issued.ok).toBe(true);
-  const url = new URL(issued.launchUrl!);
-  return url.searchParams.get('sso')!;
+/**
+ * Mint a SIS launch ticket credential (`raw.nonce.hmac`) — the form the
+ * `/moodle/launch/consume/:token` route accepts. It is signed with the same
+ * key and structure the service uses, so the signature check is exercised for
+ * real; the fake store returns the configured ticket row whatever its hash is.
+ *
+ * This is a different credential from the SSO assertion the bridge receives:
+ * `createLaunchToken` puts the assertion in the launch URL, so the ticket
+ * itself is not returned to the caller.
+ */
+function mintTicket(): string {
+  const raw = randomBytes(32).toString('base64url');
+  const nonce = randomUUID();
+  const signature = createHmac('sha256', KEY)
+    .update(`${raw}.${nonce}`)
+    .digest('hex');
+  return `${raw}.${nonce}.${signature}`;
 }
+
+const unusedTicket: TicketRow = {
+  id: 'ticket-1',
+  usedAt: null,
+  expiresAt: new Date(Date.now() + 60_000),
+};
 
 beforeEach(() => {
   audits.length = 0;
@@ -107,6 +140,43 @@ afterEach(() => {
 });
 
 describe('Moodle launch issue', () => {
+  it('stores a single-use ticket and audits the grant', async () => {
+    const captured: Record<string, unknown>[] = [];
+    const fake = prismaWith({ ownStudentId: 'student-own' });
+    const create = fake.moodleLaunchTicket.create;
+    const service = new MoodleLaunchService(
+      {
+        ...fake,
+        moodleLaunchTicket: {
+          ...fake.moodleLaunchTicket,
+          create: async (args: { data: Record<string, unknown> }) => {
+            captured.push(args.data);
+            return create(args);
+          },
+        },
+      } as never,
+      entitlementWith(entitled),
+    );
+    const result = await service.createLaunchToken(studentAuth, {
+      studentId: 'student-own',
+      courseId: 'course-1',
+      shellRef: null,
+    });
+    expect(result.mode).toBe('SSO');
+    // The ticket is stored hashed and bound to this student, course and item,
+    // and it never appears in the URL the browser is sent to.
+    expect(captured).toHaveLength(1);
+    const stored = captured[0] as Record<string, unknown> & { tokenHash: string };
+    expect(stored).toMatchObject({
+      studentId: 'student-own',
+      courseRegistrationId: 'course-1',
+      provisionItemId: 'item-1',
+      issuedToAccountId: 'account-1',
+    });
+    expect(stored.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.launchUrl).not.toContain(stored.tokenHash);
+  });
+
   it('issues an SSO bridge link for the student own course', async () => {
     const service = new MoodleLaunchService(
       prismaWith({ ownStudentId: 'student-own' }) as never,
@@ -121,6 +191,62 @@ describe('Moodle launch issue', () => {
     expect(result.mode).toBe('SSO');
     expect(result.launchUrl).toMatch(/^https:\/\/moodle\.example\/auth\/sis\/login\.php\?sso=/);
     expect(audits.some((a) => a.outcome === 'ALLOW')).toBe(true);
+
+    const assertion = new URL(result.launchUrl!).searchParams.get('sso')!;
+    expect(decodeAssertion(assertion)).toMatchObject({
+      v: 1,
+      uid: 5,
+      cid: 9,
+      sub: 'student-own',
+    });
+    expect(audits.some((a) => a.outcome === 'ALLOW' && a.metadata)).toBe(true);
+  });
+
+  it('binds the assertion to the mapped Moodle identities and expires it in 60s', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', userMapping: { moodleId: '17' } }) as never,
+      entitlementWith(entitled),
+    );
+    const result = await service.createLaunchToken(studentAuth, {
+      studentId: 'student-own',
+      courseId: 'course-1',
+      shellRef: null,
+    });
+    const assertion = new URL(result.launchUrl!).searchParams.get('sso')!;
+    const payload = decodeAssertion(assertion);
+    expect(payload).toMatchObject({ uid: 17, cid: 9 });
+    expect(Number(payload.exp) - Number(payload.iat)).toBe(60);
+    expect(typeof payload.nonce).toBe('string');
+  });
+
+  it('degrades to a deep link when the student has no Moodle account yet', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', userMapping: null }) as never,
+      entitlementWith(entitled),
+    );
+    const result = await service.createLaunchToken(studentAuth, {
+      studentId: 'student-own',
+      courseId: 'course-1',
+      shellRef: null,
+    });
+    expect(result.mode).toBe('DEEP_LINK_ONLY');
+    expect(result.launchUrl).toBe('https://moodle.example/course/view.php?id=9');
+  });
+
+  it('refuses to sign a Moodle identity that is not a number', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', userMapping: { moodleId: 'SIS-STUDENT-1' } }) as never,
+      entitlementWith({ ...entitled, moodleCourseRef: 'DEMO-101-2026S1' }),
+    );
+    const result = await service.createLaunchToken(studentAuth, {
+      studentId: 'student-own',
+      courseId: 'course-1',
+      shellRef: null,
+    });
+    expect(result.mode).toBe('DEEP_LINK_ONLY');
+    expect(result.launchUrl).toBe(
+      'https://moodle.example/course/view.php?id=DEMO-101-2026S1',
+    );
   });
 
   it('falls back to an honest deep link when no SSO bridge is configured', async () => {
@@ -185,6 +311,73 @@ describe('Moodle launch issue', () => {
   });
 });
 
+describe('Moodle bridge resolution', () => {
+  it('returns the numeric Moodle identities for a valid ticket', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', ticket: unusedTicket }) as never,
+      entitlementWith(entitled),
+    );
+    await expect(service.resolveBridgeTicket(mintTicket())).resolves.toEqual({
+      ok: true,
+      moodleCourseId: 9,
+      moodleUserId: 5,
+    });
+  });
+
+  it('spends the ticket so the bridge cannot replay it', async () => {
+    let spent = false;
+    const service = new MoodleLaunchService(
+      prismaWith({
+        ownStudentId: 'student-own',
+        ticket: {
+          ...unusedTicket,
+          get usedAt() {
+            return spent ? new Date() : null;
+          },
+        },
+        onTicketUpdate: () => {
+          spent = true;
+        },
+      }) as never,
+      entitlementWith(entitled),
+    );
+    const token = mintTicket();
+    await expect(service.resolveBridgeTicket(token)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(service.resolveBridgeTicket(token)).resolves.toEqual({
+      ok: false,
+      reason: 'USED',
+    });
+  });
+
+  it('fails closed when the student has no Moodle account mapping', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({
+        ownStudentId: 'student-own',
+        userMapping: null,
+        ticket: unusedTicket,
+      }) as never,
+      entitlementWith(entitled),
+    );
+    await expect(service.resolveBridgeTicket(mintTicket())).resolves.toEqual({
+      ok: false,
+      reason: 'NO_MOODLE_USER',
+    });
+  });
+
+  it('fails closed when the entitled shell has no numeric Moodle id yet', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', ticket: unusedTicket }) as never,
+      entitlementWith({ ...entitled, moodleCourseRef: 'DEMO-101-2026S1' }),
+    );
+    await expect(service.resolveBridgeTicket(mintTicket())).resolves.toEqual({
+      ok: false,
+      reason: 'NO_MOODLE_COURSE',
+    });
+  });
+});
+
 describe('Moodle launch consume', () => {
   it('rejects malformed tokens without touching storage', async () => {
     const service = new MoodleLaunchService(
@@ -197,13 +390,27 @@ describe('Moodle launch consume', () => {
     });
   });
 
+  it('rejects a token whose signature does not verify', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own' }) as never,
+      entitlementWith(entitled),
+    );
+    const parts = mintTicket().split('.');
+    const tampered = `${parts[0]}.${parts[1]}.${createHmac('sha256', 'y'.repeat(48))
+      .update(`${parts[0]}.${parts[1]}`)
+      .digest('hex')}`;
+    await expect(service.consumeLaunchToken(tampered)).resolves.toEqual({
+      ok: false,
+      reason: 'SIGNATURE',
+    });
+  });
+
   it('rejects a well-signed but unknown ticket', async () => {
     const service = new MoodleLaunchService(
       prismaWith({ ownStudentId: 'student-own', ticket: null }) as never,
       entitlementWith(entitled),
     );
-    const token = await issueWithBridge(service);
-    await expect(service.consumeLaunchToken(token)).resolves.toEqual({
+    await expect(service.consumeLaunchToken(mintTicket())).resolves.toEqual({
       ok: false,
       reason: 'UNKNOWN',
     });
@@ -213,41 +420,39 @@ describe('Moodle launch consume', () => {
     const service = new MoodleLaunchService(
       prismaWith({
         ownStudentId: 'student-own',
-        ticket: {
-          id: 'ticket-1',
-          usedAt: new Date(),
-          expiresAt: new Date(Date.now() + 60_000),
-        },
+        ticket: { ...unusedTicket, usedAt: new Date() },
       }) as never,
       entitlementWith(entitled),
     );
-    const token = await issueWithBridge(service);
-    await expect(service.consumeLaunchToken(token)).resolves.toEqual({
+    await expect(service.consumeLaunchToken(mintTicket())).resolves.toEqual({
       ok: false,
       reason: 'USED',
     });
   });
 
-  it('refuses a ticket whose entitlement was revoked before use', async () => {
-    const entitlement = {
-      resolve: vi
-        .fn()
-        .mockResolvedValueOnce(entitled)
-        .mockResolvedValueOnce({ entitled: false, reason: 'REVOKED' }),
-    } as never;
+  it('rejects a ticket past its expiry', async () => {
     const service = new MoodleLaunchService(
       prismaWith({
         ownStudentId: 'student-own',
         ticket: {
-          id: 'ticket-1',
-          usedAt: null,
-          expiresAt: new Date(Date.now() + 60_000),
+          ...unusedTicket,
+          expiresAt: new Date(Date.now() - 1_000),
         },
       }) as never,
-      entitlement,
+      entitlementWith(entitled),
     );
-    const token = await issueWithBridge(service);
-    await expect(service.consumeLaunchToken(token)).resolves.toEqual({
+    await expect(service.consumeLaunchToken(mintTicket())).resolves.toEqual({
+      ok: false,
+      reason: 'EXPIRED',
+    });
+  });
+
+  it('refuses a ticket whose entitlement was revoked before use', async () => {
+    const service = new MoodleLaunchService(
+      prismaWith({ ownStudentId: 'student-own', ticket: unusedTicket }) as never,
+      entitlementWith({ entitled: false, reason: 'REVOKED' }),
+    );
+    await expect(service.consumeLaunchToken(mintTicket())).resolves.toEqual({
       ok: false,
       reason: 'REVOKED',
     });
@@ -255,25 +460,32 @@ describe('Moodle launch consume', () => {
 
   it('consumes a valid ticket once and returns the mapped course URL', async () => {
     let consumedAt: Record<string, unknown> | null = null;
+    let spent = false;
     const service = new MoodleLaunchService(
       prismaWith({
         ownStudentId: 'student-own',
         ticket: {
-          id: 'ticket-1',
-          usedAt: null,
-          expiresAt: new Date(Date.now() + 60_000),
+          ...unusedTicket,
+          get usedAt() {
+            return spent ? new Date() : null;
+          },
         },
         onTicketUpdate: (data) => {
           consumedAt = data;
+          spent = true;
         },
       }) as never,
       entitlementWith(entitled),
     );
-    const token = await issueWithBridge(service);
+    const token = mintTicket();
     await expect(service.consumeLaunchToken(token)).resolves.toEqual({
       ok: true,
       url: 'https://moodle.example/course/view.php?id=9',
     });
     expect(consumedAt).toHaveProperty('usedAt');
+    await expect(service.consumeLaunchToken(token)).resolves.toEqual({
+      ok: false,
+      reason: 'USED',
+    });
   });
 });

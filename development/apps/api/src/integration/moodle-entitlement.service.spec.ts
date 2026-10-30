@@ -7,11 +7,14 @@ type Overrides = {
   course?: { status: string; registrationId: string } | null;
   registration?: { attemptId: string; periodId: string; status: string } | null;
   period?: { endDate: Date | null } | null;
+  periodCode?: string;
   item?: Record<string, unknown> | null;
   mapping?: { moodleId: string } | null;
+  offeringMapping?: { moodleId: string } | null;
 };
 
 function prismaWith(overrides: Overrides) {
+  const mappingQueries: Record<string, unknown>[] = [];
   return {
     student: {
       findUnique: async () =>
@@ -30,6 +33,11 @@ function prismaWith(overrides: Overrides) {
         overrides.registration === undefined
           ? { attemptId: 'attempt-1', periodId: 'period-1', status: 'REGISTERED' }
           : overrides.registration,
+    },
+    academicPeriod: {
+      findUnique: async () => ({
+        code: overrides.periodCode ?? '2026-S1',
+      }),
     },
     academicPeriodVersion: {
       findFirst: async () =>
@@ -52,9 +60,20 @@ function prismaWith(overrides: Overrides) {
           : overrides.item,
     },
     moodleMapping: {
-      findFirst: async () =>
-        overrides.mapping === undefined ? { moodleId: '9' } : overrides.mapping,
+      findFirst: async (args: { where: Record<string, unknown> }) => {
+        mappingQueries.push(args.where);
+        // The live path looks the shell up by `offeringId:periodCode`; the
+        // simulator stores the shortname and is matched directly.
+        const live = args.where.sisType === 'OFFERING';
+        if (live) {
+          return overrides.offeringMapping === undefined
+            ? null
+            : overrides.offeringMapping;
+        }
+        return overrides.mapping === undefined ? { moodleId: '9' } : overrides.mapping;
+      },
     },
+    __mappingQueries: mappingQueries,
   };
 }
 
@@ -176,5 +195,64 @@ describe('Moodle entitlement resolution', () => {
       input,
     );
     expect(result).toEqual({ entitled: false, reason: 'NO_ITEM' });
+  });
+});
+
+describe('Moodle entitlement course resolution', () => {
+  const delivered = {
+    id: 'item-1',
+    state: 'DELIVERED',
+    moodleRole: 'Student',
+    validityPolicy: 'WHILE_ENROLLED',
+    validUntil: null,
+    shellRef: 'DEMO-101-2026-S1',
+    request: { state: 'COMPLETED' },
+  };
+
+  it('uses the offering+period shell mapping, which holds the live course id', async () => {
+    const item = { ...delivered, offeringId: 'offering-1' };
+    const db = prismaWith({
+      item,
+      mapping: null,
+      offeringMapping: { moodleId: '42' },
+      periodCode: '2026-S1',
+    });
+    const result = await new MoodleEntitlementService(db as never).resolve(
+      db as never,
+      input,
+    );
+    expect(result).toMatchObject({ entitled: true, moodleCourseRef: '42' });
+    expect(db.__mappingQueries[0]).toMatchObject({
+      kind: 'SHELL',
+      sisType: 'OFFERING',
+      sisId: 'offering-1:2026-S1',
+      status: 'ACTIVE',
+    });
+  });
+
+  it('matches the stored shortname for a simulator item without an offering', async () => {
+    const db = prismaWith({ item: delivered });
+    const result = await new MoodleEntitlementService(db as never).resolve(
+      db as never,
+      input,
+    );
+    expect(result).toMatchObject({ moodleCourseRef: '9' });
+    expect(db.__mappingQueries).toEqual([
+      { kind: 'SHELL', moodleId: 'DEMO-101-2026-S1', status: 'ACTIVE' },
+    ]);
+  });
+
+  it('reports the shell reference when no mapping row exists yet', async () => {
+    const item = { ...delivered, offeringId: 'offering-1' };
+    const db = prismaWith({ item, mapping: null, offeringMapping: null });
+    const result = await new MoodleEntitlementService(db as never).resolve(
+      db as never,
+      input,
+    );
+    expect(result).toMatchObject({
+      entitled: true,
+      reason: 'OK',
+      moodleCourseRef: 'DEMO-101-2026-S1',
+    });
   });
 });

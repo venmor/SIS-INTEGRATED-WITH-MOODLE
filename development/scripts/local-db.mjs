@@ -17,7 +17,7 @@ import { createRequire } from "node:module";
 import EmbeddedPostgres from "embedded-postgres";
 import { loadEnv } from "./env.mjs";
 
-const root = join(new URL(".", import.meta.url).pathname, "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 loadEnv({ root });
 
 const DATA_DIR =
@@ -65,10 +65,39 @@ async function ensureRoleAndDb(server) {
   }
 }
 
+// The native Postgres build is a per-platform optional dependency, so the
+// package name has to follow the host, not a hard-coded Linux assumption.
+// Docker (`docker compose up -d db`) is the alternative on any platform.
+const NATIVE_PACKAGES = {
+  "linux-x64": "@embedded-postgres/linux-x64",
+  "linux-arm64": "@embedded-postgres/linux-arm64",
+  "darwin-x64": "@embedded-postgres/darwin-x64",
+  "darwin-arm64": "@embedded-postgres/darwin-arm64",
+  "win32-x64": "@embedded-postgres/windows-x64",
+};
+
 function binDir() {
   const require = createRequire(join(root, "package.json"));
-  const entry = require.resolve("@embedded-postgres/linux-x64");
+  const key = `${process.platform}-${process.arch}`;
+  const pkg = NATIVE_PACKAGES[key];
+  if (!pkg)
+    throw new Error(
+      `no embedded-postgres native build for ${key}; use Docker instead (docker compose up -d db)`,
+    );
+  let entry;
+  try {
+    entry = require.resolve(pkg);
+  } catch {
+    throw new Error(
+      `${pkg} is not installed — run npm install ${pkg}, or use Docker (docker compose up -d db)`,
+    );
+  }
   return join(dirname(entry), "..", "native", "bin");
+}
+
+// Windows ships the same tools as <tool>.exe.
+function tool(name) {
+  return join(binDir(), process.platform === "win32" ? `${name}.exe` : name);
 }
 
 async function start() {
@@ -83,16 +112,21 @@ async function start() {
   }
   // pg_ctl daemonizes: the server survives this process exiting (the
   // embedded-postgres child handle does not).
-  const bindir = binDir();
+  // `-k ""` suppresses the unix socket directory; Windows Postgres has no unix
+  // sockets, so the option is left out there rather than passed empty.
+  const options =
+    process.platform === "win32"
+      ? `-p ${PORT} -c listen_addresses=127.0.0.1`
+      : `-p ${PORT} -k "" -c listen_addresses=127.0.0.1`;
   const started = spawnSync(
-    join(bindir, "pg_ctl"),
+    tool("pg_ctl"),
     [
       "-D",
       DATA_DIR,
       "-l",
       join(DATA_DIR, "local-db.log"),
       "-o",
-      `-p ${PORT} -k "" -c listen_addresses=127.0.0.1`,
+      options,
       "start",
     ],
     { encoding: "utf8" },
@@ -115,7 +149,7 @@ async function stop() {
     console.log("postgres is not running");
     return;
   }
-  const stopped = spawnSync(join(binDir(), "pg_ctl"), ["-D", DATA_DIR, "stop"], {
+  const stopped = spawnSync(tool("pg_ctl"), ["-D", DATA_DIR, "stop"], {
     encoding: "utf8",
   });
   if (stopped.status !== 0) {
