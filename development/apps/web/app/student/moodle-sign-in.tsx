@@ -26,6 +26,6 @@ export function MoodleSignIn({ username, moodleUrl, registrationId, initialPassw
       <button type="button" onClick={()=>void copy(false)} disabled={pending}>Copy username</button>
       {initialPasswordAvailable ? <button type="button" onClick={()=>void copy(true)} disabled={pending}>{pending ? 'Copying…' : 'Copy initial Moodle password'}</button> : null}
     </div>{initialPasswordAvailable ? <p className={styles.credentialHelp}>Initial demo password. If you changed it in Moodle, use your new password.</p> : null}<p role="status" aria-live="polite" className={styles.credentialHelp}>{message}</p></div>
-    <a href={url.toString()} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open Moodle ↗</a>
+    <a href={url.toString()} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label="Open Moodle platform in new tab">Open Moodle ↗</a>
   </div>;
 }
