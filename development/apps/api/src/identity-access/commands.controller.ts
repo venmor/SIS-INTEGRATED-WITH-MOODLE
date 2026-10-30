@@ -15,7 +15,7 @@ import { AUTH_MESSAGES } from '@sis/config';
 import { IncidentInterceptor } from './incident.interceptor.js';
 import { SessionGuard } from './session.guard.js';
 import { PrismaService } from './prisma.service.js';
-import { RateLimiter } from './rate-limit.js';
+import { demoSignInFreedomEnabled, RateLimiter } from './rate-limit.js';
 import { SessionService } from './session.service.js';
 import { auditAuth } from './audit.js';
 
@@ -56,11 +56,13 @@ export class CommandsController {
     @Res({ passthrough: true }) res: PassthroughResponse,
   ) {
     const ip = this.clientIp(req);
-    const limit = this.sessions.limiter.check(
-      `receipt:${req.auth?.accountId}:${ip}`,
-      RateLimiter.readLimit().maxAttempts,
-      RateLimiter.readLimit().windowMinutes,
-    );
+    const limit = demoSignInFreedomEnabled()
+      ? { allowed: true as const, retryAfterSeconds: 0 }
+      : this.sessions.limiter.check(
+          `receipt:${req.auth?.accountId}:${ip}`,
+          RateLimiter.readLimit().maxAttempts,
+          RateLimiter.readLimit().windowMinutes,
+        );
     if (!limit.allowed) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-Receipt',
