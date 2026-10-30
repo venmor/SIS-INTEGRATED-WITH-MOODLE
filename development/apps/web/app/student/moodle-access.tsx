@@ -15,7 +15,7 @@ export function MoodleAccess({ access }: { access: Access }) {
     <div className={styles.grid}>{access.courses.map((course) => <article className={styles.course} key={course.courseRegistrationId}>
       <div><strong className={styles.code}>{course.courseCode}</strong><h3>{course.courseTitle}</h3></div>
       <StatusChip tone={course.state === 'CONFIRMED' ? 'success' : course.state === 'REVIEW' ? 'warning' : 'info'}>{labels[course.state]}</StatusChip>
-      {course.moodleCourseUrl ? <a href={course.moodleCourseUrl} target="_blank" rel="noopener noreferrer">Open course ↗</a> : <p>Registration is complete. Course access is being prepared.</p>}
+      {course.moodleCourseUrl ? <a href={course.moodleCourseUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open course in new tab: ${course.courseCode} - ${course.courseTitle}`}>Open course ↗</a> : <p>Registration is complete. Course access is being prepared.</p>}
       {course.verifiedAt ? <p className={styles.time}>Confirmed {new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lusaka', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(course.verifiedAt))} CAT</p> : null}
     </article>)}</div>
     <p className={styles.help}>Use your Moodle sign-in details. Your first sign-in may ask you to choose a new password. <Link href="/student/support">Request learning access support</Link></p>
