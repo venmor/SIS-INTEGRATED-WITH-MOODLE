@@ -489,3 +489,116 @@ describe('Moodle launch consume', () => {
     });
   });
 });
+
+describe('Moodle teaching access', () => {
+  const staffAuth = {
+    accountId: 'Account-2',
+    assignmentId: 'assignment-2',
+    activeRole: 'LEC',
+    scope: 'PROGRAMME:BSC_CS',
+    scopeType: 'PROGRAMME',
+    scopeRef: 'BSC_CS',
+  };
+
+  function teachingPrisma(
+    assignments: number,
+    mappings: Array<{ sisId: string; moodleId: string }>,
+  ) {
+    return {
+      teachingAssignment: {
+        findMany: async () =>
+          Array.from({ length: assignments }, (_, n) => ({
+            id: `assign-${n}`,
+            role: 'Lecturer',
+            groupId: null,
+            capabilities: ['teach', 'stage-marks'],
+            offering: {
+              id: `offering-${n}`,
+              intake: '2026',
+              programme: { code: 'BSC_CS', name: 'Computer Science' },
+            },
+          })),
+      },
+      moodleMapping: {
+        findMany: async () =>
+          mappings.map((m) => ({
+            kind: 'SHELL',
+            sisType: 'OFFERING',
+            status: 'ACTIVE',
+            ...m,
+          })),
+      },
+      auditEvent: { create: async () => ({ correlationId: 'corr' }) },
+    };
+  }
+
+  it('reports a created Moodle course with a real destination', async () => {
+    const service = new MoodleLaunchService(
+      teachingPrisma(1, [{ sisId: 'offering-0:2026S1', moodleId: '41' }]) as never,
+      entitlementWith(entitled),
+    );
+    const view = await service.myTeachingAccess(staffAuth);
+    expect(view.state).toBe('READY');
+    expect(view.confirmedCount).toBe(1);
+    // Staff Moodle identities are `sis.staff.<lowercased account id>`, the same
+    // username provisioning sends to the site, so the page never invents one.
+    expect(view.moodleUsername).toBe('sis.staff.account-2');
+    expect(view.moodleLoginUrl).toBe('https://moodle.example/login/index.php');
+    expect(view.items[0]).toMatchObject({
+      teachingRole: 'Lecturer',
+      periodCode: '2026S1',
+      moodleCourseRef: '41',
+      shellRef: null,
+      moodleCourseUrl: 'https://moodle.example/course/view.php?id=41',
+      state: 'CONFIRMED',
+    });
+  });
+
+  it('holds a shell reference back until the course exists on the site', async () => {
+    const service = new MoodleLaunchService(
+      teachingPrisma(1, [{ sisId: 'offering-0:2026S1', moodleId: 'BSC-CS-2026' }]) as never,
+      entitlementWith(entitled),
+    );
+    const view = await service.myTeachingAccess(staffAuth);
+    expect(view.state).toBe('PENDING');
+    expect(view.confirmedCount).toBe(0);
+    // A non-numeric shell reference is not a Moodle course id, so no link is
+    // offered rather than sending a staff member to a page that cannot exist.
+    expect(view.items[0]).toMatchObject({
+      shellRef: 'BSC-CS-2026',
+      moodleCourseRef: null,
+      moodleCourseUrl: null,
+      state: 'WAITING',
+    });
+  });
+
+  it('is empty for an account that teaches nothing', async () => {
+    const service = new MoodleLaunchService(
+      teachingPrisma(0, []) as never,
+      entitlementWith(entitled),
+    );
+    const view = await service.myTeachingAccess(staffAuth);
+    expect(view).toMatchObject({ items: [], confirmedCount: 0, totalCourses: 0, state: 'NONE' });
+  });
+
+  it('never reads another account’s assignments', async () => {
+    const seen: unknown[] = [];
+    const base = teachingPrisma(1, [{ sisId: 'offering-0:2026S1', moodleId: '41' }]);
+    const prisma = {
+      ...base,
+      teachingAssignment: {
+        findMany: async (args: unknown) => {
+          seen.push(args);
+          return base.teachingAssignment.findMany();
+        },
+      },
+    };
+    const service = new MoodleLaunchService(prisma as never, entitlementWith(entitled));
+    await service.myTeachingAccess(staffAuth);
+    // The query is keyed to the caller alone: staff see only their own
+    // approved assignments, with no delegated-capability path to widen it.
+    expect(seen[0]).toMatchObject({
+      where: { accountId: 'Account-2', status: 'ACTIVE' },
+    });
+  });
+});

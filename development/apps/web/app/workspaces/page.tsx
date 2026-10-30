@@ -135,6 +135,14 @@ export default async function WorkspacesPage() {
           ) : null}
           {active?.role === "LEC" ||
           active?.role === "COORDINATOR" ||
+          active?.role === "HOD" ||
+          active?.role === "DEAN" ? (
+            <Link className={styles.primary} href="/admin/teaching/moodle">
+              Moodle classes
+            </Link>
+          ) : null}
+          {active?.role === "LEC" ||
+          active?.role === "COORDINATOR" ||
           active?.role === "MOODLE_ADMIN" ? (
             <Link className={styles.primary} href="/admin/assessment/plans">
               Assessment plans

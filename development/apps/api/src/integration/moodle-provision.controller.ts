@@ -134,6 +134,16 @@ export class MoodleProvisionController {
   }
 
   /**
+   * The signed-in staff member's own Moodle teaching access, per approved
+   * teaching assignment. Account-scoped read: it discloses only the caller's
+   * own courses and issues no credential, so it needs no delegated capability.
+   */
+  @Get('my-teaching-access')
+  myTeachingAccess(@Req() r: AuthRequest) {
+    return this.launchService.myTeachingAccess(r.auth);
+  }
+
+  /**
    * Run the access expiry/drift sweep now for the caller's scope. The same
    * sweep runs on a schedule; this is an operations aid, not the only path.
    */

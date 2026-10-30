@@ -338,6 +338,90 @@ export class MoodleLaunchService {
   }
 
   /**
+   * The signed-in staff member's own Moodle teaching access: every approved
+   * teaching assignment they hold, resolved to the course shell SIS derives
+   * for that offering and academic period.
+   *
+   * Deliberately narrower than the student path. A student launch spends a
+   * single-use ticket because entitlement can be withdrawn between clicks;
+   * this is a read of the caller's own assignments, so it discloses nothing
+   * beyond the courses they teach and issues no credential — the Moodle
+   * account name is returned because provisioning creates exactly that
+   * username on the site (`moodle-live.ts`), not as a guess.
+   *
+   * `moodleCourseRef` is numeric only once the live-test run has created the
+   * course on the Moodle site. Until then the row reports the shell reference
+   * and no URL, rather than inventing a destination a tester cannot open.
+   */
+  async myTeachingAccess(auth: LaunchAuthority) {
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: { accountId: auth.accountId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        role: true,
+        groupId: true,
+        capabilities: true,
+        offering: {
+          select: {
+            id: true,
+            intake: true,
+            programme: { select: { code: true, name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const items: Array<Record<string, unknown>> = [];
+    for (const assignment of assignments) {
+      const offeringId = assignment.offering?.id;
+      if (!offeringId) continue;
+      const mappings = await this.prisma.moodleMapping.findMany({
+        where: {
+          kind: 'SHELL',
+          sisType: 'OFFERING',
+          status: 'ACTIVE',
+          sisId: { startsWith: `${offeringId}:` },
+        },
+        orderBy: { sisId: 'asc' },
+      });
+      for (const mapping of mappings) {
+        const liveCourse = /^\d+$/.test(mapping.moodleId);
+        items.push({
+          assignmentId: assignment.id,
+          teachingRole: assignment.role,
+          capabilities: assignment.capabilities,
+          programmeCode: assignment.offering?.programme.code ?? null,
+          programmeTitle: assignment.offering?.programme.name ?? null,
+          intake: assignment.offering?.intake ?? null,
+          periodCode: mapping.sisId.slice(offeringId.length + 1),
+          shellRef: liveCourse ? null : mapping.moodleId,
+          moodleCourseRef: liveCourse ? mapping.moodleId : null,
+          moodleCourseUrl: liveCourse ? this.courseUrl(mapping.moodleId) : null,
+          state: liveCourse ? ('CONFIRMED' as const) : ('WAITING' as const),
+        });
+      }
+    }
+
+    const base = this.moodleBaseUrl();
+    const confirmedCount = items.filter((i) => i.state === 'CONFIRMED').length;
+    return {
+      items,
+      moodleUsername: `sis.staff.${auth.accountId.toLowerCase()}`,
+      moodleLoginUrl: base ? `${base}/login/index.php` : null,
+      confirmedCount,
+      totalCourses: items.length,
+      state: items.length
+        ? confirmedCount === items.length
+          ? ('READY' as const)
+          : confirmedCount
+            ? ('PARTIAL' as const)
+            : ('PENDING' as const)
+        : ('NONE' as const),
+    };
+  }
+
+  /**
    * Redeem a ticket once — signature, store, expiry, single use and
    * entitlement. Both consumers go through here so a revocation between issue
    * and use always fails closed and a ticket can never be spent twice.
