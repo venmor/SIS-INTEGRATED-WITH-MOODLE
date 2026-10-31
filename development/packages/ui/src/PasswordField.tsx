@@ -35,8 +35,14 @@ export function PasswordField({
   const [capsOn, setCapsOn] = useState(false);
   const guidance = help ?? policyGuidance;
   const helpId = guidance ? `${id}-help` : undefined;
+  const capsId = capsOn ? `${id}-caps` : undefined;
   const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [helpId, errorId].filter(Boolean).join(" ") || undefined;
+  const describedBy = [helpId, capsId, errorId].filter(Boolean).join(" ") || undefined;
+
+  const checkCaps = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const caps = event.getModifierState?.("CapsLock") ?? false;
+    setCapsOn(caps);
+  };
 
   return (
     <div className={styles.field}>
@@ -60,10 +66,8 @@ export function PasswordField({
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        onKeyUp={(event) => {
-          const caps = event.getModifierState?.("CapsLock") ?? false;
-          setCapsOn(caps);
-        }}
+        onKeyDown={checkCaps}
+        onKeyUp={checkCaps}
         onBlur={() => setCapsOn(false)}
       />
       <button
@@ -76,7 +80,7 @@ export function PasswordField({
         {visible ? "Hide" : "Show"}
       </button>
       {capsOn ? (
-        <p className={styles.help} role="status">
+        <p className={styles.help} id={capsId} role="status">
           Caps Lock appears to be on.
         </p>
       ) : null}
