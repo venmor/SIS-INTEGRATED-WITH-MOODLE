@@ -2,9 +2,10 @@
 // or a database, and cannot demonstrate connected delivery or academic approval.
 import { createServer } from 'node:http';
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-let mappings; let run;
+let mappings; let run; let provisioningRequests;
 const sources = Array.from({ length: 12 }, (_, index) => ({ courseRegistrationId: uuid(index + 1), courseCode: `CSC${110 + index}`, courseTitle: `Computer Science course ${index + 1}`, periodId: '2026S1', studentId: uuid(index + 100), studentName: `Learner ${index + 1}`, shellKey: `${uuid(index + 200)}:2026S1` }));
-const reset = () => { run = { id: uuid(600), runId: 'UI-FIXTURE-RUN', state: 'PREPARED', version: 1, expectedHost: 'fixture.invalid', expectedSiteId: 1, expectedRelease: 'Fixture 1.0', identityStatus: 'PENDING', identityCheckedAt: null, requiredBinding: { runId: 'UI-FIXTURE-RUN', dbFingerprint: 'a'.repeat(64) }, manifest: { checksum: 'b'.repeat(64), entryCount: 1, sealedAt: null, entries: [{ entity: 'Student', entityId: uuid(100), addedAt: new Date().toISOString() }] }, decisions: [], blockers: [], deliveryReadiness: { outcome: 'NOT_PROVISIONED', detail: 'UI fixture only' } }; mappings = sources.map((source, index) => ({ id: uuid(index + 300), kind: 'SHELL', sisType: 'COURSE_PERIOD', sisId: source.shellKey, moodleId: String(index + 20), status: 'DRAFT', version: 1, checks: index === 1 ? [{ result: 'ACADEMIC_APPROVED' }] : [] })); };
+const provisionStudents = [{ studentId: uuid(800), studentNumber: 'DEMO-2026-8001', displayName: 'Chanda Mulenga', status: 'ACTIVE', programmeCode: 'SWE', programmeName: 'Software Engineering', periodCodes: ['2026S1'], courses: [{ courseRegistrationId: uuid(801), courseId: uuid(901), courseCode: 'ENG111', courseTitle: 'Communication Skills', state: 'ENROLLED', moodleState: 'DELIVERED' }, { courseRegistrationId: uuid(802), courseId: uuid(902), courseCode: 'MTH111', courseTitle: 'Discrete Mathematics', state: 'ENROLLED', moodleState: null }, { courseRegistrationId: uuid(803), courseId: uuid(903), courseCode: 'SWE111', courseTitle: 'Programming Fundamentals', state: 'ENROLLED', moodleState: null }] }];
+const reset = () => { provisioningRequests = []; run = { id: uuid(600), runId: 'UI-FIXTURE-RUN', state: 'PREPARED', version: 1, expectedHost: 'fixture.invalid', expectedSiteId: 1, expectedRelease: 'Fixture 1.0', identityStatus: 'PENDING', identityCheckedAt: null, requiredBinding: { runId: 'UI-FIXTURE-RUN', dbFingerprint: 'a'.repeat(64) }, manifest: { checksum: 'b'.repeat(64), entryCount: 1, sealedAt: null, entries: [{ entity: 'Student', entityId: uuid(100), addedAt: new Date().toISOString() }] }, decisions: [], blockers: [], deliveryReadiness: { outcome: 'NOT_PROVISIONED', detail: 'UI fixture only' } }; mappings = sources.map((source, index) => ({ id: uuid(index + 300), kind: 'SHELL', sisType: 'COURSE_PERIOD', sisId: source.shellKey, moodleId: String(index + 20), status: 'DRAFT', version: 1, checks: index === 1 ? [{ result: 'ACADEMIC_APPROVED' }] : [] })); };
 reset();
 createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json');
@@ -15,6 +16,15 @@ createServer(async (req, res) => {
   if (!sid?.startsWith('ui-fixture-')) return send(401, { message: 'Fixture session required' });
   const role = sid.endsWith('support') ? 'INTEGRATION_SUPPORT' : sid.endsWith('coordinator') ? 'COORDINATOR' : sid.endsWith('lecturer') ? 'LEC' : 'MOODLE_ADMIN';
   if (req.url === '/auth/me') return send(200, { account: { displayName: 'UI Fixture Officer' }, activeWorkspace: { role, scopeType: role === 'COORDINATOR' ? 'SCHOOL' : 'SYSTEM', scopeRef: role === 'COORDINATOR' ? 'Natural Sciences' : 'MOODLE' } });
+  if (req.url === '/auth/sign-out' && req.method === 'POST') return send(200, { message: 'You are signed out.' });
+  if (req.url === '/integration/health') return send(200, { status: 'HEALTHY', provider: 'MOODLE-SIM-v1', backend: 'simulator', writeReadiness: { outcome: 'NOT_PROVISIONED', detail: 'Cloud writes are not configured in this UI fixture.' } });
+  if (req.url?.startsWith('/moodle/provision/students/search')) {
+    const url = new URL(req.url, 'http://fixture.local');
+    const term = url.searchParams.get('q')?.toLowerCase();
+    const items = provisionStudents.filter((student) => !term || `${student.displayName} ${student.studentNumber}`.toLowerCase().includes(term));
+    return send(200, { items, total: items.length, nextCursor: null });
+  }
+  if (req.url?.startsWith('/moodle/provision?') && req.method === 'GET') return send(200, provisioningRequests);
   const runView = () => { const permittedActions = role === 'INTEGRATION_SUPPORT' ? run.state === 'RUNNING' ? ['pause'] : ['start'] : run.manifest.sealedAt ? ['technical-approval'] : ['add-entry', 'seal']; return { ...run, permittedActions, actionEvidence: Object.fromEntries(permittedActions.map((a) => [a, 'c'.repeat(64)])) }; };
   if (req.url === '/integration/live-test/setup') return send(200, { target: { kind: 'live-test' }, databaseReady: true, current: runView() });
   if (req.url === '/integration/live-bindings' && req.method === 'GET') return send(200, { sources, mappings, state: 'RUNNING' });
@@ -23,6 +33,10 @@ createServer(async (req, res) => {
   if (req.url === '/assessment/mappings') return send(200, { items: [{ id: uuid(400), componentId: uuid(401), moodleActivityId: '7', moodleCourseRef: '20', status: 'ACTIVE', version: 1, testResult: 'PASS', createdAt: new Date().toISOString() }] });
   let text = ''; for await (const part of req) text += part;
   const body = text ? JSON.parse(text) : {};
+  if (req.url === '/moodle/provision' && req.method === 'POST') {
+    provisioningRequests.push({ id: uuid(850), state: 'WAITING', reason: body.reason ?? null, createdAt: new Date().toISOString(), validUntil: null, items: body.courseRegistrationIds.map((courseRegistrationId) => ({ id: courseRegistrationId, state: 'WAITING', validUntil: null, validityPolicy: body.validityPolicy, student: { studentNumber: 'DEMO-2026-8001' } })) });
+    return send(201, { requestId: uuid(850), items: body.courseRegistrationIds });
+  }
   if (req.url === `/integration/live-test/runs/${uuid(600)}/reauthenticate`) return body.password === 'Fixture-only-password!' ? send(201, { receiptToken: 'fixture-receipt-token', expiresAt: new Date(Date.now() + 300000).toISOString() }) : send(403, { message: 'FRESH_PASSWORD_REQUIRED' });
   if (req.method === 'POST' && !body.idempotencyKey) return send(400, { message: 'Request reference required' });
   if (req.url?.startsWith(`/integration/live-test/runs/${uuid(600)}/`) && req.method === 'POST') {

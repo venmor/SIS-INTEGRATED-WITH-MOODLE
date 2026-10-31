@@ -202,6 +202,14 @@ export class IntegrationService {
   }
 
   private writeReadiness(): MoodleWriteReadiness {
+    if (selectBackend().kind === 'live-test') {
+      return {
+        outcome: 'LIVE_READY',
+        backend: 'live-test',
+        detail:
+          'Live Moodle provisioning is enabled. Grade passback stays in SIS staging and is never auto-published.',
+      };
+    }
     return (
       this.liveDeliveryDeferral() ?? {
         outcome: 'SIMULATOR_READY',
@@ -986,6 +994,16 @@ export class IntegrationService {
       offeringId,
       periodId: period.id,
     });
+    await db.moodleMapping.updateMany({
+      where: {
+        kind: 'SHELL',
+        sisType: 'OFFERING',
+        sisId: `${offeringId}:${periodCode}`,
+        status: 'ACTIVE',
+        moodleId: shellRef,
+      },
+      data: { moodleId: live.id },
+    });
     return { id: live.id, ref: shellRef };
   }
 
@@ -1057,22 +1075,28 @@ export class IntegrationService {
     | { outcome: 'DUPLICATE' | 'DELIVERED' | 'RETRY' | 'MANUAL_REVIEW' }
     | NotProvisionedResult
   > {
+    const preview = await this.prisma.outboxEvent.findUnique({
+      where: { id: outboxId },
+      select: { id: true, type: true },
+    });
+    if (!preview) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
+    // Provisioning already has its own approved, idempotent write path. It
+    // bypasses the generic live deferral so the worker can create the Moodle
+    // shell/user/enrolment when the live descriptor is valid; the claim-based
+    // enrolment/reconciliation families keep their existing gate.
+    const liveProvisioning =
+      selectBackend().kind === 'live-test' &&
+      (preview.type === 'MoodleProvisionRequested' ||
+        preview.type === 'MoodleProvisionRevoked');
     const deferral = this.liveDeliveryDeferral();
-    if (deferral) {
-      const event = await this.prisma.outboxEvent.findUnique({
-        where: { id: outboxId },
-        select: { id: true },
-      });
-      if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
-      return deferral;
-    }
+    if (deferral && !liveProvisioning) return deferral;
     return this.prisma.$transaction(async (db) => {
       const event = await db.outboxEvent.findUnique({
         where: { id: outboxId },
       });
       if (!event) this.fail('NOT_FOUND', 'Outbox event not found.', 404);
       const closed = this.liveDeliveryDeferral();
-      if (closed) return closed;
+      if (closed && !liveProvisioning) return closed;
       if (event.deliveredAt) return { outcome: 'DUPLICATE' };
       const attemptRow = await db.integrationDeliveryAttempt.findFirst({
         where: { outboxId, state: { in: ['PENDING', 'DELIVERING'] } },
@@ -1132,6 +1156,23 @@ export class IntegrationService {
           !permanent &&
           (error instanceof SimulatorError ||
             (error instanceof MoodleApiError && error.retryable));
+        // A permanently failed provisioning item must not look pending in SIS.
+        if (permanent && typeof payload.itemId === 'string') {
+          await db.moodleProvisionRequestItem.updateMany({
+            where: {
+              id: payload.itemId,
+              state: { in: ['WAITING', 'QUEUED'] },
+            },
+            data: {
+              state: 'FAILED',
+              error: message.slice(0, 500),
+              lastCheckedAt: new Date(),
+            },
+          });
+          if (typeof payload.provisionRequestId === 'string') {
+            await this.settleProvisionRequest(db, payload.provisionRequestId);
+          }
+        }
         await this.failAttempt(
           db,
           outboxId,
@@ -1142,7 +1183,7 @@ export class IntegrationService {
         );
         return { outcome: permanent ? 'MANUAL_REVIEW' : 'RETRY' };
       }
-    });
+    }, { timeout: 60000 });
   }
 
   private async routeDelivery(
@@ -1188,7 +1229,184 @@ export class IntegrationService {
       );
       return;
     }
+    if (type === 'MoodleProvisionRequested') {
+      await this.deliverProvisionRequest(
+        db,
+        payload as {
+          provisionRequestId: string;
+          itemId: string;
+          studentId: string;
+          courseRegistrationId: string | null;
+          offeringId: string | null;
+          periodCode?: string | null;
+        },
+        scenario,
+      );
+      return;
+    }
+    if (type === 'MoodleProvisionRevoked') {
+      await this.deliverProvisionRevoke(
+        db,
+        payload as { provisionRequestId: string; itemId: string; studentId: string },
+        scenario,
+      );
+      return;
+    }
     throw new Error(`MAP_UNKNOWN_TYPE Unknown outbox type ${type}.`);
+  }
+
+  /**
+   * Resolve the offering/period for a provisioning item. Course-level access
+   * still maps onto the offering shell: the SIS registration is the authority
+   * for which offering/period the student belongs to.
+   */
+  private async provisionTarget(
+    db: Tx,
+    item: {
+      id: string;
+      studentId: string;
+      courseRegistrationId: string | null;
+      offeringId: string | null;
+      shellRef: string | null;
+    },
+  ): Promise<{ offeringId: string; periodCode: string; courseCode: string | null }> {
+    let offeringId = item.offeringId;
+    let periodCode: string | null = null;
+    let courseCode: string | null = null;
+
+    if (item.courseRegistrationId) {
+      const course = await db.courseRegistration.findUnique({
+        where: { id: item.courseRegistrationId },
+        include: { course: { select: { code: true } } },
+      });
+      if (!course)
+        throw new Error('SRC_COURSE_REGISTRATION_GONE Course registration vanished.');
+      courseCode = course.course.code;
+      const registration = await db.institutionalRegistration.findUnique({
+        where: { id: course.registrationId },
+        select: { attemptId: true, periodId: true, status: true },
+      });
+      if (!registration)
+        throw new Error('SRC_REGISTRATION_GONE Institutional registration vanished.');
+      if (registration.status !== 'REGISTERED')
+        throw new Error(
+          'SRC_REGISTRATION_NOT_ACTIVE Registration is not active for provisioning.',
+        );
+      const attempt = await db.programmeAttempt.findUnique({
+        where: { id: registration.attemptId },
+        select: { offeringId: true, studentId: true },
+      });
+      if (!attempt) throw new Error('SRC_ATTEMPT_GONE Programme attempt vanished.');
+      if (attempt.studentId !== item.studentId)
+        throw new Error(
+          'SRC_STUDENT_MISMATCH Provisioning item student does not own the registration.',
+        );
+      offeringId = offeringId ?? attempt.offeringId;
+      const period = await db.academicPeriod.findUnique({
+        where: { id: registration.periodId },
+        select: { code: true },
+      });
+      periodCode = period?.code ?? null;
+    }
+
+    if (!offeringId)
+      throw new Error('MAP_OFFERING_MISSING Provisioning item has no offering.');
+    if (!periodCode) {
+      const period = await this.periodForOffering(db, offeringId);
+      periodCode = period.code;
+    }
+    return { offeringId, periodCode, courseCode };
+  }
+
+  private async deliverProvisionRequest(
+    db: Tx,
+    payload: {
+      provisionRequestId: string;
+      itemId: string;
+      studentId: string;
+      courseRegistrationId: string | null;
+      offeringId: string | null;
+      periodCode?: string | null;
+    },
+    scenario: SimScenario,
+  ): Promise<void> {
+    const item = await db.moodleProvisionRequestItem.findUnique({
+      where: { id: payload.itemId },
+    });
+    if (!item)
+      throw new Error('SRC_PROVISION_ITEM_GONE Provisioning item vanished.');
+    if (item.state === 'DELIVERED') return;
+    if (item.state === 'REVOKED' || item.state === 'CANCELLED')
+      throw new Error('SRC_PROVISION_ITEM_CLOSED Provisioning item is closed.');
+
+    const target = await this.provisionTarget(db, item);
+    const periodCode = payload.periodCode ?? target.periodCode;
+    const shell = await this.shellFor(db, target.offeringId, periodCode);
+    await this.adapter().applyEnrolment({
+      db,
+      shell,
+      studentId: item.studentId,
+      role: item.moodleRole ?? 'Student',
+      scenario,
+    });
+
+    await db.moodleProvisionRequestItem.update({
+      where: { id: item.id },
+      data: {
+        state: 'DELIVERED',
+        deliveredAt: new Date(),
+        lastCheckedAt: new Date(),
+        shellRef: shell.ref,
+        error: null,
+      },
+    });
+    await this.settleProvisionRequest(db, payload.provisionRequestId);
+  }
+
+  private async deliverProvisionRevoke(
+    db: Tx,
+    payload: { provisionRequestId: string; itemId: string; studentId: string },
+    _scenario: SimScenario,
+  ): Promise<void> {
+    const item = await db.moodleProvisionRequestItem.findUnique({
+      where: { id: payload.itemId },
+    });
+    if (!item) return;
+    const target = await this.provisionTarget(db, item);
+    const shell = await this.shellFor(db, target.offeringId, target.periodCode);
+    await this.adapter().suspendAccess({
+      db,
+      shell,
+      studentKey: item.studentId,
+    });
+    await db.moodleProvisionRequestItem.update({
+      where: { id: item.id },
+      data: { lastCheckedAt: new Date() },
+    });
+    await this.settleProvisionRequest(db, payload.provisionRequestId);
+  }
+
+  /** Derive the request state from its items (idempotent). */
+  private async settleProvisionRequest(db: Tx, requestId: string): Promise<void> {
+    const items = await db.moodleProvisionRequestItem.findMany({
+      where: { requestId },
+      select: { state: true },
+    });
+    if (items.length === 0) return;
+    const states = items.map((i) => i.state);
+    const now = new Date();
+    let state: string;
+    let deliveredAt: Date | null = null;
+    if (states.some((s) => s === 'FAILED')) state = 'FAILED';
+    else if (states.every((s) => s === 'DELIVERED' || s === 'CANCELLED'))
+      state = 'COMPLETED';
+    else if (states.some((s) => s === 'DELIVERED')) state = 'QUEUED';
+    else state = 'WAITING';
+    if (state === 'COMPLETED') deliveredAt = now;
+    await db.moodleProvisionRequest.update({
+      where: { id: requestId },
+      data: { state, deliveredAt, lastCheckedAt: now },
+    });
   }
 
   private async deliverEnrolment(
@@ -1359,7 +1577,28 @@ export class IntegrationService {
           deferred: 0,
           deferral: null,
         };
-      return this.liveDelivery.run(limit);
+      let live: MoodleWorkerRunResult = {
+        processed: 0,
+        delivered: 0,
+        retried: 0,
+        dead: 0,
+        deferred: 0,
+        deferral: null,
+      };
+      try {
+        live = await this.liveDelivery.run(limit);
+      } catch {
+        // Keep the independent provisioning queue moving if claim delivery fails.
+      }
+      const provision = await this.runLiveProvisioning(limit);
+      return {
+        processed: live.processed + provision.processed,
+        delivered: live.delivered + provision.delivered,
+        retried: live.retried + provision.retried,
+        dead: live.dead + provision.dead,
+        deferred: live.deferred + provision.deferred,
+        deferral: live.deferred ? live.deferral : null,
+      };
     }
     const deferral = this.liveDeliveryDeferral();
     if (deferral) {
@@ -1452,6 +1691,57 @@ export class IntegrationService {
       deferred,
       deferral: lateDeferral,
     };
+  }
+
+  private async runLiveProvisioning(
+    limit: number,
+  ): Promise<MoodleWorkerRunResult> {
+    const types = ['MoodleProvisionRequested', 'MoodleProvisionRevoked'];
+    const now = new Date();
+    const due = await this.prisma.integrationDeliveryAttempt.findMany({
+      where: {
+        state: 'PENDING',
+        outbox: { type: { in: types } },
+        OR: [{ nextRunAt: null }, { nextRunAt: { lte: now } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+    let processed = 0;
+    let delivered = 0;
+    let retried = 0;
+    let dead = 0;
+    let deferred = 0;
+    const tally = (
+      outcome: Awaited<ReturnType<IntegrationService['deliverOutbox']>>,
+    ) => {
+      if (outcome.outcome === 'DELIVERED' || outcome.outcome === 'DUPLICATE') {
+        delivered++;
+        processed++;
+      } else if (outcome.outcome === 'RETRY') {
+        retried++;
+        processed++;
+      } else if (outcome.outcome === 'NOT_PROVISIONED') {
+        deferred++;
+      } else {
+        dead++;
+        processed++;
+      }
+    };
+    for (const row of due) tally(await this.deliverOutbox(row.outboxId));
+
+    const orphaned = await this.prisma.outboxEvent.findMany({
+      where: { type: { in: types }, deliveredAt: null, attempts: { none: {} } },
+      orderBy: { occurredAt: 'asc' },
+      take: Math.max(0, limit - due.length),
+    });
+    for (const event of orphaned) {
+      await this.prisma.integrationDeliveryAttempt.create({
+        data: { outboxId: event.id, state: 'PENDING', attempt: 0 },
+      });
+      tally(await this.deliverOutbox(event.id));
+    }
+    return { processed, delivered, retried, dead, deferred, deferral: null };
   }
 
   private async opsRole(

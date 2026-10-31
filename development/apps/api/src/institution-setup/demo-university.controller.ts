@@ -19,7 +19,7 @@ import { IncidentInterceptor } from '../identity-access/incident.interceptor.js'
 import { PrismaService } from '../identity-access/prisma.service.js';
 import { SessionGuard } from '../identity-access/session.guard.js';
 import { CsrfGuard } from '../identity-access/csrf.guard.js';
-import { RateLimiter } from '../identity-access/rate-limit.js';
+import { demoSignInFreedomEnabled, RateLimiter } from '../identity-access/rate-limit.js';
 import { DemoUniversitySetupService } from './demo-university.service.js';
 
 @Controller('institution-setup/demo-university')
@@ -67,11 +67,16 @@ export class DemoUniversitySetupController {
     key: string,
     limit: { maxAttempts: number; windowMinutes: number },
   ) {
-    const check = this.limiter.check(
-      `${key}:${actor.accountId}`,
-      limit.maxAttempts,
-      limit.windowMinutes,
-    );
+    // Activation shares the sign-in budget (5 per 15 minutes), which a
+    // demonstration run exhausts while re-seeding the cloud database. Keep the
+    // no-store header either way; only the budget is skipped.
+    const check = demoSignInFreedomEnabled()
+      ? { allowed: true as const, retryAfterSeconds: 0 }
+      : this.limiter.check(
+          `${key}:${actor.accountId}`,
+          limit.maxAttempts,
+          limit.windowMinutes,
+        );
     res.setHeader('Cache-Control', 'no-store');
     if (!check.allowed) {
       const { correlationId } = await auditAuth(this.prisma, {

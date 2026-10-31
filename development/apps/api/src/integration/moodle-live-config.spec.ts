@@ -24,6 +24,8 @@ describe('MOODLE live-test policy', () => {
       'core_webservice_get_site_info',
       'core_course_get_courses_by_field',
       'core_course_create_courses',
+      'core_user_get_users_by_field',
+      'core_user_create_users',
       'core_user_get_users',
       'core_enrol_get_enrolled_users',
       'enrol_manual_enrol_users',

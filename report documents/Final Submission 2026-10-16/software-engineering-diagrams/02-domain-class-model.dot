@@ -1,0 +1,15 @@
+digraph G {graph [bgcolor="white",rankdir=TB,pad="0.16",nodesep="0.4",ranksep="1.1",fontname="Arial",fontsize=20]; node [shape=box,style="rounded,filled",fillcolor="#F2F6FC",color="#4F81BD",fontname="Arial",fontsize=22,penwidth=1.8,margin="0.16,0.12"]; edge [color="#365F91",fontname="Arial",fontsize=17,penwidth=1.6,arrowsize=.8,labeldistance=1.2,labelangle=35,labelfontsize=17];
+node [shape=box,style=filled];edge [arrowhead=none];
+student [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>Student</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>studentNumber<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+attempt [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>ProgrammeAttempt</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>studentId<BR ALIGN="LEFT"/>offeringId<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+reg [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>InstitutionalRegistration</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>attemptId and periodId<BR ALIGN="LEFT"/>receipt and snapshot<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+course [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>Course</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>code<BR ALIGN="LEFT"/>credits<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+cr [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>CourseRegistration</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>registrationId<BR ALIGN="LEFT"/>courseId and status<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+ts [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD BGCOLOR="#E6EEF8"><B>TimetableStudentSession</B></TD></TR><TR><TD ALIGN="LEFT">id<BR ALIGN="LEFT"/>courseRegistrationId<BR ALIGN="LEFT"/>publicationId<BR ALIGN="LEFT"/></TD></TR></TABLE>>];
+{rank=same;student;attempt;reg} {rank=same;course;cr;ts}
+student -> attempt [taillabel="1",headlabel="0..*"];
+attempt -> reg [style=dashed,arrowhead=vee,label="scalar attemptId\nservice lookup"];
+reg -> cr [taillabel="1",headlabel="0..*"];
+course -> cr [taillabel="1",headlabel="0..*"];
+cr -> ts [taillabel="1",headlabel="0..*"];
+}

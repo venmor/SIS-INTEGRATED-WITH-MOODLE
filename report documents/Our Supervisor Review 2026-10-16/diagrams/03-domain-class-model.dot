@@ -1,0 +1,50 @@
+graph domain {
+graph [bgcolor="#ffffff", fontname="DejaVu Sans", fontsize=19, fontcolor="#142b49", labelloc=t, labeljust=l, pad=0.28, nodesep=0.38, ranksep=0.60, splines=polyline];
+node [shape=box, style="rounded,filled", fillcolor="#f0f5fc", color="#b6c7df", fontname="DejaVu Sans", fontsize=11, fontcolor="#142b49", penwidth=1.2, margin="0.16,0.12"];
+edge [color="#617894", fontname="DejaVu Sans", fontsize=9, fontcolor="#334e70", penwidth=1.15, arrowsize=0.7];
+rankdir=TB; nodesep=0.45; ranksep=0.72;
+label="Selected domain classes
+Solid = declared Prisma relationship · dashed = scalar / polymorphic service reference";
+node [shape=plain, margin=0];
+Person [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>Person</B></TD></TR><TR><TD ALIGN="LEFT">id : UUID</TD></TR><TR><TD ALIGN="LEFT">displayName; status</TD></TR></TABLE>>];
+Account [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>Account</B></TD></TR><TR><TD ALIGN="LEFT">id; personId</TD></TR><TR><TD ALIGN="LEFT">username; status</TD></TR></TABLE>>];
+RoleAssignment [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>RoleAssignment</B></TD></TR><TR><TD ALIGN="LEFT">id; accountId</TD></TR><TR><TD ALIGN="LEFT">role; scopeType; scopeRef</TD></TR><TR><TD ALIGN="LEFT">startsAt; endsAt; revokedAt</TD></TR><TR><TD ALIGN="LEFT">capabilities[]</TD></TR></TABLE>>];
+Student [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>Student</B></TD></TR><TR><TD ALIGN="LEFT">id; personId UNIQUE</TD></TR><TR><TD ALIGN="LEFT">studentNumber; status</TD></TR></TABLE>>];
+ProgrammeOffering [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>ProgrammeOffering</B></TD></TR><TR><TD ALIGN="LEFT">id; programmeId</TD></TR><TR><TD ALIGN="LEFT">intake; studyMode; campus</TD></TR><TR><TD ALIGN="LEFT">Admissions offering</TD></TR></TABLE>>];
+CurriculumVersion [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>CurriculumVersion</B></TD></TR><TR><TD ALIGN="LEFT">id; programmeId (scalar)</TD></TR><TR><TD ALIGN="LEFT">version; status</TD></TR></TABLE>>];
+ProgrammeAttempt [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>ProgrammeAttempt</B></TD></TR><TR><TD ALIGN="LEFT">id; studentId; offeringId</TD></TR><TR><TD ALIGN="LEFT">curriculumVersionId?</TD></TR><TR><TD ALIGN="LEFT">status; applicationId (scalar)</TD></TR></TABLE>>];
+AcademicPeriod [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>AcademicPeriod</B></TD></TR><TR><TD ALIGN="LEFT">id; code</TD></TR><TR><TD ALIGN="LEFT">registrationOpen / Close</TD></TR><TR><TD ALIGN="LEFT">status</TD></TR></TABLE>>];
+InstitutionalRegistration [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>InstitutionalRegistration</B></TD></TR><TR><TD ALIGN="LEFT">id; attemptId; periodId</TD></TR><TR><TD ALIGN="LEFT">UNIQUE(attemptId, periodId)</TD></TR><TR><TD ALIGN="LEFT">version; snapshot; receipt</TD></TR></TABLE>>];
+CourseRegistration [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>CourseRegistration</B></TD></TR><TR><TD ALIGN="LEFT">id; registrationId; courseId</TD></TR><TR><TD ALIGN="LEFT">status = ENROLLED / DROPPED</TD></TR></TABLE>>];
+Course [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>Course</B></TD></TR><TR><TD ALIGN="LEFT">id; code; title</TD></TR><TR><TD ALIGN="LEFT">credits; capacity</TD></TR></TABLE>>];
+CourseVersion [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>CourseVersion</B></TD></TR><TR><TD ALIGN="LEFT">id; courseId; version</TD></TR><TR><TD ALIGN="LEFT">title; credits; status</TD></TR></TABLE>>];
+CourseDeliveryOffering [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>CourseDeliveryOffering</B></TD></TR><TR><TD ALIGN="LEFT">id; courseVersionId; periodId</TD></TR><TR><TD ALIGN="LEFT">deliveryUnitId; campusUnitId</TD></TR><TR><TD ALIGN="LEFT">deliveryMode; capacity; status</TD></TR></TABLE>>];
+TeachingSection [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>TeachingSection</B></TD></TR><TR><TD ALIGN="LEFT">id; offeringId; code</TD></TR><TR><TD ALIGN="LEFT">capacity; deliveryMode</TD></TR></TABLE>>];
+TimetableStudentSession [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>TimetableStudentSession</B></TD></TR><TR><TD ALIGN="LEFT">id; publicationId</TD></TR><TR><TD ALIGN="LEFT">courseRegistrationId; attemptId</TD></TR><TR><TD ALIGN="LEFT">sectionId; offeringId; periodId</TD></TR><TR><TD ALIGN="LEFT">Additional source FKs omitted</TD></TR></TABLE>>];
+MoodleMapping [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>MoodleMapping</B></TD></TR><TR><TD ALIGN="LEFT">id; kind; sisType; sisId</TD></TR><TR><TD ALIGN="LEFT">moodleId; version; status</TD></TR><TR><TD ALIGN="LEFT">Polymorphic, not an offering FK</TD></TR></TABLE>>];
+Person -- Account [taillabel="1",headlabel="0..*",label="personId",labeldistance=1.7];
+Person -- Student [taillabel="1",headlabel="0..1",label="unique personId",labeldistance=1.7];
+Account -- RoleAssignment [taillabel="1",headlabel="0..*",label="grantee",labeldistance=1.7];
+Student -- ProgrammeAttempt [taillabel="1",headlabel="0..*",label="studentId",labeldistance=1.7];
+ProgrammeOffering -- ProgrammeAttempt [taillabel="1",headlabel="0..*",label="offeringId",labeldistance=1.7];
+CurriculumVersion -- ProgrammeAttempt [taillabel="0..1",headlabel="0..*",label="curriculum pin",labeldistance=1.7];
+InstitutionalRegistration -- CourseRegistration [taillabel="1",headlabel="0..*",label="registrationId",labeldistance=1.7];
+Course -- CourseRegistration [taillabel="1",headlabel="0..*",label="courseId",labeldistance=1.7];
+Course -- CourseVersion [taillabel="1",headlabel="0..*",label="courseId",labeldistance=1.7];
+CourseVersion -- CourseDeliveryOffering [taillabel="1",headlabel="0..*",label="courseVersionId",labeldistance=1.7];
+AcademicPeriod -- CourseDeliveryOffering [taillabel="1",headlabel="0..*",label="periodId",labeldistance=1.7];
+CourseDeliveryOffering -- TeachingSection [taillabel="1",headlabel="0..*",label="offeringId",labeldistance=1.7];
+CourseRegistration -- TimetableStudentSession [taillabel="1",headlabel="0..*",label="registration lineage",labeldistance=1.7];
+TeachingSection -- TimetableStudentSession [taillabel="1",headlabel="0..*",label="section allocation",labeldistance=1.7];
+ProgrammeAttempt -- TimetableStudentSession [taillabel="1",headlabel="0..*",label="own attempt",labeldistance=1.7];
+ProgrammeAttempt -- InstitutionalRegistration [style=dashed,label="scalar attemptId",color="#a46612"];
+AcademicPeriod -- InstitutionalRegistration [style=dashed,label="scalar periodId",color="#a46612"];
+ProgrammeOffering -- MoodleMapping [style=dashed,label="SHELL: offering + period
+polymorphic, no FK",color="#a46612"];
+Account -- MoodleMapping [style=dashed,label="USER: account key
+no FK",color="#a46612",constraint=false];
+{rank=same; Account; Student; ProgrammeOffering; CurriculumVersion; Course;}
+{rank=same; RoleAssignment; ProgrammeAttempt; AcademicPeriod; CourseVersion;}
+{rank=same; InstitutionalRegistration; CourseDeliveryOffering; MoodleMapping;}
+{rank=same; CourseRegistration; TeachingSection;}
+}

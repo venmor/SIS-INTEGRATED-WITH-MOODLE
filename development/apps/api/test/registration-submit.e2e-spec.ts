@@ -379,6 +379,34 @@ describe('Phase 4 formal registration and immutable snapshot', () => {
     expect(attempt.status).toBe('ACTIVE');
   });
 
+  it('submit-advisory: missing required courses do not block an in-band plan', async () => {
+    // Two halves sit inside the configured 2–6 band; other curriculum-required
+    // courses stay unselected and must remain advisory for this period.
+    const app = await plannedStudent(['SWE111', 'MTH111']);
+    const board = await regGet('/plan', app.cookie).expect(200);
+    const validation = (
+      board.body as {
+        validation: Array<{ resultCode: string; result: string }>;
+      }
+    ).validation;
+    expect(
+      validation.some(
+        (v) => v.resultCode === 'REQUIRED_MISSING' && v.result === 'WARNING',
+      ),
+    ).toBe(true);
+    expect(validation.some((v) => v.result === 'BLOCK')).toBe(false);
+    const submitted = await regPost(
+      '/submit',
+      {
+        version: app.planVersion,
+        idempotencyKey: key(),
+        declarations: DECLARATIONS,
+      },
+      app.cookie,
+    ).expect(201);
+    expect((submitted.body as { status: string }).status).toBe('REGISTERED');
+  });
+
   it('submit-preconditions: each missing gate names its cause', async () => {
     // No plan at all.
     const bare = await convertedStudent();

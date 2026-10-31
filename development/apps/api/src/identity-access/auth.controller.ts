@@ -54,7 +54,7 @@ import {
   parseCookies,
   serializeSessionCookie,
 } from './cookies.js';
-import { RateLimiter } from './rate-limit.js';
+import { demoSignInFreedomEnabled, RateLimiter } from './rate-limit.js';
 import { RecoveryService } from './recovery.service.js';
 import { SessionGuard } from './session.guard.js';
 import { SessionService } from './session.service.js';
@@ -126,6 +126,7 @@ export class AuthController {
     budget: { maxAttempts: number; windowMinutes: number },
     action: string,
   ): Promise<void> {
+    if (demoSignInFreedomEnabled()) return;
     const ip = this.clientIp(req);
     const limit = this.sessions.limiter.check(
       `${key}:${req.auth?.accountId}:${ip}`,
@@ -162,11 +163,17 @@ export class AuthController {
     @Res({ passthrough: true }) res: PassthroughResponse,
   ) {
     const ip = this.clientIp(req);
-    const limit = this.sessions.limiter.check(
-      `signin:${body.username}:${ip}`,
-      RateLimiter.signInLimit().maxAttempts,
-      RateLimiter.signInLimit().windowMinutes,
-    );
+    // This budget keys on username + client IP, so one room of reviewers
+    // sharing a network locks every demo account out in five attempts. Under
+    // the demonstration flag it is skipped; SECURITY-v1 still governs every
+    // other deployment.
+    const limit = demoSignInFreedomEnabled()
+      ? { allowed: true as const, retryAfterSeconds: 0 }
+      : this.sessions.limiter.check(
+          `signin:${body.username}:${ip}`,
+          RateLimiter.signInLimit().maxAttempts,
+          RateLimiter.signInLimit().windowMinutes,
+        );
     if (!limit.allowed) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',

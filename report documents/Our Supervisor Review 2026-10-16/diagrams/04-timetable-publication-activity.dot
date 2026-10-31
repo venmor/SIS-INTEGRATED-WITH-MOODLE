@@ -1,0 +1,33 @@
+digraph publication {
+graph [bgcolor="#ffffff", fontname="DejaVu Sans", fontsize=19, fontcolor="#142b49", labelloc=t, labeljust=l, pad=0.28, nodesep=0.38, ranksep=0.60, splines=polyline];
+node [shape=box, style="rounded,filled", fillcolor="#f0f5fc", color="#b6c7df", fontname="DejaVu Sans", fontsize=11, fontcolor="#142b49", penwidth=1.2, margin="0.16,0.12"];
+edge [color="#617894", fontname="DejaVu Sans", fontsize=9, fontcolor="#334e70", penwidth=1.15, arrowsize=0.7];
+rankdir=TB; ranksep=0.48;
+label="Governed fictional timetable publication\nActivity and state labels · no in-place promotion of an immutable blocked draft";
+boundary [label="FICTIONAL REHEARSAL ONLY\nDemo opt-in + loopback review/test DB\nExact SYSTEM:DEMO-UNIVERSITY appointments", fillcolor="#fff7e8",color="#d6b47a"];
+a [label="Coordinator proposes explicit registration-to-section manifest"];
+b [label="Validate current rules, calendar, delivery, teachers,\nvenue, roster, access, capacity and conflicts"];
+c [label="Append immutable TimetableDemoMasterDraft version"];
+d [shape=diamond,label="Blocking\nfindings?",fillcolor="#ffffff"];
+e [label="Stored BLOCKED\nRetain findings; save corrected NEW version",fillcolor="#fff7e8",color="#d6b47a"];
+f [label="Stored CONFLICT_FREE_FOR_REVIEW\nIndependent DOMAIN_ADMIN reviews exact\nsource package + predecessor + replacement impact",fillcolor="#e8f7f1",color="#83bda8"];
+g [label="Unticked declarations + bounded reason + fresh password\nUUID + digest + expected predecessor"];
+h [shape=diamond,label="Authority, independence,\ncredential and fresh\nsource checks pass?",fillcolor="#ffffff"];
+i [label="ATOMIC TRANSACTION\nAppend publication + entitled student sessions\n+ audit + DemoTimetablePublished outbox",fillcolor="#e8f0ff",color="#7296ca"];
+j [shape=diamond,label="Final sources and\nnatural expiry\nstill valid?",fillcolor="#ffffff"];
+x [label="DENY / ROLLBACK\nPrior publication preserved; no partial success",fillcolor="#fff7e8",color="#d6b47a"];
+k [label="COMMIT · FICTIONAL_PUBLISHED receipt\nNewest period version is current (derived)",fillcolor="#e8f7f1",color="#83bda8"];
+l [label="Student reads only latest published manifest\nintersected with own active attempt / enrolled courses"];
+n [label="Separate NotificationsService owner processing\nDeduplicated own-account in-system notices"];
+p [label="Replacement appends a new publication\nOld master, publication and projections remain auditable"];
+q [label="External delivery: NONE\nNo email / SMS / Moodle-calendar delivery claim",fillcolor="#fff7e8",color="#d6b47a"];
+r [label="Recovery: matching UUID + complete command\nreturns exact receipt; altered reuse is refused\nHistorical receipt may be superseded",fillcolor="#f5f1ff",color="#b7a5dd"];
+boundary -> a [style=dashed]; a -> b -> c -> d;
+d -> e [label="yes"]; e -> b [label="new version",constraint=false];
+d -> f [label="no"]; f -> g -> h;
+h -> x [label="no"]; h -> i [label="yes"]; i -> j;
+j -> x [label="no",constraint=false]; j -> k [label="yes"];
+k -> l; k -> n; k -> r [style=dashed,label="same-reference recovery"];
+l -> p; n -> q;
+{rank=same; e; f;} {rank=same; x; i;} {rank=same; l; n; r;}
+}

@@ -6,6 +6,7 @@ import workflow from "../../components/workflow.module.css";
 import { academicHref } from "../../../lib/academic-context";
 import { useState } from "react";
 import type { CoursePlanView } from "@sis/contracts";
+import { STUDENT_DEMO_V1 } from "@sis/config";
 import { ErrorSummary, Notice } from "@sis/ui";
 import styles from "../../applicant/applicant.module.css";
 import study from "../study-workflows.module.css";
@@ -98,6 +99,15 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
   const dirty =
     selected.size !== savedCodes.size ||
     [...selected].some((code) => !savedCodes.has(code));
+  // Show the configured band next to the saved load so the limit is visible
+  // while choosing courses, not only after saving or on the review screen.
+  const bands = STUDENT_DEMO_V1.loadBands;
+  const loadBand =
+    board.loadHalves > bands.maxHalves
+      ? "above the maximum"
+      : board.loadHalves < bands.minHalves
+        ? "below the minimum"
+        : "within the band";
   const blocking = board.validation.filter(
     (check) => check.result === "BLOCK" || check.result === "APPROVAL_REQUIRED",
   );
@@ -135,7 +145,12 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
           </div>
           <div>
             <dt>Last saved load</dt>
-            <dd>{board.loadHalves} half-course equivalents</dd>
+            <dd>
+              {board.loadHalves} half-course equivalents
+              <div className={study.muted}>
+                Allowed band {bands.minHalves}–{bands.maxHalves} · {loadBand}
+              </div>
+            </dd>
           </div>
           <div>
             <dt>Saved draft</dt>
@@ -183,12 +198,13 @@ export function PlanBoard({ initial }: { initial: CoursePlanView }) {
           <>
             <p>
               {blocking.length} blocking or approval checks · {warnings.length}{" "}
-              warnings
+              warnings (these do not block registration)
             </p>
             <ul className={study.checks}>
               {board.validation.map((v, index) => (
                 <li key={`${v.courseId}-${v.resultCode}-${index}`}>
                   <strong>
+                    {v.result === "WARNING" ? "Advisory — " : ""}
                     {v.code} · {v.result.replaceAll("_", " ")}
                   </strong>{" "}
                   — {v.explanation}

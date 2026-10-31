@@ -423,7 +423,10 @@ describe.each(['live-test', 'live-test-disabled'] as const)(
       const f = fixture();
       const result = await f.service.listDeliveries(ADMIN);
       expect(result).toMatchObject({
-        writeReadiness: { outcome: 'NOT_PROVISIONED', backend },
+        writeReadiness: {
+          outcome: backend === 'live-test' ? 'LIVE_READY' : 'NOT_PROVISIONED',
+          backend,
+        },
         deferredSources: [
           {
             outboxId: 'event-1',

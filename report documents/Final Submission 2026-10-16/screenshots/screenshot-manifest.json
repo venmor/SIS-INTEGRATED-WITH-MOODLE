@@ -1,0 +1,198 @@
+{
+  "prepared": "2026-10-16",
+  "screenshots": [
+    {
+      "figure": "4.1",
+      "file": "4.1-programme-catalogue.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/portal-all-ui-discover-1672.png",
+      "basis": "Connected local API and isolated review database; .local-release/portal-all-ui-review.mjs",
+      "description": "Programme catalogue search, filters and programme cards.",
+      "dimensions": [
+        1672,
+        1566
+      ],
+      "sha256": "8fe5a1b15fc7bc46ad43afc68493ed90ac277d8ccb98f0bd189041136e2e50b3",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Programme catalogue",
+      "caption": "Programme catalogue search, filters and programme cards.",
+      "evidenceType": "Connected local API and isolated review database; .local-release/portal-all-ui-review.mjs"
+    },
+    {
+      "figure": "4.2",
+      "file": "4.2-application-form-saved-draft.png",
+      "source": "Fresh connected local capture 16 October 2026; isolated supervisor review database",
+      "basis": "New createApplicant fixture; normal discovery/start application, sign-in, personal-details save and return navigation. No network mocks; saved values verified after navigation.",
+      "description": "Applicant personal-details form, persisted name and draft progress; supporting-documents screenshot retained separately.",
+      "dimensions": [
+        1672,
+        1650
+      ],
+      "sha256": "3592196c24c938850d53e1d8006bc2f60a9a283b15b4c61b3e9590d6b016866b",
+      "visual_review": "Inspected: saved name Luyando Phiri, draft version 2, Last saved and All changes saved visible; complete personal form.",
+      "title": "Application saved draft",
+      "caption": "Applicant personal-details form, persisted name and draft progress; supporting-documents screenshot retained separately.",
+      "evidenceType": "New createApplicant fixture; normal discovery/start application, sign-in, personal-details save and return navigation. No network mocks; saved values verified after navigation."
+    },
+    {
+      "figure": "4.3",
+      "file": "4.3-application-submission-receipt.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/browser-evidence-38447432657/test-results/applicant-receipt-mobile.png",
+      "basis": "Connected browser integration test applicant.spec.ts; successful submission confirmed after lost-response recovery.",
+      "description": "Successful submission, immutable receipt and download action; mobile capture.",
+      "dimensions": [
+        390,
+        1204
+      ],
+      "sha256": "e3aee8e52559bc686c16db1eb288c5f7d1686a08bda0b073bba7a7f27d568d3f",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Application submission receipt",
+      "caption": "Successful submission, immutable receipt and download action; mobile capture.",
+      "evidenceType": "Connected browser integration test applicant.spec.ts; successful submission confirmed after lost-response recovery."
+    },
+    {
+      "figure": "4.4",
+      "file": "4.4-admissions-queue.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/browser-evidence-38447432657/test-results/ui-admissions-queue-1440.png",
+      "basis": "Connected browser integration test ui-admissions-workspace.visual.spec.ts; actual application submitted and staff signed in.",
+      "description": "Claimable application queue and staff ownership workflow.",
+      "dimensions": [
+        1440,
+        1827
+      ],
+      "sha256": "9cb711d7df99fc0e26a549c5c1dc8a1f91f7125501ae686342a8abdfd08e9bd2",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Admissions queue",
+      "caption": "Claimable application queue and staff ownership workflow.",
+      "evidenceType": "Connected browser integration test ui-admissions-workspace.visual.spec.ts; actual application submitted and staff signed in."
+    },
+    {
+      "figure": "4.5",
+      "file": "4.5-admissions-review-and-decision.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/browser-evidence-38447432657/test-results/ui-admissions-approver-case-1440.png",
+      "basis": "Connected browser integration test ui-admissions-workspace.visual.spec.ts; independent approver after recorded reviewer recommendation.",
+      "description": "Application evidence, favourable recommendation, decision form and case history. Decision has not yet been released in this capture.",
+      "dimensions": [
+        1440,
+        3496
+      ],
+      "sha256": "1bb3eadaefb1b4c6b50ae738fe2df8cccd47b0b45daac2c9d35298b8ded0b69c",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Admissions review and decision",
+      "caption": "Application evidence, favourable recommendation, decision form and case history. Decision has not yet been released in this capture.",
+      "evidenceType": "Connected browser integration test ui-admissions-workspace.visual.spec.ts; independent approver after recorded reviewer recommendation."
+    },
+    {
+      "figure": "4.6",
+      "file": "4.6-course-selection-draft.png",
+      "title": "Registration and course choices",
+      "caption": "Editable course plan with required courses, search and sorting. Saving a draft is separate from formal submission.",
+      "description": "Editable course plan with required courses, search and sorting. Saving a draft is separate from formal submission.",
+      "basis": "Fresh connected capture on16October2026; isolated supervisor review database; new generated student; no API mocks.",
+      "source": "Local review application http://127.0.0.1:3160 backed by isolated sis_supervisor_review_20261016 database",
+      "dimensions": [
+        1672,
+        2649
+      ],
+      "sha256": "6d6a00b2fcd62ec9f7ccb69a07c8cff58d5bad38cc1cc10f34e7c6b315cd3864",
+      "visual_review": "Recaptured entire scrollable page; scrollHeight equals clientHeight, no hidden scroll content.",
+      "evidenceType": "Fresh connected capture on16October2026; isolated supervisor review database; new generated student; no API mocks."
+    },
+    {
+      "figure": "4.7",
+      "file": "4.7-student-finance.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/portal-all-ui-student-finance-1672.png",
+      "basis": "Connected API; .local-release/portal-all-ui-review.mjs creates student and assesses synthetic charges.",
+      "description": "Itemised invoice, statement and payment routes; clearance pending, no live payment claim.",
+      "dimensions": [
+        1672,
+        2039
+      ],
+      "sha256": "2c395cc6b042a9f16ef1964241436a2e27c4fc5b4423e3d4673fc264fbe7725e",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Student finance",
+      "caption": "Itemised invoice, statement and payment routes; clearance pending, no live payment claim.",
+      "evidenceType": "Connected API; .local-release/portal-all-ui-review.mjs creates student and assesses synthetic charges."
+    },
+    {
+      "figure": "4.8",
+      "file": "4.8-moodle-integration-dashboard.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/staff-all-ui-moodle-1672.png",
+      "basis": "Connected API; .local-release/staff-all-ui-review.mjs; simulator mode.",
+      "description": "Healthy simulator connection and mappings/reconciliation/maintenance workspaces; zero recorded shells in this screenshot.",
+      "dimensions": [
+        1672,
+        1000
+      ],
+      "sha256": "c3d2d8059b7556eb21101142968509a7735826aafab696c4b57601eec6185c2c",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Moodle integration dashboard",
+      "caption": "Healthy simulator connection and mappings/reconciliation/maintenance workspaces; zero recorded shells in this screenshot.",
+      "evidenceType": "Connected API; .local-release/staff-all-ui-review.mjs; simulator mode."
+    },
+    {
+      "figure": "4.9",
+      "file": "4.9-published-student-results.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/portal-all-ui-student-results-1672.png",
+      "basis": "Connected API rendering; .local-release/portal-all-ui-review.mjs directly seeds OfficialResultVersion review rows.",
+      "description": "Published result display and version history. Does not evidence a completed staging-to-release workflow.",
+      "dimensions": [
+        1672,
+        1012
+      ],
+      "sha256": "dbee1ad60ca99a29b78665a7a24e6d7066ca7375b6a04e9db8a837b03fe41662",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Assessment and results",
+      "caption": "Published result display and version history. Does not evidence a completed staging-to-release workflow.",
+      "evidenceType": "Connected API rendering; .local-release/portal-all-ui-review.mjs directly seeds OfficialResultVersion review rows."
+    },
+    {
+      "figure": "4.10",
+      "file": "4.10-student-timetable-week.png",
+      "source": "/home/hangoma/SIS-INTEGRATED-WITH-MOODLE/.worktree/phase7-completion/.worktree/github-release-20261012/.local-release/browser-evidence-38447432657/test-results/student-timetable-availabi-59770-ords-and-a-list-alternative/published-timetable-week-desktop.png",
+      "basis": "Controlled API-response UI browser test student-timetable-availability.spec.ts; not connected publication evidence.",
+      "description": "Week view with dated sessions, venues, course filter, list alternative and changes.",
+      "dimensions": [
+        1440,
+        2557
+      ],
+      "sha256": "2648c94893496573c1be431468d43ac0563aa5cb0f13ffda0824411a1e8502b2",
+      "visual_review": "Inspected; content visible, no loading/error screen.",
+      "title": "Student timetable",
+      "caption": "Week view with dated sessions, venues, course filter, list alternative and changes.",
+      "evidenceType": "Controlled API-response UI browser test student-timetable-availability.spec.ts; not connected publication evidence."
+    },
+    {
+      "figure": "4.11",
+      "file": "4.11-connected-audit-trail.png",
+      "title": "Audit trail and operations",
+      "caption": "Persisted security events with actor, role and outcome. Companion operations dashboard is included in the folder.",
+      "description": "Persisted security events with actor, role and outcome. Companion operations dashboard is included in the folder.",
+      "basis": "Fresh connected capture on16October2026; SYSADMIN workspace; actual local API and PostgreSQL records, no mocks.",
+      "source": "Local review application http://127.0.0.1:3160 backed by isolated sis_supervisor_review_20261016 database",
+      "dimensions": [
+        1672,
+        2579
+      ],
+      "sha256": "4867b3e7b78d276eaaf50b78e9496f41ac195d84b228cbd2240bb1d5ba1698a1",
+      "visual_review": "Recaptured entire scrollable page; scrollHeight equals clientHeight, no hidden scroll content.",
+      "evidenceType": "Fresh connected capture on16October2026; SYSADMIN workspace; actual local API and PostgreSQL records, no mocks."
+    }
+  ],
+  "missing": [],
+  "notes": [
+    "Moodle dashboard uses the simulator; it does not establish automatic live sync.",
+    "Published results were directly seeded for display review, rather than released through the full staff workflow.",
+    "Timetable view uses controlled API responses for UI verification.",
+    "Application, admissions, finance, registration and audit captures use generated local review data.",
+    "Screenshot numbering follows the requested presentation checklist and is independent of report diagram numbering.",
+    "Full captures restored in the main presentation. Numbered overlapping appendix continuations cover long captures without omitted regions."
+  ],
+  "additional_captures": [
+    "extra-connected-student-home.png",
+    "extra-registration-receipt.png",
+    "4.11-connected-operations-dashboard.png",
+    "4.6-connected-registration-readiness.png",
+    "4.6-registration-course-selection.png",
+    "4.2-supporting-documents-saved-draft.png"
+  ]
+}

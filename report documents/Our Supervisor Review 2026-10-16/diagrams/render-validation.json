@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-16",
+  "engine": "Graphviz dot / neato -n2",
+  "figures": [
+    {
+      "figure": "01-system-context-components",
+      "svg": "valid XML",
+      "png": "verified",
+      "dimensions": [
+        2320,
+        1686
+      ]
+    },
+    {
+      "figure": "02-registration-moodle-sequence",
+      "svg": "valid XML",
+      "png": "verified",
+      "dimensions": [
+        2910,
+        2252
+      ]
+    },
+    {
+      "figure": "03-domain-class-model",
+      "svg": "valid XML",
+      "png": "verified",
+      "dimensions": [
+        2182,
+        2018
+      ]
+    },
+    {
+      "figure": "04-timetable-publication-activity",
+      "svg": "valid XML",
+      "png": "verified",
+      "dimensions": [
+        1817,
+        2526
+      ]
+    },
+    {
+      "figure": "05-design-class-boundaries",
+      "svg": "valid XML",
+      "png": "verified",
+      "dimensions": [
+        2340,
+        1224
+      ]
+    }
+  ],
+  "visual_review": "All five full PNG images inspected; label lengths and layout corrected before final render",
+  "downloads": 0,
+  "application_builds": 0
+}

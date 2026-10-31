@@ -1,0 +1,69 @@
+classDiagram
+  RegistrationController --> RegistrationService : injects
+  RegistrationController --> RegistrationContextsService : injects
+  RegistrationService --> PrismaService : injects
+  RegistrationService --> FinanceService : injects
+  RegistrationService --> IntegrationService : injects
+  RegistrationContextsService --> PrismaService : injects
+  IntegrationController --> IntegrationService : injects
+  DeliveryWorker --> IntegrationService : runWorker
+  IntegrationService --> PrismaService : injects
+  IntegrationService --> OpsService : injects
+  IntegrationService ..> MoodleAdapter : selects adapter
+  SimulatorAdapter ..|> MoodleAdapter
+  LiveMoodleAdapter ..|> MoodleAdapter
+  MasterPreviewController --> MasterPreviewService : injects
+  MasterPreviewController --> TimetablePublicationService : injects
+  MasterPreviewController --> PrismaService : injects
+  MasterPreviewService --> PrismaService : injects
+  TimetablePublicationService --> PrismaService : injects
+  class RegistrationController {
+    readiness()
+    submit()
+    timetable()
+  }
+  class RegistrationService {
+    readiness()
+    submitRegistration()
+    registrationStatus()
+    timetable()
+  }
+  class RegistrationContextsService {
+    list()
+  }
+  class IntegrationController {
+    health()
+    runWorker()
+  }
+  class IntegrationService {
+    runWorker()
+    deliverOutbox()
+    liveDeliveryDeferral()
+    adapter()
+  }
+  class DeliveryWorker {
+    tick()
+    onModuleInit()
+  }
+  class MasterPreviewController {
+    create()
+    publicationReview()
+    publish()
+  }
+  class MasterPreviewService {
+    create()
+    catalogue()
+    course()
+  }
+  class TimetablePublicationService {
+    review()
+    publish()
+  }
+  class MoodleAdapter {
+    <<interface>>
+    ensureShell()
+    applyEnrolment()
+    validateConnection()
+  }
+  note for LiveMoodleAdapter "Connection validation exists; write/scope operations currently refuseScope"
+  note for PrismaService "Shared persistence boundary. Solid arrows are actual selected constructor injections."

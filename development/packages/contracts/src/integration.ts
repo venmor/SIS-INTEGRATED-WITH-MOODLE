@@ -33,6 +33,10 @@ export type MoodleWriteReadiness = NotProvisionedResult | {
   outcome: 'SIMULATOR_READY';
   backend: 'simulator';
   detail: string;
+} | {
+  outcome: 'LIVE_READY';
+  backend: 'live-test';
+  detail: string;
 };
 
 export interface MoodleWorkerRunResult {

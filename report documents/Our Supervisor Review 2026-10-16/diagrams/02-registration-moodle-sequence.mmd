@@ -1,0 +1,30 @@
+sequenceDiagram
+  actor Student
+  participant API as RegistrationController
+  participant Reg as RegistrationService
+  participant DB as PostgreSQL
+  participant Int as IntegrationService / DeliveryWorker
+  participant Sim as SimulatorAdapter
+  Student->>API: POST /registration/submit (version, declarations, request key)
+  API->>Reg: submitRegistration(auth, key, input)
+  Reg->>DB: Resolve own attempt / plan; check rules and clearance
+  Reg->>DB: Transaction: locks, replay lookup, live preconditions
+  Reg->>DB: Snapshot + roster + receipt + outbox + audit + command result
+  DB-->>Reg: COMMIT; failures roll back authoritative writes
+  Reg-->>API: Registration receipt
+  API-->>Student: Registration complete; Moodle access being prepared
+  Note over Int,Sim: Separate worker; timer does not start when VERCEL is set
+  Int->>DB: runWorker(): read due Moodle outbox sources
+  alt Simulator selected (current runnable automatic path)
+    Int->>Sim: ensureShell / applyEnrolment using programme offering + period
+    Sim->>DB: SimShell, SimEnrolment and group mirrors
+    Int->>DB: Delivery attempt + deliveredAt, or retry / manual review
+  else Live-test requested
+    Note over Int,Sim: liveDeliveryDeferral() returns NOT_PROVISIONED before claims
+    Int-->>DB: Retain queued sources; no live enrolment or false deliveredAt
+  end
+  Student->>API: GET /registration/status
+  API->>Reg: registrationStatus(auth, attempt, period)
+  Reg-->>API: Own receipt + actual pending / simulator / live-deferral status
+  API-->>Student: Authoritative status response
+  Note over Reg,Sim: Current simulator shell mapping is programme-offering-based, not one Moodle course per SIS Course

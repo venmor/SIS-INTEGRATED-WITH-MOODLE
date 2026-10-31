@@ -1,4 +1,5 @@
 import type { LiveTestDescriptor } from './moodle-live-config.js';
+import { MOODLE_LIVE_V1 } from '@sis/config';
 import { assertTargetIdentity, parseSiteInfo } from './moodle-target.js';
 
 /** Internal transport. Only a committed, run-scoped claim may construct this
@@ -12,6 +13,10 @@ export class MoodleWriteTransport {
   ) {}
 
   private async request(fn: string, fields: Record<string, string | number>) {
+    if (
+      !(MOODLE_LIVE_V1.authorisedFunctions as readonly string[]).includes(fn)
+    )
+      throw new Error('MOODLE_FUNCTION_NOT_AUTHORISED');
     const body = new URLSearchParams({
       wstoken: this.target.token,
       wsfunction: fn,
@@ -154,6 +159,25 @@ export class MoodleWriteTransport {
       users[0]?.suspended === 1
     )
       throw new Error('IDENTITY_CONFLICT');
+  }
+
+  async usersByIdnumber(idnumber: string) {
+    const users = await this.request('core_user_get_users_by_field', {
+      field: 'idnumber',
+      'values[0]': idnumber,
+    });
+    if (!Array.isArray(users)) throw new Error('MOODLE_RESPONSE_INVALID');
+    return users as Record<string, unknown>[];
+  }
+
+  async listEnrolments(courseId: number) {
+    const result = await this.request('core_enrol_get_enrolled_users', {
+      courseid: courseId,
+      'options[0][name]': 'onlyactive',
+      'options[0][value]': 1,
+    });
+    if (!Array.isArray(result)) throw new Error('MOODLE_RESPONSE_INVALID');
+    return result as Record<string, unknown>[];
   }
 
   async verifySuspended(userId: number, courseId: number) {

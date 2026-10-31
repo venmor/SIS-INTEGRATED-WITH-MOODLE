@@ -130,3 +130,48 @@ test('UI fixture: Integration support reviews a failed delivery and queues an ex
   expect((await recovered).status()).toBe(201);
   await expect(page.getByText('Recovery queued. The worker will check Moodle before applying another enrolment.')).toBeVisible();
 });
+
+test('UI fixture: student selection covers only eligible registered Moodle courses', async ({ page }) => {
+  await session(page);
+  await page.goto('/admin/moodle/access');
+  await expect(page.getByText('Simulator active — not connected to MoodleCloud')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Students (1 matching, 1 shown)' })).toBeVisible();
+
+  const searchTerms: string[] = [];
+  page.on('request', (request) => {
+    if (!request.url().includes('/api/moodle/provision/students/search')) return;
+    searchTerms.push(new URL(request.url()).searchParams.get('q') ?? '');
+  });
+  await page.getByLabel('Search students').fill('Chanda');
+  await expect.poll(() => searchTerms).toContain('Chanda');
+
+  const studentSelection = page.getByRole('checkbox', { name: 'Select eligible Moodle courses for Chanda Mulenga' });
+  const delivered = page.getByRole('checkbox', { name: /ENG111 — Communication Skills/ });
+  const mathematics = page.getByRole('checkbox', { name: /MTH111 — Discrete Mathematics/ });
+  const programming = page.getByRole('checkbox', { name: /SWE111 — Programming Fundamentals/ });
+  await expect(delivered).toBeDisabled();
+  await expect(delivered).toHaveAccessibleDescription(/simulator/i);
+
+  await mathematics.check();
+  await expect(studentSelection).toHaveJSProperty('indeterminate', true);
+  await studentSelection.check();
+  await expect(mathematics).toBeChecked();
+  await expect(programming).toBeChecked();
+  await expect(delivered).not.toBeChecked();
+
+  const submitted = page.waitForRequest((request) => request.url().endsWith('/api/moodle/provision') && request.method() === 'POST');
+  await page.getByRole('button', { name: 'Assign Moodle access' }).click();
+  const payload = (await submitted).postDataJSON();
+  expect(payload.studentIds).toEqual([uuid(800), uuid(800)]);
+  expect(payload.courseRegistrationIds).toEqual([uuid(802), uuid(803)]);
+});
+
+test('UI fixture: admin account menu signs out through the auth endpoint', async ({ page }) => {
+  await session(page);
+  await page.goto('/admin/moodle/access');
+  await page.locator('summary').filter({ hasText: 'Account' }).click();
+  const signedOut = page.waitForRequest((request) => request.url().endsWith('/api/auth/sign-out') && request.method() === 'POST');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  expect((await signedOut).headers()['x-requested-with']).toBe('XMLHttpRequest');
+  await expect(page).toHaveURL(/\/sign-in$/);
+});

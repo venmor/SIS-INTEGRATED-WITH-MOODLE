@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { createRequire } from 'node:module';
 import { AUTH_MESSAGES, SECURITY_V1 } from '@sis/config';
 import { PrismaService } from './prisma.service.js';
-import { RateLimiter } from './rate-limit.js';
+import { demoSignInFreedomEnabled, RateLimiter } from './rate-limit.js';
 import { accountStatusPolicy } from './policy.service.js';
 import { auditAuth } from './audit.js';
 import { WorkspaceService, type SignInAudience } from './workspace.service.js';
@@ -47,6 +47,7 @@ export class SessionService {
     const account = await this.prisma.account.findUnique({
       where: { username },
     });
+    const free = demoSignInFreedomEnabled();
     // §11.1 status gate: only Active authorizes; Closed and every other
     // state deny generically (no existence oracle either way).
     if (!account || !accountStatusPolicy(account.status).allow) {
@@ -58,10 +59,14 @@ export class SessionService {
         reason: 'invalid-credentials-or-inactive',
         errorCategory: 'ERR-SEC',
       });
-      await sleep(RateLimiter.failureDelayMs(1));
+      if (!free) await sleep(RateLimiter.failureDelayMs(1));
       return { ok: false as const, failures: 1, reference: correlationId };
     }
-    if (account.lockedUntil && account.lockedUntil.getTime() > Date.now()) {
+    if (
+      !free &&
+      account.lockedUntil &&
+      account.lockedUntil.getTime() > Date.now()
+    ) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SignIn',
         outcome: 'DENY',
@@ -84,9 +89,12 @@ export class SessionService {
       ? await verify(credential.secretHash, password).catch(() => false)
       : false;
     if (!valid) {
+      // Failures are still counted and audited — only the lock and the
+      // artificial delay are lifted, so the demonstration run still leaves
+      // evidence of what was attempted.
       const failures = account.failedSignInCount + 1;
       const locked =
-        failures >= SECURITY_V1.lockout.failuresBeforeLock
+        !free && failures >= SECURITY_V1.lockout.failuresBeforeLock
           ? new Date(Date.now() + SECURITY_V1.lockout.lockMinutes * 60 * 1000)
           : null;
       await this.prisma.account.update({
@@ -101,7 +109,7 @@ export class SessionService {
         reason: locked ? 'account-locked' : 'invalid-credentials',
         errorCategory: 'ERR-SEC',
       });
-      await sleep(RateLimiter.failureDelayMs(failures));
+      if (!free) await sleep(RateLimiter.failureDelayMs(failures));
       return { ok: false as const, failures, reference: correlationId };
     }
     await this.prisma.account.update({

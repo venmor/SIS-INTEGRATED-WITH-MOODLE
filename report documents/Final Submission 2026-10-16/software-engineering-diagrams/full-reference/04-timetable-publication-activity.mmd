@@ -1,0 +1,20 @@
+flowchart TD
+  A[Coordinator prepares explicit course-registration to section manifest] --> B[Validate current rule, calendar, teacher, venue, roster and conflicts]
+  B --> C[Append immutable TimetableDemoMasterDraft version]
+  C --> D{Blocking findings?}
+  D -->|yes: stored BLOCKED| E[Retain findings; coordinator saves a corrected new version]
+  E --> B
+  D -->|no: CONFLICT_FREE_FOR_REVIEW| F[Independent DOMAIN_ADMIN reviews exact sources and replacement impact]
+  F --> G[Reason + declarations + fresh password + UUID + expected predecessor]
+  G --> H{Current authority, independence, credential, digest and source checks pass?}
+  H -->|no| X[Deny or roll back; prior publication remains authoritative]
+  H -->|yes| I[Atomic append: publication, student sessions, audit and owner outbox event]
+  I --> J{Final source and natural-expiry checks pass?}
+  J -->|no| X
+  J -->|yes| K[Commit FICTIONAL_PUBLISHED receipt]
+  K --> L[Student read intersects latest publication with own current registration and attempt]
+  K --> N[Separate notification owner creates deduplicated in-system notices]
+  K -.-> R[Matching UUID + exact command recovers receipt; changed payload is refused]
+  L --> P[Replacement appends a new version; older rows remain history]
+  N --> Q[External delivery NONE; no email, SMS or Moodle calendar claim]
+  note[Demo opt-in + loopback review/test database + SYSTEM:DEMO-UNIVERSITY required] -.-> A

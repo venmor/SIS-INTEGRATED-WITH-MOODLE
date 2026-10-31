@@ -1,0 +1,17 @@
+digraph G {graph [bgcolor="white",rankdir=TB,pad="0.16",nodesep="0.4",ranksep="0.5",fontname="Arial",fontsize=20]; node [shape=box,style="rounded,filled",fillcolor="#F2F6FC",color="#4F81BD",fontname="Arial",fontsize=22,penwidth=1.8,margin="0.16,0.12"]; edge [color="#365F91",fontname="Arial",fontsize=17,penwidth=1.6,arrowsize=.8];
+start [shape=circle,label="",width=.18,style=filled,fillcolor="#365F91"];
+a [label="Coordinator prepares a master draft"];
+b [label="Validate sources, room / lecturer / student clashes"];
+check [shape=diamond,label="Blocking findings?",fillcolor="#FFF7E6"];
+fix [label="Retain findings\nSave a corrected version"];
+review [label="Independent reviewer confirms authority,\nexact sources and publication impact"];
+atomic [label="Atomic publication\nStudent sessions, audit and outbox"];
+student [label="Student sees own registered sessions\nPrior publication remains history"];
+start -> a -> b -> check;
+check -> fix [label="Yes"];fix -> b;
+check -> review [label="No"];
+review -> atomic [label="All checks pass"];
+atomic -> student;
+fail [label="Deny / roll back\nRetain prior publication",fillcolor="#FFF7E6"];
+review -> fail [label="Checks fail"];
+}

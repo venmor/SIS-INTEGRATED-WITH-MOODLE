@@ -16,7 +16,8 @@ const context = `attemptId=${attemptId}&period=${period}`;
 let api: Server | undefined;
 let web: ChildProcess | undefined;
 let startupLog = "";
-let scenario: "empty" | "blocked" | "approval" | "load" | "valid" = "valid";
+let scenario: "empty" | "blocked" | "approval" | "load" | "advisory" | "valid" =
+  "valid";
 let manyCourses = false;
 let registered = false;
 let statusUnavailable = false;
@@ -52,7 +53,9 @@ function plan(): CoursePlanView {
         ]
       : scenario === "approval"
         ? [{ courseId: items[0].courseId, code: "SWE111", result: "APPROVAL_REQUIRED", resultCode: "ACADEMIC_REVIEW", explanation: "An academic decision is required before registration." }]
-        : [],
+        : scenario === "advisory"
+          ? [{ courseId: items[0].courseId, code: "ENG111", result: "WARNING", resultCode: "REQUIRED_MISSING", explanation: "Required by your published curriculum, but not in this plan for this period. Warning only — courses for later years register in their own period." }]
+          : [],
     loadHalves: scenario === "empty" ? 0 : scenario === "load" ? 8 : 2,
     notices: [],
   };
@@ -206,8 +209,36 @@ test("an excessive saved load explains the configured limit before declarations"
   scenario = "load";
   await openReview(page);
   await expect(page.getByRole("region", { name: "Planned courses" })).toContainText("8 half-course equivalents");
-  await expect(page.getByRole("region", { name: "Before you submit" })).toContainText("choose 2 to 6 half-course equivalents");
+  const checks = page.getByRole("region", { name: "Before you submit" });
+  await expect(checks.getByRole("heading", { name: "Blocking issues", exact: true })).toBeVisible();
+  await expect(checks).toContainText("choose 2 to 6 half-course equivalents");
   await expect(page.getByRole("button", { name: "Submit registration", exact: true })).toHaveCount(0);
+  expect(submits).toEqual([]);
+});
+
+test("an advisory required-course warning is labelled non-blocking and still allows submission", async ({ page }) => {
+  scenario = "advisory";
+  await openReview(page);
+  const checks = page.getByRole("region", { name: "Before you submit" });
+  await expect(checks.getByRole("heading", { name: "Advisory checks", exact: true })).toBeVisible();
+  await expect(checks).toContainText("do not block submission");
+  await expect(page.getByText(/Warning only/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Fix your course plan", exact: true })).toHaveCount(0);
+  await declarations(page);
+  await expect(page.getByRole("button", { name: "Submit registration", exact: true })).toBeEnabled();
+  expect(submits).toEqual([]);
+});
+
+test("the course plan board shows the load band and labels warnings as advisory", async ({ page }) => {
+  scenario = "advisory";
+  await page.goto(`${webOrigin}/student/courses?${context}`);
+  const summary = page.getByRole("region", { name: "Course plan summary" });
+  await expect(summary).toContainText("2 half-course equivalents");
+  await expect(summary).toContainText("Allowed band 2–6");
+  await expect(summary).toContainText("within the band");
+  const checks = page.getByRole("region", { name: "Last saved checks" });
+  await expect(checks).toContainText("do not block registration");
+  await expect(checks).toContainText("Advisory");
   expect(submits).toEqual([]);
 });
 

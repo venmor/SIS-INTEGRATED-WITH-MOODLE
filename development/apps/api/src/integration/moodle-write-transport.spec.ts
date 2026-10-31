@@ -92,4 +92,21 @@ describe('Moodle write transport', () => {
       /^MOODLE_REMOTE_REFUSAL$/,
     );
   });
+
+  it('refuses functions outside the explicit Moodle allowlist before HTTP', async () => {
+    const fetcher = vi.fn(async (_url: unknown, _options?: RequestInit) =>
+      response({}),
+    );
+    const api = new MoodleWriteTransport(descriptor, fetcher as typeof fetch);
+    const transport = api as unknown as {
+      request(
+        name: string,
+        fields: Record<string, string | number>,
+      ): Promise<unknown>;
+    };
+    await expect(
+      transport.request('core_admin_set_site_settings', {}),
+    ).rejects.toThrow('MOODLE_FUNCTION_NOT_AUTHORISED');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

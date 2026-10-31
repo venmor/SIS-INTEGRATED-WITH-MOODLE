@@ -199,6 +199,15 @@ test.beforeAll(async () => {
       );
       return;
     }
+    // The student workspace renders the learner's own Moodle access panel, so
+    // this own-student read is part of the presentation surface. It is allowed
+    // explicitly and stays empty: every other call still trips the assertion in
+    // afterEach, which is what keeps the fixture proving where the page's facts
+    // come from.
+    if (request.method === "GET" && url.pathname === "/moodle/my-access") {
+      response.end(JSON.stringify({ items: [] }));
+      return;
+    }
     if (
       request.method !== "GET" ||
       url.pathname !== "/registration/timetable"

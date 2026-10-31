@@ -1,0 +1,47 @@
+digraph classes {
+graph [bgcolor="#ffffff", fontname="DejaVu Sans", fontsize=19, fontcolor="#142b49", labelloc=t, labeljust=l, pad=0.28, nodesep=0.38, ranksep=0.60, splines=polyline];
+node [shape=box, style="rounded,filled", fillcolor="#f0f5fc", color="#b6c7df", fontname="DejaVu Sans", fontsize=11, fontcolor="#142b49", penwidth=1.2, margin="0.16,0.12"];
+edge [color="#617894", fontname="DejaVu Sans", fontsize=9, fontcolor="#334e70", penwidth=1.15, arrowsize=0.7];
+rankdir=TB; nodesep=0.45; ranksep=0.7;
+label="Selected design classes and actual boundaries
+Solid arrows = constructor dependency · dashed = selection / interface realization";
+node [shape=plain,margin=0];
+RegistrationController [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>RegistrationController</B></TD></TR><TR><TD ALIGN="LEFT">«controller» /registration</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">readiness()<BR ALIGN="LEFT"/>submit() / timetable()</TD></TR></TABLE>>];
+RegistrationService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>RegistrationService</B></TD></TR><TR><TD ALIGN="LEFT">«service» registration owner</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">readiness()<BR ALIGN="LEFT"/>submitRegistration()<BR ALIGN="LEFT"/>registrationStatus() / timetable()</TD></TR></TABLE>>];
+RegistrationContextsService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>RegistrationContextsService</B></TD></TR><TR><TD ALIGN="LEFT">«service» own contexts</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">list()</TD></TR></TABLE>>];
+IntegrationController [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>IntegrationController</B></TD></TR><TR><TD ALIGN="LEFT">«controller» /integration</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">health() / runWorker()</TD></TR></TABLE>>];
+IntegrationService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>IntegrationService</B></TD></TR><TR><TD ALIGN="LEFT">«service» integration owner</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">runWorker() / deliverOutbox()<BR ALIGN="LEFT"/>liveDeliveryDeferral() / adapter()</TD></TR></TABLE>>];
+DeliveryWorker [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>DeliveryWorker</B></TD></TR><TR><TD ALIGN="LEFT">«worker» in API process</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">onModuleInit() / tick()</TD></TR></TABLE>>];
+MasterPreviewController [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>MasterPreviewController</B></TD></TR><TR><TD ALIGN="LEFT">«controller» /timetabling/demo-master</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">create() / publicationReview()<BR ALIGN="LEFT"/>publish()</TD></TR></TABLE>>];
+MasterPreviewService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>MasterPreviewService</B></TD></TR><TR><TD ALIGN="LEFT">«service» immutable drafts</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">create() / catalogue() / course()</TD></TR></TABLE>>];
+TimetablePublicationService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>TimetablePublicationService</B></TD></TR><TR><TD ALIGN="LEFT">«service» independent decision</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">review() / publish()</TD></TR></TABLE>>];
+PrismaService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>PrismaService</B></TD></TR><TR><TD ALIGN="LEFT">«shared persistence»</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">Prisma client / $transaction()</TD></TR></TABLE>>];
+FinanceService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>FinanceService</B></TD></TR><TR><TD ALIGN="LEFT">«service» finance owner</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">Registration charge integration</TD></TR></TABLE>>];
+OpsService [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>OpsService</B></TD></TR><TR><TD ALIGN="LEFT">«service» operations owner</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">Incident / recovery integration</TD></TR></TABLE>>];
+MoodleAdapter [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>MoodleAdapter</B></TD></TR><TR><TD ALIGN="LEFT">«interface»</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">ensureShell() / applyEnrolment()<BR ALIGN="LEFT"/>validateConnection()</TD></TR></TABLE>>];
+SimulatorAdapter [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>SimulatorAdapter</B></TD></TR><TR><TD ALIGN="LEFT">«adapter» local mirror rows</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">Runnable simulator operations</TD></TR></TABLE>>];
+LiveMoodleAdapter [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#b6c7df"><TR><TD BGCOLOR="#eaf2ff"><B>LiveMoodleAdapter</B></TD></TR><TR><TD ALIGN="LEFT">«adapter» exact test target</TD></TR><TR><TD BGCOLOR="#f0f4f9" ALIGN="LEFT">validateConnection()<BR ALIGN="LEFT"/>Write/scope operations refuseScope()</TD></TR></TABLE>>];
+RegistrationController -> RegistrationService;
+RegistrationController -> RegistrationContextsService;
+RegistrationService -> PrismaService;
+RegistrationService -> FinanceService;
+RegistrationService -> IntegrationService;
+RegistrationContextsService -> PrismaService;
+IntegrationController -> IntegrationService;
+DeliveryWorker -> IntegrationService;
+IntegrationService -> PrismaService;
+IntegrationService -> OpsService;
+MasterPreviewController -> MasterPreviewService;
+MasterPreviewController -> TimetablePublicationService;
+MasterPreviewController -> PrismaService;
+MasterPreviewService -> PrismaService;
+TimetablePublicationService -> PrismaService;
+IntegrationService -> MoodleAdapter [style=dashed,label="adapter() selects"];
+SimulatorAdapter -> MoodleAdapter [style=dashed,arrowhead=empty,label="implements"];
+LiveMoodleAdapter -> MoodleAdapter [style=dashed,arrowhead=empty,label="implements"];
+{rank=same; RegistrationController; MasterPreviewController; IntegrationController; DeliveryWorker;}
+{rank=same; RegistrationService; RegistrationContextsService; MasterPreviewService; TimetablePublicationService;}
+{rank=same; FinanceService; PrismaService; IntegrationService;}
+{rank=same; OpsService; MoodleAdapter;}
+{rank=same; SimulatorAdapter; LiveMoodleAdapter;}
+}

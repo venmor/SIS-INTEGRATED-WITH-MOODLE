@@ -20,7 +20,7 @@ import { AUTH_MESSAGES } from '@sis/config';
 import { CsrfGuard } from './csrf.guard.js';
 import { SwitchWorkspaceDto } from './dto.js';
 import { auditAuth } from './audit.js';
-import { RateLimiter } from './rate-limit.js';
+import { demoSignInFreedomEnabled, RateLimiter } from './rate-limit.js';
 import { SessionGuard } from './session.guard.js';
 import { SessionService } from './session.service.js';
 import { PrismaService } from './prisma.service.js';
@@ -63,6 +63,7 @@ export class WorkspaceController {
     key: string,
     action: string,
   ): Promise<void> {
+    if (demoSignInFreedomEnabled()) return;
     const ip = this.clientIp(req);
     const limit = this.sessions.limiter.check(
       `${key}:${req.auth?.accountId}:${ip}`,
@@ -94,11 +95,16 @@ export class WorkspaceController {
     @Res({ passthrough: true }) res: PassthroughResponse,
   ) {
     const ip = this.clientIp(req);
-    const limit = this.sessions.limiter.check(
-      `switch:${req.auth?.accountId}:${ip}`,
-      RateLimiter.workspaceSwitchLimit().maxAttempts,
-      RateLimiter.workspaceSwitchLimit().windowMinutes,
-    );
+    // A reviewer walking the packet's roles switches workspaces far more often
+    // than a real user ever would, so the 30/15min budget is skipped under the
+    // demonstration flag.
+    const limit = demoSignInFreedomEnabled()
+      ? { allowed: true as const, retryAfterSeconds: 0 }
+      : this.sessions.limiter.check(
+          `switch:${req.auth?.accountId}:${ip}`,
+          RateLimiter.workspaceSwitchLimit().maxAttempts,
+          RateLimiter.workspaceSwitchLimit().windowMinutes,
+        );
     if (!limit.allowed) {
       const { correlationId } = await auditAuth(this.prisma, {
         action: 'CMD-IAM-SwitchWorkspace',

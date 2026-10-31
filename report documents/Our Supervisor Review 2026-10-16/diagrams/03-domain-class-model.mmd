@@ -1,0 +1,132 @@
+classDiagram
+  Person "1" -- "0..*" Account : personId
+  Person "1" -- "0..1" Student : unique personId
+  Account "1" -- "0..*" RoleAssignment : grantee accountId
+  Student "1" -- "0..*" ProgrammeAttempt : studentId
+  ProgrammeOffering "1" -- "0..*" ProgrammeAttempt : offeringId
+  CurriculumVersion "0..1" -- "0..*" ProgrammeAttempt : pinned curriculum
+  ProgrammeAttempt ..> InstitutionalRegistration : scalar attemptId; service-resolved
+  AcademicPeriod ..> InstitutionalRegistration : scalar periodId; service-resolved
+  InstitutionalRegistration "1" -- "0..*" CourseRegistration : registrationId
+  Course "1" -- "0..*" CourseRegistration : courseId
+  Course "1" -- "0..*" CourseVersion : courseId
+  CourseVersion "1" -- "0..*" CourseDeliveryOffering : courseVersionId
+  AcademicPeriod "1" -- "0..*" CourseDeliveryOffering : periodId
+  CourseDeliveryOffering "1" -- "0..*" TeachingSection : offeringId
+  CourseRegistration "1" -- "0..*" TimetableStudentSession : courseRegistrationId
+  TeachingSection "1" -- "0..*" TimetableStudentSession : sectionId
+  ProgrammeAttempt "1" -- "0..*" TimetableStudentSession : attemptId
+  ProgrammeOffering ..> MoodleMapping : SHELL sisId = offeringId + periodCode; no FK
+  Account ..> MoodleMapping : USER sisId; no FK
+  class Person {
+    id
+    displayName
+    status
+  }
+  class Account {
+    id
+    personId
+    username
+    status
+  }
+  class RoleAssignment {
+    id
+    accountId
+    role
+    scopeType
+    scopeRef
+    startsAt
+    endsAt
+    capabilities
+  }
+  class Student {
+    id
+    personId
+    studentNumber
+    status
+  }
+  class ProgrammeAttempt {
+    id
+    studentId
+    offeringId
+    curriculumVersionId
+    status
+  }
+  class ProgrammeOffering {
+    id
+    programmeId
+    intake
+    studyMode
+    campus
+  }
+  class CurriculumVersion {
+    id
+    programmeId
+    version
+    status
+  }
+  class AcademicPeriod {
+    id
+    code
+    registrationOpen
+    registrationClose
+    status
+  }
+  class InstitutionalRegistration {
+    id
+    attemptId
+    periodId
+    version
+    snapshot
+    receipt
+  }
+  class CourseRegistration {
+    id
+    registrationId
+    courseId
+    status
+  }
+  class Course {
+    id
+    code
+    credits
+    capacity
+  }
+  class CourseVersion {
+    id
+    courseId
+    version
+    status
+  }
+  class CourseDeliveryOffering {
+    id
+    courseVersionId
+    periodId
+    campusUnitId
+    capacity
+  }
+  class TeachingSection {
+    id
+    offeringId
+    code
+    capacity
+  }
+  class TimetableStudentSession {
+    id
+    publicationId
+    courseRegistrationId
+    attemptId
+    sectionId
+    offeringId
+  }
+  class MoodleMapping {
+    id
+    kind
+    sisType
+    sisId
+    moodleId
+    version
+    status
+  }
+  note for InstitutionalRegistration "attemptId and periodId are scalar keys, not declared Prisma relations"
+  note for MoodleMapping "Polymorphic lookup. No direct FK to Account or either offering model."

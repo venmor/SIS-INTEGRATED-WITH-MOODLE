@@ -80,6 +80,11 @@ export default async function MoodleAdminPage() {
               body: "Connect registered courses and learners to Moodle.",
             },
             {
+              href: "/admin/moodle/access",
+              title: "Access",
+              body: "Assign Moodle access to a student or a cohort.",
+            },
+            {
               href: "/admin/moodle/mappings",
               title: "Mappings",
               body: "Course, user, role and group connections.",

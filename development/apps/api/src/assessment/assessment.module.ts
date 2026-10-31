@@ -1,7 +1,7 @@
 import { PublicationController } from './publication.controller.js';
 import { PublicationService } from './publication.service.js';
 import { publicationProviders } from './publication-ports.js';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { IdentityAccessModule } from '../identity-access/identity-access.module.js';
 import { AssessmentController } from './assessment.controller.js';
 import { AssessmentService } from './assessment.service.js';
@@ -12,7 +12,7 @@ import { ResultPublicationSecurityController } from './result-release-security.c
 import { ResultDemoPolicyService, ResultReleaseProofService } from './result-release-security.service.js';
 
 @Module({
-  imports: [IdentityAccessModule, NotificationsModule, IntegrationModule],
+  imports: [IdentityAccessModule, NotificationsModule, forwardRef(() => IntegrationModule)],
   controllers: [AssessmentController, PublicationController, ResultPublicationSecurityController],
   providers: [
     AssessmentService,

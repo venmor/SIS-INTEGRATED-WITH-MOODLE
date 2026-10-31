@@ -1,4 +1,4 @@
-import { SECURITY_V1 } from '@sis/config';
+import { isDemonstrationDatabaseTarget, SECURITY_V1 } from '@sis/config';
 
 // In-memory sliding-window limits (no Redis per locked stack — single
 // instance demo limit, documented). Values come from SECURITY-v1 (07/04
@@ -7,6 +7,30 @@ import { SECURITY_V1 } from '@sis/config';
 // distinct-key spam cannot grow memory without bound.
 
 const MAX_BUCKETS = 10000;
+
+/**
+ * Demonstration escape hatch, opt-in and doubly gated.
+ *
+ * A reviewer cycling through the packet's synthetic accounts trips the sign-in
+ * budget (5/15min, keyed on username + shared reviewer IP) and the account
+ * lockout (5 failures = 15 minutes) within minutes, which reads as the site
+ * being broken rather than as a control working. This flag turns the throttling
+ * off for that run only.
+ *
+ * It requires BOTH the explicit opt-in AND `isDemonstrationDatabaseTarget`,
+ * which itself refuses anything but a pinned demo database (loopback test/review
+ * /ci name, or the pinned cloud host plus name). A production deployment cannot
+ * enable it by setting the flag alone, so SECURITY-v1 stays the live policy and
+ * the handbook's control remains implemented, not deleted.
+ */
+export function demoSignInFreedomEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return (
+    env.SIS_ENABLE_DEMO_UNLIMITED_SIGNIN === 'true' &&
+    isDemonstrationDatabaseTarget(env)
+  );
+}
 
 interface Window {
   hits: number[];

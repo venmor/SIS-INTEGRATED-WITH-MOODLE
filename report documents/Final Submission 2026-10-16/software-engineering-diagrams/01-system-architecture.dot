@@ -1,0 +1,14 @@
+digraph G {graph [bgcolor="white",rankdir=TB,pad="0.16",nodesep="0.4",ranksep="0.5",fontname="Arial",fontsize=20]; node [shape=box,style="rounded,filled",fillcolor="#F2F6FC",color="#4F81BD",fontname="Arial",fontsize=22,penwidth=1.8,margin="0.16,0.12"]; edge [color="#365F91",fontname="Arial",fontsize=17,penwidth=1.6,arrowsize=.8];
+web [label="Next.js web interface\nStudents, applicants and staff"];
+api [label="NestJS modular API\nIdentity, registration, assessment and timetable"];
+db [shape=cylinder,label="PostgreSQL\nOfficial records, audit and outbox"];
+int [label="Integration service / worker\nDelivery status and recovery"];
+sim [label="Simulator adapter\nRunnable automatic path"];
+live [label="MoodleCloud\nSeparate provisioning demonstration",fillcolor="#FFF7E6",color="#B98432"];
+web -> api [label="Authorised commands"];
+api -> db [label="Transactions"];
+api -> int [label="Queued intent"];
+int -> sim [label="Current automatic path"];
+int -> live [style=dashed,label="Automatic live delivery pending"];
+{rank=same;db;int} {rank=same;sim;live}
+}

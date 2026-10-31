@@ -15,6 +15,8 @@ interface FieldProps {
     maxLength?: number;
     minLength?: number;
     placeholder?: string;
+    /** Derived values (e.g. a delegated scope) stay visible but uneditable. */
+    readOnly?: boolean;
   };
 }
 
@@ -46,6 +48,7 @@ export function Field({ id, label, help, error, autoComplete, defaultValue, inpu
         maxLength={inputProps?.maxLength}
         minLength={inputProps?.minLength}
         placeholder={inputProps?.placeholder}
+        readOnly={inputProps?.readOnly}
         autoComplete={autoComplete}
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}

@@ -47,6 +47,13 @@ export function RegisterForm({
   const blocked = initial.validation.filter(
     (v) => v.result === "BLOCK" || v.result === "APPROVAL_REQUIRED",
   );
+  // Everything that is neither a pass nor a hard block is advisory: the
+  // service deliberately keeps required-but-missing courses non-blocking
+  // because registration is per period. Keep that distinction visible so a
+  // warning never reads like a deadlock.
+  const advisories = initial.validation.filter(
+    (v) => v.result !== "PASS" && v.result !== "BLOCK" && v.result !== "APPROVAL_REQUIRED",
+  );
   const invalidLoad =
     initial.loadHalves < bands.minHalves ||
     initial.loadHalves > bands.maxHalves;
@@ -296,21 +303,57 @@ export function RegisterForm({
                 <span className={study.checkLabel}>Academic load</span>
                 <span>
                   {invalidLoad
-                    ? `Action required: choose ${bands.minHalves} to ${bands.maxHalves} half-course equivalents before submitting.`
+                    ? `Your saved load is ${initial.loadHalves} half-course equivalents — choose ${bands.minHalves} to ${bands.maxHalves} half-course equivalents before submitting.`
                     : `${initial.loadHalves} half-course equivalents is within the configured demonstration range.`}
                 </span>
               </li>
-              {initial.validation
-                .filter((v) => v.result !== "PASS")
-                .map((v, i) => (
-                  <li key={`${v.code}-${v.resultCode}-${i}`}>
-                    <span className={study.checkLabel}>
-                      {v.code} · {v.result.replaceAll("_", " ")}
-                    </span>
-                    <span className={study.checkDetail}>{v.explanation}</span>
-                  </li>
-                ))}
             </ul>
+            {(invalidLoad || blocked.length > 0) && (
+              <>
+                <h3>Blocking issues</h3>
+                <p className={study.muted}>
+                  Registration cannot be submitted until these are resolved.
+                </p>
+                <ul className={study.checks}>
+                  {invalidLoad && (
+                    <li>
+                      <span className={study.checkLabel}>Academic load</span>
+                      <span className={study.checkDetail}>
+                        Keep between {bands.minHalves} and {bands.maxHalves}{" "}
+                        half-course equivalents in this plan.
+                      </span>
+                    </li>
+                  )}
+                  {blocked.map((v, i) => (
+                    <li key={`${v.code}-${v.resultCode}-${i}`}>
+                      <span className={study.checkLabel}>
+                        {v.code} · {v.result.replaceAll("_", " ")}
+                      </span>
+                      <span className={study.checkDetail}>{v.explanation}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {advisories.length > 0 && (
+              <>
+                <h3>Advisory checks</h3>
+                <p className={study.muted}>
+                  These do not block submission. When no blocking issues are
+                  shown above, you can submit this plan.
+                </p>
+                <ul className={study.checks}>
+                  {advisories.map((v, i) => (
+                    <li key={`${v.code}-${v.resultCode}-${i}`}>
+                      <span className={study.checkLabel}>
+                        {v.code} · {v.result.replaceAll("_", " ")}
+                      </span>
+                      <span className={study.checkDetail}>{v.explanation}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {!canSubmit && (
               <>
                 <h3>Fix your course plan</h3>

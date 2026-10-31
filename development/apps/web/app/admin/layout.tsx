@@ -123,6 +123,18 @@ export default async function AdminLayout({
       show: role === "COORDINATOR",
     },
     {
+      // Teaching staff deliver into the same Moodle courses students open, so
+      // they need their own view of that delivery rather than the operations
+      // workspace, which is scoped to delegated Moodle authority.
+      href: "/admin/teaching/moodle",
+      label: "Moodle classes",
+      show:
+        role === "LEC" ||
+        role === "COORDINATOR" ||
+        role === "HOD" ||
+        role === "DEAN",
+    },
+    {
       href: "/admin/support",
       label: "Assigned support requests",
       show: role === "ADVISER",
