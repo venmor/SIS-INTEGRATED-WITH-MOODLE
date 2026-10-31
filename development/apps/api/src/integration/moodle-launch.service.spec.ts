@@ -560,7 +560,7 @@ describe('Moodle teaching access', () => {
       entitlementWith(entitled),
     );
     const view = await service.myTeachingAccess(staffAuth);
-    expect(view.state).toBe('PENDING');
+    expect(view.state).toBe('PREPARING');
     expect(view.confirmedCount).toBe(0);
     // A non-numeric shell reference is not a Moodle course id, so no link is
     // offered rather than sending a staff member to a page that cannot exist.
@@ -572,13 +572,38 @@ describe('Moodle teaching access', () => {
     });
   });
 
+  it('separates approved teaching with no Moodle course from teaching nothing', async () => {
+    // This is the state the cloud demonstration actually reaches: the account
+    // holds an approved assignment, but nothing has been created on the Moodle
+    // site yet. Collapsing it into "no approved teaching assignments" sends the
+    // lecturer to a coordinator when the real wait is provisioning.
+    const service = new MoodleLaunchService(
+      teachingPrisma(1, []) as never,
+      entitlementWith(entitled),
+    );
+    const view = await service.myTeachingAccess(staffAuth);
+    expect(view).toMatchObject({
+      items: [],
+      assignmentCount: 1,
+      totalCourses: 0,
+      confirmedCount: 0,
+      state: 'PREPARING',
+    });
+  });
+
   it('is empty for an account that teaches nothing', async () => {
     const service = new MoodleLaunchService(
       teachingPrisma(0, []) as never,
       entitlementWith(entitled),
     );
     const view = await service.myTeachingAccess(staffAuth);
-    expect(view).toMatchObject({ items: [], confirmedCount: 0, totalCourses: 0, state: 'NONE' });
+    expect(view).toMatchObject({
+      items: [],
+      assignmentCount: 0,
+      confirmedCount: 0,
+      totalCourses: 0,
+      state: 'NONE',
+    });
   });
 
   it('never reads another account’s assignments', async () => {

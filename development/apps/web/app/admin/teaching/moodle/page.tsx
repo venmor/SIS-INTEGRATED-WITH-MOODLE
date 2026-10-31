@@ -20,11 +20,12 @@ type TeachingCourse = {
 
 type TeachingAccess = {
   items: TeachingCourse[];
+  assignmentCount: number;
   moodleUsername: string;
   moodleLoginUrl: string | null;
   confirmedCount: number;
   totalCourses: number;
-  state: "READY" | "PARTIAL" | "PENDING" | "NONE";
+  state: "READY" | "PARTIAL" | "PREPARING" | "NONE";
 };
 
 async function load<Teaching>(path: string): Promise<Teaching | null> {
@@ -80,21 +81,25 @@ export default async function MoodleTeachingPage() {
           severity={
             access.state === "READY"
               ? "success"
-              : access.state === "NONE"
-                ? "info"
-                : "warning"
+              : access.state === "PARTIAL"
+                ? "warning"
+                : "info"
           }
           title={
             access.state === "NONE"
               ? "No approved teaching assignments"
-              : access.state === "READY"
-                ? "Every course you teach is live in Moodle"
-                : "Some Moodle courses are still being prepared"
+              : access.state === "PREPARING"
+                ? "Your teaching is approved; Moodle is not built yet"
+                : access.state === "READY"
+                  ? "Every course you teach is live in Moodle"
+                  : "Some of your Moodle courses are still being prepared"
           }
           message={
             access.state === "NONE"
-              ? "Moodle enrolment follows an approved teaching assignment. Nothing is enrolled for you until one exists."
-              : `${access.confirmedCount} of ${access.totalCourses} taught courses exist on the Moodle site. You are enrolled as teaching staff by the same provisioning run that prepares student access.`
+              ? "Moodle enrolment follows an approved teaching assignment. Nothing is enrolled for you until one exists, so ask a coordinator to approve yours."
+              : access.state === "PREPARING"
+                ? `You hold ${access.assignmentCount} approved teaching assignment${access.assignmentCount === 1 ? "" : "s"}, but Moodle has not created the courses for them yet. The governed live-test run creates them, not this page.`
+                : `${access.confirmedCount} of ${access.totalCourses} taught courses exist on the Moodle site. You are enrolled as teaching staff by the same provisioning run that prepares student access.`
           }
         />
 
