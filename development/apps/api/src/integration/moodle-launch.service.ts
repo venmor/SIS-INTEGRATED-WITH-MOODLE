@@ -407,17 +407,23 @@ export class MoodleLaunchService {
     const confirmedCount = items.filter((i) => i.state === 'CONFIRMED').length;
     return {
       items,
+      assignmentCount: assignments.length,
       moodleUsername: `sis.staff.${auth.accountId.toLowerCase()}`,
       moodleLoginUrl: base ? `${base}/login/index.php` : null,
       confirmedCount,
       totalCourses: items.length,
-      state: items.length
-        ? confirmedCount === items.length
-          ? ('READY' as const)
-          : confirmedCount
-            ? ('PARTIAL' as const)
-            : ('PENDING' as const)
-        : ('NONE' as const),
+      // "Nothing to teach" and "teaching approved, Moodle not built yet" are
+      // different facts and must not share one message: the first tells a
+      // lecturer to ask for an assignment, the second tells them to wait for
+      // provisioning. Reporting the first when the second is true would send
+      // them to the wrong person.
+      state: assignments.length === 0
+        ? ('NONE' as const)
+        : confirmedCount === 0
+          ? ('PREPARING' as const)
+          : confirmedCount === items.length
+            ? ('READY' as const)
+            : ('PARTIAL' as const),
     };
   }
 
