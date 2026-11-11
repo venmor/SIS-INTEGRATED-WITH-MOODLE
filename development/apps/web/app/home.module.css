@@ -58,6 +58,7 @@
 .cardIntro { margin-top: 0.65rem; margin-bottom: 1.25rem; color: #56647a; font-size: 1.12rem; }
 .audience { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 0.5rem; border-radius: 0.45rem; background: #eef1f4; }
 .audience button { min-height: 2.9rem; border: 1px solid transparent; border-radius: 0.4rem; background: transparent; color: #41516a; font: inherit; font-weight: 650; cursor: pointer; }
+.audience button:focus-visible { outline: 2px solid #00583a; outline-offset: 2px; }
 .audience button[aria-pressed='true'] { color: #00583a; border-color: #2e9471; background: #f3f9f5; box-shadow: 0 1px 3px rgb(0 45 25 / 0.06); }
 .audienceHelp { min-height: 2.5rem; color: #526278; font-size: 0.82rem; line-height: 1.35; }
 .card form { max-width: none; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; gap: 1.15rem; }
