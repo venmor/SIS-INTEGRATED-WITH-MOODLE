@@ -11,6 +11,11 @@
   color: var(--text-primary);
 }
 
+.required {
+  color: var(--error);
+  margin-left: var(--space-1);
+}
+
 .help {
   font-size: var(--font-supporting);
   color: var(--text-secondary);
