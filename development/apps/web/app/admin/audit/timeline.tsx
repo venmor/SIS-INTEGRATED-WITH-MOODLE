@@ -118,16 +118,20 @@ export function AuditTimeline({ initial }: { initial: AuditTimelineResponse }) {
           disabled={page === 0 || loading}
           onClick={() => void load(action, page - 1)}
         >
-          Previous
+          {loading ? "Loading…" : "Previous"}
         </button>
         <button
           type="button"
           className={styles.primary}
-          aria-label={`Next page (page ${page + 2})`}
+          aria-label={
+            (page + 1) * TAKE >= total
+              ? "Next page (unavailable)"
+              : `Next page (page ${page + 2})`
+          }
           disabled={loading || (page + 1) * TAKE >= total}
           onClick={() => void load(action, page + 1)}
         >
-          Next
+          {loading ? "Loading…" : "Next"}
         </button>
       </div>
     </section>
