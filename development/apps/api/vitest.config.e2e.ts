@@ -7,6 +7,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    fileParallelism: false,
     // Live-DB suite with argon2id hashing (deliberately slow) plus Nest boot
     // per file: 5s starves under parallel workers. 30s fails only real hangs.
     testTimeout: 30000,
