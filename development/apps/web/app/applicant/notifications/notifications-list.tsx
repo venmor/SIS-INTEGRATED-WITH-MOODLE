@@ -18,8 +18,11 @@ export function NotificationsList({
 }) {
   const [items, setItems] = useState<ApplicantNotification[]>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function markRead(id: string) {
+    if (loadingId) return;
+    setLoadingId(id);
     setError(null);
     try {
       await applicantRequest(`/notifications/${id}/read`, {});
@@ -30,6 +33,8 @@ export function NotificationsList({
       );
     } catch (unknownError) {
       setError(errorMessage(unknownError));
+    } finally {
+      setLoadingId(null);
     }
   }
 
@@ -62,6 +67,9 @@ export function NotificationsList({
                 <ActionButton
                   kind="secondary"
                   type="button"
+                  pending={loadingId === item.id}
+                  loadingText="Marking as read…"
+                  aria-label={`Mark as read: ${item.title}`}
                   onClick={() => void markRead(item.id)}
                 >
                   Mark as read
