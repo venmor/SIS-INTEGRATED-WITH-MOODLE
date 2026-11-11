@@ -121,7 +121,7 @@ export class ExpiryDaemonService implements OnModuleInit, OnModuleDestroy {
       });
       for (const candidate of nearing) {
         const open = await this.prisma.expiryWarning.findFirst({
-          where: { assignmentId: candidate.id, acknowledgedAt: null },
+          where: { assignmentId: candidate.id },
         });
         if (!open) {
           try {
